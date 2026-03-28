@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Castoro:ital@0;1&display=swap');
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* DaisyUI en mode Tailwind v4 */
+@plugin "daisyui";
+
+@theme {
+  /* Le préfixe "--font-" indique à Tailwind de créer une classe font-... */
+  --font-montserrat: 'Montserrat', sans-serif;
+  --font-castoro: 'Castoro', serif;
+  --font-bebas: 'Bebas Neue', sans-serif;
+}
+
+/* Définition de votre thème personnalisé "beer" (mode Tailwind v4 / DaisyUI v5) */
+[data-theme="beer"] {
+  --color-primary: #f1c40f;
+  --color-secondary: #333;
+  --color-base-100: #ede6e0;
+  --color-base-200: #f7f3f0;
+  --color-accent: #eca054;
+  --color-info: #333;
+  --color-success: #b87e44;
+}
+
+/**
+  * A catch-all path to Django template files, JavaScript, and Python files
+  * that contain Tailwind CSS classes and will be scanned by Tailwind to generate the final CSS file.
+  *
+  * If your final CSS file is not being updated after code changes, you may want to broaden or narrow
+  * the scope of this path.
+  */
+@source "../../../**/*.{html,py,js}";

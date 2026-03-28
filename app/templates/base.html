@@ -1,0 +1,100 @@
+{% load static tailwind_tags %}
+{% load static %}
+<!DOCTYPE html>
+<html data-theme="beer">
+<head>
+    {% tailwind_css %}
+    <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+    <title>PokeBeer</title>
+    <script>
+        // Cette variable ne sert à rien d'autre qu'à forcer Django à envoyer le cookie
+        var _csrf_placeholder = "{{ csrf_token }}"; 
+    </script>
+</head>
+<body class="bg-base-200 flex justify-center text-black font-montserrat min-h-screen">
+    <!-- Wrapper mobile-only de style application -->
+    <div class="w-full bg-base-100 min-h-screen shadow-2xl relative overflow-x-hidden flex flex-col mx-auto">
+        <div class="navbar bg-secondary text-white flex justify-between items-center p-4 sticky top-0 z-40 shadow-md">
+        <div class="dropdown dropdown-right flex flex-row space-x-4 justify-self-start">
+            <svg tabindex="0" role="button" class="text-white cursor-pointer hover:text-primary transition duration-500 size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6H20M4 12H20M4 18H20"/>
+            </svg>
+            <ul tabindex="-1" class="menu dropdown-content bg-secondary rounded-box z-1 mt-4 w-52 p-2 shadow-sm">
+                        <li><a href="{% url 'add_beer' %}" class="hover:text-primary transition duration-500">Ajouter une bière</a></li>
+                        <li><a href="{% url 'all_beers' %}" class="hover:text-primary transition duration-500">Toutes les bières</a></li>
+            </ul>
+        </div>
+
+        <div class="justify-self-center">
+            <a href="{% url 'index' %}" class="font-bold text-3xl font-castoro hover:text-primary transition duration-500 lg:block hidden">🍺 PokeBeer</a>
+            <a href="{% url 'index' %}" class="grid grid-rows-2 justify-items-center text-center font-bold text-2xl font-castoro hover:text-primary transition duration-500 lg:hidden block">
+                <div>🍺</div>
+                <div>PokeBeer</div>
+            </a>
+        </div>
+        
+        <div class="justify-self-end">
+        {% if user.is_authenticated %}
+        <div class="flex flex-row space-x-4">
+            <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="cursor-pointer hover:text-primary transition duration-500 hidden lg:block">Bienvenue, {{ user.username }}!</div>
+                <svg tabindex="0" role="button" class="fill-white cursor-pointer hover:text-primary transition duration-500 lg:hidden size-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z"/>
+                </svg>
+                   <ul tabindex="-1" class="menu dropdown-content bg-secondary rounded-box z-1 mt-4 w-52 p-2 shadow-sm">
+                        <li><a href="{% url 'account' %}" class="hover:text-primary transition duration-500">Mon compte</a></li>
+                        {% if user.is_staff %}
+                        <li>
+                            <a href="{% url 'admin:login' %}"
+                           class="hover:text-primary transition duration-500">Panel administrateur</a>
+                        </li>
+                        {% endif %}
+                        <li><a href="{% url 'logout' %}" class="hover:text-primary transition duration-500">Déconnexion</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>        
+        {% else %}
+            <a href="{% url 'login' %}" class="hover:text-primary transition duration-500">Connexion</a>
+        {% endif %}
+        </div>
+        
+    </div>
+
+    
+    <div class="p-4 flex-1 pb-24 overflow-y-auto">
+        {% if messages %}
+            <div class="messages" >
+                {% for message in messages %}
+                    <div class="alert alert-soft {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <div class="fab hidden">
+        <button class="btn btn-lg btn-circle btn-primary" onclick="toggleChat()">🍺</button>
+    </div>
+    
+    <div id="chat-box">
+        <div class="chat-header">
+            Gaétan, le sommelier
+            <span style="float:right; cursor:pointer;" onclick="toggleChat()">✖</span>
+        </div>
+        <div id="chat-logs">
+            <div class="chat-msg bot">Bonjour ! Dites-moi ce que vous aimez et je vous conseille parmi notre stock ! 🍺</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Je cherche une bière..." onkeypress="handleEnter(event)">
+            <button onclick="sendMessage()">Envoyer</button>
+        </div>
+    </div>
+
+    <script src="{% static 'js/chat.js' %}"></script>
+    </div>
+</body>
+</html>

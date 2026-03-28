@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-6 mt-2">
+    <h2 class="text-3xl font-castoro font-bold text-center lg:text-left">🍺 L'Annuaire des Bières</h2>
+</div>
+
+<div class="flex flex-col lg:flex-row gap-6 items-start">
+    
+    <!-- Sidebar des filtres -->
+    <div class="w-full lg:w-1/4 bg-base-100 p-4 rounded-xl shadow border border-base-200 lg:sticky lg:top-4">
+        <form method="get" class="flex flex-col gap-6">
+            
+            <div class="form-control">
+                <h4 class="font-bold border-b-2 border-primary pb-1 mb-2">🔍 Recherche</h4>
+                <input type="text" name="q" placeholder="Nom ou Brasserie..." value="{{ request.GET.q }}" 
+                       class="input input-bordered w-full">
+            </div>
+
+            <div class="form-control">
+                <h4 class="font-bold border-b-2 border-primary pb-1 mb-2">🌡️ Puissance (Alcool)</h4>
+                <label class="label cursor-pointer justify-start gap-4">
+                    <input type="radio" name="degree" value="" class="radio radio-primary radio-sm" {% if not request.GET.degree %}checked{% endif %}>
+                    <span class="label-text">Tout voir</span>
+                </label>
+                <label class="label cursor-pointer justify-start gap-4">
+                    <input type="radio" name="degree" value="light" class="radio radio-primary radio-sm" {% if request.GET.degree == 'light' %}checked{% endif %}>
+                    <span class="label-text">Légère (< 5%)</span>
+                </label>
+                <label class="label cursor-pointer justify-start gap-4">
+                    <input type="radio" name="degree" value="regular" class="radio radio-primary radio-sm" {% if request.GET.degree == 'regular' %}checked{% endif %}>
+                    <span class="label-text">Standard (5-8%)</span>
+                </label>
+                <label class="label cursor-pointer justify-start gap-4">
+                    <input type="radio" name="degree" value="strong" class="radio radio-primary radio-sm" {% if request.GET.degree == 'strong' %}checked{% endif %}>
+                    <span class="label-text">Forte (> 8%)</span>
+                </label>
+            </div>
+
+            <div class="form-control">
+                <h4 class="font-bold border-b-2 border-primary pb-1 mb-2">🌿 Amertume (IBU)</h4>
+                <label class="label cursor-pointer justify-start gap-4">
+                    <input type="radio" name="ibu" value="" class="radio radio-primary radio-sm" {% if not request.GET.ibu %}checked{% endif %}>
+                    <span class="label-text">Tout voir</span>
+                </label>
+                <label class="label cursor-pointer justify-start gap-4">
+                    <input type="radio" name="ibu" value="low" class="radio radio-primary radio-sm" {% if request.GET.ibu == 'low' %}checked{% endif %}>
+                    <span class="label-text">Douce / Fruitée</span>
+                </label>
+                <label class="label cursor-pointer justify-start gap-4">
+                    <input type="radio" name="ibu" value="medium" class="radio radio-primary radio-sm" {% if request.GET.ibu == 'medium' %}checked{% endif %}>
+                    <span class="label-text">Équilibrée</span>
+                </label>
+                <label class="label cursor-pointer justify-start gap-4">
+                    <input type="radio" name="ibu" value="high" class="radio radio-primary radio-sm" {% if request.GET.ibu == 'high' %}checked{% endif %}>
+                    <span class="label-text">Amère / IPA</span>
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-neutral w-full">Filtrer</button>
+            <a href="{% url 'all_beers' %}" class="text-sm text-center underline text-gray-500 hover:text-gray-700">Réinitialiser les filtres</a>
+        </form>
+    </div>
+
+    <!-- Grille des résultats -->
+    <div class="w-full lg:w-3/4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for beer in beers %}
+        <div class="card bg-base-100 shadow-md border border-base-200 transition-transform hover:-translate-y-1">
+            <div class="card-body p-5 flex flex-col justify-between">
+                <div>
+                    <h3 class="card-title text-xl mb-0">{{ beer.name }}</h3>
+                    <span class="text-sm text-gray-500 font-bold block mb-2">{{ beer.brewery_id.name }}</span>
+                    
+                    <div class="flex justify-between text-sm py-2 border-y border-base-200 my-2">
+                        <span class="font-semibold">🍺 {{ beer.degree }}% Vol.</span>
+                        <span class="font-semibold">🌿 IBU: {{ beer.bitterness }}</span>
+                    </div>
+
+                    <p class="text-sm text-gray-600 line-clamp-3 my-2">
+                        {{ beer.description|truncatechars:80 }}
+                    </p>
+                </div>
+
+                <div class="mt-4">
+                {% if user.is_authenticated %}
+                    {% if beer.id in rated_beer_ids %}
+                        <button class="btn btn-disabled w-full">✅ Déjà noté</button>
+                    {% else %}
+                        <button class="btn btn-primary w-full" onclick="modalRate{{beer.id}}.showModal()">⭐ Noter</button>
+                        <!-- Modal DaisyUI dynamique pour chaque bière -->
+                        <dialog id="modalRate{{beer.id}}" class="modal">
+                            <div class="modal-box">
+                                <h3 class="font-bold text-lg mb-4">Noter : {{ beer.name }}</h3>
+                                <form method="post" action="{% url 'rate_beer' beer.id %}">
+                                    {% csrf_token %}
+                                    <div class="form-control w-full mb-3">
+                                        <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
+                                        {{ rating_form.date }}
+                                    </div>
+                                    <div class="form-control w-full mb-3">
+                                        <label class="label"><span class="label-text">{{ rating_form.note.label }}</span></label>
+                                        {{ rating_form.note }}
+                                    </div>
+                                    <div class="form-control w-full mb-4">
+                                        <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
+                                        {{ rating_form.comment }}
+                                    </div>
+                                    <button type="submit" class="btn btn-success w-full text-white">Enregistrer</button>
+                                </form>
+                            </div>
+                            <form method="dialog" class="modal-backdrop">
+                                <button>Fermer</button>
+                            </form>
+                        </dialog>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'login' %}?next={% url 'all_beers' %}" class="btn btn-outline btn-primary w-full">
+                       Se connecter pour noter
+                    </a>
+                {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-1 md:col-span-2 text-center p-10 bg-base-100 rounded-xl shadow border border-base-200">
+            <h3 class="text-2xl font-bold mb-2">Aucune bière trouvée :/</h3>
+            <p>Essayez de modifier vos filtres ou <a href="{% url 'add_beer' %}" class="text-primary underline">ajoutez-la vous-même !</a></p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

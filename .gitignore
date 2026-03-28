@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+Procfile.tailwind
+node_modules/
+*.jks
+*.png

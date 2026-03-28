@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card bg-base-100 shadow-xl border border-base-200 mt-10">
+    <div class="card-body">
+        <h2 class="card-title text-2xl justify-center font-castoro mb-4">🍺 Inscription</h2>
+        
+        <form method="post" class="flex flex-col gap-4">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-bold">{{ field.label }}</span></label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <label class="label"><span class="label-text-alt text-gray-500">{{ field.help_text }}</span></label>
+                    {% endif %}
+                    {% if field.errors %}
+                        <label class="label"><span class="label-text-alt text-error">{{ field.errors }}</span></label>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            
+            <button type="submit" class="btn btn-secondary w-full mt-4 text-white">
+                Créer mon compte
+            </button>
+        </form>
+        
+        <p class="text-center mt-6 text-sm text-gray-600">
+            Déjà un compte ? <a href="{% url 'login' %}" class="text-secondary hover:underline font-bold">Se connecter</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

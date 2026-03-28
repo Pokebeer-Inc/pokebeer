@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{% if user.is_authenticated %}
+<div class="py-4">
+    <h3 class="font-castoro text-2xl font-bold mb-4 border-b-2 border-primary pb-2">🍺 Bières à découvrir</h3>
+    {% if unrated_beers %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for beer in unrated_beers %}
+            <div class="card bg-base-100 shadow-md border border-base-200 flex flex-row items-center p-4 gap-4 transition-transform hover:-translate-y-1">
+                <div class="flex-1">
+                    <h4 class="font-bold text-lg leading-tight">{{ beer.name }}</h4>
+                    <span class="text-sm font-semibold text-gray-500">{{ beer.brewery_id.name }}</span>
+                    <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ beer.description|truncatechars:80 }}</p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="modal{{beer.id}}.showModal()">Noter</button>
+                <dialog id="modal{{beer.id}}" class="modal">
+                    <div class="modal-box">
+                        <h3 class="font-bold text-lg mb-4">Noter : {{ beer.name }}</h3>
+                        <form method="post" action="{% url 'rate_beer' beer.id %}">
+                            {% csrf_token %}
+                            <div class="form-control w-full mb-3">
+                                <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
+                                {{ rating_form.date }}
+                            </div>
+                            <div class="form-control w-full mb-3">
+                                <label class="label"><span class="label-text">{{ rating_form.note.label }}</span></label>
+                                {{ rating_form.note }}
+                            </div>
+                            <div class="form-control w-full mb-4">
+                                <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
+                                {{ rating_form.comment }}
+                            </div>
+                            <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
+                        </form>
+                    </div>
+                    <form method="dialog" class="modal-backdrop">
+                        <button>Fermer</button>
+                    </form>
+                </dialog>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-success shadow-lg">
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span>Incroyable ! Vous avez noté toutes les bières de notre stock ! 👏</span>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 py-4">
+    <!-- Top 10 ce mois -->
+    <div>
+        <h3 class="font-castoro text-2xl font-bold mb-4 border-b-2 border-primary pb-2 flex items-center gap-2">🏆 Top 10 <span class="text-lg font-normal text-gray-500">(ce mois)</span></h3>
+        {% if not topMonth %} 
+            <p class="text-gray-500 italic">Pas encore de note pour ce mois.</p> 
+        {% else %}
+        <ul class="flex flex-col gap-3">
+            {% for beer in topMonth %}
+            <li class="flex items-center justify-between bg-base-100 p-3 rounded-lg shadow-sm border border-base-200">
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-xl text-primary w-6">{{ forloop.counter }}</span>
+                    <div>
+                        <p class="font-bold leading-tight">{{ beer.name }}</p>
+                        <p class="text-xs text-gray-500">{{ beer.brewery_id.name }}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-lg text-orange-500">⭐ {{ beer.avg_rating|floatformat:1 }}</p>
+                    <p class="text-xs text-gray-400">({{ beer.count_rating }} avis)</p>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <!-- Top 10 Global -->
+    <div>
+        <h3 class="font-castoro text-2xl font-bold mb-4 border-b-2 border-primary pb-2 flex items-center gap-2">👑 Top 10 <span class="text-lg font-normal text-gray-500">(Global)</span></h3>
+        {% if not top %} 
+            <p class="text-gray-500 italic">Pas encore de note.</p> 
+        {% else %}
+        <ul class="flex flex-col gap-3">
+            {% for beer in top %}
+            <li class="flex items-center justify-between bg-base-100 p-3 rounded-lg shadow-sm border border-base-200">
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-xl text-primary w-6">{{ forloop.counter }}</span>
+                    <div>
+                        <p class="font-bold leading-tight">{{ beer.name }}</p>
+                        <p class="text-xs text-gray-500">{{ beer.brewery_id.name }}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-lg text-orange-500">⭐ {{ beer.avg_rating|floatformat:1 }}</p>
+                    <p class="text-xs text-gray-400">({{ beer.count_rating }} avis)</p>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
