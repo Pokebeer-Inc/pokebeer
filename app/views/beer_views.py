@@ -135,3 +135,21 @@ def all_beers_view(request):
         'rated_beer_ids': rated_beer_ids,
     }
     return render(request, 'all_beers.html', context)
+
+def beer_detail_view(request, beer_slug):
+    """Affiche les détails d'une bière, ses notes et commentaires."""
+    beer = get_object_or_404(Beer, slug=beer_slug)
+    drinks = Drinks.objects.filter(beer_id=beer).select_related('drinker_id').order_by('-date')
+    
+    user_rating = None
+    if request.user.is_authenticated:
+        user_drink = drinks.filter(drinker_id=request.user).first()
+        if user_drink:
+            user_rating = user_drink.note
+
+    context = {
+        'beer': beer,
+        'drinks': drinks,
+        'user_rating': user_rating,
+    }
+    return render(request, 'beer_page.html', context)

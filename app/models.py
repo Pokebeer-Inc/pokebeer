@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.contrib.auth.models import UserManager
 from datetime import date
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils.text import slugify
 
 class BeerUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=False, blank=False)
@@ -36,18 +37,26 @@ class Brewery(models.Model):
 
 class Beer(models.Model):
     name = models.CharField(max_length=150, blank=False, unique=True, verbose_name="Nom")
+    image = models.ImageField(upload_to='beers/', blank=True, null=True, verbose_name="Image")
     description = models.TextField(verbose_name="Description")
     bitterness = models.IntegerField(default=0, verbose_name="Amertume (IBU)")
     degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, verbose_name="Degré")
 
     brewery_id = models.ForeignKey(Brewery, on_delete=models.CASCADE)
-    
+
+    slug = models.SlugField(max_length=150, unique=True, blank=True, null=True, verbose_name="Slug")
+
     class Meta:
         verbose_name = "Bière"
         ordering = ['name']
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
 class Drinks(models.Model):
     date = models.DateField(default=date.today, verbose_name="Date")

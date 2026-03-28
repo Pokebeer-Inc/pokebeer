@@ -14,4 +14,5 @@ urlpatterns = [
     path('beers/', views.all_beers_view, name='all_beers'),
     path('api/search-brewery/', views.search_brewery, name='search_brewery'),
     path('api/search-beer/', views.search_beer, name='search_beer'),
+    path('beer/<slug:beer_slug>/', views.beer_detail_view, name='beer_detail'),
 ]
