@@ -202,6 +202,7 @@
     --color-black: #000;
     --color-white: #fff;
     --spacing: 0.25rem;
+    --breakpoint-sm: 40rem;
     --breakpoint-md: 48rem;
     --breakpoint-lg: 64rem;
     --breakpoint-xl: 80rem;
@@ -4005,8 +4006,17 @@
   .max-w-2xl {
     max-width: var(--container-2xl);
   }
+  .max-w-96 {
+    max-width: calc(var(--spacing) * 96);
+  }
   .max-w-md {
     max-width: var(--container-md);
+  }
+  .max-w-screen-md {
+    max-width: var(--breakpoint-md);
+  }
+  .max-w-screen-sm {
+    max-width: var(--breakpoint-sm);
   }
   .datatable-wrapper .datatable-search .datatable-input {
     color: var(--color-heading);
@@ -4045,6 +4055,15 @@
   }
   .datatable-wrapper .datatable-search .datatable-input:focus {
     border-color: var(--color-brand);
+  }
+  .min-w-\[300px\] {
+    min-width: 300px;
+  }
+  .min-w-\[400px\] {
+    min-width: 400px;
+  }
+  .min-w-\[500px\] {
+    min-width: 500px;
   }
   .flex-1 {
     flex: 1;

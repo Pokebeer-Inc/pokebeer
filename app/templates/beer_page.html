@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex flex-row">
-    <div class="text-center flex flex-col place-items-center p-4">
+<div class="flex flex-row gap-8 justify-center items-start py-6">
+    <div class="text-center flex flex-col place-items-center p-4 min-w-[400px]">
         {% if beer.image %}
         <img src="{{ beer.image.url }}" alt="{{ beer.name }}" class="w-64 h-64 object-cover rounded-lg shadow-md mb-4">
         {% else %}
@@ -16,7 +16,32 @@
             <span class="badge badge-secondary">Amertume : {{ beer.bitterness }} IBU</span>
         </div> 
     </div>
-    <div>
+    <div class="max-w-screen-md">
+        <div>
+            <h3 class="text-2xl font-bold border-b-2 border-primary pb-2 mb-4 text-primary">🍺 Les Dégustations</h3>
+            <div class="flex flex-col gap-4">
+                {% for drink in drinks %}
+                <div class="card bg-base-100 shadow flex flex-row border border-base-200 p-4 gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-lg
+                        {% if drink.note >= 8 %} border-success text-success dropdown shadow-success
+                        {% elif drink.note >= 5 %} border-warning text-warning dropdown shadow-warning
+                        {% else %} border-error text-error dropdown shadow-error {% endif %}">
+                        {{ drink.note }}
+                    </div>
+
+                    <div class="flex-1">
+                        <h4 class="font-bold text-lg leading-tight">
+                            {{ drink.drinker_id.username }} 
+                            <span class="font-normal text-sm text-gray-500 block">
+                                — {{ drink.date }}
+                            </span>
+                            <p class="text-sm text-gray-600 mt-1">{{ drink.comment }}</p>
+                        </h4>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 </div>
 
