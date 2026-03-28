@@ -2,16 +2,21 @@
 
 {% block content %}
 <div class="flex flex-row">
-    <div>
+    <div class="text-center flex flex-col place-items-center p-4">
+        {% if beer.image %}
+        <img src="{{ beer.image.url }}" alt="{{ beer.name }}" class="w-64 h-64 object-cover rounded-lg shadow-md mb-4">
+        {% else %}
+        <img src="/static/images/beer_placeholder.png" alt="{{ beer.name }}" class="w-64 h-64 object-cover rounded-lg shadow-md mb-4">
+        {% endif %}
         <h1 class="text-4xl font-castoro font-bold mb-4">{{ beer.name }}</h1>
-        <p class="text-gray-600 mb-2">{{ beer.description }}</p>
+        <h2 class="text-xl font-bold text-gray-500 mb-2">{{ beer.brewery_id.name }}</h2>
+        <p class="text-gray-600 mb-2 max-w-md text-justify">{{ beer.description }}</p>
         <div class="flex items-center gap-4 mt-4">
             <span class="badge badge-primary">Degré : {{ beer.degree }}%</span>
             <span class="badge badge-secondary">Amertume : {{ beer.bitterness }} IBU</span>
         </div> 
     </div>
     <div>
-        {{beer.brewery_id.name}}
     </div>
 </div>
 
