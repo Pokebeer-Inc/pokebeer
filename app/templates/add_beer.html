@@ -84,66 +84,100 @@
     </div>
 </div>
 
-<style>
-    #beer-suggestions div, #brewery-suggestions div {
-        padding: 10px;
-        cursor: pointer;
-        background-color: white;
-        border-bottom: 1px solid #eee;
-    }
-    #beer-suggestions div:hover, #brewery-suggestions div:hover {
-        background-color: #f3f4f6; 
-    }
-</style>
-
 <script>
-    function setupAutocomplete(inputId, suggestionId, apiUrl) {
-        const input = document.getElementById(inputId);
-        const suggestionsBox = document.getElementById(suggestionId);
+    // 1. AUTOCOMPLÉTION INTELLIGENTE : BIÈRES (Anti-Doublon)
+    const beerInput = document.getElementById('id_beer-name');
+    const beerSugg = document.getElementById('beer-suggestions');
 
-        if (!input || !suggestionsBox) return;
-
-        input.addEventListener("input", async function(e) {
+    if (beerInput && beerSugg) {
+        beerInput.addEventListener("input", async function() {
             const val = this.value;
-            suggestionsBox.innerHTML = '';
-            suggestionsBox.style.display = 'none';
+            beerSugg.innerHTML = '';
             
-            if (!val || val.length < 2) return;
+            if (val.length < 2) {
+                beerSugg.classList.add('hidden');
+                return;
+            }
 
             try {
-                const response = await fetch(`${apiUrl}?term=${encodeURIComponent(val)}`);
+                const response = await fetch(`/api/search-beer/?term=${encodeURIComponent(val)}`);
                 const data = await response.json();
 
                 if (data.length > 0) {
-                    suggestionsBox.style.display = 'block';
+                    beerSugg.classList.remove('hidden');
                     data.forEach(item => {
                         const div = document.createElement("div");
-                        div.innerHTML = `<strong>${item.substr(0, val.length)}</strong>${item.substr(val.length)}`;
-                        div.innerHTML += `<input type='hidden' value='${item}'>`;
-                        
-                        div.addEventListener("click", function(e) {
-                            input.value = this.getElementsByTagName("input")[0].value;
-                            suggestionsBox.innerHTML = '';
-                            suggestionsBox.style.display = 'none';
+                        // Design DaisyUI pour une alerte (Rouge/Erreur)
+                        div.className = "p-3 bg-error/10 hover:bg-error/20 cursor-pointer border-b border-error/20 flex justify-between items-center text-error transition-colors";
+                        div.innerHTML = `
+                            <div>
+                                <span class="font-bold text-lg">${item.name}</span>
+                                <span class="text-sm opacity-80 block">— Déjà en stock (${item.brewery})</span>
+                            </div>
+                            <span class="btn btn-sm btn-error text-white shadow-sm">Aller la noter ↗</span>
+                        `;
+                        // REDIRECTION au clic
+                        div.addEventListener("click", function() {
+                            window.location.href = `/beer/${item.slug}/`;
                         });
-                        suggestionsBox.appendChild(div);
+                        beerSugg.appendChild(div);
                     });
+                } else {
+                    beerSugg.classList.add('hidden');
                 }
             } catch (error) {
-                console.error("Erreur API suggestion", error);
-            }
-        });
-
-        document.addEventListener("click", function (e) {
-            if (e.target !== input) {
-                suggestionsBox.style.display = 'none';
+                console.error("Erreur API suggestion bière", error);
             }
         });
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-        setupAutocomplete('id_beer-brewery_name', 'brewery-suggestions', '/api/search-brewery/');
-        setupAutocomplete('id_beer-name', 'beer-suggestions', '/api/search-beer/');
+    // 2. AUTOCOMPLÉTION CLASSIQUE : BRASSERIES
+    const breweryInput = document.getElementById('id_beer-brewery_name');
+    const brewerySugg = document.getElementById('brewery-suggestions');
+
+    if (breweryInput && brewerySugg) {
+        breweryInput.addEventListener("input", async function() {
+            const val = this.value;
+            brewerySugg.innerHTML = '';
+            
+            if (val.length < 2) {
+                brewerySugg.classList.add('hidden');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/search-brewery/?term=${encodeURIComponent(val)}`);
+                const data = await response.json();
+
+                if (data.length > 0) {
+                    brewerySugg.classList.remove('hidden');
+                    data.forEach(item => {
+                        const div = document.createElement("div");
+                        // Design classique neutre
+                        div.className = "p-3 bg-base-100 hover:bg-base-200 cursor-pointer border-b border-base-200 font-semibold";
+                        div.innerHTML = `${item}`;
+                        
+                        // REMPLISSAGE au clic
+                        div.addEventListener("click", function() {
+                            breweryInput.value = item;
+                            brewerySugg.innerHTML = '';
+                            brewerySugg.classList.add('hidden');
+                        });
+                        brewerySugg.appendChild(div);
+                    });
+                } else {
+                    brewerySugg.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error("Erreur API suggestion brasserie", error);
+            }
+        });
+    }
+
+    // Fermer les suggestions si on clique en dehors
+    document.addEventListener("click", function (e) {
+        if (e.target !== beerInput) beerSugg?.classList.add('hidden');
+        if (e.target !== breweryInput) brewerySugg?.classList.add('hidden');
     });
 </script>
 {% endblock %}
