@@ -14,24 +14,49 @@
 <body class="bg-base-200 justify-center text-black font-montserrat min-h-screen">
     <!-- Wrapper mobile-only de style application -->
     <div class="w-full bg-base-100 min-h-screen shadow-2xl relative overflow-x-hidden flex flex-col mx-auto">
-        <div class="navbar bg-secondary text-white flex justify-between items-center p-4 sticky top-0 z-40 shadow-md">
-        <div class="dropdown dropdown-right flex flex-row space-x-4 justify-self-start">
-            <svg tabindex="0" role="button" class="text-white cursor-pointer hover:text-primary transition duration-500 size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6H20M4 12H20M4 18H20"/>
-            </svg>
-            <ul tabindex="-1" class="menu dropdown-content bg-secondary rounded-box z-1 mt-4 w-52 p-2 shadow-sm">
-                        <li><a href="{% url 'add_beer' %}" class="hover:text-primary transition duration-500">Ajouter une bière</a></li>
-                        <li><a href="{% url 'all_beers' %}" class="hover:text-primary transition duration-500">Toutes les bières</a></li>
+        <div class="w-full bg-secondary text-white flex justify-between items-center px-4 py-3 sticky top-0 z-40 shadow-md">
+        
+        <div class="dropdown dropdown-bottom">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-circle text-white hover:bg-white/20">
+                <svg class="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </div>
+            <ul tabindex="0" class="menu dropdown-content bg-secondary text-white rounded-box z-[1] mt-4 w-52 p-2 shadow-xl border border-white/10">
+                <li><a href="{% url 'add_beer' %}" class="hover:text-primary transition duration-300 py-3">🍺 Ajouter une bière</a></li>
+                <li><a href="{% url 'all_beers' %}" class="hover:text-primary transition duration-300 py-3">📋 Toutes les bières</a></li>
             </ul>
         </div>
 
-        <div class="justify-self-center">
-            <a href="{% url 'index' %}" class="font-bold text-3xl font-castoro hover:text-primary transition duration-500 lg:block hidden">🍺 PokeBeer</a>
-            <a href="{% url 'index' %}" class="grid grid-rows-2 justify-items-center text-center font-bold text-2xl font-castoro hover:text-primary transition duration-500 lg:hidden block">
-                <div>🍺</div>
-                <div>PokeBeer</div>
-            </a>
-        </div>    
+        <a href="{% url 'index' %}" class="flex flex-col items-center justify-center hover:scale-105 transition-transform duration-300">
+            <span class="text-2xl leading-none">🍺</span>
+            <span class="font-castoro font-bold text-xl tracking-wide">PokeBeer</span>
+        </a>
+
+        <div>
+            {% if user.is_authenticated %}
+                <div class="dropdown dropdown-end">
+                    <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar ring ring-primary ring-offset-base-100 ring-offset-2 hover:scale-110 transition-transform duration-300">
+                        <div class="w-10 h-10 rounded-full overflow-hidden bg-base-100">
+                            {% if user.socialaccount_set.all %}
+                                <img class="object-cover w-full h-full" alt="Avatar Google" src="{{ user.socialaccount_set.first.extra_data.picture }}" />
+                            {% else %}
+                                <img class="object-cover w-full h-full" alt="Avatar" src="https://ui-avatars.com/api/?name={{ user.username }}&background=E5A022&color=fff&bold=true" />
+                            {% endif %}
+                        </div>
+                    </div>
+                    <ul tabindex="0" class="mt-5 z-[1] p-2 shadow-xl menu menu-sm dropdown-content bg-base-100 text-black rounded-box w-52 border border-base-200 right-0">
+                        <li class="menu-title text-gray-500 text-center border-b border-base-200 pb-2 mb-2">
+                            Connecté en tant que<br>
+                            <span class="text-primary font-bold text-lg truncate block px-2">{{ user.username }}</span>
+                        </li>
+                        <li><a href="{% url 'account' %}" class="hover:bg-primary hover:text-white font-semibold py-3">👤 Mon Profil</a></li>
+                        <li><a href="{% url 'logout' %}" class="text-error hover:bg-error hover:text-white font-semibold mt-2 py-3">🚪 Se déconnecter</a></li>
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+        
     </div>
 
     
