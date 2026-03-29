@@ -1,105 +1,168 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex flex-col lg:flex-row gap-6 mt-6">
-    
-    <!-- Profil & Sécurité -->
-    <div class="flex-1 flex flex-col gap-6">
-        
-        <!-- Mes Informations -->
-        <div class="card bg-base-100 shadow-lg border border-base-200">
-            <div class="card-body">
-                <h3 class="card-title text-xl border-b-2 border-primary pb-2 text-primary">👤 Mes Informations</h3>
-                
-                <form method="post" class="flex flex-col gap-4 mt-2">
-                    {% csrf_token %}
-                    {% for field in profile_form %}
-                        <div class="form-control w-full">
-                            <label class="label"><span class="label-text font-bold">{{ field.label }}</span></label>
-                            {{ field }}
-                            {% if field.errors %}
-                                <label class="label"><span class="label-text-alt text-error">{{ field.errors }}</span></label>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                    
-                    <button type="submit" name="btn_profile" class="btn btn-primary w-full text-white mt-2">
-                        Mettre à jour le profil
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Sécurité -->
-        <div class="card bg-base-100 shadow-lg border border-base-200">
-            <div class="card-body">
-                <h3 class="card-title text-xl border-b-2 border-error pb-2 text-error">🔒 Sécurité</h3>
-                
-                <form method="post" class="flex flex-col gap-4 mt-2">
-                    {% csrf_token %}
-                    {% for field in password_form %}
-                        <div class="form-control w-full">
-                            <label class="label"><span class="label-text font-bold">{{ field.label }}</span></label>
-                            {{ field }}
-                            {% if field.help_text %}
-                                <label class="label"><span class="label-text-alt text-gray-500">{{ field.help_text|safe }}</span></label>
-                            {% endif %}
-                            {% for error in field.errors %}
-                                <label class="label"><span class="label-text-alt text-error">{{ error }}</span></label>
-                            {% endfor %}
-                        </div>
-                    {% endfor %}
-                    
-                    <button type="submit" name="btn_password" class="btn btn-error w-full text-white mt-2">
-                        Changer le mot de passe
-                    </button>
-                </form>
-            </div>
+<div class="flex flex-col items-center bg-base-100 shadow-xl rounded-box p-6 mt-6 border border-base-200">
+    <div class="avatar online mb-4">
+        <div class="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+            {% if user.socialaccount_set.all %}
+                <img src="{{ user.socialaccount_set.first.extra_data.picture }}" alt="Avatar">
+            {% else %}
+                <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=E5A022&color=fff&size=128" alt="Avatar">
+            {% endif %}
         </div>
     </div>
-
-    <!-- Carnet de Dégustation -->
-    <div class="flex-[2_2_0%]">
-        <h3 class="text-2xl font-bold border-b-2 border-secondary pb-2 mb-4 text-secondary">
-            🍺 Mon Carnet ({{ my_drinks|length }})
-        </h3>
-        
-        {% if my_drinks %}
-            <div class="flex flex-col gap-4">
-                {% for drink in my_drinks %}
-                <div class="card bg-base-100 shadow flex flex-row border border-base-200 p-4 gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-lg
-                        {% if drink.note >= 8 %} border-success text-success dropdown shadow-success
-                        {% elif drink.note >= 5 %} border-warning text-warning dropdown shadow-warning
-                        {% else %} border-error text-error dropdown shadow-error {% endif %}">
-                        {{ drink.note }}
-                    </div>
-
-                    <div class="flex-1">
-                        <h4 class="font-bold text-lg leading-tight">
-                            {{ drink.beer_id.name }} 
-                            <span class="font-normal text-sm text-gray-500 block">
-                                — {{ drink.beer_id.brewery_id.name }}
-                            </span>
-                        </h4>
-                        
-                        <p class="text-xs text-info mt-1 mb-2">Bu le {{ drink.date|date:"d F Y" }}</p>
-
-                        {% if drink.comment %}
-                            <div class="bg-base-200 p-3 mt-2 border-l-4 border-secondary italic text-gray-600 text-sm rounded-r-md">
-                                "{{ drink.comment }}"
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="alert alert-info shadow-lg flex-col mt-4">
-                <span>Vous n'avez pas encore noté de bière.</span>
-                <a href="{% url 'add_beer' %}" class="btn btn-sm btn-ghost">Commencer à noter !</a>
-            </div>
-        {% endif %}
+    <h2 class="text-3xl font-bold font-castoro">{{ user.username }}</h2>
+    <p class="text-gray-500 italic mt-2 text-center max-w-md">
+        {% if user.bio %}"{{ user.bio }}"{% else %}Aucune biographie pour le moment.{% endif %}
+    </p>
+    
+    <div class="flex gap-4 mt-4">
+        <button class="btn btn-sm btn-ghost" onclick="modal_followers.showModal()">
+            <span class="font-bold text-lg text-primary">{{ followers|length }}</span> Abonnés
+        </button>
+        <button class="btn btn-sm btn-ghost" onclick="modal_following.showModal()">
+            <span class="font-bold text-lg text-primary">{{ following|length }}</span> Abonnements
+        </button>
     </div>
 </div>
+
+<div role="tablist" class="tabs tabs-boxed mt-6 bg-base-200 p-1">
+    <input type="radio" name="my_tabs" role="tab" class="tab font-bold" aria-label="📊 Mes Stats" checked="checked" />
+    <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="stat bg-base-200 rounded-box place-items-center">
+                <div class="stat-title">Bières Dégustées</div>
+                <div class="stat-value text-primary">{{ total_drinks }}</div>
+                <div class="stat-desc text-success">↗ {{ drinks_last_month }} ce mois-ci</div>
+            </div>
+            <div class="stat bg-base-200 rounded-box place-items-center">
+                <div class="stat-title">Moyenne donnée</div>
+                <div class="stat-value text-warning">⭐ {{ avg_note|floatformat:1 }}</div>
+            </div>
+            <div class="stat bg-base-200 rounded-box place-items-center">
+                <div class="stat-title">Style Préféré</div>
+                <div class="stat-value text-lg text-secondary">{{ pref_style }}</div>
+            </div>
+            <div class="stat bg-base-200 rounded-box place-items-center">
+                <div class="stat-title">Moyennes (ABV/IBU)</div>
+                <div class="stat-value text-xl">{{ avg_abv|floatformat:1 }}% / {{ avg_ibu|floatformat:0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <input type="radio" name="my_tabs" role="tab" class="tab font-bold" aria-label="📓 Mon Carnet" />
+    <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+        <div class="flex flex-col gap-4">
+            {% for drink in my_drinks %}
+            <div class="card bg-base-200 shadow-sm flex flex-row p-4 gap-4 items-center">
+                <div class="w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-lg
+                    {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
+                    {{ drink.note }}
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-bold">{{ drink.beer_id.name }} <span class="text-sm font-normal text-gray-500">— {{ drink.beer_id.brewery_id.name }}</span></h4>
+                    <p class="text-xs text-gray-500">{{ drink.date|date:"d M Y" }}</p>
+                    {% if drink.comment %}<p class="mt-1 text-sm italic">"{{ drink.comment }}"</p>{% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-gray-500 text-center">Aucune dégustation enregistrée.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <input type="radio" name="my_tabs" role="tab" class="tab font-bold" aria-label="🍺 Mes Créations" />
+    <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="font-bold text-lg border-b pb-2 mb-4">Mes Bières Ajoutées</h3>
+                <ul class="flex flex-col gap-2">
+                    {% for beer in my_added_beers %}
+                        <li class="bg-base-200 p-3 rounded-lg flex justify-between items-center">
+                            <span><strong>{{ beer.name }}</strong> ({{ beer.style|default:"Style inconnu" }})</span>
+                            <span class="text-xs text-gray-400">Modifier ↗</span>
+                        </li>
+                    {% empty %}
+                        <p class="text-sm text-gray-500">Vous n'avez pas encore contribué au catalogue.</p>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h3 class="font-bold text-lg border-b pb-2 mb-4">Ce qu'en pensent les autres</h3>
+                <div class="flex flex-col gap-3">
+                    {% for feedback in feedback_on_my_beers %}
+                        <div class="text-sm bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                            <a href="{% url 'public_profile' feedback.drinker_id.username %}" class="font-bold hover:text-primary hover:underline">{{ feedback.drinker_id.username }}</a> a noté <strong>{{ feedback.beer_id.name }}</strong> : <span class="text-primary font-bold">{{ feedback.note }}/10</span>
+                            {% if feedback.comment %}<br><i class="text-gray-500">"{{ feedback.comment }}"</i>{% endif %}
+                        </div>
+                    {% empty %}
+                        <p class="text-sm text-gray-500">Aucun avis reçu pour l'instant.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="radio" name="my_tabs" role="tab" class="tab font-bold text-error" aria-label="⚙️ Paramètres" />
+    <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <form method="post" class="flex flex-col gap-4">
+                {% csrf_token %}
+                <h3 class="font-bold text-primary border-b pb-2">Modifier le profil</h3>
+                {% for field in profile_form %}
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">{{ field.label }}</span></label>
+                        {{ field }}
+                    </div>
+                {% endfor %}
+                <button type="submit" name="btn_profile" class="btn btn-primary mt-2">Enregistrer</button>
+            </form>
+            
+            <form method="post" class="flex flex-col gap-4">
+                {% csrf_token %}
+                <h3 class="font-bold text-error border-b pb-2">Sécurité</h3>
+                {% for field in password_form %}
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">{{ field.label }}</span></label>
+                        {{ field }}
+                    </div>
+                {% endfor %}
+                <button type="submit" name="btn_password" class="btn btn-outline btn-error mt-2">Changer le mot de passe</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<dialog id="modal_followers" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg mb-4">Abonnés</h3>
+    <ul>
+        {% for f in followers %}
+            <li class="py-2 border-b">
+                <a href="{% url 'public_profile' f.follower.username %}" class="hover:text-primary hover:underline font-semibold">{{ f.follower.username }}</a>
+            </li>
+        {% empty %}
+            <li class="text-gray-500 italic">Personne ne vous suit pour le moment.</li>
+        {% endfor %}
+    </ul>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
+<dialog id="modal_following" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg mb-4">Abonnements</h3>
+    <ul>
+        {% for f in following %}
+            <li class="py-2 border-b">
+                <a href="{% url 'public_profile' f.followed.username %}" class="hover:text-primary hover:underline font-semibold">{{ f.followed.username }}</a>
+            </li>
+        {% empty %}
+            <li class="text-gray-500 italic">Vous ne suivez personne.</li>
+        {% endfor %}
+    </ul>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
 {% endblock %}

@@ -10,6 +10,9 @@
         {% endif %}
         <h1 class="text-4xl font-castoro font-bold mb-4">{{ beer.name }}</h1>
         <h2 class="text-xl font-bold text-gray-500 mb-2">{{ beer.brewery_id.name }}</h2>
+        {% if beer.added_by %}
+            <p class="text-sm mb-4 text-gray-400">Proposée par <a href="{% url 'public_profile' beer.added_by.username %}" class="font-bold hover:text-primary hover:underline">{{ beer.added_by.username }}</a></p>
+        {% endif %}
         <p class="text-gray-600 mb-2 max-w-md text-justify">{{ beer.description }}</p>
         <div class="flex items-center gap-4 mt-4">
             <span class="badge badge-primary">Degré : {{ beer.degree }}%</span>
@@ -31,7 +34,7 @@
 
                     <div class="flex-1">
                         <h4 class="font-bold text-lg leading-tight">
-                            {{ drink.drinker_id.username }} 
+                            <a href="{% url 'public_profile' drink.drinker_id.username %}" class="hover:text-primary hover:underline transition-colors">{{ drink.drinker_id.username }}</a>
                             <span class="font-normal text-sm text-gray-500 block">
                                 — {{ drink.date }}
                             </span>

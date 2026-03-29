@@ -22,7 +22,15 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </div>
-            <ul tabindex="0" class="menu dropdown-content bg-secondary text-white rounded-box z-[1] mt-4 w-52 p-2 shadow-xl border border-white/10">
+            <ul tabindex="0" class="menu dropdown-content bg-secondary text-white rounded-box z-[1] mt-4 w-64 p-2 shadow-xl border border-white/10">
+                
+                <li class="mb-2 w-full">
+                    <div class="relative w-full p-0">
+                        <input type="text" id="user-search" placeholder="🔍 Trouver un membre..." class="input input-sm input-bordered w-full bg-white/10 text-white placeholder-white/70 border-white/20 focus:bg-white focus:text-black focus:placeholder-gray-500 transition-all" autocomplete="off">
+                        <div id="user-suggestions" class="absolute z-50 w-full bg-base-100 shadow-xl rounded-box border border-base-200 top-full mt-1 hidden max-h-60 overflow-y-auto text-black"></div>
+                    </div>
+                </li>
+
                 <li><a href="{% url 'add_beer' %}" class="hover:text-primary transition duration-300 py-3">🍺 Ajouter une bière</a></li>
                 <li><a href="{% url 'all_beers' %}" class="hover:text-primary transition duration-300 py-3">📋 Toutes les bières</a></li>
             </ul>
@@ -95,4 +103,49 @@
     <script src="{% static 'js/chat.js' %}"></script>
     </div>
 </body>
+<script>
+        // Script pour la recherche de membres dans la navbar
+        document.addEventListener("DOMContentLoaded", function() {
+            const userSearch = document.getElementById('user-search');
+            const userSugg = document.getElementById('user-suggestions');
+
+            if (userSearch && userSugg) {
+                userSearch.addEventListener("input", async function() {
+                    const val = this.value;
+                    userSugg.innerHTML = '';
+                    userSugg.style.display = 'none';
+                    if (val.length < 2) return;
+
+                    try {
+                        const response = await fetch(`/api/search-user/?term=${encodeURIComponent(val)}`);
+                        const data = await response.json();
+
+                        if (data.length > 0) {
+                            userSugg.style.display = 'block';
+                            data.forEach(user => {
+                                const div = document.createElement("div");
+                                div.className = "p-3 hover:bg-base-200 cursor-pointer border-b border-base-200 last:border-0 font-semibold flex items-center gap-2";
+                                div.innerHTML = `👤 ${user}`;
+                                
+                                div.addEventListener("click", function() {
+                                    // Redirige vers le profil public au clic
+                                    window.location.href = `/user/${user}/`; 
+                                });
+                                userSugg.appendChild(div);
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Erreur recherche utilisateur", error);
+                    }
+                });
+
+                // Fermer les suggestions si on clique ailleurs
+                document.addEventListener("click", function(e) {
+                    if (e.target !== userSearch) {
+                        userSugg.style.display = 'none';
+                    }
+                });
+            }
+        });
+    </script>
 </html>
