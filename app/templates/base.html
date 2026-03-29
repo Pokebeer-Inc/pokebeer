@@ -82,26 +82,104 @@
         {% block content %}{% endblock %}
     </div>
 
-    <div class="fab hidden">
-        <button class="btn btn-lg btn-circle btn-primary" onclick="toggleChat()">🍺</button>
-    </div>
-    
-    <div id="chat-box">
-        <div class="chat-header">
-            Gaétan, le sommelier
-            <span style="float:right; cursor:pointer;" onclick="toggleChat()">✖</span>
+    <button id="chat-toggle" class="btn btn-circle btn-primary btn-lg fixed bottom-6 right-6 shadow-2xl z-50 hover:scale-110 transition-transform">
+        <span class="text-3xl">🤵‍♂️</span>
+    </button>
+
+    <div id="chat-window" class="fixed bottom-24 right-6 w-[90vw] sm:w-96 bg-base-100 rounded-2xl shadow-2xl border border-base-300 z-50 hidden flex-col overflow-hidden transition-all duration-300">
+        
+        <div class="bg-primary text-white p-4 flex justify-between items-center shadow-md z-10">
+            <div class="font-bold flex items-center gap-2 font-castoro text-lg">
+                <span>🍷</span> Gaétan, le Sommelier
+            </div>
+            <button id="chat-close" class="btn btn-ghost btn-sm btn-circle text-white hover:bg-white/20">✕</button>
         </div>
-        <div id="chat-logs">
-            <div class="chat-msg bot">Bonjour ! Dites-moi ce que vous aimez et je vous conseille parmi notre stock ! 🍺</div>
+        
+        <div id="chat-messages" class="p-4 h-80 overflow-y-auto bg-base-200 flex flex-col gap-3">
+            <div class="chat chat-start">
+                <div class="chat-bubble chat-bubble-primary shadow-sm text-sm">
+                    Bonjour ! Dites-moi ce que vous aimez (amertume, alcool, fruits...) et je vous trouve la pépite parfaite dans notre stock ! 🍺
+                </div>
+            </div>
         </div>
-        <div class="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Je cherche une bière..." onkeypress="handleEnter(event)">
-            <button onclick="sendMessage()">Envoyer</button>
+        
+        <div class="p-3 bg-base-100 border-t border-base-300 flex gap-2">
+            <input type="text" id="chat-input" placeholder="Je cherche une bière douce..." class="input input-bordered input-primary w-full input-sm" onkeypress="handleEnter(event)">
+            <button id="chat-send" class="btn btn-primary btn-sm" onclick="sendMessage()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+            </button>
         </div>
     </div>
 
-    <script src="{% static 'js/chat.js' %}"></script>
-    </div>
+    <script>
+        const chatToggle = document.getElementById('chat-toggle');
+        const chatWindow = document.getElementById('chat-window');
+        const chatClose = document.getElementById('chat-close');
+        const chatInput = document.getElementById('chat-input');
+        const chatMessages = document.getElementById('chat-messages');
+
+        // Ouvrir / Fermer
+        chatToggle.addEventListener('click', () => chatWindow.classList.toggle('hidden'));
+        chatClose.addEventListener('click', () => chatWindow.classList.add('hidden'));
+
+        // Appui sur "Entrée"
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        async function sendMessage() {
+            const msg = chatInput.value.trim();
+            if (!msg) return;
+
+            // 1. Afficher le message de l'utilisateur
+            chatMessages.innerHTML += `
+                <div class="chat chat-end">
+                    <div class="chat-bubble shadow-sm text-sm">${msg}</div>
+                </div>`;
+            chatInput.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // 2. Afficher l'animation de chargement de Gaétan
+            const loadingId = 'loading-' + Date.now();
+            chatMessages.innerHTML += `
+                <div id="${loadingId}" class="chat chat-start">
+                    <div class="chat-bubble chat-bubble-primary shadow-sm">
+                        <span class="loading loading-dots loading-sm"></span>
+                    </div>
+                </div>`;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // 3. Appel API
+            try {
+                const res = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': _csrf_placeholder
+                    },
+                    body: JSON.stringify({ message: msg })
+                });
+                
+                const data = await res.json();
+                document.getElementById(loadingId).remove();
+                
+                // Formater la réponse pour gérer les sauts de ligne
+                const formattedResponse = data.response.replace(/\n/g, '<br>');
+                
+                chatMessages.innerHTML += `
+                    <div class="chat chat-start">
+                        <div class="chat-bubble chat-bubble-primary shadow-sm text-sm">${formattedResponse}</div>
+                    </div>`;
+            } catch (err) {
+                document.getElementById(loadingId).remove();
+                chatMessages.innerHTML += `
+                    <div class="chat chat-start">
+                        <div class="chat-bubble chat-bubble-error text-sm">La cave est fermée, impossible de joindre Gaétan.</div>
+                    </div>`;
+            }
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    </script>
 </body>
 <script>
         // Script pour la recherche de membres dans la navbar
