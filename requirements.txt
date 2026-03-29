@@ -50,3 +50,5 @@ urllib3==2.6.3
 whitenoise==6.12.0
 django-allauth
 PyJWT[crypto]
+pgvector>=0.2.5
+huggingface-hub>=0.21.0
