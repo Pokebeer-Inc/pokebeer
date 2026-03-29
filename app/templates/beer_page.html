@@ -20,8 +20,61 @@
         </div> 
     </div>
     <div class="max-w-screen-md">
-        <div>
-            <h3 class="text-2xl font-bold border-b-2 border-primary pb-2 mb-4 text-primary">🍺 Les Dégustations</h3>
+        <div class="py-3">
+            <h3 class="text-2xl font-bold border-b-2 border-primary pb-2 mb-4 text-primary">Ma dégustation :</h3>
+            {% if user_rating %}
+                <div class="card bg-base-100 shadow flex flex-row border border-base-200 p-4 gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-lg
+                        {% if user_rating.note >= 8 %} border-success text-success dropdown shadow-success
+                        {% elif user_rating.note >= 5 %} border-warning text-warning dropdown shadow-warning
+                        {% else %} border-error text-error dropdown shadow-error {% endif %}">
+                        {{ user_rating.note }}
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-lg leading-tight">
+                            Votre dégustation
+                            <span class="font-normal text-sm text-gray-500 block">
+                                — {{ user_rating.date }}
+                            </span>
+                            <p class="text-sm text-gray-600 mt-1">{{ user_rating.comment }}</p>
+                        </h4>
+                    </div>
+                </div>
+                <div class="flex flex-col place-items-center">
+                    <div>
+                        <a class="btn btn-primary text-white mt-4" onclick="modal{{beer.id}}.showModal()">Mettre à jour ma dégustation</a>
+                         <dialog id="modal{{beer.id}}" class="modal">
+                            <div class="modal-box">
+                                <h3 class="font-bold text-lg mb-4">Mettre à jour ma dégustation de {{ beer.name }}</h3>
+                                    <form method="post" action="{% url 'modify_rate_beer' user_rating.id %}">
+                                    {% csrf_token %}
+                                        <div class="form-control w-full mb-3">
+                                            <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
+                                            {{ rating_form.date }}
+                                        </div>
+                                        <div class="form-control w-full mb-3">
+                                            <label class="label"><span class="label-text">{{ rating_form.note.label }}</span></label>
+                                            {{ rating_form.note }}
+                                        </div>
+                                        <div class="form-control w-full mb-4">
+                                            <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
+                                            {{ rating_form.comment }}
+                                        </div>
+                                        <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
+                                    </form>
+                            </div>
+                            <form method="dialog" class="modal-backdrop">
+                                <button>Fermer</button>
+                            </form>
+                        </dialog>
+                    </div>
+                </div>
+            {% else %}
+                <p class="text-gray-600 italic">Vous n'avez pas encore dégusté cette bière. <a href="{% url 'rate_beer' beer.id %}" class="text-primary hover:underline">Noter cette bière</a> pour partager votre avis !</p>
+            {% endif %}
+        </div>
+        <div class="pt-5">
+            <h3 class="text-2xl font-bold border-b-2 border-primary pb-2 mb-4 text-primary">Les Dégustations</h3>
             <div class="flex flex-col gap-4">
                 {% for drink in drinks %}
                 <div class="card bg-base-100 shadow flex flex-row border border-base-200 p-4 gap-4">
