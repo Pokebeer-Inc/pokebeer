@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Avg, Q, Count
+from django.db.models import Count, Case, When, Value, IntegerField, Avg, Q
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
@@ -13,6 +13,7 @@ from ..models import Beer, Drinks
 def index(request):
     month = timezone.now().month
     year = timezone.now().year
+    user = request.user
     
     # Tops
     top10 = Beer.objects.annotate(
@@ -27,17 +28,64 @@ def index(request):
     
     # Bières non notées
     unrated_beers = []
+    recommended_beers = []
     rating_form = None
 
     if request.user.is_authenticated:
         drunk_beer_ids = Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)
         unrated_beers = Beer.objects.exclude(id__in=drunk_beer_ids).select_related('brewery_id')
         rating_form = DrinkForm()
+        
+        # --- ALGORITHME DE RECOMMANDATION ---
+        
+        liked_drinks = Drinks.objects.filter(drinker_id=request.user, note__gte=7)
+        
+        if liked_drinks.exists():
+            # A. Récupération des préférences exactes
+            pref_style = liked_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values('beer_id__style').annotate(c=Count('id')).order_by('-c').first()
+            pref_style_name = pref_style['beer_id__style'] if pref_style else None
+            
+            pref_brewery = liked_drinks.values('beer_id__brewery_id').annotate(c=Count('id')).order_by('-c').first()
+            pref_brewery_id = pref_brewery['beer_id__brewery_id'] if pref_brewery else None
+
+            # B. Récupération des moyennes (Tolérance Alcool & Amertume)
+            averages = liked_drinks.aggregate(
+                avg_ibu=Avg('beer_id__bitterness'),
+                avg_deg=Avg('beer_id__degree')
+            )
+            avg_ibu = float(averages['avg_ibu'] or 0)
+            avg_deg = float(averages['avg_deg'] or 0)
+
+            # C. Calcul du score pondéré complet en base de données
+            recommendations = unrated_beers.annotate(
+                match_score=(
+                    # 1. Style identique (+3 pts)
+                    Case(When(style=pref_style_name, then=Value(3)), default=Value(0), output_field=IntegerField()) +
+                    # 2. Brasserie identique (+2 pts)
+                    Case(When(brewery_id=pref_brewery_id, then=Value(2)), default=Value(0), output_field=IntegerField()) +
+                    # 3. Degré d'alcool similaire : +/- 1.5% (+1 pt)
+                    Case(When(degree__range=(max(0, avg_deg - 1.5), avg_deg + 1.5), then=Value(1)), default=Value(0), output_field=IntegerField()) +
+                    # 4. Amertume similaire : +/- 15 IBU (+1 pt)
+                    Case(When(bitterness__range=(max(0, avg_ibu - 15), avg_ibu + 15), then=Value(1)), default=Value(0), output_field=IntegerField())
+                )
+            )
+            
+            # D. Filtrer (au moins 1 point), calculer la note globale de la communauté et trier
+            recommended_beers = recommendations.filter(match_score__gt=0).annotate(
+                global_rating=Avg('drinks__note')
+            ).order_by('-match_score', '-global_rating')[:5]
+        
+        # Si on n'a pas de recommandations (nouveau compte ou pas assez de notes), on propose les meilleures bières globales non goûtées
+        if not recommended_beers:
+            recommended_beers = unrated_beers.annotate(
+                global_rating=Avg('drinks__note')
+            ).exclude(global_rating__isnull=True).order_by('-global_rating')[:5]
 
     context = {
         "top": top10, 
         "topMonth": top10Month, 
         "unrated_beers": unrated_beers,
+        "recommended_beers": recommended_beers,
         "rating_form": rating_form
     }
     return render(request, "home.html", context)
