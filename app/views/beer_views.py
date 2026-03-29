@@ -142,6 +142,22 @@ def rate_beer_view(request, beer_id):
             
     return redirect('index')
 
+@login_required(login_url='login')
+def modify_rate_beer_view(request, drink_id):
+    """Permet de modifier une note depuis la page de détail d'une bière"""
+    drink = get_object_or_404(Drinks, id=drink_id, drinker_id=request.user)
+    beer = drink.beer_id
+    
+    if request.method == 'POST':
+        form = DrinkForm(request.POST, instance=drink)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Votre avis sur {beer.name} a été mis à jour !")
+        else:
+            messages.error(request, "Erreur dans le formulaire de modification.")
+            
+    return redirect('beer_detail', beer_slug=beer.slug)
+
 
 def all_beers_view(request):
     """Affiche toutes les bières avec recherche et filtres."""
@@ -189,16 +205,21 @@ def beer_detail_view(request, beer_slug):
     """Affiche les détails d'une bière, ses notes et commentaires."""
     beer = get_object_or_404(Beer, slug=beer_slug)
     drinks = Drinks.objects.filter(beer_id=beer).select_related('drinker_id').order_by('-date')
-    
+
     user_rating = None
-    if request.user.is_authenticated:
-        user_drink = drinks.filter(drinker_id=request.user).first()
-        if user_drink:
-            user_rating = user_drink.note
+    user_drink = drinks.filter(drinker_id=request.user).first() if request.user.is_authenticated else None
+    if user_drink:
+        user_rating = {
+            'note': user_drink.note,
+            'comment': user_drink.comment,
+            'date': user_drink.date,
+            'id': user_drink.id
+        }
 
     context = {
         'beer': beer,
         'drinks': drinks,
-        'user_rating': user_rating,
+        'user_rating': user_rating
     }
+
     return render(request, 'beer_page.html', context)

@@ -96,4 +96,4 @@ class Drinks(models.Model):
         ordering = ['-date']
 
     def __str__(self):
-        return f"{self.drinker.username} - {self.beer.name} ({self.note}/10)"
+        return f"{self.drinker_id.username} - {self.beer_id.name} ({self.note}/10)"
