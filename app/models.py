@@ -5,6 +5,7 @@ from django.contrib.auth.models import UserManager
 from datetime import date
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
+from pgvector.django import VectorField
 
 class BeerUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=False, blank=False)
@@ -55,6 +56,8 @@ class Beer(models.Model):
     slug = models.SlugField(max_length=150, unique=True, blank=True, null=True, verbose_name="Slug")
     style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
     added_by = models.ForeignKey(BeerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_beers')
+    
+    embedding = VectorField(dimensions=384, null=True, blank=True)
 
     class Meta:
         verbose_name = "Bière"
@@ -66,6 +69,14 @@ class Beer(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
+            
+        text_to_embed = f"Bière {self.name} de la brasserie {self.brewery_id.name}. Style: {self.style or 'inconnu'}. Profil: {self.description}"
+        
+        from .services import get_embedding 
+        vector = get_embedding(text_to_embed)
+        if vector:
+            self.embedding = vector
+            
         super().save(*args, **kwargs)
 
 class Drinks(models.Model):

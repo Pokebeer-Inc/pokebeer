@@ -16,6 +16,7 @@
                     <div class="card-body p-5">
                         <h2 class="card-title text-lg leading-tight">{{ beer.name }}</h2>
                         <p class="text-sm font-bold text-gray-500">{{ beer.brewery_id.name }}</p>
+                        <p class="text-sm">{{ beer.brewery_id.description }}</p>
                         
                         <div class="flex gap-2 mt-2">
                             {% if beer.style %}<div class="badge badge-secondary badge-outline badge-sm">{{ beer.style }}</div>{% endif %}
