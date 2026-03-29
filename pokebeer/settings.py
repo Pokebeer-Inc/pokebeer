@@ -40,6 +40,16 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SAMESITE = 'None'
 
+SITE_ID = 2
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/login/'
+
+ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'
+ACCOUNT_LOGIN_METHODS = {'email', 'username'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*']
+ACCOUNT_USERNAME_MIN_LENGTH = 5
+SOCIALACCOUNT_LOGIN_ON_GET = True
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -52,6 +62,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'app',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
 ]
 
 MIDDLEWARE = [
@@ -62,7 +77,13 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'allauth.account.middleware.AccountMiddleware'
     #'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 ROOT_URLCONF = 'pokebeer.urls'
@@ -159,6 +180,8 @@ USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
 CSRF_COOKIE_HTTPONLY = False  # DOIT être False pour que le JS puisse lire le cookie via document.cookie
+SESSION_COOKIE_AGE = 31536000
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # Autoriser l'affichage dans l'Iframe de Hugging Face
 X_FRAME_OPTIONS = 'SAMEORIGIN'
