@@ -24,10 +24,14 @@ class UserLoginForm(AuthenticationForm):
 class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = BeerUser
-        fields = ['username', 'email']
+        fields = ['username', 'email', 'bio']
         labels = {
             'username': "Nom d'utilisateur",
-            'email': "Adresse Email"
+            'email': "Adresse Email",
+            'bio': "Ma Biographie"
+        }
+        widgets = {
+            'bio': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Parlez-nous de vos goûts brassicoles...'})
         }
 
     def __init__(self, *args, **kwargs):
@@ -46,21 +50,21 @@ class UserUpdateForm(forms.ModelForm):
         return email
 
 class BeerForm(forms.ModelForm):
-    # On utilise un CharField au lieu d'un ModelChoiceField
     brewery_name = forms.CharField(
         label='Brasserie',
         help_text="Tapez le nom. Si elle n'existe pas, elle sera créée automatiquement.",
-        widget=forms.TextInput(attrs={'autocomplete': 'off'}) # Désactive l'autocomplétion navigateur
+        widget=forms.TextInput(attrs={'autocomplete': 'off'})
     )
 
     class Meta:
         model = Beer
-        fields = ['name', 'brewery_name', 'description', 'bitterness', 'degree']
+        fields = ['name', 'brewery_name', 'style', 'description', 'bitterness', 'degree']
         labels = {
             'name': 'Nom de la bière',
             'description': 'Description',
             'bitterness': 'Amertume (IBU)',
             'degree': 'Degré d\'alcool (%)',
+            'style': 'Style de bière',
         }
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
@@ -69,29 +73,24 @@ class BeerForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(BeerForm, self).__init__(*args, **kwargs)
-        # Style uniforme
         for field in self.fields.values():
             field.widget.attrs.update({
-                'class': 'form-control', # Classe CSS générique
+                'class': 'form-control',
                 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;'
             })
 
-    def save(self, commit=True):
-        # Récupération de l'instance de la bière (pas encore sauvée en base)
+    def save(self, user=None, commit=True):
         beer = super(BeerForm, self).save(commit=False)
-        
-        # Gestion de la brasserie : On cherche ou on crée
         b_name = self.cleaned_data['brewery_name']
-        
-        # get_or_create renvoie un tuple (objet, created_boolean)
-        # On met une ville par défaut si c'est une création (à améliorer plus tard)
         brewery, created = Brewery.objects.get_or_create(
-            name__iexact=b_name, # Recherche insensible à la casse
+            name__iexact=b_name,
             defaults={'name': b_name, 'city': 'Inconnue', 'description': 'Ajoutée automatiquement'}
         )
-        
         beer.brewery_id = brewery
         
+        if user:
+            beer.added_by = user
+            
         if commit:
             beer.save()
         return beer

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex flex-col items-center bg-base-100 shadow-xl rounded-box p-6 mt-6 border border-base-200 relative">
+    
+    <div class="absolute top-4 right-4">
+        <form action="{% url 'follow_user' profile_user.username %}" method="post">
+            {% csrf_token %}
+            {% if is_following %}
+                <button type="submit" class="btn btn-sm btn-outline btn-error">Ne plus suivre</button>
+            {% else %}
+                <button type="submit" class="btn btn-sm btn-primary">S'abonner</button>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="avatar mb-4">
+        <div class="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+            {% if profile_user.socialaccount_set.all %}
+                <img src="{{ profile_user.socialaccount_set.first.extra_data.picture }}" alt="Avatar">
+            {% else %}
+                <img src="https://ui-avatars.com/api/?name={{ profile_user.username }}&background=E5A022&color=fff&size=128" alt="Avatar">
+            {% endif %}
+        </div>
+    </div>
+    <h2 class="text-3xl font-bold font-castoro">{{ profile_user.username }}</h2>
+    <p class="text-gray-500 italic mt-2 text-center max-w-md">
+        {% if profile_user.bio %}"{{ profile_user.bio }}"{% else %}Aucune biographie.{% endif %}
+    </p>
+    
+    <div class="flex gap-4 mt-4">
+        <div class="text-center"><span class="font-bold text-lg text-primary">{{ followers|length }}</span> Abonnés</div>
+        <div class="text-center"><span class="font-bold text-lg text-primary">{{ following|length }}</span> Abonnements</div>
+    </div>
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+    <div class="stat bg-base-100 shadow-md rounded-box place-items-center">
+        <div class="stat-title">Bières Dégustées</div>
+        <div class="stat-value text-primary">{{ total_drinks }}</div>
+    </div>
+    <div class="stat bg-base-100 shadow-md rounded-box place-items-center">
+        <div class="stat-title">Moyenne donnée</div>
+        <div class="stat-value text-warning">⭐ {{ avg_note|floatformat:1 }}</div>
+    </div>
+    <div class="stat bg-base-100 shadow-md rounded-box place-items-center">
+        <div class="stat-title">Style Préféré</div>
+        <div class="stat-value text-lg text-secondary">{{ pref_style }}</div>
+    </div>
+    <div class="stat bg-base-100 shadow-md rounded-box place-items-center">
+        <div class="stat-title">Moyennes (ABV/IBU)</div>
+        <div class="stat-value text-xl">{{ avg_abv|floatformat:1 }}% / {{ avg_ibu|floatformat:0 }}</div>
+    </div>
+</div>
+
+<h3 class="font-castoro text-2xl font-bold mt-8 mb-4 border-b-2 border-primary pb-2">🍻 Dernières Dégustations</h3>
+<div class="flex flex-col gap-4">
+    {% for drink in user_drinks %}
+    <div class="card bg-base-100 shadow-md flex flex-row p-4 gap-4 items-center border border-base-200">
+        <div class="w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-lg
+            {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
+            {{ drink.note }}
+        </div>
+        <div class="flex-1">
+            <h4 class="font-bold">{{ drink.beer_id.name }} <span class="text-sm font-normal text-gray-500">— {{ drink.beer_id.brewery_id.name }}</span></h4>
+            <p class="text-xs text-gray-500">{{ drink.date|date:"d M Y" }}</p>
+            {% if drink.comment %}<p class="mt-1 text-sm italic">"{{ drink.comment }}"</p>{% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <p class="text-gray-500 text-center">Aucune dégustation enregistrée.</p>
+    {% endfor %}
+</div>
+{% endblock %}

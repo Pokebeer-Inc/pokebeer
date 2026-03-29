@@ -51,7 +51,7 @@ def add_beer_view(request):
         drink_form = DrinkForm(request.POST, prefix='drink')
         
         if beer_form.is_valid() and drink_form.is_valid():
-            new_beer = beer_form.save()
+            new_beer = beer_form.save(user=request.user)
             new_drink = drink_form.save(commit=False)
             new_drink.drinker_id = request.user
             new_drink.beer_id = new_beer
