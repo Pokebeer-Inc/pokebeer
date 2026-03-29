@@ -50,6 +50,11 @@ def search_user(request):
     if len(query) < 2:
         return JsonResponse([], safe=False)
 
-    users = BeerUser.objects.filter(username__icontains=query)[:10]
+    users = BeerUser.objects.filter(
+        username__icontains=query,
+        is_staff=False,
+        is_superuser=False
+    )[:10]
+    
     results = [u.username for u in users]
     return JsonResponse(results, safe=False)
