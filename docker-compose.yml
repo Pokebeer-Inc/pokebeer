@@ -1,41 +1,57 @@
 version: "3.9"
 
 services:
+#   web:
+#     build: .
+#     command: >
+#       sh -c "
+#       echo 'Waiting for Postgres...';
+#       while ! nc -z db 5432; do sleep 0.1; done;
+#       echo 'Postgres is up!';
+#       python manage.py migrate;
+#       python manage.py tailwind install;
+#       python manage.py tailwind build;
+#       python manage.py collectstatic --noinput;
+#       python manage.py runserver 0.0.0.0:8000
+#       "
+#     volumes:
+#       - .:/app
+#     ports:
+#       - "8000:8000"  # Port machine : Port conteneur
+#     env_file:
+#       - .env
+#     depends_on:
+#       - db
+
+#   db:
+#     image: postgres:15
+#     restart: always
+#     env_file:
+#       - .env
+#     environment:
+#       POSTGRES_DB: ${DB_NAME}
+#       POSTGRES_USER: ${DB_USER}
+#       POSTGRES_PASSWORD: ${DB_PASSWORD}
+#     ports:
+#       - "5432:5432"
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+
+# volumes:
+#   postgres_data:
   web:
     build: .
     command: >
       sh -c "
-      echo 'Waiting for Postgres...';
-      while ! nc -z db 5432; do sleep 0.1; done;
-      echo 'Postgres is up!';
-      python manage.py migrate;
-      python manage.py tailwind install;
-      python manage.py tailwind build;
-      python manage.py collectstatic --noinput;
+      python manage.py migrate &&
+      python manage.py tailwind install &&
+      python manage.py tailwind build &&
+      python manage.py collectstatic --noinput &&
       python manage.py runserver 0.0.0.0:8000
       "
     volumes:
       - .:/app
     ports:
-      - "8000:8000"  # Port machine : Port conteneur
+      - "8000:8000"
     env_file:
       - .env
-    depends_on:
-      - db
-
-  db:
-    image: postgres:15
-    restart: always
-    env_file:
-      - .env
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:

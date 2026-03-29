@@ -6,3 +6,4 @@ node_modules/
 *.jks
 *.png
 media/
+.DS_Store

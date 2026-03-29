@@ -9,6 +9,7 @@ from ..forms import BeerForm, DrinkForm
 from ..models import Beer, Drinks
 
 @ensure_csrf_cookie
+@login_required(login_url='login')
 def index(request):
     month = timezone.now().month
     year = timezone.now().year
