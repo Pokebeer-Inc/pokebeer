@@ -3,6 +3,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from ..models import Beer, Brewery, BeerUser
 from ..services import ask_sommelier
+from django.db.models import Q
+from django.utils.text import slugify
 
 @require_POST
 def chat_api(request):
@@ -35,13 +37,24 @@ def search_brewery(request):
     return JsonResponse(results, safe=False)
 
 def search_beer(request):
-    """API pour vérifier si une bière existe déjà"""
+    """API pour vérifier si une bière existe déjà (Recherche optimisée)"""
     query = request.GET.get('term', '')
     if len(query) < 2:
         return JsonResponse([], safe=False)
         
-    beers = Beer.objects.filter(name__icontains=query)[:10]
-    results = [b.name for b in beers]
+    query_slug = slugify(query) # Permet de matcher même si l'utilisateur oublie un accent
+        
+    beers = Beer.objects.filter(
+        Q(name__icontains=query) | Q(slug__icontains=query_slug)
+    ).select_related('brewery_id')[:5]
+    
+    results = [
+        {
+            'name': b.name, 
+            'slug': b.slug, 
+            'brewery': b.brewery_id.name
+        } for b in beers
+    ]
     return JsonResponse(results, safe=False)
 
 def search_user(request):

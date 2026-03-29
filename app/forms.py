@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from .models import BeerUser, Beer, Brewery, Drinks
+from django.utils.text import slugify
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField(required=True)
@@ -52,7 +53,7 @@ class UserUpdateForm(forms.ModelForm):
 class BeerForm(forms.ModelForm):
     brewery_name = forms.CharField(
         label='Brasserie',
-        help_text="Tapez le nom. Si elle n'existe pas, elle sera créée automatiquement.",
+        help_text="Tapez le nom. Si elle n'existe pas, elle sera créée.",
         widget=forms.TextInput(attrs={'autocomplete': 'off'})
     )
 
@@ -94,6 +95,19 @@ class BeerForm(forms.ModelForm):
         if commit:
             beer.save()
         return beer
+    
+    def clean_name(self):
+        """Bouclier anti-doublon insensible à la casse, espaces, et accents"""
+        name = self.cleaned_data.get('name')
+        if name:
+            # On transforme le nom tapé en slug (ex: "Pünk I.P.A " devient "punk-ipa")
+            normalized_name = slugify(name)
+            
+            # On cherche si une bière avec ce même slug exact existe déjà
+            existing_beer = Beer.objects.filter(slug=normalized_name).first()
+            if existing_beer:
+                raise forms.ValidationError(f"Cette bière existe déjà sous le nom '{existing_beer.name}'")
+        return name
     
 class DrinkForm(forms.ModelForm):
     class Meta:

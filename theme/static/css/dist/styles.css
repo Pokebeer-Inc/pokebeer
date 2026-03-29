@@ -536,6 +536,92 @@
     }
   }
   @layer daisyui.l1.l2.l3 {
+    .fab {
+      pointer-events: none;
+      position: fixed;
+      inset-inline-end: calc(0.25rem * 4);
+      bottom: calc(0.25rem * 4);
+      z-index: 999;
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: flex-end;
+      gap: calc(0.25rem * 2);
+      font-size: var(--text-sm);
+      line-height: var(--tw-leading, var(--text-sm--line-height));
+      white-space: nowrap;
+    }
+    .fab > * {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: calc(0.25rem * 2);
+    }
+    .fab > *:hover, .fab > *:has(:focus-visible) {
+      z-index: 1;
+    }
+    .fab > [tabindex]:first-child {
+      position: relative;
+      display: grid;
+      transition-property: opacity, visibility, rotate;
+      transition-duration: 0.2s;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fab .fab-close {
+      position: absolute;
+      inset-inline-end: calc(0.25rem * 0);
+      bottom: calc(0.25rem * 0);
+    }
+    .fab .fab-main-action {
+      position: absolute;
+      inset-inline-end: calc(0.25rem * 0);
+      bottom: calc(0.25rem * 0);
+    }
+    .fab:focus-within:has(.fab-close) > [tabindex], .fab:focus-within:has(.fab-main-action) > [tabindex] {
+      rotate: 90deg;
+      opacity: 0%;
+    }
+    .fab:focus-within > [tabindex]:first-child {
+      pointer-events: none;
+    }
+    .fab:focus-within > :nth-child(n + 2) {
+      visibility: visible;
+      --tw-scale-x: 100%;
+      --tw-scale-y: 100%;
+      --tw-scale-z: 100%;
+      scale: var(--tw-scale-x) var(--tw-scale-y);
+      opacity: 100%;
+    }
+    .fab > :nth-child(n + 2) {
+      visibility: hidden;
+      --tw-scale-x: 80%;
+      --tw-scale-y: 80%;
+      --tw-scale-z: 80%;
+      scale: var(--tw-scale-x) var(--tw-scale-y);
+      opacity: 0%;
+      transition-property: opacity, scale, visibility;
+      transition-duration: 0.2s;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fab > :nth-child(n + 2).fab-main-action, .fab > :nth-child(n + 2).fab-close {
+      --tw-scale-x: 100%;
+      --tw-scale-y: 100%;
+      --tw-scale-z: 100%;
+      scale: var(--tw-scale-x) var(--tw-scale-y);
+    }
+    .fab > :nth-child(3) {
+      transition-delay: 30ms;
+    }
+    .fab > :nth-child(4) {
+      transition-delay: 60ms;
+    }
+    .fab > :nth-child(5) {
+      transition-delay: 90ms;
+    }
+    .fab > :nth-child(6) {
+      transition-delay: 120ms;
+    }
+  }
+  @layer daisyui.l1.l2.l3 {
     .tooltip {
       position: relative;
       display: inline-block;
@@ -3202,6 +3288,14 @@
       }
     }
   }
+  @layer daisyui.l1.l2.l3 {
+    .chat-header {
+      grid-row-start: 1;
+      display: flex;
+      gap: calc(0.25rem * 1);
+      font-size: 0.6875rem;
+    }
+  }
   .container {
     width: 100%;
   }
@@ -4574,6 +4668,14 @@
   .border-error {
     border-color: var(--color-error);
   }
+  .border-error\/20 {
+    border-color: var(--color-error);
+  }
+  @supports (color: color-mix(in lab, red, red)) {
+    .border-error\/20 {
+      border-color: color-mix(in oklab, var(--color-error) 20%, transparent);
+    }
+  }
   .border-gray-200 {
     border-color: var(--color-gray-200);
   }
@@ -4671,6 +4773,14 @@
   }
   .bg-blue-700 {
     background-color: var(--color-blue-700);
+  }
+  .bg-error\/10 {
+    background-color: var(--color-error);
+  }
+  @supports (color: color-mix(in lab, red, red)) {
+    .bg-error\/10 {
+      background-color: color-mix(in oklab, var(--color-error) 10%, transparent);
+    }
   }
   .bg-gray-100 {
     background-color: var(--color-gray-100);
@@ -5150,6 +5260,9 @@
   .opacity-0 {
     opacity: 0%;
   }
+  .opacity-80 {
+    opacity: 80%;
+  }
   .opacity-100 {
     opacity: 100%;
   }
@@ -5421,6 +5534,16 @@
   @media (hover: hover) {
     .hover\:bg-error:hover {
       background-color: var(--color-error);
+    }
+  }
+  @media (hover: hover) {
+    .hover\:bg-error\/20:hover {
+      background-color: var(--color-error);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:bg-error\/20:hover {
+        background-color: color-mix(in oklab, var(--color-error) 20%, transparent);
+      }
     }
   }
   @media (hover: hover) {
