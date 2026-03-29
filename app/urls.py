@@ -15,5 +15,8 @@ urlpatterns = [
     path('beers/', views.all_beers_view, name='all_beers'),
     path('api/search-brewery/', views.search_brewery, name='search_brewery'),
     path('api/search-beer/', views.search_beer, name='search_beer'),
+    path('api/search-user/', views.search_user, name='search_user'),
     path('beer/<slug:beer_slug>/', views.beer_detail_view, name='beer_detail'),
+    path('user/<str:username>/', views.public_profile_view, name='public_profile'),
+    path('follow/<str:username>/', views.follow_user, name='follow_user'),
 ]

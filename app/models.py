@@ -11,6 +11,7 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(default=timezone.now)
     username = models.CharField(max_length=150, blank=False, unique=True)
     is_staff = models.BooleanField(default=False)
+    bio = models.TextField(verbose_name="Biographie", blank=True, null=True)
 
     USERNAME_FIELD = "username"
     EMAIL_FIELD = "email"
@@ -23,6 +24,14 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+    
+class UserFollow(models.Model):
+    follower = models.ForeignKey(BeerUser, related_name='following', on_delete=models.CASCADE)
+    followed = models.ForeignKey(BeerUser, related_name='followers', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('follower', 'followed')
 
 class Brewery(models.Model):
     name = models.CharField(max_length=150, blank=False, unique=True, verbose_name="Nom")
@@ -42,10 +51,10 @@ class Beer(models.Model):
     description = models.TextField(verbose_name="Description")
     bitterness = models.IntegerField(default=0, verbose_name="Amertume (IBU)")
     degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, verbose_name="Degré")
-
     brewery_id = models.ForeignKey(Brewery, on_delete=models.CASCADE)
-
     slug = models.SlugField(max_length=150, unique=True, blank=True, null=True, verbose_name="Slug")
+    style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
+    added_by = models.ForeignKey(BeerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_beers')
 
     class Meta:
         verbose_name = "Bière"

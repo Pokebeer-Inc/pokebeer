@@ -11,7 +11,11 @@
             <div class="card bg-base-100 shadow-md border border-base-200 flex flex-row items-center p-4 gap-4 transition-transform hover:-translate-y-1">
                 <div class="flex-1">
                     <h4 class="font-bold text-lg leading-tight">{{ beer.name }}</h4>
-                    <span class="text-sm font-semibold text-gray-500">{{ beer.brewery_id.name }}</span>
+                    <span class="text-sm font-semibold text-gray-500 block mb-1">{{ beer.brewery_id.name }}</span>
+                    
+                    {% if beer.added_by %}
+                        <span class="text-xs text-gray-400 block mb-1">Proposée par <a href="{% url 'public_profile' beer.added_by.username %}" class="hover:text-primary hover:underline">{{ beer.added_by.username }}</a></span>
+                    {% endif %}
                     <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ beer.description|truncatechars:80 }}</p>
                 </div>
                 <button class="btn btn-primary btn-sm" onclick="modal{{beer.id}}.showModal()">Noter</button>

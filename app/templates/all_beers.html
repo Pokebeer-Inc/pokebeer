@@ -69,7 +69,11 @@
             <div class="card-body p-5 flex flex-col justify-between">
                 <div>
                     <h3 class="card-title text-xl mb-0">{{ beer.name }}</h3>
-                    <span class="text-sm text-gray-500 font-bold block mb-2">{{ beer.brewery_id.name }}</span>
+                    <span class="text-sm text-gray-500 font-bold block mb-1">{{ beer.brewery_id.name }}</span>
+                    
+                    {% if beer.added_by %}
+                        <span class="text-xs text-gray-400 block mb-2">Proposée par <a href="{% url 'public_profile' beer.added_by.username %}" class="hover:text-primary hover:underline">{{ beer.added_by.username }}</a></span>
+                    {% endif %}
                     
                     <div class="flex justify-between text-sm py-2 border-y border-base-200 my-2">
                         <span class="font-semibold">🍺 {{ beer.degree }}% Vol.</span>

@@ -1,7 +1,7 @@
 import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from ..models import Beer, Brewery
+from ..models import Beer, Brewery, BeerUser
 from ..services import ask_sommelier
 
 @require_POST
@@ -42,4 +42,14 @@ def search_beer(request):
         
     beers = Beer.objects.filter(name__icontains=query)[:10]
     results = [b.name for b in beers]
+    return JsonResponse(results, safe=False)
+
+def search_user(request):
+    """API pour l'autocomplétion des membres"""
+    query = request.GET.get('term', '')
+    if len(query) < 2:
+        return JsonResponse([], safe=False)
+
+    users = BeerUser.objects.filter(username__icontains=query)[:10]
+    results = [u.username for u in users]
     return JsonResponse(results, safe=False)
