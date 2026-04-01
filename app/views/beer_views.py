@@ -215,11 +215,18 @@ def beer_detail_view(request, beer_slug):
             'date': user_drink.date,
             'id': user_drink.id
         }
+        rating_from = DrinkForm()
+        rating_from.fields['date'].initial = user_drink.date
+        rating_from.fields['note'].initial = user_drink.note
+        rating_from.fields['comment'].initial = user_drink.comment
+    else:
+        rating_from = DrinkForm()
 
     context = {
         'beer': beer,
         'drinks': drinks,
-        'user_rating': user_rating
+        'user_rating': user_rating,
+        'rating_form': rating_from
     }
 
     return render(request, 'beer_page.html', context)
