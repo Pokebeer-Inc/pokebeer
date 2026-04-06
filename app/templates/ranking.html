@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4 text-center">
+    <h2 class="text-2xl font-castoro font-bold flex justify-center items-center gap-2">Classements</h2>
+    <p class="text-sm text-gray-500">Les bières préférées de la communauté</p>
+</div>
+
+<div role="tablist" class="tabs tabs-boxed mb-4">
+  <input type="radio" name="ranking_tabs" role="tab" class="tab text-xs font-bold" aria-label="Ce Mois" checked="checked" />
+  <div role="tabpanel" class="tab-content pt-4">
+    {% if not topMonth %} 
+        <p class="text-gray-500 italic text-center text-sm">Pas encore de note pour ce mois.</p> 
+    {% else %}
+        <ul class="flex flex-col gap-3">
+            {% for beer in topMonth %}
+            <li>
+                <a href="{% url 'beer_detail' beer.slug %}" class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3">
+                    
+                    <div class="font-bold text-lg text-primary w-5 text-center shrink-0">
+                        {{ forloop.counter }}
+                    </div>
+                    
+                    <div class="flex-1 min-w-0 flex flex-col gap-1">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm leading-tight truncate">{{ beer.name }}</span>
+                            <span class="text-[10px] text-gray-500 truncate">{{ beer.brewery_id.name }}</span>
+                        </div>
+                        
+                        <div class="flex gap-1 mt-0.5">
+                            {% if beer.style %}
+                                <span class="badge badge-secondary badge-outline badge-xs text-[9px]">{{ beer.style }}</span>
+                            {% endif %}
+                            <span class="badge badge-neutral badge-outline badge-xs text-[9px]">Alc. {{ beer.degree }}%</span>
+                        </div>
+                    </div>
+
+                    <div class="text-right flex flex-col items-end shrink-0">
+                        <span class="badge badge-warning badge-sm gap-1 font-bold">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                            {{ beer.avg_rating|floatformat:1 }}
+                        </span>
+                        <p class="text-[10px] text-gray-400 mt-1">{{ beer.count_rating }} avis</p>
+                    </div>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+  </div>
+
+  <input type="radio" name="ranking_tabs" role="tab" class="tab text-xs font-bold" aria-label="Global" />
+  <div role="tabpanel" class="tab-content pt-4">
+     {% if not top %} 
+        <p class="text-gray-500 italic text-center text-sm">Pas encore de note.</p> 
+     {% else %}
+        <ul class="flex flex-col gap-3">
+            {% for beer in top %}
+            <li>
+                <a href="{% url 'beer_detail' beer.slug %}" class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3">
+                    
+                    <div class="font-bold text-lg text-primary w-5 text-center shrink-0">
+                        {{ forloop.counter }}
+                    </div>
+                    
+                    <div class="flex-1 min-w-0 flex flex-col gap-1">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm leading-tight truncate">{{ beer.name }}</span>
+                            <span class="text-[10px] text-gray-500 truncate">{{ beer.brewery_id.name }}</span>
+                        </div>
+                        
+                        <div class="flex gap-1 mt-0.5">
+                            {% if beer.style %}
+                                <span class="badge badge-secondary badge-outline badge-xs text-[9px]">{{ beer.style }}</span>
+                            {% endif %}
+                            <span class="badge badge-neutral badge-outline badge-xs text-[9px]">Alc. {{ beer.degree }}%</span>
+                        </div>
+                    </div>
+
+                    <div class="text-right flex flex-col items-end shrink-0">
+                        <span class="badge badge-warning badge-sm gap-1 font-bold">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                            {{ beer.avg_rating|floatformat:1 }}
+                        </span>
+                        <p class="text-[10px] text-gray-400 mt-1">{{ beer.count_rating }} avis</p>
+                    </div>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

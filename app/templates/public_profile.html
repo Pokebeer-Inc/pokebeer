@@ -1,74 +1,207 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex flex-col items-center bg-base-100 shadow-xl rounded-box p-6 mt-6 border border-base-200 relative">
-    
-    <div class="absolute top-4 right-4">
+<div class="flex flex-col items-center bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200 relative mt-2">
+    <div class="absolute top-2 right-2">
         <form action="{% url 'follow_user' profile_user.username %}" method="post">
             {% csrf_token %}
             {% if is_following %}
-                <button type="submit" class="btn btn-sm btn-outline btn-error">Ne plus suivre</button>
+            <button type="submit" class="btn btn-xs btn-outline btn-error">Ne plus suivre</button>
             {% else %}
-                <button type="submit" class="btn btn-sm btn-primary">S'abonner</button>
+            <button type="submit" class="btn btn-xs btn-primary">S'abonner</button>
             {% endif %}
         </form>
     </div>
-
-    <div class="avatar mb-4">
-        <div class="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+    
+    <div class="avatar mb-2">
+        <div class="w-20 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
             {% if profile_user.socialaccount_set.all %}
-                <img src="{{ profile_user.socialaccount_set.first.extra_data.picture }}" alt="Avatar">
+            <img class="object-cover w-full h-full" src="{{ profile_user.socialaccount_set.first.extra_data.picture }}" alt="Avatar">
             {% else %}
-                <img src="https://ui-avatars.com/api/?name={{ profile_user.username }}&background=E5A022&color=fff&size=128" alt="Avatar">
+            <img class="object-cover w-full h-full" src="https://ui-avatars.com/api/?name={{ profile_user.username }}&background=E5A022&color=fff" alt="Avatar">
             {% endif %}
         </div>
     </div>
-    <h2 class="text-3xl font-bold font-castoro">{{ profile_user.username }}</h2>
-    <p class="text-gray-500 italic mt-2 text-center max-w-md">
-        {% if profile_user.bio %}"{{ profile_user.bio }}"{% else %}Aucune biographie.{% endif %}
+    <h2 class="text-xl font-bold font-castoro">{{ profile_user.username }}</h2>
+    <p class="text-xs text-gray-500 italic mt-1 text-center">
+        {% if profile_user.bio %}"{{ profile_user.bio }}"{% endif %}
     </p>
     
-    <div class="flex gap-4 mt-4">
-        <div class="text-center"><span class="font-bold text-lg text-primary">{{ followers|length }}</span> Abonnés</div>
-        <div class="text-center"><span class="font-bold text-lg text-primary">{{ following|length }}</span> Abonnements</div>
+    <div class="flex gap-4 mt-3 border-t border-base-200 pt-2 w-full justify-center">
+        <button class="text-center hover:opacity-70" onclick="modal_followers.showModal()">
+            <div class="font-bold text-primary">{{ followers|length }}</div>
+            <div class="text-[10px] text-gray-500 uppercase tracking-wide">Abonnés</div>
+        </button>
+        <div class="divider divider-horizontal mx-0"></div>
+        <button class="text-center hover:opacity-70" onclick="modal_following.showModal()">
+            <div class="font-bold text-primary">{{ following|length }}</div>
+            <div class="text-[10px] text-gray-500 uppercase tracking-wide">Abonnements</div>
+        </button>
     </div>
 </div>
 
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-    <div class="stat bg-base-100 shadow-md rounded-box place-items-center">
-        <div class="stat-title">Bières Dégustées</div>
-        <div class="stat-value text-primary">{{ total_drinks }}</div>
+<div role="tablist" class="tabs tabs-boxed p-1 text-[11px] font-bold">
+    
+    <input type="radio" name="my_tabs" role="tab" class="tab !appearance-none ![background-image:none] !bg-transparent !border-none focus:ring-0" aria-label="Stats" checked="checked" />
+    <div role="tabpanel" class="tab-content bg-base-200 border-base-300 rounded-box p-3 mt-2">
+        <div class="grid grid-cols-2 gap-3">
+            
+            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center shadow-sm">
+                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Dégustées</span>
+                <span class="text-xl font-bold text-primary">{{ total_drinks }}</span>
+                <span class="text-[9px] text-gray-400 mt-1">{{ drinks_last_month }} ce mois</span>
+            </div>
+            
+            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center shadow-sm">
+                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Note Moyenne</span>
+                <div class="flex items-center gap-1 text-warning text-xl font-bold">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                    {{ avg_note|floatformat:1 }}
+                </div>
+            </div>
+            
+            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center shadow-sm">
+                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Alcool Moy.</span>
+                <span class="text-sm font-bold text-gray-800">{{ avg_abv|floatformat:1 }} %</span>
+            </div>
+            
+            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center shadow-sm">
+                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Amertume Moy.</span>
+                <span class="text-sm font-bold text-gray-800">{{ avg_ibu|floatformat:0 }} IBU</span>
+            </div>
+            
+            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center col-span-2 shadow-sm">
+                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Style Préféré (Notes >= 7)</span>
+                <span class="text-sm font-bold text-secondary mt-1">{{ pref_style|default:"Pas assez de données" }}</span>
+            </div>
+            
+        </div>
     </div>
-    <div class="stat bg-base-100 shadow-md rounded-box place-items-center">
-        <div class="stat-title">Moyenne donnée</div>
-        <div class="stat-value text-warning">⭐ {{ avg_note|floatformat:1 }}</div>
-    </div>
-    <div class="stat bg-base-100 shadow-md rounded-box place-items-center">
-        <div class="stat-title">Style Préféré</div>
-        <div class="stat-value text-lg text-secondary">{{ pref_style }}</div>
-    </div>
-    <div class="stat bg-base-100 shadow-md rounded-box place-items-center">
-        <div class="stat-title">Moyennes (ABV/IBU)</div>
-        <div class="stat-value text-xl">{{ avg_abv|floatformat:1 }}% / {{ avg_ibu|floatformat:0 }}</div>
+    
+    <input type="radio" name="my_tabs" role="tab" class="tab !appearance-none ![background-image:none] !bg-transparent !border-none focus:ring-0" aria-label="Carnet" />
+    <div role="tabpanel" class="tab-content bg-base-200 border-base-300 rounded-box p-3 mt-2">
+        <div class="flex flex-col gap-3">
+            {% for drink in user_drinks %}
+            <div class="bg-white rounded-lg p-3 relative overflow-hidden flex items-start gap-3 shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all">
+                <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="absolute inset-0 z-0"></a>
+                
+                <div class="shrink-0 flex flex-col items-center gap-1 z-10 relative">
+                    <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-sm bg-base-100 shadow-sm
+                    {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
+                    {{ drink.note }}
+                </div>
+            </div>
+            
+            <div class="flex-1 pointer-events-none">
+                <h4 class="font-bold text-sm leading-tight text-gray-900">{{ drink.beer_id.name }}</h4>
+                <p class="text-[10px] text-gray-500 mb-1">
+                    {{ drink.date|date:"d M Y" }} 
+                    {% if drink.updated_at and drink.created_at and drink.updated_at|date:"YmdHi" != drink.created_at|date:"YmdHi" %}
+                    <span class="italic text-gray-400 font-medium">(modifié)</span>
+                    {% endif %}
+                </p>
+                {% if drink.comment %}<p class="text-[11px] text-gray-600 italic mt-1 line-clamp-2">"{{ drink.comment }}"</p>{% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-xs text-gray-500 text-center py-4">Aucune dégustation enregistrée.</p>
+        {% endfor %}
     </div>
 </div>
 
-<h3 class="font-castoro text-2xl font-bold mt-8 mb-4 border-b-2 border-primary pb-2">🍻 Dernières Dégustations</h3>
-<div class="flex flex-col gap-4">
-    {% for drink in user_drinks %}
-    <div class="card bg-base-100 shadow-md flex flex-row p-4 gap-4 items-center border border-base-200">
-        <div class="w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-lg
-            {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
-            {{ drink.note }}
-        </div>
-        <div class="flex-1">
-            <h4 class="font-bold">{{ drink.beer_id.name }} <span class="text-sm font-normal text-gray-500">— {{ drink.beer_id.brewery_id.name }}</span></h4>
-            <p class="text-xs text-gray-500">{{ drink.date|date:"d M Y" }}</p>
-            {% if drink.comment %}<p class="mt-1 text-sm italic">"{{ drink.comment }}"</p>{% endif %}
+<input type="radio" name="my_tabs" role="tab" class="tab !appearance-none ![background-image:none] !bg-transparent !border-none focus:ring-0" aria-label="Ajouts" />
+<div role="tabpanel" class="tab-content bg-base-200 border-base-300 rounded-box p-3 mt-2">
+    <div class="mb-4">
+        <h3 class="text-sm border-b border-primary pb-1 mb-2">Bières proposées</h3>
+        <div class="flex flex-col gap-2">
+            {% for beer in user_added_beers %}
+            <a href="{% url 'beer_detail' beer.slug %}" class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3">
+                
+                <div class="flex-1 min-w-0 flex flex-col gap-1">
+                    <div class="flex flex-col">
+                        <span class="font-bold text-sm leading-tight truncate">{{ beer.name }}</span>
+                        <span class="text-[10px] text-gray-500 truncate">{{ beer.brewery_id.name }}</span>
+                    </div>
+                    
+                    <div class="flex gap-1 mt-0.5">
+                        {% if beer.style %}
+                        <span class="badge badge-secondary badge-outline badge-xs text-[9px]">{{ beer.style }}</span>
+                        {% endif %}
+                        <span class="badge badge-neutral badge-outline badge-xs text-[9px]">Alc. {{ beer.degree }}%</span>
+                    </div>
+                </div>
+                
+                <div class="shrink-0 flex items-center">
+                    {% if beer.user_note is not None %}
+                    <span class="badge badge-warning badge-sm gap-1 font-bold">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                        {{ beer.user_note }}
+                    </span>
+                    {% else %}
+                    <span class="text-[10px] text-gray-400 italic">Non notée</span>
+                    {% endif %}
+                </div>
+            </a>
+            {% empty %}
+            <p class="text-[10px] text-gray-500">Aucun ajout pour l'instant.</p>
+            {% endfor %}
         </div>
     </div>
-    {% empty %}
-    <p class="text-gray-500 text-center">Aucune dégustation enregistrée.</p>
-    {% endfor %}
 </div>
+
+</div>
+
+<dialog id="modal_followers" class="modal">
+    <div class="modal-box p-4">
+        <h3 class="font-bold text-lg mb-4 text-center">Abonnés</h3>
+        <ul class="flex flex-col gap-2 max-h-80 overflow-y-auto">
+            {% for f in followers %}
+            <li>
+                <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
+                    <div class="avatar">
+                        <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
+                            {% if f.follower.socialaccount_set.all %}
+                            <img class="object-cover w-full h-full" src="{{ f.follower.socialaccount_set.first.extra_data.picture }}" />
+                            {% else %}
+                            <img class="object-cover w-full h-full" src="https://ui-avatars.com/api/?name={{ f.follower.username }}&background=E5A022&color=fff&bold=true" />
+                            {% endif %}
+                        </div>
+                    </div>
+                    <span class="font-bold text-sm">{{ f.follower.username }}</span>
+                </a>
+            </li>
+            {% empty %}
+            <li class="text-gray-500 text-xs italic text-center">Personne ne suit ce membre pour le moment.</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
+<dialog id="modal_following" class="modal">
+    <div class="modal-box p-4">
+        <h3 class="font-bold text-lg mb-4 text-center">Abonnements</h3>
+        <ul class="flex flex-col gap-2 max-h-80 overflow-y-auto">
+            {% for f in following %}
+            <li>
+                <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
+                    <div class="avatar">
+                        <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
+                            {% if f.followed.socialaccount_set.all %}
+                            <img class="object-cover w-full h-full" src="{{ f.followed.socialaccount_set.first.extra_data.picture }}" />
+                            {% else %}
+                            <img class="object-cover w-full h-full" src="https://ui-avatars.com/api/?name={{ f.followed.username }}&background=E5A022&color=fff&bold=true" />
+                            {% endif %}
+                        </div>
+                    </div>
+                    <span class="font-bold text-sm">{{ f.followed.username }}</span>
+                </a>
+            </li>
+            {% empty %}
+            <li class="text-gray-500 text-xs italic text-center">Ce membre ne suit personne.</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
 {% endblock %}

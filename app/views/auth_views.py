@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
 from ..forms import UserRegisterForm, UserLoginForm, UserUpdateForm
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Max, Q
 from datetime import timedelta
 from django.utils import timezone
 from ..models import BeerUser, UserFollow, Beer, Drinks
@@ -84,7 +84,9 @@ def account_view(request):
 
     # 2. Requêtes de base
     my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
-    my_added_beers = Beer.objects.filter(added_by=user).order_by('-id')
+    my_added_beers = Beer.objects.filter(added_by=user).annotate(
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
+    ).order_by('-id')
     
     # Les commentaires des AUTRES sur MES bières
     feedback_on_my_beers = Drinks.objects.filter(beer_id__added_by=user).exclude(drinker_id=user).select_related('drinker_id', 'beer_id').order_by('-date')
@@ -138,7 +140,9 @@ def public_profile_view(request, username):
     
     # Requêtes de base pour cet utilisateur
     user_drinks = Drinks.objects.filter(drinker_id=profile_user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
-    user_added_beers = Beer.objects.filter(added_by=profile_user).order_by('-id')
+    user_added_beers = Beer.objects.filter(added_by=profile_user).annotate(
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=profile_user))
+    ).order_by('-id')
     
     # Social
     followers = UserFollow.objects.filter(followed=profile_user).select_related('follower')

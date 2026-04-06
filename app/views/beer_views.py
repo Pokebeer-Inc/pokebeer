@@ -11,21 +11,6 @@ from ..models import Beer, Drinks
 @ensure_csrf_cookie
 @login_required(login_url='login')
 def index(request):
-    month = timezone.now().month
-    year = timezone.now().year
-    user = request.user
-    
-    # Tops
-    top10 = Beer.objects.annotate(
-        avg_rating=Avg('drinks__note'),
-        count_rating=Count('drinks')  # Compte total
-    ).order_by('-avg_rating')[:10]
-    
-    top10Month = Beer.objects.annotate(
-            avg_rating=Avg('drinks__note', filter=Q(drinks__date__year=year, drinks__date__month=month)),
-            count_rating=Count('drinks', filter=Q(drinks__date__year=year, drinks__date__month=month)) # Compte filtré par mois
-        ).filter(avg_rating__isnull=False).order_by('-avg_rating')[:10]
-    
     # Bières non notées
     unrated_beers = []
     recommended_beers = []
@@ -82,8 +67,6 @@ def index(request):
             ).exclude(global_rating__isnull=True).order_by('-global_rating')[:5]
 
     context = {
-        "top": top10, 
-        "topMonth": top10Month, 
         "unrated_beers": unrated_beers,
         "recommended_beers": recommended_beers,
         "rating_form": rating_form
@@ -122,12 +105,14 @@ def add_beer_view(request):
 
 @login_required(login_url='login')
 def rate_beer_view(request, beer_id):
-    """Traite la notation depuis la home page"""
+    """Traite la notation depuis n'importe quelle page"""
     beer = get_object_or_404(Beer, id=beer_id)
+    
+    previous_url = request.META.get('HTTP_REFERER', 'index')
     
     if Drinks.objects.filter(drinker_id=request.user, beer_id=beer).exists():
         messages.warning(request, f"Vous avez déjà noté la bière {beer.name}.")
-        return redirect('all_beers')
+        return redirect(previous_url)
     
     if request.method == 'POST':
         form = DrinkForm(request.POST)
@@ -140,7 +125,7 @@ def rate_beer_view(request, beer_id):
         else:
             messages.error(request, "Erreur dans le formulaire de notation.")
             
-    return redirect('index')
+    return redirect(previous_url)
 
 @login_required(login_url='login')
 def modify_rate_beer_view(request, drink_id):
@@ -158,7 +143,7 @@ def modify_rate_beer_view(request, drink_id):
             
     return redirect('beer_detail', beer_slug=beer.slug)
 
-
+@login_required(login_url='login')
 def all_beers_view(request):
     """Affiche toutes les bières avec recherche et filtres."""
     beers = Beer.objects.select_related('brewery_id').all().order_by('name')
@@ -193,6 +178,15 @@ def all_beers_view(request):
     rated_beer_ids = []
     if request.user.is_authenticated:
         rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
+        
+        if rated_beer_ids:
+            beers = beers.annotate(
+                is_rated=Case(
+                    When(id__in=rated_beer_ids, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField()
+                )
+            ).order_by('is_rated', 'name')
 
     context = {
         'beers': beers,
@@ -201,6 +195,7 @@ def all_beers_view(request):
     }
     return render(request, 'all_beers.html', context)
 
+@login_required(login_url='login')
 def beer_detail_view(request, beer_slug):
     """Affiche les détails d'une bière, ses notes et commentaires."""
     beer = get_object_or_404(Beer, slug=beer_slug)
@@ -230,3 +225,20 @@ def beer_detail_view(request, beer_slug):
     }
 
     return render(request, 'beer_page.html', context)
+
+@login_required(login_url='login')
+def ranking_view(request):
+    month = timezone.now().month
+    year = timezone.now().year
+    
+    top10 = Beer.objects.annotate(
+        avg_rating=Avg('drinks__note'),
+        count_rating=Count('drinks')
+    ).order_by('-avg_rating')[:10]
+    
+    top10Month = Beer.objects.annotate(
+        avg_rating=Avg('drinks__note', filter=Q(drinks__date__year=year, drinks__date__month=month)),
+        count_rating=Count('drinks', filter=Q(drinks__date__year=year, drinks__date__month=month))
+    ).filter(avg_rating__isnull=False).order_by('-avg_rating')[:10]
+
+    return render(request, "ranking.html", {"top": top10, "topMonth": top10Month})

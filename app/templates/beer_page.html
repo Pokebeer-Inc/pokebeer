@@ -1,102 +1,84 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex flex-row gap-8 justify-center items-start py-6">
-    <div class="text-center flex flex-col place-items-center p-4 min-w-[400px]">
+<div class="flex flex-col -mx-4 -mt-4 bg-base-100 relative">
+    
+    <div class="w-full h-64 bg-gray-200 relative">
+        <a href="javascript:history.back()" class="absolute top-4 left-4 btn btn-sm btn-circle btn-neutral bg-black/50 border-none text-white z-10 backdrop-blur-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+        </a>
+
         {% if beer.image %}
-        <img src="{{ beer.image.url }}" alt="{{ beer.name }}" class="w-64 h-64 object-cover rounded-lg shadow-md mb-4">
+        <img src="{{ beer.image.url }}" alt="{{ beer.name }}" class="w-full h-full object-cover">
         {% else %}
-        <img src="/static/images/beer_placeholder.png" alt="{{ beer.name }}" class="w-64 h-64 object-cover rounded-lg shadow-md mb-4">
+        <img src="/static/images/beer_placeholder.png" alt="{{ beer.name }}" class="w-full h-full object-cover">
         {% endif %}
-        <h1 class="text-4xl font-castoro font-bold mb-4">{{ beer.name }}</h1>
-        <h2 class="text-xl font-bold text-gray-500 mb-2">{{ beer.brewery_id.name }}</h2>
-        {% if beer.added_by %}
-            <p class="text-sm mb-4 text-gray-400">Proposée par <a href="{% url 'public_profile' beer.added_by.username %}" class="font-bold hover:text-primary hover:underline">{{ beer.added_by.username }}</a></p>
-        {% endif %}
-        <p class="text-gray-600 mb-2 max-w-md text-justify">{{ beer.description }}</p>
-        <div class="flex items-center gap-4 mt-4">
-            <span class="badge badge-primary">Degré : {{ beer.degree }}%</span>
-            <span class="badge badge-secondary">Amertume : {{ beer.bitterness }} IBU</span>
-        </div> 
+        
+        <div class="absolute bottom-0 w-full h-24 bg-gradient-to-t from-base-100 to-transparent"></div>
     </div>
-    <div class="max-w-screen-md">
-        <div class="py-3">
-            <h3 class="text-2xl font-bold border-b-2 border-primary pb-2 mb-4 text-primary">Ma dégustation :</h3>
+
+    <div class="px-4 pt-2 pb-4 border-b border-base-200">
+        <h1 class="text-3xl font-castoro font-bold leading-tight">{{ beer.name }}</h1>
+        <h2 class="text-md font-semibold text-gray-500 mb-3">{{ beer.brewery_id.name }}</h2>
+        
+        <div class="flex gap-2 mb-4">
+            <span class="badge badge-primary badge-sm">Alc. {{ beer.degree }}%</span>
+            <span class="badge badge-secondary badge-outline badge-sm">IBU {{ beer.bitterness }}</span>
+        </div> 
+
+        <p class="text-sm text-gray-600 text-justify mb-2">{{ beer.description }}</p>
+        
+        {% if beer.added_by %}
+            <p class="text-[10px] text-gray-400 mt-2">Ajoutée par <a href="{% url 'public_profile' beer.added_by.username %}" class="font-bold text-primary">{{ beer.added_by.username }}</a></p>
+        {% endif %}
+    </div>
+
+    <div class="p-4">
+        <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+            Avis
+        </h3>
+
+        <div class="mb-6">
             {% if user_rating %}
-                <div class="card bg-base-100 shadow flex flex-row border border-base-200 p-4 gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-lg
-                        {% if user_rating.note >= 8 %} border-success text-success dropdown shadow-success
-                        {% elif user_rating.note >= 5 %} border-warning text-warning dropdown shadow-warning
-                        {% else %} border-error text-error dropdown shadow-error {% endif %}">
-                        {{ user_rating.note }}
+                <div class="bg-primary/10 rounded-xl p-3 border border-primary/20">
+                    <div class="flex gap-3 items-center mb-2">
+                        <div class="w-10 h-10 rounded-full bg-base-100 border-2 border-primary flex items-center justify-center font-bold text-primary">
+                            {{ user_rating.note }}
+                        </div>
+                        <div class="flex-1">
+                            <span class="text-sm font-bold block">Votre note</span>
+                            <span class="text-[10px] text-gray-500">{{ user_rating.date }}</span>
+                        </div>
+                        <button class="btn btn-xs btn-outline btn-primary" onclick="modal{{beer.id}}.showModal()">Modifier</button>
                     </div>
-                    <div class="flex-1">
-                        <h4 class="font-bold text-lg leading-tight">
-                            Votre dégustation
-                            <span class="font-normal text-sm text-gray-500 block">
-                                — {{ user_rating.date }}
-                            </span>
-                            <p class="text-sm text-gray-600 mt-1">{{ user_rating.comment }}</p>
-                        </h4>
-                    </div>
-                </div>
-                <div class="flex flex-col place-items-center">
-                    <div>
-                        <a class="btn btn-primary text-white mt-4" onclick="modal{{beer.id}}.showModal()">Mettre à jour ma dégustation</a>
-                         <dialog id="modal{{beer.id}}" class="modal">
-                            <div class="modal-box">
-                                <h3 class="font-bold text-lg mb-4">Mettre à jour ma dégustation de {{ beer.name }}</h3>
-                                    <form method="post" action="{% url 'modify_rate_beer' user_rating.id %}">
-                                    {% csrf_token %}
-                                        <div class="form-control w-full mb-3">
-                                            <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
-                                            {{ rating_form.date }}
-                                        </div>
-                                        <div class="form-control w-full mb-3">
-                                            <label class="label"><span class="label-text">{{ rating_form.note.label }}</span></label>
-                                            {{ rating_form.note }}
-                                        </div>
-                                        <div class="form-control w-full mb-4">
-                                            <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
-                                            {{ rating_form.comment }}
-                                        </div>
-                                        <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
-                                    </form>
-                            </div>
-                            <form method="dialog" class="modal-backdrop">
-                                <button>Fermer</button>
-                            </form>
-                        </dialog>
-                    </div>
+                    {% if user_rating.comment %}<p class="text-xs italic">"{{ user_rating.comment }}"</p>{% endif %}
                 </div>
             {% else %}
-                <p class="text-gray-600 italic">Vous n'avez pas encore dégusté cette bière. <a href="{% url 'rate_beer' beer.id %}" class="text-primary hover:underline">Noter cette bière</a> pour partager votre avis !</p>
+                <div class="bg-base-200 rounded-xl p-4 text-center border border-base-300">
+                    <p class="text-sm text-gray-600 mb-2">Vous n'avez pas encore noté cette bière.</p>
+                    <a href="{% url 'rate_beer' beer.id %}" class="btn btn-sm btn-primary text-white w-full">Ajouter mon avis</a>
+                </div>
             {% endif %}
         </div>
-        <div class="pt-5">
-            <h3 class="text-2xl font-bold border-b-2 border-primary pb-2 mb-4 text-primary">Les Dégustations</h3>
-            <div class="flex flex-col gap-4">
-                {% for drink in drinks %}
-                <div class="card bg-base-100 shadow flex flex-row border border-base-200 p-4 gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-lg
-                        {% if drink.note >= 8 %} border-success text-success dropdown shadow-success
-                        {% elif drink.note >= 5 %} border-warning text-warning dropdown shadow-warning
-                        {% else %} border-error text-error dropdown shadow-error {% endif %}">
+
+        <div class="flex flex-col gap-3">
+            {% for drink in drinks %}
+                {% if drink.drinker_id != request.user %} <div class="bg-base-100 rounded-lg p-3 border border-base-200 shadow-sm flex gap-3">
+                    <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs
+                        {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
                         {{ drink.note }}
                     </div>
-
                     <div class="flex-1">
-                        <h4 class="font-bold text-lg leading-tight">
-                            <a href="{% url 'public_profile' drink.drinker_id.username %}" class="hover:text-primary hover:underline transition-colors">{{ drink.drinker_id.username }}</a>
-                            <span class="font-normal text-sm text-gray-500 block">
-                                — {{ drink.date }}
-                            </span>
-                            <p class="text-sm text-gray-600 mt-1">{{ drink.comment }}</p>
+                        <h4 class="font-bold text-sm">
+                            <a href="{% url 'public_profile' drink.drinker_id.username %}">{{ drink.drinker_id.username }}</a>
                         </h4>
+                        <p class="text-[10px] text-gray-500 mb-1">{{ drink.date }}</p>
+                        {% if drink.comment %}<p class="text-xs text-gray-700">"{{ drink.comment }}"</p>{% endif %}
                     </div>
                 </div>
-                {% endfor %}
-            </div>
+                {% endif %}
+            {% endfor %}
         </div>
     </div>
 </div>
