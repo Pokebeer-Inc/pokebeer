@@ -98,6 +98,9 @@ class Drinks(models.Model):
     drinker_id = models.ForeignKey(BeerUser, on_delete=models.CASCADE)
     beer_id = models.ForeignKey(Beer, on_delete=models.CASCADE)
     
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+    
     class Meta:
         verbose_name = "Dégustation"
         ordering = ['-date']
