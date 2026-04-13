@@ -7,3 +7,5 @@ node_modules/
 *.png
 media/
 .DS_Store
+staticfiles/
+*/dist/
