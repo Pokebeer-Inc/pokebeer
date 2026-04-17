@@ -106,29 +106,6 @@
                 {% if drink.comment %}<p class="text-[11px] text-gray-600 italic mt-1 line-clamp-2">"{{ drink.comment }}"</p>{% endif %}
             </div>
         </div>
-        
-        <dialog id="modalEditDrink{{drink.id}}" class="modal">
-            <div class="modal-box p-4">
-                <h3 class="text-sm border-b border-primary pb-1 mb-2">Modifier : {{ drink.beer_id.name }}</h3>
-                <form method="post" action="{% url 'modify_rate_beer' drink.id %}">
-                    {% csrf_token %}
-                    <div class="form-control w-full mb-2">
-                        <label class="label py-1"><span class="label-text text-xs font-bold">Date</span></label>
-                        <input type="date" name="date" value="{{ drink.date|date:'Y-m-d' }}" class="input input-sm input-bordered w-full bg-white" required>
-                    </div>
-                    <div class="form-control w-full mb-2">
-                        <label class="label py-1"><span class="label-text text-xs font-bold">Note /10</span></label>
-                        <input type="number" name="note" value="{{ drink.note }}" min="0" max="10" class="input input-sm input-bordered w-full bg-white" required>
-                    </div>
-                    <div class="form-control w-full mb-4">
-                        <label class="label py-1"><span class="label-text text-xs font-bold">Commentaire</span></label>
-                        <textarea name="comment" class="textarea textarea-bordered w-full h-20 text-xs bg-white">{{ drink.comment }}</textarea>
-                    </div>
-                    <button type="submit" class="btn btn-success btn-sm w-full text-white">Enregistrer</button>
-                </form>
-            </div>
-            <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-        </dialog>
         {% empty %}
         <p class="text-xs text-gray-500 text-center py-4">Aucune dégustation enregistrée.</p>
         {% endfor %}
@@ -233,10 +210,40 @@
 </div>
 </div>
 
-<dialog id="modal_followers" class="modal">
-    <div class="modal-box p-4">
+<script src="{% static 'script/tab_bar.js' %}"></script>
+{% endblock %}
+
+{% block modals %}
+{% for drink in my_drinks %}
+<dialog id="modalEditDrink{{drink.id}}" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box p-4 pb-8 sm:pb-4">
+        <h3 class="text-sm border-b border-primary pb-1 mb-2">Modifier : {{ drink.beer_id.name }}</h3>
+        <form method="post" action="{% url 'modify_rate_beer' drink.id %}">
+            {% csrf_token %}
+            <div class="form-control w-full mb-2">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Date</span></label>
+                <input type="date" name="date" value="{{ drink.date|date:'Y-m-d' }}" class="input input-sm input-bordered w-full bg-white" required>
+            </div>
+            <div class="form-control w-full mb-2">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Note /10</span></label>
+                <input type="number" name="note" value="{{ drink.note }}" min="0" max="10" class="input input-sm input-bordered w-full bg-white" required>
+            </div>
+            <div class="form-control w-full mb-4">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Commentaire</span></label>
+                <textarea name="comment" class="textarea textarea-bordered w-full h-20 text-xs bg-white">{{ drink.comment }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-success btn-sm w-full text-white">Enregistrer</button>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+{% endfor %}
+
+<dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box p-4 pt-6 pb-8 sm:pb-4">
+        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_followers.close()">✕</button>
         <h3 class="font-bold text-lg mb-4 text-center">Abonnés</h3>
-        <ul class="flex flex-col gap-2 max-h-80 overflow-y-auto">
+        <ul class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
             {% for f in followers %}
             <li>
                 <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
@@ -260,10 +267,11 @@
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
 
-<dialog id="modal_following" class="modal">
-    <div class="modal-box p-4">
+<dialog id="modal_following" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box p-4 pt-6 pb-8 sm:pb-4">
+        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_following.close()">✕</button>
         <h3 class="font-bold text-lg mb-4 text-center">Abonnements</h3>
-        <ul class="flex flex-col gap-2 max-h-80 overflow-y-auto">
+        <ul class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
             {% for f in following %}
             <li>
                 <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
@@ -286,6 +294,4 @@
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
-
-<script src="{% static 'script/tab_bar.js' %}"></script>
 {% endblock %}

@@ -88,6 +88,7 @@
     </div>
     {% endif %}
 </div>
+{% block modals %}{% endblock %}
 </body>
 {% if user.is_authenticated %}
 <script src="{% static 'script/chat.js' %}"></script>
