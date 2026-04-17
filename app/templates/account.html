@@ -216,7 +216,7 @@
 {% block modals %}
 {% for drink in my_drinks %}
 <dialog id="modalEditDrink{{drink.id}}" class="modal modal-top sm:modal-middle pt-16 sm:pt-0">
-    <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col mx-auto w-11/12 max-w-md">
+    <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col mx-auto w-11/12 max-w-md" style="height: 50%">
         <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modalEditDrink{{drink.id}}.close()">✕</button>
         <h3 class="text-sm font-bold border-b border-primary pb-2 mb-4 shrink-0">Modifier : {{ drink.beer_id.name }}</h3>
         <form method="post" action="{% url 'modify_rate_beer' drink.id %}" class="flex flex-col">
