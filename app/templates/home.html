@@ -1,6 +1,8 @@
 {% extends "base.html" %}
+{%load static%}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'style/modal.css' %}">
 <div class="mb-4 text-center">
     <h2 class="text-2xl font-castoro font-bold flex justify-center items-center gap-2">Bienvenue sur Pokebeer</h2>
     <p class="text-sm text-gray-500">Houblons nous ensemble</p>
@@ -73,7 +75,7 @@
             </button>
             
             <dialog id="modal{{beer.id}}" class="modal">
-                <div class="modal-box">
+                <div class="modal-box custom-modal-form">
                     <h3 class="font-bold text-lg mb-4">Noter : {{ beer.name }}</h3>
                     <form method="post" action="{% url 'rate_beer' beer.id %}">
                         {% csrf_token %}
