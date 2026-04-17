@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 <div class="flex flex-col items-center bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200 relative mt-2">
@@ -40,10 +41,16 @@
     </div>
 </div>
 
-<div role="tablist" class="tabs tabs-boxed p-1 text-[11px] font-bold">
-    
-    <input type="radio" name="my_tabs" role="tab" class="tab !appearance-none ![background-image:none] !bg-transparent !border-none focus:ring-0" aria-label="Stats" checked="checked" />
-    <div role="tabpanel" class="tab-content bg-base-200 border-base-300 rounded-box p-3 mt-2">
+<div class="w-full mt-4">
+    <!-- Onglets -->
+    <div class="flex bg-base-200 p-1 rounded-full gap-1 text-[11px] font-bold text-center">
+        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all bg-white text-gray-900 shadow-sm focus:outline-none" onclick="switchTab(this, 'tab-stats')">Stats</button>
+        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-carnet')">Carnet</button>
+        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-ajouts')">Ajouts</button>
+    </div>
+
+    <!-- Contenu des onglets -->
+    <div id="tab-stats" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 block">
         <div class="grid grid-cols-2 gap-3">
             
             <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center shadow-sm">
@@ -78,8 +85,7 @@
         </div>
     </div>
     
-    <input type="radio" name="my_tabs" role="tab" class="tab !appearance-none ![background-image:none] !bg-transparent !border-none focus:ring-0" aria-label="Carnet" />
-    <div role="tabpanel" class="tab-content bg-base-200 border-base-300 rounded-box p-3 mt-2">
+    <div id="tab-carnet" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 hidden">
         <div class="flex flex-col gap-3">
             {% for drink in user_drinks %}
             <div class="bg-white rounded-lg p-3 relative overflow-hidden flex items-start gap-3 shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all">
@@ -109,8 +115,7 @@
     </div>
 </div>
 
-<input type="radio" name="my_tabs" role="tab" class="tab !appearance-none ![background-image:none] !bg-transparent !border-none focus:ring-0" aria-label="Ajouts" />
-<div role="tabpanel" class="tab-content bg-base-200 border-base-300 rounded-box p-3 mt-2">
+<div id="tab-ajouts" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 hidden">
     <div class="mb-4">
         <h3 class="text-sm border-b border-primary pb-1 mb-2">Bières proposées</h3>
         <div class="flex flex-col gap-2">
@@ -204,4 +209,6 @@
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
+
+<script src="{% static 'script/tab_bar.js' %}"></script>
 {% endblock %}

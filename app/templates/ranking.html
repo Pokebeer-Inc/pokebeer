@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 <div class="mb-4 text-center">
@@ -6,9 +7,15 @@
     <p class="text-sm text-gray-500">Les bières préférées de la communauté</p>
 </div>
 
-<div role="tablist" class="tabs tabs-boxed mb-4">
-  <input type="radio" name="ranking_tabs" role="tab" class="tab text-xs font-bold" aria-label="Ce Mois" checked="checked" />
-  <div role="tabpanel" class="tab-content pt-4">
+<div class="w-full mt-4">
+    <!-- Onglets -->
+    <div class="flex bg-base-200 p-1 rounded-full gap-1 text-[11px] font-bold text-center">
+        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all bg-white text-gray-900 shadow-sm focus:outline-none" onclick="switchTab(this, 'tab-cemois')">Ce Mois</button>
+        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-global')">Global</button>
+    </div>
+
+    <!-- Contenu des onglets -->
+    <div id="tab-cemois" class="tab-panel pt-4 block">
     {% if not topMonth %} 
         <p class="text-gray-500 italic text-center text-sm">Pas encore de note pour ce mois.</p> 
     {% else %}
@@ -47,10 +54,9 @@
             {% endfor %}
         </ul>
     {% endif %}
-  </div>
+    </div>
 
-  <input type="radio" name="ranking_tabs" role="tab" class="tab text-xs font-bold" aria-label="Global" />
-  <div role="tabpanel" class="tab-content pt-4">
+    <div id="tab-global" class="tab-panel pt-4 hidden">
      {% if not top %} 
         <p class="text-gray-500 italic text-center text-sm">Pas encore de note.</p> 
      {% else %}
@@ -89,6 +95,8 @@
             {% endfor %}
         </ul>
     {% endif %}
-  </div>
+    </div>
 </div>
+
+<script src="{% static 'script/tab_bar.js' %}"></script>
 {% endblock %}
