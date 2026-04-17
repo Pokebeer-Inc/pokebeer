@@ -107,8 +107,8 @@
             </div>
         </div>
         
-        <dialog id="modalEditDrink{{drink.id}}" class="modal modal-bottom sm:modal-middle">
-            <div class="modal-box p-4 pb-8 sm:pb-4">
+        <dialog id="modalEditDrink{{drink.id}}" class="modal">
+            <div class="modal-box p-4">
                 <h3 class="text-sm border-b border-primary pb-1 mb-2">Modifier : {{ drink.beer_id.name }}</h3>
                 <form method="post" action="{% url 'modify_rate_beer' drink.id %}">
                     {% csrf_token %}
@@ -233,10 +233,10 @@
 </div>
 </div>
 
-<dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box p-4 pb-8 sm:pb-4">
+<dialog id="modal_followers" class="modal">
+    <div class="modal-box p-4">
         <h3 class="font-bold text-lg mb-4 text-center">Abonnés</h3>
-        <ul class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
+        <ul class="flex flex-col gap-2 max-h-[80vh] overflow-y-auto">
             {% for f in followers %}
             <li>
                 <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
@@ -260,10 +260,10 @@
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
 
-<dialog id="modal_following" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box p-4 pb-8 sm:pb-4">
+<dialog id="modal_following" class="modal">
+    <div class="modal-box p-4">
         <h3 class="font-bold text-lg mb-4 text-center">Abonnements</h3>
-        <ul class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
+        <ul class="flex flex-col gap-2 max-h-[80vh] overflow-y-auto">
             {% for f in following %}
             <li>
                 <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
