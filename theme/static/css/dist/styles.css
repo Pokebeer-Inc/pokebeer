@@ -5245,6 +5245,11 @@
     }
   }
   @media (width >= 40rem) {
+    .sm\:items-center {
+      align-items: center;
+    }
+  }
+  @media (width >= 40rem) {
     .sm\:pt-0 {
       padding-top: calc(var(--spacing) * 0);
     }
