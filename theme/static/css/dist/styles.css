@@ -3723,6 +3723,23 @@
     }
   }
   @layer daisyui.l1.l2 {
+    .modal-top {
+      place-items: start;
+    }
+    .modal-top .modal-box {
+      height: auto;
+      width: 100%;
+      max-width: none;
+      max-height: calc(100vh - 5em);
+      translate: 0 -100%;
+      scale: 1;
+      --modal-tl: 0;
+      --modal-tr: 0;
+      --modal-bl: var(--radius-box);
+      --modal-br: var(--radius-box);
+    }
+  }
+  @layer daisyui.l1.l2 {
     .divider-horizontal {
       --divider-m: 0 1rem;
     }
@@ -3902,6 +3919,9 @@
   }
   .w-10 {
     width: calc(var(--spacing) * 10);
+  }
+  .w-11\/12 {
+    width: calc(11 / 12 * 100%);
   }
   .w-20 {
     width: calc(var(--spacing) * 20);
@@ -4544,6 +4564,9 @@
   }
   .pt-6 {
     padding-top: calc(var(--spacing) * 6);
+  }
+  .pt-16 {
+    padding-top: calc(var(--spacing) * 16);
   }
   .datatable-wrapper .datatable-container thead tr.search-filtering-row th {
     padding-top: 0;
@@ -5216,6 +5239,11 @@
         --modal-bl: var(--radius-box);
         --modal-br: var(--radius-box);
       }
+    }
+  }
+  @media (width >= 40rem) {
+    .sm\:pt-0 {
+      padding-top: calc(var(--spacing) * 0);
     }
   }
   @media (width >= 40rem) {
