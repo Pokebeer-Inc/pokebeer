@@ -1,0 +1,15 @@
+.custom-modal-form {
+    height: auto;
+    min-height: 60% !important;
+    max-height: 85% !important;
+}
+
+.custom-modal-text {
+    height: 50% !important;
+    max-height: 50% !important;
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}

@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'style/modal.css' %}">
 <div class="flex flex-col items-center bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200 relative mt-2">
     <div class="absolute top-2 right-2">
         <a href="{% url 'logout' %}" class="btn btn-xs btn-ghost text-error">
@@ -216,7 +217,7 @@
 {% block modals %}
 {% for drink in my_drinks %}
 <dialog id="modalEditDrink{{drink.id}}" class="modal items-start pt-10 sm:items-center sm:pt-0">
-    <div class="modal-box flex flex-col mx-auto w-11/12 max-w-md bg-white shadow-xl" style="height: auto; min-height: 60% !important; max-height: 85% !important;">
+    <div class="modal-box flex flex-col mx-auto w-11/12 max-w-md bg-white shadow-xl custom-modal-form">
         <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-10 bg-base-200" onclick="modalEditDrink{{drink.id}}.close()">✕</button>
         <h3 class="text-sm font-bold border-b border-primary pb-2 mb-4 shrink-0">Modifier : {{ drink.beer_id.name }}</h3>
         <form method="post" action="{% url 'modify_rate_beer' drink.id %}" class="flex flex-col flex-1 overflow-y-auto">
@@ -241,7 +242,7 @@
 {% endfor %}
 
 <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col" style="height: 50% !important; max-height: 50% !important; width: 100%; max-width: 100%; margin-bottom: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0;">
+    <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
         <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_followers.close()">✕</button>
         <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnés</h3>
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
@@ -269,7 +270,7 @@
 </dialog>
 
 <dialog id="modal_following" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col" style="height: 50% !important; max-height: 50% !important; width: 100%; max-width: 100%; margin-bottom: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0;">
+    <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
         <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_following.close()">✕</button>
         <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnements</h3>
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
