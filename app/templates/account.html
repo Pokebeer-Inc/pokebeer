@@ -236,7 +236,7 @@
 <dialog id="modal_followers" class="modal">
     <div class="modal-box p-4">
         <h3 class="font-bold text-lg mb-4 text-center">Abonnés</h3>
-        <ul class="flex flex-col gap-2 max-h-[80vh] overflow-y-auto">
+        <ul class="flex flex-col gap-2 max-h-80 overflow-y-auto">
             {% for f in followers %}
             <li>
                 <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
@@ -263,7 +263,7 @@
 <dialog id="modal_following" class="modal">
     <div class="modal-box p-4">
         <h3 class="font-bold text-lg mb-4 text-center">Abonnements</h3>
-        <ul class="flex flex-col gap-2 max-h-[80vh] overflow-y-auto">
+        <ul class="flex flex-col gap-2 max-h-80 overflow-y-auto">
             {% for f in following %}
             <li>
                 <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
