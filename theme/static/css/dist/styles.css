@@ -3706,6 +3706,23 @@
     display: table;
   }
   @layer daisyui.l1.l2 {
+    .modal-bottom {
+      place-items: end;
+    }
+    .modal-bottom .modal-box {
+      height: auto;
+      width: 100%;
+      max-width: none;
+      max-height: calc(100vh - 5em);
+      translate: 0 100%;
+      scale: 1;
+      --modal-tl: var(--radius-box);
+      --modal-tr: var(--radius-box);
+      --modal-bl: 0;
+      --modal-br: 0;
+    }
+  }
+  @layer daisyui.l1.l2 {
     .divider-horizontal {
       --divider-m: 0 1rem;
     }
@@ -3778,6 +3795,9 @@
   }
   .max-h-80 {
     max-height: calc(var(--spacing) * 80);
+  }
+  .max-h-\[60vh\] {
+    max-height: 60vh;
   }
   .max-h-full {
     max-height: 100%;
@@ -4546,6 +4566,9 @@
   .pb-4 {
     padding-bottom: calc(var(--spacing) * 4);
   }
+  .pb-8 {
+    padding-bottom: calc(var(--spacing) * 8);
+  }
   .pb-20 {
     padding-bottom: calc(var(--spacing) * 20);
   }
@@ -5166,6 +5189,30 @@
   }
   .active\:scale-\[0\.98\]:active {
     scale: 0.98;
+  }
+  @media (width >= 40rem) {
+    @layer daisyui.l1.l2 {
+      .sm\:modal-middle {
+        place-items: center;
+      }
+      .sm\:modal-middle .modal-box {
+        height: auto;
+        width: calc(11/12 * 100%);
+        max-width: 32rem;
+        max-height: calc(100vh - 5em);
+        translate: 0 2%;
+        scale: 98%;
+        --modal-tl: var(--radius-box);
+        --modal-tr: var(--radius-box);
+        --modal-bl: var(--radius-box);
+        --modal-br: var(--radius-box);
+      }
+    }
+  }
+  @media (width >= 40rem) {
+    .sm\:pb-4 {
+      padding-bottom: calc(var(--spacing) * 4);
+    }
   }
   @media (width >= 48rem) {
     .md\:inset-0 {
