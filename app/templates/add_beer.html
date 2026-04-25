@@ -7,6 +7,17 @@
     </h2>
 </div>
 
+<div class="w-full mb-6">
+    <button type="button" id="scan-label-btn" class="btn btn-secondary w-full text-white flex items-center justify-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        Scanner l'étiquette avec l'IA
+    </button>
+    <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
+    <div id="scan-loader" class="hidden text-center text-sm text-primary font-bold mt-2">
+        <span class="loading loading-spinner loading-sm"></span> Analyse de l'étiquette en cours...
+    </div>
+</div>
+
 <div class="card-body bg-white p-4 rounded-xl border border-base-300 space-y-2">
     <form method="post" autocomplete="off" class="flex flex-col gap-5">
         {% csrf_token %}
@@ -26,6 +37,11 @@
                 <label class="label py-1"><span class="label-text font-bold text-xs">{{ beer_form.brewery_name.label }}</span></label>
                 {{ beer_form.brewery_name }}
                 <div id="brewery-suggestions" class="absolute z-50 w-full bg-base-100 shadow-lg rounded-b-md border border-base-300 top-full hidden mt-1 max-h-40 overflow-y-auto"></div>
+            </div>
+
+            <div class="form-control w-full mb-3">
+                <label class="label py-1"><span class="label-text font-bold text-xs">{{ beer_form.style.label }}</span></label>
+                {{ beer_form.style }}
             </div>
             
             <div class="flex gap-2 mb-3">
@@ -169,6 +185,111 @@
     document.addEventListener("click", function (e) {
         if (e.target !== beerInput) beerSugg?.classList.add('hidden');
         if (e.target !== breweryInput) brewerySugg?.classList.add('hidden');
+    });
+</script>
+<script>
+    const scanBtn = document.getElementById('scan-label-btn');
+    const cameraInput = document.getElementById('camera-input');
+    const scanLoader = document.getElementById('scan-loader');
+
+    scanBtn.addEventListener('click', () => cameraInput.click());
+
+    cameraInput.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        scanLoader.classList.remove('hidden');
+        scanBtn.disabled = true;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(function(blob) {
+                    const formData = new FormData();
+                    formData.append('image', blob, 'label.jpg');
+
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                    fetch("{% url 'analyze_label' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            const data = result.data;
+                            
+                            if (data.name) {
+                                const nameField = document.getElementById('id_beer-name');
+                                if (nameField) {
+                                    const formattedName = data.name.charAt(0).toUpperCase() + data.name.slice(1).toLowerCase();
+                                    nameField.value = formattedName;
+                                    nameField.dispatchEvent(new Event('input'));
+                                }
+                            }
+
+                            if (data.brewery) {
+                                const breweryField = document.getElementById('id_beer-brewery_name');
+                                if (breweryField) {
+                                    const formattedName = data.brewery.charAt(0).toUpperCase() + data.brewery.slice(1).toLowerCase();
+                                    breweryField.value = formattedName;
+                                    breweryField.dispatchEvent(new Event('input'));
+                                }
+                            }
+
+                            if (data.style) {
+                                const styleField = document.getElementById('id_beer-style');
+                                if (styleField) styleField.value = data.style;
+                            }
+
+                            if (data.degree) {
+                                const degreeField = document.getElementById('id_beer-degree');
+                                if (degreeField) degreeField.value = data.degree;
+                            }
+
+                            if (data.bitterness) {
+                                const bitternessField = document.getElementById('id_beer-bitterness');
+                                if (bitternessField) bitternessField.value = data.bitterness;
+                            }
+                            
+                        } else {
+                            alert("Erreur: " + result.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Erreur réseau:", error);
+                        alert("Impossible de joindre le serveur d'analyse.");
+                    })
+                    .finally(() => {
+                        scanLoader.classList.add('hidden');
+                        scanBtn.disabled = false;
+                        cameraInput.value = '';
+                    });
+
+                }, 'image/jpeg', 0.8);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
     });
 </script>
 {% endblock %}

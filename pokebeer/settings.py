@@ -201,3 +201,5 @@ if DEBUG:
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media').replace('\\', '/')
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")

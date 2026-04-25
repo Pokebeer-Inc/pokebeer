@@ -52,3 +52,4 @@ django-allauth
 PyJWT[crypto]
 pgvector>=0.2.5
 huggingface-hub>=0.21.0
+google-genai
