@@ -7,6 +7,7 @@ urlpatterns = [
     path('rate-beer/<int:beer_id>/', views.rate_beer_view, name='rate_beer'),
     path('modify-rate-beer/<int:drink_id>/', views.modify_rate_beer_view, name='modify_rate_beer'),
     path('api/chat/', views.chat_api, name='chat_api'),
+    path('api/analyze-label/', views.analyze_beer_label, name='analyze_label'),
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),

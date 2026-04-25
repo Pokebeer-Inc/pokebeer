@@ -6,6 +6,12 @@ from ..models import Beer, Brewery, BeerUser
 from ..services import ask_sommelier
 from django.db.models import Q
 from django.utils.text import slugify
+from google import genai
+from google.genai import types
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 @require_POST
 def chat_api(request):
@@ -22,10 +28,55 @@ def chat_api(request):
     if not user_message.strip():
         return JsonResponse({"response": "Message vide."}, status=400)
 
-    # Appel au service métier (Business Logic)
     response_text = ask_sommelier(user_message)
     
     return JsonResponse({"response": response_text})
+
+@require_POST
+@login_required
+def analyze_beer_label(request):
+    if 'image' not in request.FILES:
+        return JsonResponse({"error": "Aucune image reçue."}, status=400)
+
+    image_file = request.FILES['image']
+    image_bytes = image_file.read()
+
+    try:
+        prompt = """
+            Tu es un expert sommelier de la bière. 
+            1. Analyse l'image de cette étiquette pour identifier la bière.
+            2. Si des informations (comme la brasserie, le style, le degré d'alcool ou l'IBU) ne sont pas visibles ou lisibles sur l'image, UTILISE TES CONNAISSANCES INTERNES d'expert pour déduire et compléter ces champs manquants à partir du nom trouvé.
+            3. Ne renvoie AUCUN autre texte que le JSON strict.
+
+            Les clés doivent être exactement :
+            - "name" : Le nom de la bière.
+            - "brewery" : Le nom de la brasserie (déduis-le si non écrit).
+            - "style" : Le style de bière (ex: IPA, Stout, Triple...).
+            - "degree" : Le degré d'alcool en format numérique (ex: 5.5).
+            - "bitterness" : L'amertume IBU en nombre entier (déduis-le si possible, sinon null).
+            """
+
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[
+                prompt,
+                types.Part.from_bytes(
+                    data=image_bytes,
+                    mime_type=image_file.content_type,
+                )
+            ],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())]
+            )
+        )
+        
+        raw_json = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(raw_json)
+
+        return JsonResponse({"success": True, "data": data})
+
+    except Exception as e:
+        return JsonResponse({"error": f"Erreur lors de l'analyse : {str(e)}"}, status=500)
 
 def search_brewery(request):
     """API pour l'autocomplétion des brasseries"""
