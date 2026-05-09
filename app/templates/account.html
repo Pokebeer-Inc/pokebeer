@@ -248,6 +248,17 @@
         <button type="submit" name="btn_password" class="btn btn-outline btn-error btn-sm mt-2">Changer</button>
     </form>
     {% endif %}
+
+    <div class="divider my-4 before:bg-error/30 after:bg-error/30 text-error font-bold text-xs uppercase">Zone de danger</div>
+    
+    <div class="flex flex-col gap-2 bg-error/10 p-3 rounded-box border border-error/30">
+        <h3 class="font-bold text-error text-sm">Supprimer mon compte</h3>
+        <p class="text-[10px] text-gray-600 leading-tight">Attention, action irréversible. Vos dégustations, notes et lieux seront effacés. Vos bières ajoutées au catalogue seront conservées anonymement.</p>
+        <button type="button" class="btn btn-error btn-sm text-white mt-2 w-full" onclick="modal_delete_account.showModal()">
+            Supprimer définitivement
+        </button>
+    </div>
+    
 </div>
 </div>
 
@@ -303,7 +314,7 @@
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
-{% endfor %} <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
+{% endfor %} 
 
 <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
@@ -357,6 +368,24 @@
             <li class="text-gray-500 text-xs italic text-center">Vous ne suivez personne.</li>
             {% endfor %}
         </ul>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
+<dialog id="modal_delete_account" class="modal z-[99999]">
+    <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center border-2 border-error">
+        <div class="bg-error/10 p-3 rounded-full text-error mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        </div>
+        <h3 class="font-bold text-lg text-error">Suppression du compte</h3>
+        <p class="text-sm text-gray-600">Voulez-vous vraiment nous quitter ?<br>Toutes vos données personnelles seront détruites.</p>
+        <div class="flex justify-center gap-3 mt-4 w-full">
+            <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
+            <form method="post" action="{% url 'delete_account' %}" class="flex-1">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-error text-white w-full">Oui, supprimer</button>
+            </form>
+        </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>

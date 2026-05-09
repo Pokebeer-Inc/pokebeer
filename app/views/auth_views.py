@@ -203,3 +203,18 @@ def follow_user(request, username):
             messages.success(request, f"Vous suivez maintenant {username} !")
             
     return redirect('public_profile', username=username)
+
+@login_required(login_url='login')
+def delete_account_view(request):
+    """Supprime le compte de l'utilisateur et ses données associées (sauf les bières du catalogue)."""
+    if request.method == 'POST':
+        user = request.user
+        # 1. On déconnecte l'utilisateur pour invalider sa session
+        logout(request)
+        # 2. On supprime l'utilisateur (Django gère les CASCADE et les SET_NULL automatiquement)
+        user.delete()
+        
+        messages.success(request, "Votre compte et toutes vos données personnelles ont été supprimés. Au revoir !")
+        return redirect('index')
+        
+    return redirect('account')
