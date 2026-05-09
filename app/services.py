@@ -1,42 +1,27 @@
-import os
-import requests
-from huggingface_hub import InferenceClient
-from openai import OpenAI
+from google import genai
+from django.conf import settings
 from pgvector.django import CosineDistance
 from .models import Beer
 
-# Configuration du client Hugging Face (Gratuit)
-HF_TOKEN_READ = os.getenv("HF_TOKEN_READ")
-# Utilisation de Mistral 7B, excellent en français et très rapide sur l'API gratuite
-MODEL_ID = "moonshotai/Kimi-K2-Instruct-0905"
+# Initialisation du client avec la clé définie dans settings.py
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
-if HF_TOKEN_READ:
-    # Client pour discuter avec Gaétan
-    client = OpenAI(base_url="https://router.huggingface.co/v1", api_key=HF_TOKEN_READ)
-    # NOUVEAU : Client officiel HF pour créer les vecteurs mathématiques
-    hf_client = InferenceClient(token=HF_TOKEN_READ)
-else:
-    client = None
-    hf_client = None
-    
 def get_embedding(text):
-    """Transforme un texte en vecteur mathématique avec le client officiel Hugging Face."""
-    if not hf_client:
-        print("ERREUR : Le Token HF_TOKEN_READ est introuvable.")
+    """Transforme un texte en vecteur mathématique (768 dimensions) avec Gemini."""
+    if not settings.GEMINI_API_KEY:
+        print("ERREUR : La clé GEMINI_API_KEY est introuvable.")
         return None
         
     try:
-        # On utilise feature_extraction pour obtenir le vecteur (l'embedding)
-        embedding = hf_client.feature_extraction(
-            text,
-            model="sentence-transformers/all-MiniLM-L6-v2"
+        # text-embedding-004 est le modèle optimal pour les vecteurs
+        response = client.models.embed_content(
+            model='gemini-embedding-001',
+            contents=text
         )
-        
-        # La librairie renvoie un objet numpy, on le convertit en liste Python classique pour Neon
-        return embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+        return response.embeddings[0].values
         
     except Exception as e:
-        print(f"ERREUR Embedding HF : {e}")
+        print(f"ERREUR Embedding Gemini : {e}")
         return None
 
 def _format_beers_context(user_message):
@@ -44,8 +29,10 @@ def _format_beers_context(user_message):
     user_vector = get_embedding(user_message)
     
     if user_vector:
+        # Recherche les bières les plus proches sémantiquement
         beers = Beer.objects.exclude(embedding__isnull=True).select_related('brewery_id').order_by(CosineDistance('embedding', user_vector))[:10]
     else:
+        # Fallback si l'API échoue
         beers = Beer.objects.select_related('brewery_id').order_by('?')[:10]
     
     if not beers:
@@ -60,39 +47,31 @@ def _format_beers_context(user_message):
     return "\n".join(context_list)
 
 def ask_sommelier(user_message):
-    if not client:
-        return "Le service de sommelier est inactif (Token Hugging Face manquant)."
+    if not settings.GEMINI_API_KEY:
+        return "Le service de sommelier est inactif (Clé Gemini manquante)."
 
-    # On passe le message pour la recherche vectorielle
+    # On récupère le contexte vectoriel
     beers_context = _format_beers_context(user_message) or "Aucune bière en stock actuellement."
 
-    messages = [
-        {
-            "role": "system",
-            "content": f"""Tu es Gaétan, un sommelier bière sympathique et expert.
+    prompt = f"""Tu es Gaétan, un sommelier bière sympathique et expert.
 J'ai pré-sélectionné pour toi les bières les plus pertinentes selon la demande du client :
 {beers_context}
 
 RÈGLES STRICTES :
 1. Tu ne recommandes QUE des bières de la liste ci-dessus.
 2. Si la demande du client ne correspond pas du tout au stock, propose l'alternative la plus proche dans la liste.
-3. Fais des réponses courtes, chaleureuses et en français."""
-        },
-        {
-            "role": "user", 
-            "content": user_message
-        }
-    ]
+3. Fais des réponses courtes, chaleureuses et en français.
+
+Message du client : "{user_message}"
+"""
 
     try:
-        response = client.chat.completions.create(
-            model=MODEL_ID,
-            messages=messages,
-            max_tokens=300,
-            temperature=0.6,
-            stream=False
+        # gemini-2.5-flash est parfait pour des réponses rapides et précises
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
         )
-        return response.choices[0].message.content
+        return response.text
     except Exception as e:
         print(f"Erreur IA : {str(e)}")
-        return f"Désolé, j'ai eu un coup de chaud en cave. Pouvez-vous répéter ? {str(e)}"
+        return "Désolé, j'ai eu un coup de chaud en cave. Pouvez-vous répéter ?"

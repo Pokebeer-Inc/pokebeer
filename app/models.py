@@ -57,7 +57,7 @@ class Beer(models.Model):
     style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
     added_by = models.ForeignKey(BeerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_beers')
     
-    embedding = VectorField(dimensions=384, null=True, blank=True)
+    embedding = VectorField(dimensions=3072, null=True, blank=True)
 
     class Meta:
         verbose_name = "Bière"
