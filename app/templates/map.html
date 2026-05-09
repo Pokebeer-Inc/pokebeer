@@ -19,76 +19,6 @@
     
 </div>
 
-<dialog id="modal_add_spot" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box p-5 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text shadow-xl">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_add_spot.close()">✕</button>
-        <h3 id="modal-title" class="font-bold text-lg mb-4 text-center border-b border-primary pb-2">Ajouter un lieu</h3>
-        
-        <form method="post" class="flex flex-col gap-3">
-            {% csrf_token %}
-            <input type="hidden" name="spot_id" id="spot-id">
-            
-            <div class="form-control w-full">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Nom du lieu *</span></label>
-                <input type="text" name="title" id="spot-title" placeholder="Ex: Bar Le Troubadour..." class="input input-sm input-bordered w-full bg-white" required>
-            </div>
-            
-            <div class="flex gap-2">
-                <div class="form-control flex-1">
-                    <label class="label py-1"><span class="label-text text-xs font-bold">Date</span></label>
-                    <input type="date" name="date" id="spot-date" class="input input-sm input-bordered w-full bg-white" required>
-                </div>
-            </div>
-
-            <div class="flex gap-2">
-                <div class="form-control flex-1">
-                    <label class="label py-1"><span class="label-text text-xs font-bold">Latitude</span></label>
-                    <input type="number" step="any" name="lat" id="spot-lat" class="input input-sm input-bordered w-full bg-white" required>
-                </div>
-                <div class="form-control flex-1">
-                    <label class="label py-1"><span class="label-text text-xs font-bold">Longitude</span></label>
-                    <input type="number" step="any" name="lng" id="spot-lng" class="input input-sm input-bordered w-full bg-white" required>
-                </div>
-            </div>
-            
-            <div class="form-control w-full">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Souvenirs (Optionnel)</span></label>
-                <textarea name="description" id="spot-desc" class="textarea textarea-bordered h-16 bg-white"></textarea>
-            </div>
-            
-            <div class="form-control w-full mt-2">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Mes dégustations bues ici</span></label>
-                <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box">
-                    {% for drink in user_drinks %}
-                    <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors">
-                        <input type="checkbox" name="drinks" value="{{ drink.id }}" data-beer-id="{{ drink.beer_id.id }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
-                        <span class="label-text text-xs font-semibold">{{ drink.beer_id.name }} <span class="text-[10px] text-gray-500 font-normal">({{ drink.note }}/10)</span></span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="form-control w-full mt-2" id="friends-section">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Partager avec des amis (Abonnés)</span></label>
-                <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box">
-                    {% for follow in followers %}
-                    <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors">
-                        <input type="checkbox" name="friends" value="{{ follow.follower.id }}" class="checkbox checkbox-sm checkbox-secondary friend-checkbox" />
-                        <span class="label-text text-xs font-semibold">{{ follow.follower.username }}</span>
-                    </label>
-                    {% empty %}
-                    <p class="text-[10px] text-center text-gray-500 italic mt-2">Personne ne vous suit pour l'instant.</p>
-                    {% endfor %}
-                </div>
-                <label class="label"><span class="label-text-alt text-gray-500">Ils pourront aussi ajouter leurs bières à ce point.</span></label>
-            </div>
-            
-            <button type="submit" class="btn btn-success btn-sm w-full text-white mt-4 shadow-md">Sauvegarder</button>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-</dialog>
-
 <script>
     // Dictionnaire de données pour l'édition dynamique
     const spotsData = {
@@ -251,4 +181,75 @@
     .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
     .leaflet-container a { color: inherit !important; }
 </style>
+{% endblock %}
+{% block modals %}
+<dialog id="modal_add_spot" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box p-5 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text shadow-xl">
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_add_spot.close()">✕</button>
+        <h3 id="modal-title" class="font-bold text-lg mb-4 text-center border-b border-primary pb-2">Ajouter un lieu</h3>
+        
+        <form method="post" class="flex flex-col gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="spot_id" id="spot-id">
+            
+            <div class="form-control w-full">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Nom du lieu *</span></label>
+                <input type="text" name="title" id="spot-title" placeholder="Ex: Bar Le Troubadour..." class="input input-sm input-bordered w-full bg-white" required>
+            </div>
+            
+            <div class="flex gap-2">
+                <div class="form-control flex-1">
+                    <label class="label py-1"><span class="label-text text-xs font-bold">Date</span></label>
+                    <input type="date" name="date" id="spot-date" class="input input-sm input-bordered w-full bg-white" required>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <div class="form-control flex-1">
+                    <label class="label py-1"><span class="label-text text-xs font-bold">Latitude</span></label>
+                    <input type="number" step="any" name="lat" id="spot-lat" class="input input-sm input-bordered w-full bg-white" required>
+                </div>
+                <div class="form-control flex-1">
+                    <label class="label py-1"><span class="label-text text-xs font-bold">Longitude</span></label>
+                    <input type="number" step="any" name="lng" id="spot-lng" class="input input-sm input-bordered w-full bg-white" required>
+                </div>
+            </div>
+            
+            <div class="form-control w-full">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Souvenirs (Optionnel)</span></label>
+                <textarea name="description" id="spot-desc" class="textarea textarea-bordered h-16 bg-white"></textarea>
+            </div>
+            
+            <div class="form-control w-full mt-2">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Mes dégustations bues ici</span></label>
+                <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box">
+                    {% for drink in user_drinks %}
+                    <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors">
+                        <input type="checkbox" name="drinks" value="{{ drink.id }}" data-beer-id="{{ drink.beer_id.id }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
+                        <span class="label-text text-xs font-semibold">{{ drink.beer_id.name }} <span class="text-[10px] text-gray-500 font-normal">({{ drink.note }}/10)</span></span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-control w-full mt-2" id="friends-section">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Partager avec des amis (Abonnés)</span></label>
+                <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box">
+                    {% for follow in followers %}
+                    <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors">
+                        <input type="checkbox" name="friends" value="{{ follow.follower.id }}" class="checkbox checkbox-sm checkbox-secondary friend-checkbox" />
+                        <span class="label-text text-xs font-semibold">{{ follow.follower.username }}</span>
+                    </label>
+                    {% empty %}
+                    <p class="text-[10px] text-center text-gray-500 italic mt-2">Personne ne vous suit pour l'instant.</p>
+                    {% endfor %}
+                </div>
+                <label class="label"><span class="label-text-alt text-gray-500">Ils pourront aussi ajouter leurs bières à ce point.</span></label>
+            </div>
+            
+            <button type="submit" class="btn btn-success btn-sm w-full text-white mt-4 shadow-md">Sauvegarder</button>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
 {% endblock %}
