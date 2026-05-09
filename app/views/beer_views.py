@@ -18,7 +18,7 @@ def index(request):
 
     if request.user.is_authenticated:
         drunk_beer_ids = Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)
-        unrated_beers = Beer.objects.exclude(id__in=drunk_beer_ids).select_related('brewery_id')
+        unrated_beers = Beer.objects.filter(is_deleted=False).exclude(id__in=drunk_beer_ids).select_related('brewery_id')
         rating_form = DrinkForm()
         
         # --- ALGORITHME DE RECOMMANDATION ---
@@ -70,12 +70,12 @@ def index(request):
     month = timezone.now().month
     year = timezone.now().year
     
-    top = Beer.objects.annotate(
+    top = Beer.objects.filter(is_deleted=False).annotate(
         avg_rating=Avg('drinks__note'),
         count_rating=Count('drinks')
     ).order_by('-avg_rating')[:10]
     
-    topMonth = Beer.objects.annotate(
+    topMonth = Beer.objects.filter(is_deleted=False).annotate(
         avg_rating=Avg('drinks__note', filter=Q(drinks__date__year=year, drinks__date__month=month)),
         count_rating=Count('drinks', filter=Q(drinks__date__year=year, drinks__date__month=month))
     ).filter(avg_rating__isnull=False).order_by('-avg_rating')[:10]
@@ -162,7 +162,7 @@ def modify_rate_beer_view(request, drink_id):
 @login_required(login_url='login')
 def all_beers_view(request):
     """Affiche toutes les bières avec recherche et filtres."""
-    beers = Beer.objects.select_related('brewery_id').all().order_by('name')
+    beers = Beer.objects.filter(is_deleted=False).select_related('brewery_id').all().order_by('name')
 
     # Recherche
     query = request.GET.get('q')
@@ -319,3 +319,46 @@ def map_view(request):
         'followers': followers,
     }
     return render(request, 'map.html', context)
+
+@login_required(login_url='login')
+def delete_drink_view(request, drink_id):
+    """Permet de supprimer sa propre note."""
+    drink = get_object_or_404(Drinks, id=drink_id, drinker_id=request.user)
+    if request.method == 'POST':
+        drink.delete()
+        messages.success(request, "Votre dégustation a bien été supprimée.")
+    return redirect(request.META.get('HTTP_REFERER', 'account'))
+
+@login_required(login_url='login')
+def delete_spot_view(request, spot_id):
+    """Permet au propriétaire de supprimer son spot sur la carte."""
+    spot = get_object_or_404(BeerSpot, id=spot_id, user=request.user)
+    if request.method == 'POST':
+        spot.delete()
+        messages.success(request, "Lieu supprimé de la carte.")
+    return redirect('map')
+
+@login_required(login_url='login')
+def edit_beer_view(request, beer_slug):
+    """Éditer les infos d'une bière qu'on a proposée."""
+    beer = get_object_or_404(Beer, slug=beer_slug, added_by=request.user, is_deleted=False)
+    if request.method == 'POST':
+        form = BeerForm(request.POST, request.FILES, instance=beer)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Les informations de la bière ont été mises à jour.")
+            return redirect('beer_detail', beer_slug=beer.slug)
+    else:
+        form = BeerForm(instance=beer)
+    return render(request, 'edit_beer.html', {'form': form, 'beer': beer})
+
+@login_required(login_url='login')
+def delete_beer_view(request, beer_slug):
+    """Soft-delete d'une bière du catalogue."""
+    beer = get_object_or_404(Beer, slug=beer_slug, added_by=request.user, is_deleted=False)
+    if request.method == 'POST':
+        beer.is_deleted = True
+        beer.save()
+        messages.success(request, "Bière retirée du catalogue. Vos notes personnelles sont conservées.")
+        return redirect('index')
+    return redirect('beer_detail', beer_slug=beer.slug)

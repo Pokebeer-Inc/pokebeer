@@ -97,7 +97,8 @@ def search_beer(request):
     query_slug = slugify(query) # Permet de matcher même si l'utilisateur oublie un accent
         
     beers = Beer.objects.filter(
-        Q(name__icontains=query) | Q(slug__icontains=query_slug)
+        (Q(name__icontains=query) | Q(slug__icontains=query_slug)),
+        is_deleted=False
     ).select_related('brewery_id')[:5]
     
     results = [

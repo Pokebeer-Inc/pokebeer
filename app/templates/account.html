@@ -97,7 +97,12 @@
             </button>
             
             <div class="flex-1 pointer-events-none">
-                <h4 class="font-bold text-sm leading-tight text-gray-900">{{ drink.beer_id.name }}</h4>
+                <h4 class="font-bold text-sm leading-tight text-gray-900">
+                    {{ drink.beer_id.name }}
+                    {% if drink.beer_id.is_deleted %}
+                    <span class="badge badge-error badge-xs ml-1 font-normal opacity-80">Retirée du catalogue</span>
+                    {% endif %}
+                </h4>
                 <p class="text-[10px] text-gray-500 mb-1">
                     {{ drink.date|date:"d M Y" }} 
                     {% if drink.updated_at and drink.created_at and drink.updated_at|date:"YmdHi" != drink.created_at|date:"YmdHi" %}
@@ -150,7 +155,7 @@
             {% endfor %}
         </div>
     </div>
-    <div>
+    <div class="mb-4">
         <h3 class="text-sm border-b border-primary pb-1 mb-2">Avis sur mes ajouts</h3>
         <div class="flex flex-col gap-2">
             {% for fb in feedback_on_my_beers %}
@@ -170,6 +175,41 @@
             <p class="text-[10px] text-gray-500">Pas encore d'avis sur vos bières.</p>
             {% endfor %}
         </div>
+    </div>
+    <div class="mb-4">
+        <details class="group">
+            <summary class="text-sm border-b border-primary pb-1 mb-2 cursor-pointer list-none flex justify-between items-center font-medium hover:opacity-70 transition-opacity">
+                <span>Bières retirées du catalogue</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+            </summary>
+            
+            <div class="flex flex-col gap-2 mt-3">
+                {% for beer in my_deleted_beers %}
+                <a href="{% url 'beer_detail' beer.slug %}" class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3">
+                    
+                    <div class="flex-1 min-w-0 flex flex-col gap-1">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm leading-tight truncate line-through">{{ beer.name }}</span>
+                            <span class="text-[10px] text-gray-500 truncate">{{ beer.brewery_id.name }}</span>
+                        </div>
+                        
+                        <div class="flex gap-1 mt-0.5">
+                            {% if beer.style %}
+                            <span class="badge badge-secondary badge-outline badge-xs text-[9px]">{{ beer.style }}</span>
+                            {% endif %}
+                            <span class="badge badge-neutral badge-outline badge-xs text-[9px]">Alc. {{ beer.degree }}%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="shrink-0 flex items-center">
+                        <span class="text-[10px] text-error font-bold italic">Supprimée</span>
+                    </div>
+                </a>
+                {% empty %}
+                <p class="text-[10px] text-gray-500">Aucune bière retirée.</p>
+                {% endfor %}
+            </div>
+        </details>
     </div>
 </div>
 
@@ -235,6 +275,10 @@
                 <textarea name="comment" class="textarea textarea-bordered w-full h-20 text-xs bg-white">{{ drink.comment }}</textarea>
             </div>
             <button type="submit" class="btn btn-success btn-sm w-full text-white">Enregistrer</button>
+        </form>
+        <form method="post" action="{% url 'delete_drink' drink.id %}" class="mt-2 pt-2 border-t border-base-200" onsubmit="return confirm('Sûr de vouloir supprimer cette dégustation de votre carnet ?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline btn-error btn-sm w-full">Supprimer ma note</button>
         </form>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>

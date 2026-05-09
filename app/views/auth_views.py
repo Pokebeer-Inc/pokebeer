@@ -84,7 +84,12 @@ def account_view(request):
 
     # 2. Requêtes de base
     my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
-    my_added_beers = Beer.objects.filter(added_by=user).annotate(
+    my_added_beers = Beer.objects.filter(added_by=user, is_deleted=False).annotate(
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
+    ).order_by('-id')
+    
+    # Les bières retirées du catalogue
+    my_deleted_beers = Beer.objects.filter(added_by=user, is_deleted=True).annotate(
         user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
     ).order_by('-id')
     
@@ -116,6 +121,7 @@ def account_view(request):
         'password_form': password_form,
         'my_drinks': my_drinks,
         'my_added_beers': my_added_beers,
+        'my_deleted_beers': my_deleted_beers,
         'feedback_on_my_beers': feedback_on_my_beers,
         'followers': followers,
         'following': following,
