@@ -56,6 +56,7 @@ class Beer(models.Model):
     slug = models.SlugField(max_length=150, unique=True, blank=True, null=True, verbose_name="Slug")
     style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
     added_by = models.ForeignKey(BeerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_beers')
+    is_deleted = models.BooleanField(default=False, verbose_name="Supprimée du catalogue")
     
     embedding = VectorField(dimensions=3072, null=True, blank=True)
 

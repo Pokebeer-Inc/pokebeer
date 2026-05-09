@@ -30,10 +30,10 @@ def _format_beers_context(user_message):
     
     if user_vector:
         # Recherche les bières les plus proches sémantiquement
-        beers = Beer.objects.exclude(embedding__isnull=True).select_related('brewery_id').order_by(CosineDistance('embedding', user_vector))[:10]
+        beers = Beer.objects.filter(is_deleted=False).exclude(embedding__isnull=True).select_related('brewery_id').order_by(CosineDistance('embedding', user_vector))[:10]
     else:
         # Fallback si l'API échoue
-        beers = Beer.objects.select_related('brewery_id').order_by('?')[:10]
+        beers = Beer.objects.filter(is_deleted=False).select_related('brewery_id').order_by('?')[:10]
     
     if not beers:
         return None

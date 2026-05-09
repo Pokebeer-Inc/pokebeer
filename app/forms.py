@@ -73,6 +73,11 @@ class BeerForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        # Pré-remplir le champ 'brewery_name' si on est en mode édition (instance existante)
+        if 'instance' in kwargs and kwargs['instance'] and kwargs['instance'].brewery_id:
+            initial = kwargs.setdefault('initial', {})
+            initial['brewery_name'] = kwargs['instance'].brewery_id.name
+            
         super(BeerForm, self).__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.update({
@@ -102,11 +107,14 @@ class BeerForm(forms.ModelForm):
         if name:
             # On transforme le nom tapé en slug (ex: "Pünk I.P.A " devient "punk-ipa")
             normalized_name = slugify(name)
-            
-            # On cherche si une bière avec ce même slug exact existe déjà
-            existing_beer = Beer.objects.filter(slug=normalized_name).first()
+            # On ignore les bières supprimées dans la vérification des doublons
+            existing_beer = Beer.objects.filter(slug=normalized_name, is_deleted=False).first()
             if existing_beer:
-                raise forms.ValidationError(f"Cette bière existe déjà sous le nom '{existing_beer.name}'")
+                # Si on est en mode modification et que c'est notre propre bière, on laisse passer
+                if self.instance and self.instance.pk == existing_beer.pk:
+                    pass
+                else:
+                    raise forms.ValidationError(f"Cette bière existe déjà sous le nom '{existing_beer.name}'")
         return name
     
 class DrinkForm(forms.ModelForm):

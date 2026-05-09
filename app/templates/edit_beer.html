@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4 text-center relative">
+    <a href="{% url 'beer_detail' beer.slug %}" class="absolute left-0 top-0 btn btn-sm btn-circle btn-ghost">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    </a>
+    <h2 class="text-2xl font-castoro font-bold">Modifier la bière</h2>
+    <p class="text-xs text-gray-500">{{ beer.name }}</p>
+</div>
+
+<div class="card-body bg-white p-4 rounded-xl border border-base-300 space-y-2">
+    <form method="post" autocomplete="off" class="flex flex-col gap-3">
+        {% csrf_token %}
+        
+        <div class="form-control w-full">
+            <label class="label py-1"><span class="label-text font-bold text-xs">{{ form.name.label }}</span></label>
+            {{ form.name }}
+        </div>
+        
+        <div class="form-control w-full relative">
+            <label class="label py-1"><span class="label-text font-bold text-xs">{{ form.brewery_name.label }}</span></label>
+            {{ form.brewery_name }}
+        </div>
+
+        <div class="form-control w-full">
+            <label class="label py-1"><span class="label-text font-bold text-xs">{{ form.style.label }}</span></label>
+            {{ form.style }}
+        </div>
+        
+        <div class="flex gap-2">
+            <div class="form-control flex-1">
+                <label class="label py-1"><span class="label-text font-bold text-xs">Alcool (%)</span></label>
+                {{ form.degree }}
+            </div>
+            <div class="form-control flex-1">
+                <label class="label py-1"><span class="label-text font-bold text-xs">IBU</span></label>
+                {{ form.bitterness }}
+            </div>
+        </div>
+        
+        <div class="form-control w-full">
+            <label class="label py-1"><span class="label-text font-bold text-xs">{{ form.description.label }}</span></label>
+            {{ form.description }}
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full text-white shadow-md mt-4">
+            Enregistrer les modifications
+        </button>
+    </form>
+</div>
+{% endblock %}

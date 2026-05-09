@@ -50,6 +50,19 @@
         document.getElementById('spot-lat').value = data.lat;
         document.getElementById('spot-lng').value = data.lng;
 
+        document.querySelectorAll('.drink-item').forEach(item => {
+            const isDeleted = item.getAttribute('data-is-deleted') === 'true';
+            const drinkId = item.getAttribute('data-drink-id');
+            
+            // LOGIQUE : On affiche si la bière n'est pas supprimée 
+            // OU si elle est supprimée MAIS déjà associée à ce point précis
+            if (!isDeleted || data.drink_ids.includes(drinkId)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
         // Cocher les bières
         document.querySelectorAll('.drink-checkbox').forEach(cb => {
             const beerId = cb.getAttribute('data-beer-id');
@@ -72,8 +85,11 @@
             document.querySelectorAll('.friend-checkbox').forEach(cb => {
                 cb.checked = data.friend_ids.includes(cb.value);
             });
+            document.getElementById('form-delete-spot').action = "/delete-spot/" + spotId + "/";
+            document.getElementById('form-delete-spot').style.display = "block";
         } else {
             friendsSection.style.display = 'none';
+            document.getElementById('form-delete-spot').style.display = "none";
         }
 
         document.getElementById('modal_add_spot').showModal();
@@ -154,6 +170,14 @@
                 cb.disabled = false;
                 cb.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
             });
+            document.querySelectorAll('.drink-item').forEach(item => {
+                if (item.getAttribute('data-is-deleted') === 'true') {
+                    item.style.display = 'none';
+                } else {
+                    item.style.display = 'flex';
+                }
+            });
+            document.getElementById('form-delete-spot').style.display = 'none';
             document.getElementById('friends-section').style.display = 'block';
 
             document.getElementById('modal_add_spot').showModal();
@@ -226,10 +250,18 @@
                 <label class="label py-1"><span class="label-text text-xs font-bold">Mes dégustations bues ici</span></label>
                 <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box">
                     {% for drink in user_drinks %}
-                    <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors">
-                        <input type="checkbox" name="drinks" value="{{ drink.id }}" data-beer-id="{{ drink.beer_id.id }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
-                        <span class="label-text text-xs font-semibold">{{ drink.beer_id.name }} <span class="text-[10px] text-gray-500 font-normal">({{ drink.note }}/10)</span></span>
-                    </label>
+                        <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors drink-item" 
+                            data-drink-id="{{ drink.id }}" 
+                            data-is-deleted="{% if drink.beer_id.is_deleted %}true{% else %}false{% endif %}">
+                            <input type="checkbox" name="drinks" value="{{ drink.id }}" data-beer-id="{{ drink.beer_id.id }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
+                            <span class="label-text text-xs font-semibold">
+                                {{ drink.beer_id.name }} 
+                                <span class="text-[10px] text-gray-500 font-normal">({{ drink.note }}/10)</span>
+                                {% if drink.beer_id.is_deleted %}
+                                <span class="badge badge-error badge-xs ml-1 opacity-70">Supprimée</span>
+                                {% endif %}
+                            </span>
+                        </label>
                     {% endfor %}
                 </div>
             </div>
@@ -250,6 +282,13 @@
             </div>
             
             <button type="submit" class="btn btn-success btn-sm w-full text-white mt-4 shadow-md shrink-0">Sauvegarder</button>
+        </form>
+        </form> <form id="form-delete-spot" method="post" action="" class="mt-4 pt-4 border-t border-base-200" style="display: none;">
+            {% csrf_token %}
+            <button type="button" class="btn btn-error btn-outline btn-sm w-full" onclick="if(confirm('Voulez-vous vraiment supprimer ce lieu et les souvenirs associés ?')) { this.parentElement.submit(); }">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                Supprimer ce lieu
+            </button>
         </form>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>

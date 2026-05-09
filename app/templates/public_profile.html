@@ -100,7 +100,12 @@
             </div>
             
             <div class="flex-1 pointer-events-none">
-                <h4 class="font-bold text-sm leading-tight text-gray-900">{{ drink.beer_id.name }}</h4>
+                <h4 class="font-bold text-sm leading-tight text-gray-900">
+                    {{ drink.beer_id.name }}
+                    {% if drink.beer_id.is_deleted %}
+                    <span class="badge badge-error badge-xs ml-1 font-normal opacity-80">Retirée du catalogue</span>
+                    {% endif %}
+                </h4>
                 <p class="text-[10px] text-gray-500 mb-1">
                     {{ drink.date|date:"d M Y" }} 
                     {% if drink.updated_at and drink.created_at and drink.updated_at|date:"YmdHi" != drink.created_at|date:"YmdHi" %}

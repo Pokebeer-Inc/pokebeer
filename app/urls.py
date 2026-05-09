@@ -22,4 +22,8 @@ urlpatterns = [
     path('beer/<slug:beer_slug>/', views.beer_detail_view, name='beer_detail'),
     path('user/<str:username>/', views.public_profile_view, name='public_profile'),
     path('follow/<str:username>/', views.follow_user, name='follow_user'),
+    path('delete-drink/<int:drink_id>/', views.delete_drink_view, name='delete_drink'),
+    path('delete-spot/<int:spot_id>/', views.delete_spot_view, name='delete_spot'),
+    path('edit-beer/<slug:beer_slug>/', views.edit_beer_view, name='edit_beer'),
+    path('delete-beer/<slug:beer_slug>/', views.delete_beer_view, name='delete_beer'),
 ]
