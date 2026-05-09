@@ -34,4 +34,108 @@
         </p>
     </div>
 </div>
+
+<dialog id="modal_age_verification" class="modal bg-base-300/95 backdrop-blur-md z-[99999]">
+    <div class="modal-box custom-modal-form text-center border-2 border-primary shadow-2xl">
+        <div class="flex justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        </div>
+        <h3 class="font-castoro font-bold text-2xl mb-2">Vérification de l'âge</h3>
+        <p class="text-sm text-gray-600 mb-4">L'accès à cette application est strictement réservé aux personnes majeures.</p>
+        
+        <form id="age-form" class="flex flex-col gap-4 text-left">
+            <div class="form-control w-full">
+                <label class="label"><span class="label-text font-bold">Votre date de naissance</span></label>
+                <input type="date" id="birthdate" class="input input-bordered w-full bg-white" required>
+            </div>
+            
+            <div class="form-control w-full">
+                <label class="flex items-start gap-3 cursor-pointer mt-2">
+                    <input type="checkbox" id="age-checkbox" class="checkbox checkbox-primary shrink-0 mt-0.5" required>
+                    <span id="age-checkbox-text" class="flex-1 min-w-0 text-xs font-semibold leading-tight text-left whitespace-normal break-words text-gray-800">
+                        Je certifie avoir l'âge légal requis et j'accepte les conditions.
+                    </span>
+                </label>
+            </div>
+            
+            <p class="text-[10px] text-gray-400 italic text-center">(Ceci n'est pas enregistré, seulement à des fins de vérification)</p>
+            
+            <button type="submit" class="btn btn-primary w-full text-white mt-2">Entrer sur l'application</button>
+            <p id="age-error" class="text-error text-xs text-center mt-2 hidden font-bold">Vous n'avez pas l'âge requis pour accéder à l'application.</p>
+        </form>
+    </div>
+</dialog>
+
+<script>
+    document.addEventListener("DOMContentLoaded", async function() {
+        const ageModal = document.getElementById('modal_age_verification');
+        const ageForm = document.getElementById('age-form');
+        const ageError = document.getElementById('age-error');
+        const ageCheckboxText = document.getElementById('age-checkbox-text');
+        
+        // 1. Dictionnaire des âges légaux par code pays (ISO 2)
+        const legalAges = {
+            'US': 21, // États-Unis
+            'JP': 20, // Japon
+            'IS': 20, // Islande
+            'CA': 19, // Canada (majorité des provinces)
+            'KR': 19, // Corée du Sud
+            'FR': 18, // France
+            'GB': 18, // Royaume-Uni
+            'BE': 16, // Belgique (Bière/Vin)
+            'DE': 16, // Allemagne (Bière/Vin)
+            'CH': 16  // Suisse (Bière/Vin)
+            // Tous les pays non listés tomberont sur l'âge par défaut (18)
+        };
+        
+        let requiredAge = 18; // Âge par défaut strict et standard international
+
+        // 2. Si non vérifié, on affiche la modale et on cherche le pays
+        if (!localStorage.getItem('age_verified')) {
+            ageModal.addEventListener('cancel', (e) => e.preventDefault());
+            ageModal.showModal();
+            
+            try {
+                // Appel à une API gratuite pour récupérer le code pays depuis l'IP
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
+                
+                if (data.country_code) {
+                    // On cherche l'âge dans notre dictionnaire, sinon on garde 18
+                    requiredAge = legalAges[data.country_code] || 18;
+                }
+            } catch (error) {
+                console.warn("Impossible de détecter le pays. Utilisation de l'âge par défaut (18).");
+            }
+            
+            // Mise à jour dynamique des textes de la modale
+            ageCheckboxText.innerText = `Je certifie avoir plus de ${requiredAge} ans et j'accepte les conditions d'utilisation.`;
+            ageError.innerText = `Vous devez avoir au moins ${requiredAge} ans pour accéder à l'application.`;
+        }
+        
+        // 3. Traitement du formulaire
+        ageForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const birthdate = new Date(document.getElementById('birthdate').value);
+            const today = new Date();
+            
+            // Calcul de l'âge précis
+            let age = today.getFullYear() - birthdate.getFullYear();
+            const monthDiff = today.getMonth() - birthdate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdate.getDate())) {
+                age--;
+            }
+            
+            if (age >= requiredAge) {
+                // Succès
+                localStorage.setItem('age_verified', 'true');
+                ageError.classList.add('hidden');
+                ageModal.close();
+            } else {
+                // Échec
+                ageError.classList.remove('hidden');
+            }
+        });
+    });
+</script>
 {% endblock %}
