@@ -1,6 +1,6 @@
 .custom-modal-form {
     height: auto;
-    min-height: 60% !important;
+    /*min-height: 60% !important;*/
     max-height: 85% !important;
 }
 

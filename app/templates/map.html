@@ -283,13 +283,28 @@
             
             <button type="submit" class="btn btn-success btn-sm w-full text-white mt-4 shadow-md shrink-0">Sauvegarder</button>
         </form>
-        </form> <form id="form-delete-spot" method="post" action="" class="mt-4 pt-4 border-t border-base-200" style="display: none;">
+        <form id="form-delete-spot" method="post" action="" class="mt-4 pt-4 border-t border-base-200" style="display: none;">
             {% csrf_token %}
-            <button type="button" class="btn btn-error btn-outline btn-sm w-full" onclick="if(confirm('Voulez-vous vraiment supprimer ce lieu et les souvenirs associés ?')) { this.parentElement.submit(); }">
+            <button type="button" class="btn btn-error btn-outline btn-sm w-full" onclick="modal_confirm_spot.showModal()">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 Supprimer ce lieu
             </button>
         </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
+<dialog id="modal_confirm_spot" class="modal z-[99999]">
+    <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center">
+        <div class="bg-error/10 p-3 rounded-full text-error mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        </div>
+        <h3 class="font-bold text-lg text-error">Confirmer la suppression</h3>
+        <p class="text-sm text-gray-600">Voulez-vous vraiment supprimer ce lieu et les souvenirs associés ?</p>
+        <div class="flex justify-center gap-3 mt-4 w-full">
+            <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
+            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="document.getElementById('form-delete-spot').submit();">Oui, supprimer</button>
+        </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
