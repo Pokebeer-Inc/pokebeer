@@ -56,9 +56,8 @@
         <a href="{% url 'index' %}" class="flex flex-col items-center justify-center w-full h-full {% if request.resolver_match.url_name == 'index' %}text-primary{% else %}text-gray-500 hover:text-primary{% endif %} transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
         </a>
-        
-        <a href="{% url 'ranking' %}" class="flex flex-col items-center justify-center w-full h-full {% if request.resolver_match.url_name == 'ranking' %}text-primary{% else %}text-gray-500 hover:text-primary{% endif %} transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v8l9-11h-7z" /></svg>
+        <a href="{% url 'map' %}" class="flex flex-col items-center justify-center w-full h-full {% if request.resolver_match.url_name == 'map' %}text-primary{% else %}text-gray-500 hover:text-primary{% endif %} transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
         </a>
         
         <a href="{% url 'add_beer' %}" class="flex flex-col items-center justify-center w-full h-full group">

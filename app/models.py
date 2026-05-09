@@ -107,3 +107,23 @@ class Drinks(models.Model):
 
     def __str__(self):
         return f"{self.drinker_id.username} - {self.beer_id.name} ({self.note}/10)"
+    
+class BeerSpot(models.Model):
+    user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='spots')
+    title = models.CharField(max_length=150, verbose_name="Titre du lieu")
+    description = models.TextField(blank=True, null=True, verbose_name="Description / Souvenirs")
+    date = models.DateField(default=date.today, verbose_name="Date")
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    
+    drinks = models.ManyToManyField('Drinks', blank=True, related_name='spots', verbose_name="Dégustations associées")
+    friends = models.ManyToManyField('BeerUser', blank=True, related_name='shared_spots', verbose_name="Amis associés")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Lieu de dégustation"
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.title} - {self.user.username}"
