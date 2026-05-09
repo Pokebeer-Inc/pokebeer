@@ -152,9 +152,9 @@
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        setTimeout(function() {
+        new ResizeObserver(() => {
             map.invalidateSize();
-        }, 200);
+        }).observe(document.getElementById('map'));
 
         var brownIcon = new L.Icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
