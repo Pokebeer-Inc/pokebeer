@@ -14,7 +14,7 @@
         <button id="geoloc-btn" class="btn btn-sm btn-primary">Me localiser</button>
     </div>
     
-    <div id="map" class="flex-1 z-0 relative"></div>
+    <div id="map" class="flex-1 w-full h-full z-0 relative"></div>
 </div>
 
 <dialog id="modal_add_spot" class="modal modal-bottom sm:modal-middle">
@@ -152,6 +152,10 @@
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
+        setTimeout(function() {
+            map.invalidateSize();
+        }, 200);
+
         var brownIcon = new L.Icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -164,7 +168,7 @@
         // Ajout des points
         {% for spot in user_spots %}
             var marker = L.marker([parseFloat("{{ spot.latitude|stringformat:'f' }}"), parseFloat("{{ spot.longitude|stringformat:'f' }}")], {icon: brownIcon}).addTo(map);
-                       
+
             var popupContent = `
                 <div class="text-sm font-montserrat relative pr-5 min-w-40">
                     <button onclick="openEditModal({{ spot.id }})" class="absolute top-0 right-0 text-gray-500 hover:text-primary z-50 p-1" title="Modifier">
