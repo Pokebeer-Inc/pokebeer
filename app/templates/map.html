@@ -11,9 +11,16 @@
     <div class="h-16 shrink-0 w-full bg-base-100 p-3 shadow-md z-10 flex justify-between items-center relative">
         <h2 class="text-lg font-castoro font-bold flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            Ma Carte Brassicole
+            Ajouter un souvenir brassicole
         </h2>
         <button id="geoloc-btn" class="btn btn-sm btn-primary">Me localiser</button>
+        <div id="move-overlay" class="fixed top-0 left-0 w-full h-16 bg-primary text-white z-[10000] flex items-center justify-between px-4 shadow-lg transition-transform -translate-y-full">
+        <span class="text-sm font-bold">Faites glisser le marqueur</span>
+        <div class="flex gap-2">
+            <button type="button" onclick="cancelMoveMode()" class="btn btn-sm btn-ghost text-white">Annuler</button>
+            <button type="button" onclick="finishMoveMode()" class="btn btn-sm bg-white text-primary border-none">Valider ici</button>
+        </div>
+    </div>
     </div>
     
     <div id="map" class="flex-1 w-full z-0 relative"></div>
@@ -21,6 +28,10 @@
 </div>
 
 <script>
+    let movingMarker = null; // Marqueur temporaire pour le déplacement
+    let mapInstance = null; // Pour stocker l'instance Leaflet
+    let isMovingMode = false;
+
     // Dictionnaire de données pour l'édition dynamique
     const spotsData = {
         {% for spot in user_spots %}
@@ -152,6 +163,9 @@
 
         // Clique sur la carte pour ajouter un NOUVEAU point
         map.on('click', function(e) {
+
+            if (isMovingMode) return;
+
             document.getElementById('modal-title').innerText = "Ajouter un lieu";
             document.getElementById('spot-id').value = ""; // Vider l'ID
             document.getElementById('spot-title').value = "";
@@ -198,7 +212,81 @@
                 });
             }
         });
+        mapInstance = map;
     });
+
+    // --- STRATÉGIE 3 : GEOLOCALISATION DIRECTE ---
+function updateToCurrentLocation() {
+    if(navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            document.getElementById('spot-lat').value = position.coords.latitude;
+            document.getElementById('spot-lng').value = position.coords.longitude;
+            // On fait un petit effet visuel sur les inputs pour montrer le changement
+            document.getElementById('spot-lat').classList.add('bg-success/20');
+            setTimeout(() => document.getElementById('spot-lat').classList.remove('bg-success/20'), 1000);
+        });
+    }
+}
+
+// --- STRATÉGIE 1 : DÉPLACEMENT SUR CARTE ---
+function startMoveMode() {
+    isMovingMode = true;
+    const lat = parseFloat(document.getElementById('spot-lat').value);
+    const lng = parseFloat(document.getElementById('spot-lng').value);
+
+    // 1. Masquer la modale
+    document.getElementById('modal_add_spot').close();
+
+    // 2. Afficher le bandeau de validation
+    const overlay = document.getElementById('move-overlay');
+    overlay.classList.remove('-translate-y-full');
+
+    // 3. Centrer la carte
+    mapInstance.setView([lat, lng], 17);
+
+    // 4. Créer le marqueur draggable (on réutilise votre icone gold)
+    const goldIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+    });
+
+    movingMarker = L.marker([lat, lng], {
+        icon: goldIcon,
+        draggable: true,
+        zIndexOffset: 1000
+    }).addTo(mapInstance);
+
+    // Petit message d'aide automatique
+    movingMarker.bindTooltip("Faites-moi glisser !", {permanent: true, direction: 'top', offset: [0,-40]}).openTooltip();
+}
+
+function finishMoveMode() {
+    if (movingMarker) {
+        const newPos = movingMarker.getLatLng();
+        document.getElementById('spot-lat').value = newPos.lat.toFixed(6);
+        document.getElementById('spot-lng').value = newPos.lng.toFixed(6);
+        
+        cleanupMoveMode();
+        // Réouvrir la modale
+        document.getElementById('modal_add_spot').showModal();
+    }
+}
+
+function cancelMoveMode() {
+    cleanupMoveMode();
+    document.getElementById('modal_add_spot').showModal();
+}
+
+function cleanupMoveMode() {
+    isMovingMode = false;
+    // Retirer le marqueur et cacher le bandeau
+    if (movingMarker) {
+        mapInstance.removeLayer(movingMarker);
+        movingMarker = null;
+    }
+    document.getElementById('move-overlay').classList.add('-translate-y-full');
+}
 </script>
 
 <style>
@@ -230,14 +318,23 @@
                 </div>
             </div>
 
-            <div class="flex gap-2">
-                <div class="form-control flex-1">
-                    <label class="label py-1"><span class="label-text text-xs font-bold">Latitude</span></label>
-                    <input type="number" step="any" name="lat" id="spot-lat" class="input input-sm input-bordered w-full bg-white" required>
-                </div>
-                <div class="form-control flex-1">
-                    <label class="label py-1"><span class="label-text text-xs font-bold">Longitude</span></label>
-                    <input type="number" step="any" name="lng" id="spot-lng" class="input input-sm input-bordered w-full bg-white" required>
+            <div class="form-control w-full mt-2">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Emplacement du point</span></label>
+                <div class="flex flex-col gap-2">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="startMoveMode()" class="btn btn-sm btn-outline btn-primary flex-1 gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+                            Déplacer sur la carte
+                        </button>
+                        <button type="button" onclick="updateToCurrentLocation()" class="btn btn-sm btn-outline btn-secondary gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            GPS
+                        </button>
+                    </div>
+                    <div class="flex gap-2 opacity-50">
+                        <input type="number" step="any" name="lat" id="spot-lat" class="input input-xs input-bordered flex-1 bg-base-200" readonly>
+                        <input type="number" step="any" name="lng" id="spot-lng" class="input input-xs input-bordered flex-1 bg-base-200" readonly>
+                    </div>
                 </div>
             </div>
             
@@ -248,7 +345,7 @@
             
             <div class="form-control w-full mt-2">
                 <label class="label py-1"><span class="label-text text-xs font-bold">Mes dégustations bues ici</span></label>
-                <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box">
+                <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box flex flex-col">
                     {% for drink in user_drinks %}
                         <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors drink-item" 
                             data-drink-id="{{ drink.id }}" 
@@ -262,6 +359,11 @@
                                 {% endif %}
                             </span>
                         </label>
+                    {% empty %}
+                        <div class="flex flex-col items-center justify-center flex-1 h-full text-center py-2">
+                            <p class="text-[10px] text-gray-500 italic mb-2">Vous n'avez noté aucune bière.</p>
+                            <a href="{% url 'add_beer' %}" class="btn btn-primary btn-xs text-white">Ajouter une bière</a>
+                        </div>
                     {% endfor %}
                 </div>
             </div>

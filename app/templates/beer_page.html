@@ -32,6 +32,8 @@
         
         {% if beer.added_by %}
             <p class="text-[10px] text-gray-400 mt-2">Ajoutée par <a href="{% url 'public_profile' beer.added_by.username %}" class="font-bold text-primary">{{ beer.added_by.username }}</a></p>
+        {% else %}
+            <p class="text-[10px] text-gray-400 mt-2">Ajoutée par <span class="font-bold italic text-gray-500">Ancien membre</span></p>
         {% endif %}
 
         {% if beer.is_deleted %}

@@ -26,4 +26,5 @@ urlpatterns = [
     path('delete-spot/<int:spot_id>/', views.delete_spot_view, name='delete_spot'),
     path('edit-beer/<slug:beer_slug>/', views.edit_beer_view, name='edit_beer'),
     path('delete-beer/<slug:beer_slug>/', views.delete_beer_view, name='delete_beer'),
+    path('delete-account/', views.delete_account_view, name='delete_account'),
 ]
