@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<div class="absolute inset-0 top-0 bottom-16 z-0 flex flex-col">
+    <div class="bg-base-100 p-3 shadow-md z-10 flex justify-between items-center relative">
+        <h2 class="text-lg font-castoro font-bold flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            Ma Carte Brassicole
+        </h2>
+        <button id="geoloc-btn" class="btn btn-sm btn-primary">Me localiser</button>
+    </div>
+    
+    <div id="map" class="flex-1 z-0 relative"></div>
+</div>
+
+<dialog id="modal_add_spot" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box p-5 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text shadow-xl">
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_add_spot.close()">✕</button>
+        <h3 id="modal-title" class="font-bold text-lg mb-4 text-center border-b border-primary pb-2">Ajouter un lieu</h3>
+        
+        <form method="post" class="flex flex-col gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="spot_id" id="spot-id">
+            
+            <div class="form-control w-full">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Nom du lieu *</span></label>
+                <input type="text" name="title" id="spot-title" placeholder="Ex: Bar Le Troubadour..." class="input input-sm input-bordered w-full bg-white" required>
+            </div>
+            
+            <div class="flex gap-2">
+                <div class="form-control flex-1">
+                    <label class="label py-1"><span class="label-text text-xs font-bold">Date</span></label>
+                    <input type="date" name="date" id="spot-date" class="input input-sm input-bordered w-full bg-white" required>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <div class="form-control flex-1">
+                    <label class="label py-1"><span class="label-text text-xs font-bold">Latitude</span></label>
+                    <input type="number" step="any" name="lat" id="spot-lat" class="input input-sm input-bordered w-full bg-white" required>
+                </div>
+                <div class="form-control flex-1">
+                    <label class="label py-1"><span class="label-text text-xs font-bold">Longitude</span></label>
+                    <input type="number" step="any" name="lng" id="spot-lng" class="input input-sm input-bordered w-full bg-white" required>
+                </div>
+            </div>
+            
+            <div class="form-control w-full">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Souvenirs (Optionnel)</span></label>
+                <textarea name="description" id="spot-desc" class="textarea textarea-bordered h-16 bg-white"></textarea>
+            </div>
+            
+            <div class="form-control w-full mt-2">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Mes dégustations bues ici</span></label>
+                <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box">
+                    {% for drink in user_drinks %}
+                    <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors">
+                        <input type="checkbox" name="drinks" value="{{ drink.id }}" data-beer-id="{{ drink.beer_id.id }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
+                        <span class="label-text text-xs font-semibold">{{ drink.beer_id.name }} <span class="text-[10px] text-gray-500 font-normal">({{ drink.note }}/10)</span></span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-control w-full mt-2" id="friends-section">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Partager avec des amis (Abonnés)</span></label>
+                <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box">
+                    {% for follow in followers %}
+                    <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors">
+                        <input type="checkbox" name="friends" value="{{ follow.follower.id }}" class="checkbox checkbox-sm checkbox-secondary friend-checkbox" />
+                        <span class="label-text text-xs font-semibold">{{ follow.follower.username }}</span>
+                    </label>
+                    {% empty %}
+                    <p class="text-[10px] text-center text-gray-500 italic mt-2">Personne ne vous suit pour l'instant.</p>
+                    {% endfor %}
+                </div>
+                <label class="label"><span class="label-text-alt text-gray-500">Ils pourront aussi ajouter leurs bières à ce point.</span></label>
+            </div>
+            
+            <button type="submit" class="btn btn-success btn-sm w-full text-white mt-4 shadow-md">Sauvegarder</button>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
+<script>
+    // Dictionnaire de données pour l'édition dynamique
+    const spotsData = {
+        {% for spot in user_spots %}
+        "{{ spot.id }}": {
+            id: "{{ spot.id }}",
+            title: "{{ spot.title|escapejs }}",
+            description: "{{ spot.description|escapejs }}",
+            date: "{{ spot.date|date:'Y-m-d' }}",
+            lat: "{{ spot.latitude|stringformat:'f' }}",
+            lng: "{{ spot.longitude|stringformat:'f' }}",
+            is_owner: {% if spot.user == request.user %}true{% else %}false{% endif %},
+            // On ne coche que les bières de l'utilisateur connecté
+            drink_ids: [{% for d in spot.drinks.all %}{% if d.drinker_id == request.user %}"{{ d.id }}",{% endif %}{% endfor %}],
+            other_beer_ids: [{% for d in spot.drinks.all %}{% if d.drinker_id != request.user %}"{{ d.beer_id.id }}",{% endif %}{% endfor %}],
+            friend_ids: [{% for f in spot.friends.all %}"{{ f.id }}",{% endfor %}]
+        },
+        {% endfor %}
+    };
+
+    function openEditModal(spotId) {
+        const data = spotsData[spotId];
+        document.getElementById('modal-title').innerText = "Modifier le lieu";
+        document.getElementById('spot-id').value = data.id;
+        document.getElementById('spot-title').value = data.title;
+        document.getElementById('spot-desc').value = data.description;
+        document.getElementById('spot-date').value = data.date;
+        document.getElementById('spot-lat').value = data.lat;
+        document.getElementById('spot-lng').value = data.lng;
+
+        // Cocher les bières
+        document.querySelectorAll('.drink-checkbox').forEach(cb => {
+            const beerId = cb.getAttribute('data-beer-id');
+            cb.checked = data.drink_ids.includes(cb.value);
+            
+            // Si un autre utilisateur a déjà mis cette bière, on désactive la case
+            if (data.other_beer_ids.includes(beerId)) {
+                cb.disabled = true;
+                cb.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                cb.disabled = false;
+                cb.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+
+        // Gestion des amis (seul le créateur peut modifier la liste d'amis)
+        const friendsSection = document.getElementById('friends-section');
+        if (data.is_owner) {
+            friendsSection.style.display = 'block';
+            document.querySelectorAll('.friend-checkbox').forEach(cb => {
+                cb.checked = data.friend_ids.includes(cb.value);
+            });
+        } else {
+            friendsSection.style.display = 'none';
+        }
+
+        document.getElementById('modal_add_spot').showModal();
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        var map = L.map('map', {zoomControl: false}).setView([46.603354, 1.888334], 5);
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+        var brownIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        // Ajout des points
+        {% for spot in user_spots %}
+            var marker = L.marker([parseFloat("{{ spot.latitude|stringformat:'f' }}"), parseFloat("{{ spot.longitude|stringformat:'f' }}")], {icon: brownIcon}).addTo(map);
+                       
+            var popupContent = `
+                <div class="text-sm font-montserrat relative pr-5 min-w-40">
+                    <button onclick="openEditModal({{ spot.id }})" class="absolute top-0 right-0 text-gray-500 hover:text-primary z-50 p-1" title="Modifier">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    </button>
+                    
+                    <strong class="text-primary block text-base">{{ spot.title|escapejs }}</strong>
+                    <span class="text-[10px] text-gray-500 block mb-1">{{ spot.date|date:"d M Y" }}</span>
+                    <span class="text-[10px] text-gray-500 block mb-1">
+                        {% if spot.user == request.user %}Créé par vous{% else %}Partagé par {{ spot.user.username }}{% endif %}
+                    </span>
+                    
+                    {% if spot.description %}<p class="italic text-xs text-gray-600 mb-2 border-l-2 border-primary pl-2">{{ spot.description|escapejs }}</p>{% endif %}
+                    
+                    {% if spot.drinks.count > 0 %}
+                    <strong class="text-[10px] uppercase block border-t border-base-200 pt-1 mt-1">Bières bues ici :</strong>
+                    <ul class="text-xs list-disc pl-4 mt-1 text-gray-700">
+                        {% for drink in spot.drinks.all %}
+                        <li>
+                            <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="font-bold text-primary hover:text-primary hover:underline transition-colors">
+                                {{ drink.beer_id.name|escapejs }}
+                            </a> 
+                            <span class="text-[9px] text-gray-400">({{ drink.drinker_id.username }})</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            `;
+            marker.bindPopup(popupContent);
+        {% endfor %}
+
+        // Clique sur la carte pour ajouter un NOUVEAU point
+        map.on('click', function(e) {
+            document.getElementById('modal-title').innerText = "Ajouter un lieu";
+            document.getElementById('spot-id').value = ""; // Vider l'ID
+            document.getElementById('spot-title').value = "";
+            document.getElementById('spot-desc').value = "";
+            
+            // Pour la création on met la date du jour
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('spot-date').value = today;
+            
+            document.getElementById('spot-lat').value = e.latlng.lat;
+            document.getElementById('spot-lng').value = e.latlng.lng;
+
+            document.querySelectorAll('.friend-checkbox').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.drink-checkbox').forEach(cb => {
+                cb.checked = false;
+                cb.disabled = false;
+                cb.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+            document.getElementById('friends-section').style.display = 'block';
+
+            document.getElementById('modal_add_spot').showModal();
+        });
+
+        // Geoloc
+        document.getElementById('geoloc-btn').addEventListener('click', function() {
+            if(navigator.geolocation) {
+                var btn = this;
+                var originalHtml = btn.innerHTML;
+                btn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+                
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    btn.innerHTML = originalHtml;
+                    var lat = position.coords.latitude;
+                    var lng = position.coords.longitude;
+                    map.setView([lat, lng], 16);
+                });
+            }
+        });
+    });
+</script>
+
+<style>
+    .leaflet-pane { z-index: 10 !important; }
+    .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
+    .leaflet-container a { color: inherit !important; }
+</style>
+{% endblock %}

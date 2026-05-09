@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from ..forms import BeerForm, DrinkForm
-from ..models import Beer, Drinks
+from ..models import Beer, Drinks, BeerSpot, UserFollow
 
 @ensure_csrf_cookie
 @login_required(login_url='login')
@@ -65,11 +65,27 @@ def index(request):
             recommended_beers = unrated_beers.annotate(
                 global_rating=Avg('drinks__note')
             ).exclude(global_rating__isnull=True).order_by('-global_rating')[:5]
+            
+    # --- ALGORITHME DE CLASSEMENT ---
+    month = timezone.now().month
+    year = timezone.now().year
+    
+    top = Beer.objects.annotate(
+        avg_rating=Avg('drinks__note'),
+        count_rating=Count('drinks')
+    ).order_by('-avg_rating')[:10]
+    
+    topMonth = Beer.objects.annotate(
+        avg_rating=Avg('drinks__note', filter=Q(drinks__date__year=year, drinks__date__month=month)),
+        count_rating=Count('drinks', filter=Q(drinks__date__year=year, drinks__date__month=month))
+    ).filter(avg_rating__isnull=False).order_by('-avg_rating')[:10]
 
     context = {
         "unrated_beers": unrated_beers,
         "recommended_beers": recommended_beers,
-        "rating_form": rating_form
+        "rating_form": rating_form,
+        "top": top,
+        "topMonth": topMonth
     }
     return render(request, "home.html", context)
 
@@ -227,18 +243,79 @@ def beer_detail_view(request, beer_slug):
     return render(request, 'beer_page.html', context)
 
 @login_required(login_url='login')
-def ranking_view(request):
-    month = timezone.now().month
-    year = timezone.now().year
+def map_view(request):
+    # Les abonnés de l'utilisateur (les gens qui LE suivent)
+    followers = UserFollow.objects.filter(followed=request.user).select_related('follower')
     
-    top10 = Beer.objects.annotate(
-        avg_rating=Avg('drinks__note'),
-        count_rating=Count('drinks')
-    ).order_by('-avg_rating')[:10]
+    # Ses dégustations
+    user_drinks = Drinks.objects.filter(drinker_id=request.user).select_related('beer_id').order_by('-date')
     
-    top10Month = Beer.objects.annotate(
-        avg_rating=Avg('drinks__note', filter=Q(drinks__date__year=year, drinks__date__month=month)),
-        count_rating=Count('drinks', filter=Q(drinks__date__year=year, drinks__date__month=month))
-    ).filter(avg_rating__isnull=False).order_by('-avg_rating')[:10]
+    if request.method == 'POST':
+        spot_id = request.POST.get('spot_id') # S'il y a un ID, c'est une modification
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        date_spot = request.POST.get('date', timezone.now().date())
+        lat = request.POST.get('lat')
+        lng = request.POST.get('lng')
+        drink_ids = request.POST.getlist('drinks')
+        friend_ids = request.POST.getlist('friends')
+        
+        if title and lat and lng:
+            if spot_id:
+                # --- MODE MODIFICATION ---
+                spot = get_object_or_404(BeerSpot, id=spot_id)
+                
+                # Vérification des droits : Créateur OU Ami associé
+                if request.user == spot.user or request.user in spot.friends.all():
+                    spot.title = title
+                    spot.description = description
+                    spot.date = date_spot
+                    spot.latitude = float(lat)
+                    spot.longitude = float(lng)
+                    spot.save()
+                    
+                    user_current_drinks = spot.drinks.filter(drinker_id=request.user)
+                    spot.drinks.remove(*user_current_drinks)
+                    if drink_ids:
+                        # On identifie les bières déjà ajoutées par les autres sur ce point
+                        beers_from_others = spot.drinks.exclude(drinker_id=request.user).values_list('beer_id', flat=True)
+                        # On ne garde que les dégustations dont la bière n'est pas déjà présente
+                        valid_drinks = Drinks.objects.filter(id__in=drink_ids).exclude(beer_id__in=beers_from_others)
+                        spot.drinks.add(*valid_drinks)
+                        
+                    # Seul le créateur original peut gérer qui a accès au point
+                    if request.user == spot.user:
+                        spot.friends.set(friend_ids)
+                        
+                    messages.success(request, "Point modifié avec succès !")
+                else:
+                    messages.error(request, "Action non autorisée.")
+            else:
+                # --- MODE CRÉATION ---
+                spot = BeerSpot.objects.create(
+                    user=request.user,
+                    title=title,
+                    description=description,
+                    date=date_spot,
+                    latitude=float(lat),
+                    longitude=float(lng)
+                )
+                if drink_ids:
+                    spot.drinks.set(drink_ids)
+                if friend_ids:
+                    spot.friends.set(friend_ids)
+                messages.success(request, "Point ajouté avec succès !")
+                
+        return redirect('map')
 
-    return render(request, "ranking.html", {"top": top10, "topMonth": top10Month})
+    # Récupérer : Mes propres lieux + Les lieux où je suis tagué comme ami
+    user_spots = BeerSpot.objects.filter(
+        Q(user=request.user) | Q(friends=request.user)
+    ).distinct().prefetch_related('drinks', 'drinks__beer_id', 'friends')
+
+    context = {
+        'user_drinks': user_drinks,
+        'user_spots': user_spots,
+        'followers': followers,
+    }
+    return render(request, 'map.html', context)
