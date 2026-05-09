@@ -183,9 +183,8 @@
 </style>
 {% endblock %}
 {% block modals %}
-<dialog id="modal_add_spot" class="modal z-[9999]">
-    
-    <div class="modal-box p-5 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text shadow-xl max-h-[85vh] overflow-y-auto">
+<dialog id="modal_add_spot" class="modal items-start pt-10 sm:items-center sm:pt-0 z-[9999]">
+    <div class="modal-box p-5 flex flex-col mx-auto w-11/12 max-w-md bg-white shadow-xl max-h-[85vh] overflow-y-auto">
         
         <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-50 bg-base-100" onclick="modal_add_spot.close()">✕</button>
         <h3 id="modal-title" class="font-bold text-lg mb-4 text-center border-b border-primary pb-2 shrink-0">Ajouter un lieu</h3>
