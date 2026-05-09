@@ -183,10 +183,12 @@
 </style>
 {% endblock %}
 {% block modals %}
-<dialog id="modal_add_spot" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box p-5 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text shadow-xl">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_add_spot.close()">✕</button>
-        <h3 id="modal-title" class="font-bold text-lg mb-4 text-center border-b border-primary pb-2">Ajouter un lieu</h3>
+<dialog id="modal_add_spot" class="modal z-[9999]">
+    
+    <div class="modal-box p-5 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text shadow-xl max-h-[85vh] overflow-y-auto">
+        
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-50 bg-base-100" onclick="modal_add_spot.close()">✕</button>
+        <h3 id="modal-title" class="font-bold text-lg mb-4 text-center border-b border-primary pb-2 shrink-0">Ajouter un lieu</h3>
         
         <form method="post" class="flex flex-col gap-3">
             {% csrf_token %}
@@ -217,7 +219,7 @@
             
             <div class="form-control w-full">
                 <label class="label py-1"><span class="label-text text-xs font-bold">Souvenirs (Optionnel)</span></label>
-                <textarea name="description" id="spot-desc" class="textarea textarea-bordered h-16 bg-white"></textarea>
+                <textarea name="description" id="spot-desc" class="textarea textarea-bordered h-16 bg-white shrink-0"></textarea>
             </div>
             
             <div class="form-control w-full mt-2">
@@ -247,7 +249,7 @@
                 <label class="label"><span class="label-text-alt text-gray-500">Ils pourront aussi ajouter leurs bières à ce point.</span></label>
             </div>
             
-            <button type="submit" class="btn btn-success btn-sm w-full text-white mt-4 shadow-md">Sauvegarder</button>
+            <button type="submit" class="btn btn-success btn-sm w-full text-white mt-4 shadow-md shrink-0">Sauvegarder</button>
         </form>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
