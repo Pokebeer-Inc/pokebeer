@@ -54,6 +54,7 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 # Application definition
 
 INSTALLED_APPS = [
+    'storages',
     'tailwind',
     'theme',
     'django.contrib.admin',
@@ -207,5 +208,27 @@ if DEBUG:
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media').replace('\\', '/')
+
+# Configuration S3 Supabase pour les médias
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'media')
+AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'eu-west-1')
+
+# Nécessaire pour Supabase S3
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_ADDRESSING_STYLE = 'path'
+# Ne pas écraser les fichiers avec le même nom (ajoutera des caractères aléatoires)
+AWS_S3_FILE_OVERWRITE = False
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
