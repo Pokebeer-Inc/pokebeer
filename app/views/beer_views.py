@@ -1,12 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Count, Case, When, Value, IntegerField, Avg, Q
+from django.db.models import Count, Case, When, Value, IntegerField, Avg, Q, Max, Prefetch
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from ..forms import BeerForm, DrinkForm
-from ..models import Beer, Drinks, BeerSpot, UserFollow
+from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser
 
 @ensure_csrf_cookie
 @login_required(login_url='login')
@@ -161,10 +161,12 @@ def modify_rate_beer_view(request, drink_id):
 
 @login_required(login_url='login')
 def all_beers_view(request):
-    """Affiche toutes les bières avec recherche et filtres."""
+    """Affiche toutes les bières et tous les membres avec système d'onglets."""
+    # ==========================
+    # 1. LOGIQUE ONGLET BIÈRES
+    # ==========================
     beers = Beer.objects.filter(is_deleted=False).select_related('brewery_id').all().order_by('name')
 
-    # Recherche
     query = request.GET.get('q')
     if query:
         beers = beers.filter(
@@ -172,7 +174,6 @@ def all_beers_view(request):
             Q(brewery_id__name__icontains=query)
         )
 
-    # Filtres
     degree_filter = request.GET.get('degree')
     if degree_filter == 'light':
         beers = beers.filter(degree__lt=5)
@@ -188,13 +189,20 @@ def all_beers_view(request):
         beers = beers.filter(bitterness__gte=20, bitterness__lte=50)
     elif ibu_filter == 'high':
         beers = beers.filter(bitterness__gt=50)
+        
+    #Filtre par Style
+    style_filter = request.GET.get('style')
+    if style_filter:
+        beers = beers.filter(style__iexact=style_filter)
+
+    # Récupérer tous les styles uniques (non vides) pour le menu déroulant
+    styles = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct().order_by('style')
 
     rating_form = DrinkForm()
-    
     rated_beer_ids = []
+    
     if request.user.is_authenticated:
         rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
-        
         if rated_beer_ids:
             beers = beers.annotate(
                 is_rated=Case(
@@ -204,10 +212,41 @@ def all_beers_view(request):
                 )
             ).order_by('is_rated', 'name')
 
+    # ==========================
+    # 2. LOGIQUE ONGLET MEMBRES
+    # ==========================
+    user_query = request.GET.get('uq')
+    
+    # On précharge la toute dernière bière ajoutée par chaque utilisateur
+    latest_beer_prefetch = Prefetch(
+        'added_beers',
+        queryset=Beer.objects.filter(is_deleted=False).select_related('brewery_id').order_by('-id'),
+        to_attr='latest_beers_list'
+    )
+    
+    users = BeerUser.objects.filter(is_staff=False, is_superuser=False).prefetch_related(
+        latest_beer_prefetch, 'socialaccount_set'
+    )
+    
+    if user_query:
+        # Si recherche active, on cherche le pseudo
+        users = users.filter(username__icontains=user_query)[:30]
+    else:
+        # Par défaut : Utilisateurs ayant ajouté une bière, triés par le dernier ajout
+        users = users.filter(added_beers__is_deleted=False).annotate(
+            latest_beer_id=Max('added_beers__id')
+        ).order_by('-latest_beer_id')[:30]
+
+    # Déterminer quel onglet laisser ouvert au chargement de la page
+    active_tab = 'membres' if (user_query or request.GET.get('tab') == 'membres') else 'bieres'
+
     context = {
         'beers': beers,
         'rating_form': rating_form,
         'rated_beer_ids': rated_beer_ids,
+        'users': users,
+        'active_tab': active_tab,
+        'styles': styles,
     }
     return render(request, 'all_beers.html', context)
 

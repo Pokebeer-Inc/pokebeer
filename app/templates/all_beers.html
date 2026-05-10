@@ -3,214 +3,227 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
+
 <div class="mb-4 text-center">
-    <h2 class="text-2xl font-castoro font-bold flex justify-center items-center gap-2">
-        Recherche
-    </h2>
+    <h2 class="text-2xl font-castoro font-bold">Recherche</h2>
 </div>
 
-<div class="relative w-full mb-6">
-    <div class="join w-full">
-        <span class="join-item btn btn-sm btn-disabled bg-base-200">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-        </span>
-        <input type="text" id="user-search" placeholder="Chercher un membre..." class="input input-sm input-bordered join-item w-full bg-white" autocomplete="off">
-    </div>
-    <div id="user-suggestions" class="absolute z-50 w-full bg-base-100 shadow-xl rounded-box border border-base-200 top-full mt-1 hidden max-h-40 overflow-y-auto"></div>
+<div class="flex bg-base-200 p-1 rounded-full gap-1 text-[11px] font-bold text-center mb-6">
+    <button type="button" 
+            class="tab-btn flex-1 py-2 px-2 rounded-full transition-all focus:outline-none {% if active_tab == 'bieres' %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700 hover:bg-base-300{% endif %}" 
+            onclick="switchTab(this, 'tab-bieres')">
+        Bières
+    </button>
+    <button type="button" 
+            class="tab-btn flex-1 py-2 px-2 rounded-full transition-all focus:outline-none {% if active_tab == 'membres' %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700 hover:bg-base-300{% endif %}" 
+            onclick="switchTab(this, 'tab-membres')">
+        Membres
+    </button>
 </div>
 
-<div class="divider text-xs text-gray-400">CATALOGUE BIÈRES</div>
-
-<form method="get" class="mb-6">
-    <div class="join w-full mb-2">
-        <input type="text" name="q" placeholder="Bière, brasserie, style..." value="{{ request.GET.q|default_if_none:'' }}" class="input input-sm input-bordered join-item w-full bg-white">
-        <button type="submit" class="btn btn-sm btn-primary join-item">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-        </button>
-    </div>
-    
-    <div class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-box">
-        <input type="checkbox" {% if request.GET.degree or request.GET.ibu %}checked{% endif %} /> 
-        <div class="collapse-title text-sm font-medium flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-            Filtres avancés
+<div id="tab-bieres" class="tab-panel {% if active_tab == 'bieres' %}block{% else %}hidden{% endif %}">
+    <form method="get" class="mb-6">
+        <div class="join w-full mb-2">
+            <input type="text" name="q" placeholder="Bière, brasserie, style..." value="{{ request.GET.q|default_if_none:'' }}" class="input input-sm input-bordered join-item w-full bg-white">
+            <button type="submit" class="btn btn-sm btn-primary join-item">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </button>
         </div>
-        <div class="collapse-content text-sm">
-            <div class="flex flex-col gap-4 mt-2">
-                <div>
-                    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Alcool</h4>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="degree" value="" class="radio radio-xs radio-primary" {% if not request.GET.degree %}checked{% endif %} />
-                            <span class="text-xs">Toutes</span>
-                        </label>
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="degree" value="light" class="radio radio-xs radio-primary" {% if request.GET.degree == 'light' %}checked{% endif %} />
-                            <span class="text-xs">Légère (<5%)</span>
-                        </label>
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="degree" value="regular" class="radio radio-xs radio-primary" {% if request.GET.degree == 'regular' %}checked{% endif %} />
-                            <span class="text-xs">Moyenne (5-8%)</span>
-                        </label>
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="degree" value="strong" class="radio radio-xs radio-primary" {% if request.GET.degree == 'strong' %}checked{% endif %} />
-                            <span class="text-xs">Forte (>8%)</span>
-                        </label>
-                    </div>
-                </div>
-                
-                <div>
-                    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Amertume</h4>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="ibu" value="" class="radio radio-xs radio-secondary" {% if not request.GET.ibu %}checked{% endif %} />
-                            <span class="text-xs">Toutes</span>
-                        </label>
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="ibu" value="low" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'low' %}checked{% endif %} />
-                            <span class="text-xs">Douce (<20)</span>
-                        </label>
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="ibu" value="medium" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'medium' %}checked{% endif %} />
-                            <span class="text-xs">Modérée (20-50)</span>
-                        </label>
-                        <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="ibu" value="high" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'high' %}checked{% endif %} />
-                            <span class="text-xs">Forte (>50)</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-neutral btn-sm w-full mt-4">Appliquer les filtres</button>
-        </div>
-    </div>
-    
-    {% if request.GET.q or request.GET.degree or request.GET.ibu %}
-    <div class="mt-3">
-        <a href="{% url 'all_beers' %}" class="btn btn-outline btn-error btn-sm w-full">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            Réinitialiser la recherche
-        </a>
-    </div>
-    {% endif %}
-</form>
-
-<div class="flex flex-col gap-3">
-    {% for beer in beers %}
-    <div class="card bg-white shadow-sm p-3 relative overflow-hidden hover:bg-base-200 active:scale-[0.98] transition-all">
         
-        <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
+        <div class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-box">
+            <input type="checkbox" {% if request.GET.degree or request.GET.ibu or request.GET.style %}checked{% endif %} /> 
+            <div class="collapse-title text-sm font-medium flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                Filtres avancés
+            </div>
+            <div class="collapse-content text-sm">
+                <div class="flex flex-col gap-4 mt-2">
+                    
+                    <div>
+                        <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Alcool</h4>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="degree" value="" class="radio radio-xs radio-primary" {% if not request.GET.degree %}checked{% endif %} />
+                                <span class="text-xs">Toutes</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="degree" value="light" class="radio radio-xs radio-primary" {% if request.GET.degree == 'light' %}checked{% endif %} />
+                                <span class="text-xs">Légère (<5%)</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="degree" value="regular" class="radio radio-xs radio-primary" {% if request.GET.degree == 'regular' %}checked{% endif %} />
+                                <span class="text-xs">Moyenne (5-8%)</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="degree" value="strong" class="radio radio-xs radio-primary" {% if request.GET.degree == 'strong' %}checked{% endif %} />
+                                <span class="text-xs">Forte (>8%)</span>
+                            </label>
+                        </div>
+                    </div>
 
-        <div class="pointer-events-none flex-1 flex flex-col">
-            <h3 class="font-bold text-md leading-tight">{{ beer.name }}</h3>
-            <span class="text-xs text-gray-500 block mb-1">{{ beer.brewery_id.name }}</span>
-            
-            <p class="text-[11px] text-gray-600 line-clamp-2 mb-2">{{ beer.description|truncatechars:80 }}</p>
-            
-            <div class="flex gap-2 text-xs mb-3">
-                <span class="badge badge-outline badge-neutral badge-xs">Alc. {{ beer.degree }}%</span>
-                <span class="badge badge-outline badge-neutral badge-xs">IBU {{ beer.bitterness }}</span>
+                    <div>
+                        <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Amertume (IBU)</h4>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="ibu" value="" class="radio radio-xs radio-secondary" {% if not request.GET.ibu %}checked{% endif %} />
+                                <span class="text-xs">Toutes</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="ibu" value="low" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'low' %}checked{% endif %} />
+                                <span class="text-xs">Douce (<20)</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="ibu" value="medium" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'medium' %}checked{% endif %} />
+                                <span class="text-xs">Modérée (20-50)</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="ibu" value="high" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'high' %}checked{% endif %} />
+                                <span class="text-xs">Forte (>50)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Style</h4>
+                        <select name="style" class="select select-bordered select-sm w-full bg-white font-normal text-xs">
+                            <option value="">Tous les styles</option>
+                            {% for style_name in styles %}
+                                <option value="{{ style_name }}" {% if request.GET.style == style_name %}selected{% endif %}>{{ style_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                </div>
+                <button type="submit" class="btn btn-neutral btn-sm w-full mt-4">Appliquer les filtres</button>
             </div>
         </div>
         
-        {% if user.is_authenticated %}
-        <div class="relative z-10 mt-auto pointer-events-auto">
-            {% if beer.id in rated_beer_ids %}
-            <button class="btn btn-xs btn-disabled w-full">Déjà noté</button>
-            {% else %}
-            <button class="btn btn-xs btn-primary btn-outline w-full" onclick="modalRate{{beer.id}}.showModal()">Noter</button>
-            {% endif %}
-        </div>
-        {% endif %}
-    </div>
-    <dialog id="modalRate{{beer.id}}" class="modal">
-                <div class="modal-box custom-modal-form">
-                    <h3 class="font-bold text-lg mb-4">Noter : {{ beer.name }}</h3>
-                    <form method="post" action="{% url 'rate_beer' beer.id %}">
-                        {% csrf_token %}
-                        <div class="form-control w-full mb-3">
-                            <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
-                            {{ rating_form.date }}
-                        </div>
-                        <div class="form-control w-full mb-3">
-                            <label class="label"><span class="label-text">{{ rating_form.note.label }}</span></label>
-                            {{ rating_form.note }}
-                        </div>
-                        <div class="form-control w-full mb-4">
-                            <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
-                            {{ rating_form.comment }}
-                        </div>
-                        <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
-                    </form>
-                </div>
-                <form method="dialog" class="modal-backdrop">
-                    <button>Fermer</button>
-                </form>
-            </dialog>
-    {% empty %}
-        <div class="flex flex-col items-center justify-center p-6 bg-white border border-base-200 rounded-xl shadow-sm text-center mt-2">
-            <div class="bg-primary/10 p-3 rounded-full mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <h3 class="font-bold text-sm text-gray-800 mb-1">Aucune bière trouvée</h3>
-            <p class="text-xs text-gray-500 mb-4">Cette bière n'est pas encore dans le catalogue.</p>
-            <a href="{% url 'add_beer' %}" class="btn btn-primary btn-sm text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                L'ajouter au catalogue
+        {% if request.GET.q or request.GET.degree or request.GET.ibu or request.GET.style %}
+        <div class="mt-3">
+            <a href="{% url 'all_beers' %}" class="btn btn-outline btn-error btn-sm w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                Réinitialiser la recherche
             </a>
         </div>
-    {% endfor %}
+        {% endif %}
+    </form>
+
+    <div class="flex flex-col gap-3">
+        {% for beer in beers %}
+        <div class="card bg-white shadow-sm p-3 relative overflow-hidden hover:bg-base-200 active:scale-[0.98] transition-all">
+            <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
+            <div class="pointer-events-none flex-1 flex flex-col">
+                <h3 class="font-bold text-md leading-tight">{{ beer.name }}</h3>
+                <span class="text-xs text-gray-500 block mb-1">{{ beer.brewery_id.name }}</span>
+                <p class="text-[11px] text-gray-600 line-clamp-2 mb-2">{{ beer.description|truncatechars:80 }}</p>
+                <div class="flex gap-2 text-xs mb-3">
+                    <span class="badge badge-outline badge-neutral badge-xs">Alc. {{ beer.degree }}%</span>
+                    <span class="badge badge-outline badge-neutral badge-xs">IBU {{ beer.bitterness }}</span>
+                </div>
+            </div>
+            {% if user.is_authenticated %}
+            <div class="relative z-10 mt-auto pointer-events-auto">
+                {% if beer.id in rated_beer_ids %}
+                <button class="btn btn-xs btn-disabled w-full">Déjà noté</button>
+                {% else %}
+                <button class="btn btn-xs btn-primary btn-outline w-full" onclick="modalRate{{beer.id}}.showModal()">Noter</button>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <dialog id="modalRate{{beer.id}}" class="modal">
+            <div class="modal-box custom-modal-form">
+                <h3 class="font-bold text-lg mb-4">Noter : {{ beer.name }}</h3>
+                <form method="post" action="{% url 'rate_beer' beer.id %}">
+                    {% csrf_token %}
+                    <div class="form-control w-full mb-3">
+                        <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
+                        {{ rating_form.date }}
+                    </div>
+                    <div class="form-control w-full mb-3">
+                        <label class="label"><span class="label-text">{{ rating_form.note.label }}</span></label>
+                        {{ rating_form.note }}
+                    </div>
+                    <div class="form-control w-full mb-4">
+                        <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
+                        {{ rating_form.comment }}
+                    </div>
+                    <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
+                </form>
+            </div>
+            <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+        </dialog>
+        {% empty %}
+        <div class="flex flex-col items-center justify-center p-6 bg-white border border-base-200 rounded-xl shadow-sm text-center">
+            <h3 class="font-bold text-sm text-gray-800 mb-1">Aucune bière trouvée</h3>
+            <a href="{% url 'add_beer' %}" class="btn btn-primary btn-sm text-white mt-4">L'ajouter au catalogue</a>
+        </div>
+        {% endfor %}
+    </div>
 </div>
-<script>
-    // Script pour la recherche de membres
-    document.addEventListener("DOMContentLoaded", function() {
-        const userSearch = document.getElementById('user-search');
-        const userSugg = document.getElementById('user-suggestions');
-        
-        if (userSearch && userSugg) {
-            userSearch.addEventListener("input", async function() {
-                const val = this.value;
-                userSugg.innerHTML = '';
-                userSugg.style.display = 'none';
-                if (val.length < 2) return;
-                
-                try {
-                    const response = await fetch(`/api/search-user/?term=${encodeURIComponent(val)}`);
-                    const data = await response.json();
-                    
-                    if (data.length > 0) {
-                        userSugg.style.display = 'block';
-                        data.forEach(item => {
-                            const div = document.createElement("div");
-                            div.className = "p-3 hover:bg-base-200 cursor-pointer border-b border-base-200 last:border-0 font-semibold flex items-center gap-3";
-                            
-                            // On utilise item.avatar_url et item.username
-                            div.innerHTML = `
-                                <div class="avatar">
-                                    <div class="w-8 h-8 rounded-full shadow-sm border border-base-300 overflow-hidden">
-                                        <img class="object-cover w-full h-full" src="${item.avatar_url}" alt="${item.username}" />
-                                    </div>
-                                </div>
-                                <span class="text-sm">${item.username}</span>
-                            `;
-                            
-                            div.addEventListener("click", function() {
-                                window.location.href = `/user/${item.username}/`; 
-                            });
-                            userSugg.appendChild(div);
-                        });
-                    }
-                } catch (error) {
-                    console.error("Erreur recherche utilisateur", error);
-                }
-            });
-            
-            document.addEventListener("click", function(e) {
-                if (e.target !== userSearch) {
-                    userSugg.style.display = 'none';
-                }
-            });
-        }
-    });
-</script>
+
+<div id="tab-membres" class="tab-panel {% if active_tab == 'membres' %}block{% else %}hidden{% endif %}">
+    <form method="get" class="mb-6">
+        <input type="hidden" name="tab" value="membres">
+        <div class="join w-full">
+            <input type="text" name="uq" placeholder="Chercher un membre..." value="{{ request.GET.uq|default_if_none:'' }}" class="input input-sm input-bordered join-item w-full bg-white">
+            <button type="submit" class="btn btn-sm btn-primary join-item">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </button>
+        </div>
+        {% if request.GET.uq %}
+        <div class="mt-3">
+            <a href="{% url 'all_beers' %}?tab=membres" class="btn btn-outline btn-error btn-sm w-full">Réinitialiser la recherche</a>
+        </div>
+        {% endif %}
+    </form>
+
+    <div class="flex flex-col gap-4">
+        {% for u in users %}
+        <div class="card bg-white shadow-sm border border-base-200 overflow-hidden hover:border-primary/50 transition-all">
+            {% if u.latest_beers_list %}
+                {% with beer=u.latest_beers_list.0 %}
+                <a href="{% url 'beer_detail' beer.slug %}" class="p-3 border-b border-base-100 hover:bg-base-200 transition-colors block active:scale-[0.99]">
+                    <span class="text-[9px] text-primary font-bold uppercase tracking-widest mb-1 block">Dernier ajout</span>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-bold text-sm leading-tight">{{ beer.name }}</h4>
+                            <p class="text-[10px] text-gray-500">{{ beer.brewery_id.name }}</p>
+                        </div>
+                        <div class="flex gap-1">
+                            {% if beer.style %}<span class="badge badge-secondary badge-outline badge-xs">{{ beer.style }}</span>{% endif %}
+                            <span class="badge badge-neutral badge-outline badge-xs">{{ beer.degree }}%</span>
+                        </div>
+                    </div>
+                </a>
+                {% endwith %}
+            {% endif %}
+
+            <a href="{% url 'public_profile' u.username %}" class="p-3 bg-base-50/50 hover:bg-base-200 transition-colors flex items-center gap-3 active:scale-[0.99]">
+                <div class="avatar">
+                    <div class="w-10 h-10 rounded-full border border-base-300 overflow-hidden shadow-inner">
+                        {% if u.socialaccount_set.all %}
+                            <img src="{{ u.socialaccount_set.first.extra_data.picture }}" class="object-cover" />
+                        {% else %}
+                            <img src="https://ui-avatars.com/api/?name={{ u.username }}&background=E5A022&color=fff&bold=true" class="object-cover" />
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold">{{ u.username }}</span>
+                    <span class="text-[10px] text-gray-400">Voir le profil</span>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </a>
+        </div>
+        {% empty %}
+        <div class="text-center p-8 bg-white border border-base-200 rounded-xl shadow-sm text-gray-500 italic text-sm">
+            Aucun membre trouvé.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="{% static 'script/tab_bar.js' %}"></script>
 {% endblock %}
