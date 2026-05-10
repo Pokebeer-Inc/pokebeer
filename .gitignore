@@ -4,7 +4,6 @@ __pycache__/
 Procfile.tailwind
 node_modules/
 *.jks
-*.png
 media/
 .DS_Store
 staticfiles/
