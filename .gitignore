@@ -6,5 +6,4 @@ node_modules/
 *.jks
 media/
 .DS_Store
-staticfiles/
 */dist/
