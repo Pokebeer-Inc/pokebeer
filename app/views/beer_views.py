@@ -6,7 +6,14 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from ..forms import BeerForm, DrinkForm
-from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser
+from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser, UserBlock
+
+def get_excluded_users(user):
+    """Retourne la liste des IDs d'utilisateurs avec qui il y a un blocage."""
+    if not user.is_authenticated: return []
+    blocked_by_me = UserBlock.objects.filter(blocker=user).values_list('blocked_id', flat=True)
+    blocking_me = UserBlock.objects.filter(blocked=user).values_list('blocker_id', flat=True)
+    return list(set(blocked_by_me) | set(blocking_me))
 
 @ensure_csrf_cookie
 @login_required(login_url='login')
@@ -165,7 +172,7 @@ def all_beers_view(request):
     # ==========================
     # 1. LOGIQUE ONGLET BIÈRES
     # ==========================
-    beers = Beer.objects.filter(is_deleted=False).select_related('brewery_id').all().order_by('name')
+    beers = Beer.objects.filter(is_deleted=False).exclude(added_by__in=get_excluded_users(request.user)).select_related('brewery_id').all().order_by('name')
 
     query = request.GET.get('q')
     if query:
@@ -217,6 +224,10 @@ def all_beers_view(request):
     # ==========================
     user_query = request.GET.get('uq')
     
+    excluded_ids = get_excluded_users(request.user)
+    if request.user.is_authenticated:
+        excluded_ids.append(request.user.id)
+    
     # On précharge la toute dernière bière ajoutée par chaque utilisateur
     latest_beer_prefetch = Prefetch(
         'added_beers',
@@ -224,7 +235,7 @@ def all_beers_view(request):
         to_attr='latest_beers_list'
     )
     
-    users = BeerUser.objects.filter(is_superuser=False).exclude(id=request.user.id).prefetch_related(
+    users = BeerUser.objects.exclude(id__in=excluded_ids).prefetch_related(
         latest_beer_prefetch, 'socialaccount_set'
     )
     
@@ -254,7 +265,7 @@ def all_beers_view(request):
 def beer_detail_view(request, beer_slug):
     """Affiche les détails d'une bière, ses notes et commentaires."""
     beer = get_object_or_404(Beer, slug=beer_slug)
-    drinks = Drinks.objects.filter(beer_id=beer).select_related('drinker_id').order_by('-date')
+    drinks = Drinks.objects.filter(beer_id=beer).exclude(drinker_id__in=get_excluded_users(request.user)).select_related('drinker_id').order_by('-date')
 
     user_rating = None
     user_drink = drinks.filter(drinker_id=request.user).first() if request.user.is_authenticated else None
@@ -350,7 +361,7 @@ def map_view(request):
     # Récupérer : Mes propres lieux + Les lieux où je suis tagué comme ami
     user_spots = BeerSpot.objects.filter(
         Q(user=request.user) | Q(friends=request.user)
-    ).distinct().prefetch_related('drinks', 'drinks__beer_id', 'friends')
+    ).exclude(user__in=get_excluded_users(request.user)).distinct().prefetch_related('drinks', 'drinks__beer_id', 'friends')
 
     context = {
         'user_drinks': user_drinks,

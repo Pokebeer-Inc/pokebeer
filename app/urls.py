@@ -27,10 +27,13 @@ urlpatterns = [
     path('remove-follower/<str:username>/', views.remove_follower, name='remove_follower'),
     
     # ==========================================
-    # Signalements
+    # Signalements & Modération
     # ==========================================
     path('my-reports/', views.my_reports_view, name='my_reports'),
     path('submit-report/', views.submit_report, name='submit_report'),
+    path('block-user/<str:username>/', views.block_user, name='block_user'),
+    path('unblock-user/<str:username>/', views.unblock_user, name='unblock_user'),
+    path('blocked-users/', views.blocked_users_list, name='blocked_users'),
 
     # ==========================================
     # Gestion du Catalogue de Bières

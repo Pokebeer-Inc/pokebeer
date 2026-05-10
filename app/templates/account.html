@@ -9,8 +9,19 @@
             <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-500">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
             </div>
-            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-44 right-0">
-                <li><a href="{% url 'my_reports' %}">Suivi Signalements</a></li>
+            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-52 right-0 gap-1">
+                <li>
+                    <a href="{% url 'my_reports' %}" class="flex items-center gap-2 font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        Suivi Signalements
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'blocked_users' %}" class="flex items-center gap-2 font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                        Personnes bloquées
+                    </a>
+                </li>
             </ul>
         </div>
         <a href="{% url 'logout' %}" class="btn btn-xs btn-ghost btn-circle text-error">

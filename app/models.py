@@ -162,3 +162,15 @@ class Report(models.Model):
 
     def __str__(self):
         return f"Signalement #{self.id} par {self.reporter.username} - {self.get_status_display()}"
+    
+class UserBlock(models.Model):
+    blocker = models.ForeignKey(BeerUser, on_delete=models.CASCADE, related_name='blocking')
+    blocked = models.ForeignKey(BeerUser, on_delete=models.CASCADE, related_name='blocked_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('blocker', 'blocked')
+        verbose_name = "Blocage"
+
+    def __str__(self):
+        return f"{self.blocker.username} a bloqué {self.blocked.username}"
