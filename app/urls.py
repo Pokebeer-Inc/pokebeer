@@ -24,6 +24,12 @@ urlpatterns = [
     # ==========================================
     path('user/<str:username>/', views.public_profile_view, name='public_profile'),
     path('follow/<str:username>/', views.follow_user, name='follow_user'),
+    
+    # ==========================================
+    # Signalements
+    # ==========================================
+    path('my-reports/', views.my_reports_view, name='my_reports'),
+    path('submit-report/', views.submit_report, name='submit_report'),
 
     # ==========================================
     # Gestion du Catalogue de Bières

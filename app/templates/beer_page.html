@@ -20,7 +20,18 @@
     </div>
 
     <div class="px-4 pt-2 pb-4 border-b border-base-200">
-        <h1 class="text-3xl font-castoro font-bold leading-tight">{{ beer.name }}</h1>
+        <div class="flex justify-between items-start">
+            <h1 class="text-3xl font-castoro font-bold leading-tight">{{ beer.name }}</h1>
+            
+            <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-sm btn-ghost btn-circle text-gray-500 mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </div>
+                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-36 right-0">
+                    <li><a onclick="modal_report_beer.showModal()" class="text-error font-semibold">Signaler</a></li>
+                </ul>
+            </div>
+        </div>
         <h2 class="text-md font-semibold text-gray-500 mb-3">{{ beer.brewery_id.name }}</h2>
         
         <div class="flex gap-2 mb-4">
@@ -144,19 +155,64 @@
 
         <div class="flex flex-col gap-3">
             {% for drink in drinks %}
-                {% if drink.drinker_id != request.user %} <div class="bg-base-100 rounded-lg p-3 border border-base-200 shadow-sm flex gap-3">
-                    <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs
+                {% if drink.drinker_id != request.user %} 
+                <div class="bg-base-100 rounded-lg p-3 border border-base-200 shadow-sm flex items-start gap-3">
+                    
+                    <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs shrink-0
                         {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
                         {{ drink.note }}
                     </div>
-                    <div class="flex-1">
+                    
+                    <div class="flex-1 min-w-0 pr-2">
                         <h4 class="font-bold text-sm">
                             <a href="{% url 'public_profile' drink.drinker_id.username %}">{{ drink.drinker_id.username }}</a>
                         </h4>
                         <p class="text-[10px] text-gray-500 mb-1">{{ drink.date }}</p>
-                        {% if drink.comment %}<p class="text-xs text-gray-700">"{{ drink.comment }}"</p>{% endif %}
+                        {% if drink.comment %}<p class="text-xs text-gray-700 break-words">"{{ drink.comment }}"</p>{% endif %}
                     </div>
+                    
+                    <div class="dropdown dropdown-end shrink-0 -mt-1 -mr-1">
+                        <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-400 hover:text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                        </div>
+                        <ul tabindex="0" class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-36 right-0">
+                            <li><a onclick="document.getElementById('modal_report_drink_{{drink.id}}').showModal()" class="text-error text-xs font-semibold">Signaler l'avis</a></li>
+                        </ul>
+                    </div>
+                    
                 </div>
+
+                <dialog id="modal_report_drink_{{drink.id}}" class="modal z-[99999]">
+                    <div class="modal-box custom-modal-form">
+                        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="document.getElementById('modal_report_drink_{{drink.id}}').close()">✕</button>
+                        <h3 class="font-bold text-lg text-error mb-4">Signaler cet avis</h3>
+                        
+                        <form method="post" action="{% url 'submit_report' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="item_type" value="drink">
+                            <input type="hidden" name="item_id" value="{{ drink.id }}">
+                            
+                            <div class="form-control w-full mb-3">
+                                <label class="label py-1"><span class="label-text text-xs font-bold">Raison du signalement</span></label>
+                                <select name="reason" class="select select-bordered select-sm w-full" required>
+                                    <option value="" disabled selected>Choisissez une raison...</option>
+                                    <option value="spam">Spam ou publicité</option>
+                                    <option value="offensive">Langage offensant / haineux</option>
+                                    <option value="fake">Faux avis / Troll</option>
+                                    <option value="other">Autre raison</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-control w-full mb-4">
+                                <label class="label py-1"><span class="label-text text-xs font-bold">Détails</span></label>
+                                <textarea name="description" class="textarea textarea-bordered h-20" placeholder="Précisez pourquoi cet avis pose problème..." maxlength="1000" required></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-error w-full text-white">Envoyer le signalement</button>
+                        </form>
+                    </div>
+                    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+                </dialog>
                 {% endif %}
             {% endfor %}
         </div>
@@ -197,6 +253,39 @@
                 Oui, supprimer
             </button>
         </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
+<dialog id="modal_report_beer" class="modal z-[99999]">
+    <div class="modal-box custom-modal-form">
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_report_beer.close()">✕</button>
+        <h3 class="font-bold text-lg text-error mb-4">Signaler la bière</h3>
+        <p class="text-xs text-gray-500 mb-3">S'agit-il d'un doublon, d'une erreur d'information ou d'un contenu inapproprié ?</p>
+        
+        <form method="post" action="{% url 'submit_report' %}">
+            {% csrf_token %}
+            <input type="hidden" name="item_type" value="beer">
+            <input type="hidden" name="item_id" value="{{ beer.id }}">
+            
+            <div class="form-control w-full mb-3">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Raison du signalement</span></label>
+                <select name="reason" class="select select-bordered select-sm w-full" required>
+                    <option value="" disabled selected>Choisissez une raison...</option>
+                    <option value="spam">Spam / Fausse bière</option>
+                    <option value="offensive">Nom ou image inappropriée</option>
+                    <option value="fake">Informations erronées / Doublon</option>
+                    <option value="other">Autre raison</option>
+                </select>
+            </div>
+            
+            <div class="form-control w-full mb-4">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Description détaillée</span></label>
+                <textarea name="description" class="textarea textarea-bordered h-24" placeholder="Veuillez fournir un lien vers la vraie bière s'il s'agit d'un doublon, ou expliquer l'erreur..." maxlength="1000" required></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-error w-full text-white">Envoyer le signalement</button>
+        </form>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>

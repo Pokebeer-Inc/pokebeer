@@ -4,8 +4,16 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
 <div class="flex flex-col items-center bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200 relative mt-2">
-    <div class="absolute top-2 right-2">
-        <a href="{% url 'logout' %}" class="btn btn-xs btn-ghost text-error">
+    <div class="absolute top-2 right-2 flex gap-1 items-center">
+        <div class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </div>
+            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-44 right-0">
+                <li><a href="{% url 'my_reports' %}">Suivi Signalements</a></li>
+            </ul>
+        </div>
+        <a href="{% url 'logout' %}" class="btn btn-xs btn-ghost btn-circle text-error">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
         </a>
     </div>

@@ -7,7 +7,8 @@ from ..forms import UserRegisterForm, UserLoginForm, UserUpdateForm
 from django.db.models import Avg, Count, Max, Q
 from datetime import timedelta
 from django.utils import timezone
-from ..models import BeerUser, UserFollow, Beer, Drinks
+from ..models import BeerUser, UserFollow, Beer, Drinks, Report
+from django.views.decorators.http import require_POST
 
 def register_view(request):
     """Handles user registration."""
@@ -218,3 +219,33 @@ def delete_account_view(request):
         return redirect('index')
         
     return redirect('account')
+
+@login_required(login_url='login')
+def my_reports_view(request):
+    """Affiche la liste des signalements faits par l'utilisateur."""
+    reports = Report.objects.filter(reporter=request.user)
+    return render(request, 'my_reports.html', {'reports': reports})
+
+@require_POST
+@login_required(login_url='login')
+def submit_report(request):
+    """Reçoit et enregistre un signalement depuis n'importe quelle modale."""
+    item_type = request.POST.get('item_type')
+    item_id = request.POST.get('item_id')
+    reason = request.POST.get('reason')
+    description = request.POST.get('description')
+    
+    report = Report(reporter=request.user, reason=reason, description=description)
+    
+    if item_type == 'beer':
+        report.reported_beer_id = item_id
+    elif item_type == 'drink':
+        report.reported_drink_id = item_id
+    elif item_type == 'user':
+        report.reported_user_id = item_id
+        
+    report.save()
+    messages.success(request, "Votre signalement a été envoyé. Notre équipe va l'examiner.")
+    
+    # Redirige l'utilisateur vers la page où il était
+    return redirect(request.META.get('HTTP_REFERER', 'index'))
