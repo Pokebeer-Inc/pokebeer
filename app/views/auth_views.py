@@ -203,7 +203,21 @@ def follow_user(request, username):
             UserFollow.objects.create(follower=request.user, followed=user_to_follow) # S'abonner
             messages.success(request, f"Vous suivez maintenant {username} !")
             
-    return redirect('public_profile', username=username)
+    return redirect(request.META.get('HTTP_REFERER', 'index'))
+
+@login_required(login_url='login')
+def remove_follower(request, username):
+    """Permet à un utilisateur de supprimer quelqu'un de ses abonnés."""
+    follower_to_remove = get_object_or_404(BeerUser, username=username)
+    
+    # On cherche le lien où follower_to_remove suit request.user
+    follow_record = UserFollow.objects.filter(follower=follower_to_remove, followed=request.user)
+    
+    if request.method == 'POST' and follow_record.exists():
+        follow_record.delete()
+        messages.info(request, f"{username} a été retiré de vos abonnés.")
+        
+    return redirect(request.META.get('HTTP_REFERER', 'account'))
 
 @login_required(login_url='login')
 def delete_account_view(request):

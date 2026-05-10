@@ -330,8 +330,8 @@
         <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnés</h3>
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in followers %}
-            <li>
-                <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
+            <li class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-base-200">
+                <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
                             {% if f.follower.socialaccount_set.all %}
@@ -343,6 +343,11 @@
                     </div>
                     <span class="font-bold text-sm">{{ f.follower.username }}</span>
                 </a>
+                
+                <form method="post" action="{% url 'remove_follower' f.follower.username %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-xs btn-outline btn-error">Supprimer</button>
+                </form>
             </li>
             {% empty %}
             <li class="text-gray-500 text-xs italic text-center">Personne ne vous suit pour le moment.</li>
@@ -358,8 +363,8 @@
         <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnements</h3>
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in following %}
-            <li>
-                <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
+            <li class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-base-200">
+                <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
                             {% if f.followed.socialaccount_set.all %}
@@ -371,6 +376,11 @@
                     </div>
                     <span class="font-bold text-sm">{{ f.followed.username }}</span>
                 </a>
+                
+                <form method="post" action="{% url 'follow_user' f.followed.username %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-xs btn-outline btn-error">Ne plus suivre</button>
+                </form>
             </li>
             {% empty %}
             <li class="text-gray-500 text-xs italic text-center">Vous ne suivez personne.</li>

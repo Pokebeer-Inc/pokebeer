@@ -224,7 +224,7 @@ def all_beers_view(request):
         to_attr='latest_beers_list'
     )
     
-    users = BeerUser.objects.filter(is_staff=False, is_superuser=False).prefetch_related(
+    users = BeerUser.objects.filter(is_superuser=False).exclude(id=request.user.id).prefetch_related(
         latest_beer_prefetch, 'socialaccount_set'
     )
     
