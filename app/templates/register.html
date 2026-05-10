@@ -18,11 +18,17 @@
                 <div class="form-control w-full">
                     <label class="label"><span class="label-text font-bold">{{ field.label }}</span></label>
                     {{ field }}
+                    
                     {% if field.help_text %}
-                        <label class="label"><span class="label-text-alt text-gray-500">{{ field.help_text }}</span></label>
+                        <div class="text-[11px] text-gray-500 mt-2 leading-snug whitespace-normal break-words [&>ul]:list-disc [&>ul]:ml-4">
+                            {{ field.help_text|safe }}
+                        </div>
                     {% endif %}
+                    
                     {% if field.errors %}
-                        <label class="label"><span class="label-text-alt text-error">{{ field.errors }}</span></label>
+                        <div class="text-xs text-error mt-1 whitespace-normal break-words font-semibold [&>ul]:list-none">
+                            {{ field.errors }}
+                        </div>
                     {% endif %}
                 </div>
             {% endfor %}
