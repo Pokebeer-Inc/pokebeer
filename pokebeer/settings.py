@@ -23,12 +23,12 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-dtjx#jc7-&h=$=2t$*qxh1)h$ax@_q36pfiy)vkrz8v!_8zgu3'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.vercel.app,.hf.space').split(',')
 
 # Sécurité CSRF pour Hugging Face (car HF est derrière un proxy HTTPS)
 CSRF_TRUSTED_ORIGINS = [
