@@ -4,8 +4,27 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
 <div class="flex flex-col items-center bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200 relative mt-2">
-    <div class="absolute top-2 right-2">
-        <a href="{% url 'logout' %}" class="btn btn-xs btn-ghost text-error">
+    <div class="absolute top-2 right-2 flex gap-1 items-center">
+        <div class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </div>
+            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-52 right-0 gap-1">
+                <li>
+                    <a href="{% url 'my_reports' %}" class="flex items-center gap-2 font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        Suivi Signalements
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'blocked_users' %}" class="flex items-center gap-2 font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                        Personnes bloquées
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <a href="{% url 'logout' %}" class="btn btn-xs btn-ghost btn-circle text-error">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
         </a>
     </div>
@@ -322,8 +341,8 @@
         <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnés</h3>
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in followers %}
-            <li>
-                <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
+            <li class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-base-200">
+                <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
                             {% if f.follower.socialaccount_set.all %}
@@ -335,6 +354,11 @@
                     </div>
                     <span class="font-bold text-sm">{{ f.follower.username }}</span>
                 </a>
+                
+                <form method="post" action="{% url 'remove_follower' f.follower.username %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-xs btn-outline btn-error">Supprimer</button>
+                </form>
             </li>
             {% empty %}
             <li class="text-gray-500 text-xs italic text-center">Personne ne vous suit pour le moment.</li>
@@ -350,8 +374,8 @@
         <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnements</h3>
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in following %}
-            <li>
-                <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
+            <li class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-base-200">
+                <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
                             {% if f.followed.socialaccount_set.all %}
@@ -363,6 +387,11 @@
                     </div>
                     <span class="font-bold text-sm">{{ f.followed.username }}</span>
                 </a>
+                
+                <form method="post" action="{% url 'follow_user' f.followed.username %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-xs btn-outline btn-error">Ne plus suivre</button>
+                </form>
             </li>
             {% empty %}
             <li class="text-gray-500 text-xs italic text-center">Vous ne suivez personne.</li>

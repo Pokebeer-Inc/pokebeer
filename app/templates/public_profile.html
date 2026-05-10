@@ -4,7 +4,7 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
 <div class="flex flex-col items-center bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200 relative mt-2">
-    <div class="absolute top-2 right-2">
+    <div class="absolute top-2 right-2 flex gap-1 items-center z-10">
         <form action="{% url 'follow_user' profile_user.username %}" method="post">
             {% csrf_token %}
             {% if is_following %}
@@ -13,6 +13,26 @@
             <button type="submit" class="btn btn-xs btn-primary">S'abonner</button>
             {% endif %}
         </form>
+        
+        <div class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </div>
+            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-44 right-0 gap-1">
+                <li>
+                    <a onclick="modal_report_user.showModal()" class="text-warning font-medium flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        Signaler
+                    </a>
+                </li>
+                <li>
+                    <a onclick="modal_block_user.showModal()" class="text-error font-medium flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                        Bloquer
+                    </a>
+                </li>
+            </ul>
+        </div>
     </div>
     
     <div class="avatar mb-2">
@@ -217,4 +237,65 @@
 </dialog>
 
 <script src="{% static 'script/tab_bar.js' %}"></script>
+
+<dialog id="modal_report_user" class="modal z-[99999]">
+    <div class="modal-box custom-modal-form">
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_report_user.close()">✕</button>
+        <h3 class="font-bold text-lg text-error mb-4">Signaler ce profil</h3>
+        
+        <form method="post" action="{% url 'submit_report' %}">
+            {% csrf_token %}
+            <input type="hidden" name="item_type" value="user">
+            <input type="hidden" name="item_id" value="{{ profile_user.id }}">
+            
+            <div class="form-control w-full mb-3">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Date</span></label>
+                <input type="text" value="{% now 'd/m/Y' %}" class="input input-sm input-bordered w-full bg-base-200 text-gray-500 cursor-not-allowed" readonly>
+            </div>
+            
+            <div class="form-control w-full mb-3">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Raison du signalement</span></label>
+                <select name="reason" class="select select-bordered select-sm w-full" required>
+                    <option value="" disabled selected>Choisissez une raison...</option>
+                    <option value="spam">Spam ou publicité</option>
+                    <option value="offensive">Contenu offensant / haineux</option>
+                    <option value="fake">Fausse information / Faux profil</option>
+                    <option value="other">Autre raison</option>
+                </select>
+            </div>
+            
+            <div class="form-control w-full mb-4">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Description détaillée</span></label>
+                <textarea name="description" class="textarea textarea-bordered h-24" placeholder="Veuillez expliquer pourquoi vous signalez ce membre..." maxlength="1000" required></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-error w-full text-white">Envoyer le signalement</button>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
+<dialog id="modal_block_user" class="modal z-[99999]">
+    <div class="modal-box text-center">
+        <h3 class="font-bold text-lg text-error">Bloquer {{ profile_user.username }} ?</h3>
+        <p class="py-4 text-sm text-gray-600">
+            En bloquant cet utilisateur, vous ne verrez plus ses bières, ses avis et ses points sur la carte. 
+            Il ne pourra plus non plus accéder à votre profil.
+        </p>
+        <div class="flex gap-2">
+            <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
+            <form method="post" action="{% url 'block_user' profile_user.username %}" class="flex-1">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-error w-full text-white">Confirmer le blocage</button>
+            </form>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
+<script>
+    if (new URLSearchParams(window.location.search).has('reported')) {
+        modal_block_user.showModal();
+    }
+</script>
 {% endblock %}

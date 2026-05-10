@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mb-4 relative flex justify-center items-center">
+    <a href="{% url 'account' %}" class="absolute left-0 btn btn-sm btn-circle btn-ghost">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    </a>
+    <h2 class="text-2xl font-castoro font-bold">Personnes bloquées</h2>
+</div>
+
+<div class="flex flex-col gap-2">
+    {% for entry in blocked_list %}
+    <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-base-200">
+        <span class="font-bold text-sm">{{ entry.blocked.username }}</span>
+        <button onclick="document.getElementById('modal_unblock_{{entry.id}}').showModal()" class="btn btn-xs btn-outline btn-success">Débloquer</button>
+    </div>
+
+    <dialog id="modal_unblock_{{entry.id}}" class="modal">
+        <div class="modal-box text-center">
+            <h3 class="font-bold text-lg">Débloquer {{ entry.blocked.username }} ?</h3>
+            <p class="py-4 text-xs text-gray-500">Vous pourrez à nouveau voir ses contenus mutuellement.</p>
+            <div class="flex gap-2">
+                <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
+                <form method="post" action="{% url 'unblock_user' entry.blocked.username %}" class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-success w-full text-white">Débloquer</button>
+                </form>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+    </dialog>
+    {% empty %}
+    <p class="text-center text-sm text-gray-400 italic py-10">Aucun utilisateur bloqué.</p>
+    {% endfor %}
+</div>
+{% endblock %}

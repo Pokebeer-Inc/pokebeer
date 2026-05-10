@@ -24,6 +24,16 @@ urlpatterns = [
     # ==========================================
     path('user/<str:username>/', views.public_profile_view, name='public_profile'),
     path('follow/<str:username>/', views.follow_user, name='follow_user'),
+    path('remove-follower/<str:username>/', views.remove_follower, name='remove_follower'),
+    
+    # ==========================================
+    # Signalements & Modération
+    # ==========================================
+    path('my-reports/', views.my_reports_view, name='my_reports'),
+    path('submit-report/', views.submit_report, name='submit_report'),
+    path('block-user/<str:username>/', views.block_user, name='block_user'),
+    path('unblock-user/<str:username>/', views.unblock_user, name='unblock_user'),
+    path('blocked-users/', views.blocked_users_list, name='blocked_users'),
 
     # ==========================================
     # Gestion du Catalogue de Bières
@@ -48,5 +58,4 @@ urlpatterns = [
     path('api/analyze-label/', views.analyze_beer_label, name='analyze_label'),
     path('api/search-brewery/', views.search_brewery, name='search_brewery'),
     path('api/search-beer/', views.search_beer, name='search_beer'),
-    path('api/search-user/', views.search_user, name='search_user'),
 ]

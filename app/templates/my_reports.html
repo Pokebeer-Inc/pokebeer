@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4 relative flex justify-center items-center">
+    <a href="{% url 'account' %}" class="absolute left-0 btn btn-sm btn-circle btn-ghost">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    </a>
+    <h2 class="text-2xl font-castoro font-bold">Mes Signalements</h2>
+</div>
+
+<div class="flex flex-col gap-4">
+    {% for report in reports %}
+    <div class="card bg-white shadow-sm border border-base-200 p-4">
+        
+        <div class="flex justify-between items-start border-b border-base-200 pb-2 mb-2">
+            <div>
+                <span class="text-[10px] text-gray-500 uppercase tracking-widest">{{ report.created_at|date:"d M Y" }}</span>
+                <h3 class="font-bold text-sm text-error flex items-center gap-1 mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    {{ report.get_reason_display }}
+                </h3>
+            </div>
+            
+            {% if report.status == 'pending' %}
+                <span class="badge badge-outline badge-neutral badge-sm whitespace-nowrap">Envoyé</span>
+            {% elif report.status == 'review' %}
+                <span class="badge badge-warning badge-sm whitespace-nowrap">En examen</span>
+            {% elif report.status == 'resolved' %}
+                <span class="badge badge-success text-white badge-sm whitespace-nowrap">Traité</span>
+            {% endif %}
+        </div>
+
+        <p class="text-xs text-gray-700 italic border-l-2 border-base-300 pl-2 mb-3">"{{ report.description }}"</p>
+        
+        {% if report.status == 'resolved' %}
+        <div class="bg-success/10 p-3 rounded-lg border border-success/20">
+            <h4 class="text-[10px] font-bold text-success uppercase tracking-widest mb-1">Décision de l'équipe :</h4>
+            <p class="text-xs text-gray-800">{{ report.admin_response|default:"Votre signalement a été pris en compte et des actions ont été menées." }}</p>
+        </div>
+        {% endif %}
+        
+    </div>
+    {% empty %}
+    <div class="text-center p-8 bg-white border border-base-200 rounded-xl shadow-sm text-gray-500 italic text-sm">
+        Vous n'avez fait aucun signalement.
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
