@@ -1,7 +1,7 @@
 .custom-modal-form {
     height: auto;
-    /*min-height: 60% !important;*/
-    max-height: 85% !important;
+    min-height: fit-content !important;
+    max-height: 90% !important;
 }
 
 .custom-modal-text {
