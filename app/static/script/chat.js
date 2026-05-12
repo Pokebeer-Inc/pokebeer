@@ -3,27 +3,16 @@ const chatWindow = document.getElementById('chat-window');
 const chatClose = document.getElementById('chat-close');
 const chatInput = document.getElementById('chat-input');
 const chatMessages = document.getElementById('chat-messages');
-const chatOverlay = document.getElementById('chat-overlay');
 
 // Ouvrir / Fermer le chat et le fond
 chatToggle.addEventListener('click', () => {
     chatWindow.classList.toggle('hidden');
-    if (chatOverlay) chatOverlay.classList.toggle('hidden');
 });
 
 // Fermer avec la croix
 chatClose.addEventListener('click', () => {
     chatWindow.classList.add('hidden');
-    if (chatOverlay) chatOverlay.classList.add('hidden');
 });
-
-// Fermer le chat si on clique sur le fond grisé
-if (chatOverlay) {
-    chatOverlay.addEventListener('click', () => {
-        chatWindow.classList.add('hidden');
-        chatOverlay.classList.add('hidden');
-    });
-}
 
 // Appui sur "Entrée"
 function handleEnter(e) {
@@ -83,33 +72,4 @@ async function sendMessage() {
                     </div>`;
     }
     chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// --- GESTION DU CLAVIER SUR MOBILE ---
-const initialScreenHeight = window.innerHeight;
-
-if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", () => {
-        const chatWindow = document.getElementById("chat-window");
-        if (!chatWindow || chatWindow.classList.contains("hidden")) return;
-        
-        // Si la hauteur visible diminue de plus de 20%, on en déduit que le clavier est ouvert
-        const isKeyboardOpen = window.visualViewport.height < (initialScreenHeight * 0.8);
-        
-        if (isKeyboardOpen) {
-            // Clavier ouvert : on modifie la fenêtre pour qu'elle tienne au-dessus du clavier
-            chatWindow.style.bottom = '10px'; 
-            chatWindow.style.height = `${window.visualViewport.height - 20}px`;
-        } else {
-            // Clavier fermé : on retire nos modifications pour laisser Tailwind gérer
-            chatWindow.style.bottom = '';
-            chatWindow.style.height = '';
-        }
-        
-        // On s'assure de toujours voir le dernier message
-        setTimeout(() => {
-            const chatMessages = document.getElementById("chat-messages");
-            if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 100);
-    });
 }
