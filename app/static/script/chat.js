@@ -3,16 +3,31 @@ const chatWindow = document.getElementById('chat-window');
 const chatClose = document.getElementById('chat-close');
 const chatInput = document.getElementById('chat-input');
 const chatMessages = document.getElementById('chat-messages');
+const chatOverlay = document.getElementById('chat-overlay'); 
 
 // Ouvrir / Fermer le chat et le fond
 chatToggle.addEventListener('click', () => {
     chatWindow.classList.toggle('hidden');
+    chatOverlay.classList.toggle('hidden'); // On affiche/masque l'overlay en même temps
 });
 
-// Fermer avec la croix
-chatClose.addEventListener('click', () => {
+// Fonction centralisée pour fermer le chat
+function closeChat() {
     chatWindow.classList.add('hidden');
-});
+    chatOverlay.classList.add('hidden');
+}
+
+// Fermer avec la croix
+chatClose.addEventListener('click', closeChat);
+
+// Fermer si on clique en dehors (sur le fond grisé)
+chatOverlay.addEventListener('click', closeChat);
+
+// Appui sur "Entrée"
+function handleEnter(e) {
+    if (e.key === 'Enter') sendMessage();
+}
+
 
 // Appui sur "Entrée"
 function handleEnter(e) {
