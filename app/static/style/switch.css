@@ -1,0 +1,16 @@
+/* Animations de glissement pour les onglets Pokebeer */
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(15px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-15px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.slide-in-right {
+    animation: slideInRight 0.25s ease-out forwards;
+}
+.slide-in-left {
+    animation: slideInLeft 0.25s ease-out forwards;
+}
