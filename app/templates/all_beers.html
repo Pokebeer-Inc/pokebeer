@@ -115,7 +115,7 @@
             <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
             <div class="pointer-events-none flex-1 flex flex-col">
                 <h3 class="font-bold text-md leading-tight">{{ beer.name }}</h3>
-                <span class="text-xs text-gray-500 block mb-1">{{ beer.brewery_id.name }}</span>
+                <a class="text-xs text-gray-500 block mb-1 pointer-events-auto z-10 hover:text-primary transition-colors w-fit" href="{% url 'brewery_detail' beer.brewery_id.id %}">{{ beer.brewery_id.name }}</a>
                 <p class="text-[11px] text-gray-600 line-clamp-2 mb-2">{{ beer.description|truncatechars:80 }}</p>
                 <div class="flex gap-2 text-xs mb-3">
                     <span class="badge badge-outline badge-neutral badge-xs">Alc. {{ beer.degree }}%</span>
@@ -185,19 +185,23 @@
         <div class="card bg-white shadow-sm border border-base-200 overflow-hidden hover:border-primary/50 transition-all">
             {% if u.latest_beers_list %}
                 {% with beer=u.latest_beers_list.0 %}
-                <a href="{% url 'beer_detail' beer.slug %}" class="p-3 border-b border-base-100 hover:bg-base-200 transition-colors block active:scale-[0.99]">
-                    <span class="text-[9px] text-primary font-bold uppercase tracking-widest mb-1 block">Dernier ajout</span>
-                    <div class="flex justify-between items-start">
-                        <div>
+                <div class="p-3 border-b border-base-100 hover:bg-base-200 transition-colors block active:scale-[0.99] relative overflow-hidden">
+                    <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
+                    
+                    <span class="text-[9px] text-primary font-bold uppercase tracking-widest mb-1 block relative z-10 pointer-events-none">Dernier ajout</span>
+                    <div class="flex justify-between items-start relative z-10">
+                        <div class="pointer-events-none flex flex-col">
                             <h4 class="font-bold text-sm leading-tight">{{ beer.name }}</h4>
-                            <p class="text-[10px] text-gray-500">{{ beer.brewery_id.name }}</p>
+                            <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-xs text-gray-500 inline-block mb-1 pointer-events-auto hover:text-primary transition-colors w-fit">
+                                {{ beer.brewery_id.name }}
+                            </a>
                         </div>
-                        <div class="flex gap-1">
+                        <div class="flex gap-1 pointer-events-none">
                             {% if beer.style %}<span class="badge badge-secondary badge-outline badge-xs">{{ beer.style }}</span>{% endif %}
                             <span class="badge badge-neutral badge-outline badge-xs">{{ beer.degree }}%</span>
                         </div>
                     </div>
-                </a>
+                </div>
                 {% endwith %}
             {% endif %}
 

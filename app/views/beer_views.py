@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from ..forms import BeerForm, DrinkForm
-from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser, UserBlock
+from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser, UserBlock, Brewery
 
 def get_excluded_users(user):
     """Retourne la liste des IDs d'utilisateurs avec qui il y a un blocage."""
@@ -412,3 +412,23 @@ def delete_beer_view(request, beer_slug):
         messages.success(request, "Bière retirée du catalogue. Vos notes personnelles sont conservées.")
         return redirect('index')
     return redirect('beer_detail', beer_slug=beer.slug)
+
+@login_required(login_url='login')
+def brewery_detail_view(request, brewery_id):
+    """Affiche les détails d'une brasserie et la liste de ses bières."""
+    brewery = get_object_or_404(Brewery, id=brewery_id)
+    beers = Beer.objects.filter(brewery_id=brewery, is_deleted=False).order_by('name')
+
+    rated_beer_ids = []
+    if request.user.is_authenticated:
+        rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
+
+    rating_form = DrinkForm()
+
+    context = {
+        'brewery': brewery,
+        'beers': beers,
+        'rated_beer_ids': rated_beer_ids,
+        'rating_form': rating_form,
+    }
+    return render(request, 'brewery_page.html', context)

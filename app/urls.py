@@ -42,6 +42,11 @@ urlpatterns = [
     path('add-beer/', views.add_beer_view, name='add_beer'),
     path('edit-beer/<slug:beer_slug>/', views.edit_beer_view, name='edit_beer'),
     path('delete-beer/<slug:beer_slug>/', views.delete_beer_view, name='delete_beer'),
+    
+    # ==========================================
+    # Gestion des Brasseries
+    # ==========================================
+    path('brewery/<int:brewery_id>/', views.brewery_detail_view, name='brewery_detail'),
 
     # ==========================================
     # Dégustations (Avis) & Lieux (Spots)
