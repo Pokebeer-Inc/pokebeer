@@ -38,6 +38,7 @@ class Brewery(models.Model):
     name = models.CharField(max_length=150, blank=False, unique=True, verbose_name="Nom")
     description = models.TextField(verbose_name="Description")
     city = models.CharField(max_length=150, verbose_name="Ville")
+    image = models.ImageField(upload_to='breweries/', blank=True, null=True, verbose_name="Image")
 
     class Meta:
         verbose_name = "Brasserie"

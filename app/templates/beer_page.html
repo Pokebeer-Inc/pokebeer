@@ -32,7 +32,9 @@
                 </ul>
             </div>
         </div>
-        <h2 class="text-md font-semibold text-gray-500 mb-3">{{ beer.brewery_id.name }}</h2>
+        <h2 class="text-md inline-block font-semibold text-gray-500 mb-3 hover:text-primary transition-colors w-fit">
+            <a href="{% url 'brewery_detail' beer.brewery_id.id %}">{{ beer.brewery_id.name }}</a>
+        </h2>
         
         <div class="flex gap-2 mb-4">
             <span class="badge badge-primary badge-sm">Alc. {{ beer.degree }}%</span>

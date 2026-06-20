@@ -144,12 +144,16 @@
         <h3 class="text-sm border-b border-primary pb-1 mb-2">Bières que j'ai proposées</h3>
         <div class="flex flex-col gap-2">
             {% for beer in my_added_beers %}
-            <a href="{% url 'beer_detail' beer.slug %}" class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3">
+            <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3 relative overflow-hidden">
                 
-                <div class="flex-1 min-w-0 flex flex-col gap-1">
+                <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
+                
+                <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
                     <div class="flex flex-col">
                         <span class="font-bold text-sm leading-tight truncate">{{ beer.name }}</span>
-                        <span class="text-[10px] text-gray-500 truncate">{{ beer.brewery_id.name }}</span>
+                        <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
+                            {{ beer.brewery_id.name }}
+                        </a>
                     </div>
                     
                     <div class="flex gap-1 mt-0.5">
@@ -160,7 +164,7 @@
                     </div>
                 </div>
                 
-                <div class="shrink-0 flex items-center">
+                <div class="shrink-0 flex items-center pointer-events-none relative z-10">
                     {% if beer.user_note is not None %}
                     <span class="badge badge-warning badge-sm gap-1 font-bold">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
@@ -169,8 +173,8 @@
                     {% else %}
                     <span class="text-[10px] text-gray-400 italic">Non notée</span>
                     {% endif %}
-                </div>
-            </a>
+                </div>     
+            </div>
             {% empty %}
             <p class="text-[10px] text-gray-500">Aucun ajout pour l'instant.</p>
             {% endfor %}
@@ -206,12 +210,16 @@
             
             <div class="flex flex-col gap-2 mt-3">
                 {% for beer in my_deleted_beers %}
-                <a href="{% url 'beer_detail' beer.slug %}" class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3">
+                <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3 relative overflow-hidden">
                     
-                    <div class="flex-1 min-w-0 flex flex-col gap-1">
+                    <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
+                    
+                    <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
                         <div class="flex flex-col">
                             <span class="font-bold text-sm leading-tight truncate line-through">{{ beer.name }}</span>
-                            <span class="text-[10px] text-gray-500 truncate">{{ beer.brewery_id.name }}</span>
+                            <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
+                                {{ beer.brewery_id.name }}
+                            </a>
                         </div>
                         
                         <div class="flex gap-1 mt-0.5">
@@ -222,10 +230,10 @@
                         </div>
                     </div>
                     
-                    <div class="shrink-0 flex items-center">
+                    <div class="shrink-0 flex items-center pointer-events-none relative z-10">
                         <span class="text-[10px] text-error font-bold italic">Supprimée</span>
                     </div>
-                </a>
+                </div>
                 {% empty %}
                 <p class="text-[10px] text-gray-500">Aucune bière retirée.</p>
                 {% endfor %}
