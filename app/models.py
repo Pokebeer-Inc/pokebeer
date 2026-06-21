@@ -51,7 +51,7 @@ class Beer(models.Model):
     name = models.CharField(max_length=150, blank=False, unique=True, verbose_name="Nom")
     image = models.ImageField(upload_to='beers/', blank=True, null=True, verbose_name="Image")
     description = models.TextField(verbose_name="Description")
-    bitterness = models.IntegerField(default=0, verbose_name="Amertume (IBU)")
+    bitterness = models.IntegerField(null=True, blank=True, verbose_name="Amertume (IBU)")
     degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, verbose_name="Degré")
     brewery_id = models.ForeignKey(Brewery, on_delete=models.CASCADE)
     slug = models.SlugField(max_length=150, unique=True, blank=True, null=True, verbose_name="Slug")

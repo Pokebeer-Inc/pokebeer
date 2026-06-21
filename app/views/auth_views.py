@@ -102,18 +102,21 @@ def account_view(request):
     following = UserFollow.objects.filter(follower=user).select_related('followed')
 
     # 3. Calcul des Statistiques
+    # On crée une requête spécifique pour les stats qui ignore les bières supprimées
+    stats_drinks = my_drinks.filter(beer_id__is_deleted=False)
+    
     last_month = timezone.now().date() - timedelta(days=30)
-    total_drinks = my_drinks.count()
-    drinks_last_month = my_drinks.filter(date__gte=last_month).count()
+    total_drinks = stats_drinks.count()
+    drinks_last_month = stats_drinks.filter(date__gte=last_month).count()
 
-    averages = my_drinks.aggregate(
+    averages = stats_drinks.aggregate(
         avg_note=Avg('note'),
         avg_abv=Avg('beer_id__degree'),
         avg_ibu=Avg('beer_id__bitterness')
     )
 
     # Calcul du style, degré et IBU préférés (basé sur les notes >= 7)
-    loved_drinks = my_drinks.filter(note__gte=7)
+    loved_drinks = stats_drinks.filter(note__gte=7)
     
     pref_style = loved_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values('beer_id__style').annotate(c=Count('id')).order_by('-c').first()
     
@@ -165,17 +168,19 @@ def public_profile_view(request, username):
     is_following = followers.filter(follower=request.user).exists()
 
     # Calcul des Statistiques (même logique que le compte privé)
+    stats_drinks = user_drinks.filter(beer_id__is_deleted=False)
+    
     last_month = timezone.now().date() - timedelta(days=30)
-    total_drinks = user_drinks.count()
-    drinks_last_month = user_drinks.filter(date__gte=last_month).count()
+    total_drinks = stats_drinks.count()
+    drinks_last_month = stats_drinks.filter(date__gte=last_month).count()
 
-    averages = user_drinks.aggregate(
+    averages = stats_drinks.aggregate(
         avg_note=Avg('note'),
         avg_abv=Avg('beer_id__degree'),
         avg_ibu=Avg('beer_id__bitterness')
     )
 
-    loved_drinks = user_drinks.filter(note__gte=7)
+    loved_drinks = stats_drinks.filter(note__gte=7)
     pref_style = loved_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values('beer_id__style').annotate(c=Count('id')).order_by('-c').first()
     
     context = {
