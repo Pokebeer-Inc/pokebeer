@@ -38,8 +38,12 @@
         
         <div class="flex gap-2 mb-4">
             <span class="badge badge-primary badge-sm">Alc. {{ beer.degree }}%</span>
+            {% if beer.bitterness is not None %}
             <span class="badge badge-secondary badge-outline badge-sm">IBU {{ beer.bitterness }}</span>
-        </div> 
+            {% else %}
+            <span class="badge badge-secondary badge-outline badge-sm opacity-60">IBU inconnu</span>
+            {% endif %}
+        </div>
 
         <p class="text-sm text-gray-600 text-justify mb-2">{{ beer.description }}</p>
         

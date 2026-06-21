@@ -41,7 +41,8 @@ def _format_beers_context(user_message):
     context_list = []
     for b in beers:
         style = b.style if b.style else "Style inconnu"
-        line = f"- {b.name} ({b.brewery_id.name}): {style}, {b.degree}%, {b.bitterness} IBU. Profil: {b.description}"
+        ibu_text = f"{b.bitterness} IBU" if b.bitterness is not None else "IBU inconnu"
+        line = f"- {b.name} ({b.brewery_id.name}): {style}, {b.degree}%, {ibu_text}. Profil: {b.description}"
         context_list.append(line)
         
     return "\n".join(context_list)

@@ -44,7 +44,9 @@
                 <div class="flex gap-2 text-xs mb-3 mt-auto">
                     {% if beer.style %}<span class="badge badge-secondary badge-outline badge-xs">{{ beer.style }}</span>{% endif %}
                     <span class="badge badge-outline badge-neutral badge-xs">Alc. {{ beer.degree }}%</span>
+                    {% if beer.bitterness is not None %}
                     <span class="badge badge-outline badge-neutral badge-xs">IBU {{ beer.bitterness }}</span>
+                    {% endif %}
                 </div>
             </div>
             {% if user.is_authenticated %}
