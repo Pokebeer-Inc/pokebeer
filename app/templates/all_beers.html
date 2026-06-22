@@ -86,7 +86,7 @@
 
                     <div>
                         <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Style</h4>
-                        <select name="style" class="select select-bordered select-sm w-full bg-white font-normal text-xs">
+                        <select name="style" class="select select-bordered w-full bg-white font-normal text-sm">
                             <option value="">Tous les styles</option>
                             {% for style_name in styles %}
                                 <option value="{{ style_name }}" {% if request.GET.style == style_name %}selected{% endif %}>{{ style_name }}</option>
