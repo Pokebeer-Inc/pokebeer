@@ -9,6 +9,8 @@ from datetime import timedelta
 from django.utils import timezone
 from ..models import BeerUser, UserFollow, Beer, Drinks, Report, UserBlock
 from django.views.decorators.http import require_POST
+import json
+from django.http import JsonResponse
 
 def register_view(request):
     """Handles user registration."""
@@ -120,6 +122,17 @@ def account_view(request):
     
     pref_style = loved_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values('beer_id__style').annotate(c=Count('id')).order_by('-c').first()
     
+    # Préparation du Top 3
+    top_beers_data = []
+    for slot, beer in enumerate([user.top_beer_1, user.top_beer_2, user.top_beer_3], start=1):
+        # On recherche la note attribuée par l'utilisateur pour cette bière
+        drink = next((d for d in my_drinks if d.beer_id_id == beer.id), None) if beer else None
+        top_beers_data.append({
+            'slot': slot,
+            'beer': beer,
+            'note': drink.note if drink else None
+        })
+        
     context = {
         'profile_form': profile_form,
         'password_form': password_form,
@@ -136,6 +149,7 @@ def account_view(request):
         'avg_abv': averages['avg_abv'] or 0,
         'avg_ibu': averages['avg_ibu'] or 0,
         'pref_style': pref_style['beer_id__style'] if pref_style else "Pas encore défini",
+        'top_beers_data': top_beers_data,
     }
     return render(request, 'account.html', context)
 
@@ -183,6 +197,16 @@ def public_profile_view(request, username):
     loved_drinks = stats_drinks.filter(note__gte=7)
     pref_style = loved_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values('beer_id__style').annotate(c=Count('id')).order_by('-c').first()
     
+    # Préparation du Top 3 (on ne garde que les remplis)
+    top_beers_data = []
+    for beer in [profile_user.top_beer_1, profile_user.top_beer_2, profile_user.top_beer_3]:
+        if beer:
+            drink = next((d for d in user_drinks if d.beer_id_id == beer.id), None)
+            top_beers_data.append({
+                'beer': beer,
+                'note': drink.note if drink else None
+            })
+            
     context = {
         'profile_user': profile_user,
         'user_drinks': user_drinks,
@@ -196,6 +220,7 @@ def public_profile_view(request, username):
         'avg_abv': averages['avg_abv'] or 0,
         'avg_ibu': averages['avg_ibu'] or 0,
         'pref_style': pref_style['beer_id__style'] if pref_style else "Inconnu",
+        'top_beers_data': top_beers_data,
     }
     return render(request, 'public_profile.html', context)
 
@@ -309,3 +334,73 @@ def unblock_user(request, username):
 def blocked_users_list(request):
     blocked_list = UserBlock.objects.filter(blocker=request.user).select_related('blocked')
     return render(request, 'blocked_users.html', {'blocked_list': blocked_list})
+
+@require_POST
+@login_required(login_url='login')
+def update_top_beer(request, slot):
+    """Met à jour l'un des 3 slots du Top 3 de l'utilisateur."""
+    if slot not in [1, 2, 3]:
+        messages.error(request, "Emplacement invalide.")
+        return redirect('account')
+
+    beer_id = request.POST.get('beer_id')
+    user = request.user
+
+    if beer_id:
+        beer = get_object_or_404(Beer, id=beer_id)
+        
+        if (slot != 1 and user.top_beer_1_id == beer.id) or \
+           (slot != 2 and user.top_beer_2_id == beer.id) or \
+           (slot != 3 and user.top_beer_3_id == beer.id):
+            messages.error(request, f"{beer.name} est déjà dans votre Top 3 !")
+            return redirect('account')
+
+        if slot == 1: user.top_beer_1 = beer
+        elif slot == 2: user.top_beer_2 = beer
+        elif slot == 3: user.top_beer_3 = beer
+        messages.success(request, f"Bière ajoutée à votre Top {slot} !")
+    else:
+        # Si aucun ID n'est fourni, on vide l'emplacement
+        if slot == 1: user.top_beer_1 = None
+        elif slot == 2: user.top_beer_2 = None
+        elif slot == 3: user.top_beer_3 = None
+        messages.info(request, f"Emplacement Top {slot} vidé.")
+
+    user.save()
+    return redirect('account')
+
+@require_POST
+@login_required
+def swap_top_beers(request):
+    """API pour intervertir (drag & drop) deux bières dans le Top 3."""
+    try:
+        data = json.loads(request.body)
+        slot_from = int(data.get('from_slot'))
+        slot_to = int(data.get('to_slot'))
+        
+        if slot_from not in [1, 2, 3] or slot_to not in [1, 2, 3]:
+            return JsonResponse({'success': False, 'error': 'Emplacements invalides'}, status=400)
+
+        user = request.user
+        
+        # Stockage temporaire des bières actuelles pour l'échange
+        top_beers = {
+            1: user.top_beer_1,
+            2: user.top_beer_2,
+            3: user.top_beer_3
+        }
+        
+        # Application de l'échange
+        if slot_from == 1: user.top_beer_1 = top_beers[slot_to]
+        elif slot_from == 2: user.top_beer_2 = top_beers[slot_to]
+        elif slot_from == 3: user.top_beer_3 = top_beers[slot_to]
+        
+        if slot_to == 1: user.top_beer_1 = top_beers[slot_from]
+        elif slot_to == 2: user.top_beer_2 = top_beers[slot_from]
+        elif slot_to == 3: user.top_beer_3 = top_beers[slot_from]
+        
+        user.save()
+        return JsonResponse({'success': True})
+        
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'success': False, 'error': 'Requête invalide'}, status=400)
