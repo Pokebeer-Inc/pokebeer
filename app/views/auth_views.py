@@ -7,8 +7,10 @@ from ..forms import UserRegisterForm, UserLoginForm, UserUpdateForm
 from django.db.models import Avg, Count, Max, Q
 from datetime import timedelta
 from django.utils import timezone
-from ..models import BeerUser, UserFollow, Beer, Drinks, Report, UserBlock
+from ..models import UserFollow, Beer, Drinks
 from django.views.decorators.http import require_POST
+import json
+from django.http import JsonResponse
 
 def register_view(request):
     """Handles user registration."""
@@ -120,6 +122,17 @@ def account_view(request):
     
     pref_style = loved_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values('beer_id__style').annotate(c=Count('id')).order_by('-c').first()
     
+    # Préparation du Top 3
+    top_beers_data = []
+    for slot, beer in enumerate([user.top_beer_1, user.top_beer_2, user.top_beer_3], start=1):
+        # On recherche la note attribuée par l'utilisateur pour cette bière
+        drink = next((d for d in my_drinks if d.beer_id_id == beer.id), None) if beer else None
+        top_beers_data.append({
+            'slot': slot,
+            'beer': beer,
+            'note': drink.note if drink else None
+        })
+        
     context = {
         'profile_form': profile_form,
         'password_form': password_form,
@@ -136,99 +149,9 @@ def account_view(request):
         'avg_abv': averages['avg_abv'] or 0,
         'avg_ibu': averages['avg_ibu'] or 0,
         'pref_style': pref_style['beer_id__style'] if pref_style else "Pas encore défini",
+        'top_beers_data': top_beers_data,
     }
     return render(request, 'account.html', context)
-
-@login_required(login_url='login')
-def public_profile_view(request, username):
-    """Affiche le profil public d'un autre utilisateur."""
-    # Si l'utilisateur clique sur son propre profil, on le redirige vers son compte privé
-    if request.user.username == username:
-        return redirect('account')
-        
-    profile_user = get_object_or_404(BeerUser, username=username)
-    
-    # Vérification blocage mutuel
-    if UserBlock.objects.filter(Q(blocker=request.user, blocked=profile_user) | 
-                                Q(blocker=profile_user, blocked=request.user)).exists():
-        messages.error(request, "Ce profil n'est pas accessible.")
-        return redirect('index')
-    
-    # Requêtes de base pour cet utilisateur
-    user_drinks = Drinks.objects.filter(drinker_id=profile_user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
-    user_added_beers = Beer.objects.filter(added_by=profile_user).annotate(
-        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=profile_user))
-    ).order_by('-id')
-    
-    # Social
-    followers = UserFollow.objects.filter(followed=profile_user).select_related('follower')
-    following = UserFollow.objects.filter(follower=profile_user).select_related('followed')
-    
-    # Est-ce que JE (l'utilisateur connecté) suis cette personne ?
-    is_following = followers.filter(follower=request.user).exists()
-
-    # Calcul des Statistiques (même logique que le compte privé)
-    stats_drinks = user_drinks.filter(beer_id__is_deleted=False)
-    
-    last_month = timezone.now().date() - timedelta(days=30)
-    total_drinks = stats_drinks.count()
-    drinks_last_month = stats_drinks.filter(date__gte=last_month).count()
-
-    averages = stats_drinks.aggregate(
-        avg_note=Avg('note'),
-        avg_abv=Avg('beer_id__degree'),
-        avg_ibu=Avg('beer_id__bitterness')
-    )
-
-    loved_drinks = stats_drinks.filter(note__gte=7)
-    pref_style = loved_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values('beer_id__style').annotate(c=Count('id')).order_by('-c').first()
-    
-    context = {
-        'profile_user': profile_user,
-        'user_drinks': user_drinks,
-        'user_added_beers': user_added_beers,
-        'followers': followers,
-        'following': following,
-        'is_following': is_following,
-        'total_drinks': total_drinks,
-        'drinks_last_month': drinks_last_month,
-        'avg_note': averages['avg_note'] or 0,
-        'avg_abv': averages['avg_abv'] or 0,
-        'avg_ibu': averages['avg_ibu'] or 0,
-        'pref_style': pref_style['beer_id__style'] if pref_style else "Inconnu",
-    }
-    return render(request, 'public_profile.html', context)
-
-
-@login_required(login_url='login')
-def follow_user(request, username):
-    """Gère l'action de s'abonner ou se désabonner."""
-    user_to_follow = get_object_or_404(BeerUser, username=username)
-    
-    if request.user != user_to_follow:
-        follow_record = UserFollow.objects.filter(follower=request.user, followed=user_to_follow)
-        if follow_record.exists():
-            follow_record.delete() # Se désabonner
-            messages.info(request, f"Vous ne suivez plus {username}.")
-        else:
-            UserFollow.objects.create(follower=request.user, followed=user_to_follow) # S'abonner
-            messages.success(request, f"Vous suivez maintenant {username} !")
-            
-    return redirect(request.META.get('HTTP_REFERER', 'index'))
-
-@login_required(login_url='login')
-def remove_follower(request, username):
-    """Permet à un utilisateur de supprimer quelqu'un de ses abonnés."""
-    follower_to_remove = get_object_or_404(BeerUser, username=username)
-    
-    # On cherche le lien où follower_to_remove suit request.user
-    follow_record = UserFollow.objects.filter(follower=follower_to_remove, followed=request.user)
-    
-    if request.method == 'POST' and follow_record.exists():
-        follow_record.delete()
-        messages.info(request, f"{username} a été retiré de vos abonnés.")
-        
-    return redirect(request.META.get('HTTP_REFERER', 'account'))
 
 @login_required(login_url='login')
 def delete_account_view(request):
@@ -245,67 +168,72 @@ def delete_account_view(request):
         
     return redirect('account')
 
-@login_required(login_url='login')
-def my_reports_view(request):
-    """Affiche la liste des signalements faits par l'utilisateur."""
-    reports = Report.objects.filter(reporter=request.user)
-    return render(request, 'my_reports.html', {'reports': reports})
-
 @require_POST
 @login_required(login_url='login')
-def submit_report(request):
-    """Reçoit et enregistre un signalement depuis n'importe quelle modale."""
-    item_type = request.POST.get('item_type')
-    item_id = request.POST.get('item_id')
-    reason = request.POST.get('reason')
-    description = request.POST.get('description')
-    
-    report = Report(reporter=request.user, reason=reason, description=description)
-    
-    if item_type == 'beer':
-        report.reported_beer_id = item_id
-    elif item_type == 'drink':
-        report.reported_drink_id = item_id
-    elif item_type == 'user':
-        report.reported_user_id = item_id
+def update_top_beer(request, slot):
+    """Met à jour l'un des 3 slots du Top 3 de l'utilisateur."""
+    if slot not in [1, 2, 3]:
+        messages.error(request, "Emplacement invalide.")
+        return redirect('account')
+
+    beer_id = request.POST.get('beer_id')
+    user = request.user
+
+    if beer_id:
+        beer = get_object_or_404(Beer, id=beer_id)
         
-    report.save()
-    messages.success(request, "Votre signalement a été envoyé. Notre équipe va l'examiner.")
-    
-    referer = request.META.get('HTTP_REFERER', 'index')
-    
-    # Si l'élément signalé est un utilisateur, on ajoute "?reported=1" à l'URL de retour
-    if item_type == 'user' and referer != 'index':
-        # On vérifie s'il y a déjà des paramètres dans l'URL pour ne pas casser le lien
-        if '?' in referer:
-            return redirect(f"{referer}&reported=1")
-        else:
-            return redirect(f"{referer}?reported=1")
-            
-    # Redirection classique pour les bières et les notes
-    return redirect(referer)
+        if (slot != 1 and user.top_beer_1_id == beer.id) or \
+           (slot != 2 and user.top_beer_2_id == beer.id) or \
+           (slot != 3 and user.top_beer_3_id == beer.id):
+            messages.error(request, f"{beer.name} est déjà dans votre Top 3 !")
+            return redirect('account')
 
-@login_required
+        if slot == 1: user.top_beer_1 = beer
+        elif slot == 2: user.top_beer_2 = beer
+        elif slot == 3: user.top_beer_3 = beer
+        messages.success(request, f"Bière ajoutée à votre Top {slot} !")
+    else:
+        # Si aucun ID n'est fourni, on vide l'emplacement
+        if slot == 1: user.top_beer_1 = None
+        elif slot == 2: user.top_beer_2 = None
+        elif slot == 3: user.top_beer_3 = None
+        messages.info(request, f"Emplacement Top {slot} vidé.")
+
+    user.save()
+    return redirect('account')
+
 @require_POST
-def block_user(request, username):
-    user_to_block = get_object_or_404(BeerUser, username=username)
-    if request.user != user_to_block:
-        UserBlock.objects.get_or_create(blocker=request.user, blocked=user_to_block)
-        # On supprime les abonnements mutuels s'ils existent
-        UserFollow.objects.filter(follower=request.user, followed=user_to_block).delete()
-        UserFollow.objects.filter(follower=user_to_block, followed=request.user).delete()
-        messages.success(request, f"L'utilisateur {username} a été bloqué.")
-    return redirect('index')
-
 @login_required
-@require_POST
-def unblock_user(request, username):
-    user_to_unblock = get_object_or_404(BeerUser, username=username)
-    UserBlock.objects.filter(blocker=request.user, blocked=user_to_unblock).delete()
-    messages.success(request, f"L'utilisateur {username} a été débloqué.")
-    return redirect('blocked_users')
+def swap_top_beers(request):
+    """API pour intervertir (drag & drop) deux bières dans le Top 3."""
+    try:
+        data = json.loads(request.body)
+        slot_from = int(data.get('from_slot'))
+        slot_to = int(data.get('to_slot'))
+        
+        if slot_from not in [1, 2, 3] or slot_to not in [1, 2, 3]:
+            return JsonResponse({'success': False, 'error': 'Emplacements invalides'}, status=400)
 
-@login_required
-def blocked_users_list(request):
-    blocked_list = UserBlock.objects.filter(blocker=request.user).select_related('blocked')
-    return render(request, 'blocked_users.html', {'blocked_list': blocked_list})
+        user = request.user
+        
+        # Stockage temporaire des bières actuelles pour l'échange
+        top_beers = {
+            1: user.top_beer_1,
+            2: user.top_beer_2,
+            3: user.top_beer_3
+        }
+        
+        # Application de l'échange
+        if slot_from == 1: user.top_beer_1 = top_beers[slot_to]
+        elif slot_from == 2: user.top_beer_2 = top_beers[slot_to]
+        elif slot_from == 3: user.top_beer_3 = top_beers[slot_to]
+        
+        if slot_to == 1: user.top_beer_1 = top_beers[slot_from]
+        elif slot_to == 2: user.top_beer_2 = top_beers[slot_from]
+        elif slot_to == 3: user.top_beer_3 = top_beers[slot_from]
+        
+        user.save()
+        return JsonResponse({'success': True})
+        
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'success': False, 'error': 'Requête invalide'}, status=400)

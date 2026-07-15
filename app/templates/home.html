@@ -50,65 +50,20 @@
         À découvrir
     </h3>
     {% if unrated_beers %}
-    <div class="flex flex-col gap-3">
-        {% for beer in unrated_beers %}
-        <div class="card bg-white shadow-sm border border-base-200 flex flex-row items-center p-3 gap-3 relative overflow-hidden hover:bg-base-200 active:scale-[0.98] transition-all">
-            
-            <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
-            
-            <div class="flex-1 pointer-events-none">
-                <h4 class="font-bold text-sm leading-tight">{{ beer.name }}</h4>
-                <span class="text-xs inline-block text-gray-500 block mb-1 pointer-events-auto relative z-10 hover:text-primary transition-colors w-fit"><a href="{% url 'brewery_detail' beer.brewery_id.id %}">{{ beer.brewery_id.name }}</a></span>
-                
-                {% if beer.added_by %}
-                <span class="text-[10px] text-gray-400 block mb-1 pointer-events-auto relative z-10">
-                    Proposée par <a href="{% url 'public_profile' beer.added_by.username %}" class="font-semibold hover:text-primary transition-colors">{{ beer.added_by.username }}</a>
-                </span>
-                {% else %}
-                <span class="text-[10px] text-gray-400 block mb-1 pointer-events-auto relative z-10">
-                    Proposée par <span class="font-semibold italic">Ancien membre</span>
-                </span>
-                {% endif %}
-                
-                <p class="text-xs text-gray-600 line-clamp-2 mt-1">{{ beer.description|truncatechars:80 }}</p>
-                
-            </div>
-            
-            <button class="btn btn-primary btn-sm btn-circle shrink-0 relative z-10" onclick="modal{{beer.id}}.showModal()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-            </button>
-            
-            <dialog id="modal{{beer.id}}" class="modal">
-                <div class="modal-box custom-modal-form">
-                    <h3 class="font-bold text-lg mb-4">Noter : {{ beer.name }}</h3>
-                    <form method="post" action="{% url 'rate_beer' beer.id %}">
-                        {% csrf_token %}
-                        <div class="form-control w-full mb-3">
-                            <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
-                            {{ rating_form.date }}
-                        </div>
-                        <div class="form-control w-full mb-3">
-                            <label class="label"><span class="label-text">{{ rating_form.note.label }}</span></label>
-                            {{ rating_form.note }}
-                        </div>
-                        <div class="form-control w-full mb-4">
-                            <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
-                            {{ rating_form.comment }}
-                        </div>
-                        <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
-                    </form>
-                </div>
-                <form method="dialog" class="modal-backdrop">
-                    <button>Fermer</button>
-                </form>
-            </dialog>
+        <div id="unrated-beers-container" class="flex flex-col gap-3">
+            {% include "partials/unrated_beers.html" %}
         </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="alert alert-success shadow-sm text-sm">
-        <span>Vous avez noté toutes les bières !</span>
-    </div>
+        
+        {% if unrated_beers|length == 10 %}
+        <button id="btn-load-more" data-offset="10" class="btn btn-outline btn-primary btn-sm w-full mt-3">
+            Charger plus de bières
+        </button>
+        {% endif %}
+
+        {% else %}
+        <div class="alert alert-success shadow-sm text-sm">
+            <span>Vous avez noté toutes les bières !</span>
+        </div>
     {% endif %}
 </div>
 <div class="py-2 mt-4">
@@ -194,6 +149,10 @@
 </div>
 
 <script src="{% static 'script/tab_bar.js' %}"></script>
+<script>
+    window.LOAD_MORE_URL = "{% url 'load_more_beers' %}";
+</script>
+<script src="{% static 'script/load_more_beers.js' %}"></script>
 {% endif %}
 
 <div class="w-full text-center mt-8 mb-2 p-4 opacity-60">

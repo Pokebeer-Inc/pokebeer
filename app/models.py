@@ -13,6 +13,9 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=150, blank=False, unique=True)
     is_staff = models.BooleanField(default=False)
     bio = models.TextField(verbose_name="Biographie", blank=True, null=True)
+    top_beer_1 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    top_beer_2 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    top_beer_3 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
 
     USERNAME_FIELD = "username"
     EMAIL_FIELD = "email"

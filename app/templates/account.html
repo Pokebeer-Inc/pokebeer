@@ -99,6 +99,56 @@
                 <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Style Préféré (Notes >= 7)</span>
                 <span class="text-sm font-bold text-secondary mt-1">{{ pref_style|default:"Pas assez de données" }}</span>
             </div>
+
+            <div class="col-span-2 flex flex-col mt-2">
+                <h3 class="text-[10px] text-gray-500 font-bold uppercase tracking-wider text-center mb-2">Mon Top 3 personnel</h3>
+                <div class="grid grid-cols-1 gap-2">
+                    {% for item in top_beers_data %}
+                        {% if item.beer %}
+                        <div class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-primary/30 cursor-move hover:bg-base-200 transition-colors"
+                             draggable="true" 
+                             data-slot="{{ item.slot }}"
+                             ondragstart="dragStart(event)"
+                             ondragover="dragOver(event)"
+                             ondragleave="dragLeave(event)"
+                             ondrop="drop(event)"
+                             ondragend="dragEnd(event)"
+                             onclick="modal_top_beer_{{ item.slot }}.showModal()">
+                            <div class="flex items-center gap-3 overflow-hidden pointer-events-none">
+                                <div class="font-bold text-primary italic w-4 text-center shrink-0">#{{ item.slot }}</div>
+                                <div class="flex flex-col text-left truncate">
+                                    <span class="font-bold text-sm text-gray-900 truncate">{{ item.beer.name }}</span>
+                                    <span class="text-[10px] text-gray-500 truncate">{{ item.beer.brewery_id.name }}</span>
+                                </div>
+                            </div>
+                            <div class="shrink-0 ml-2 pointer-events-none">
+                                {% if item.note %}
+                                <span class="badge badge-warning badge-sm gap-1 font-bold">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                    {{ item.note }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="flex items-center justify-center bg-base-100 p-2 rounded-lg border-2 border-dashed border-base-300 cursor-move hover:bg-base-200 hover:border-primary/50 transition-colors h-14"
+                             draggable="true" 
+                             data-slot="{{ item.slot }}"
+                             ondragstart="dragStart(event)"
+                             ondragover="dragOver(event)"
+                             ondragleave="dragLeave(event)"
+                             ondrop="drop(event)"
+                             ondragend="dragEnd(event)"
+                             onclick="modal_top_beer_{{ item.slot }}.showModal()">
+                            <span class="text-[11px] font-bold text-gray-400 flex items-center gap-1 pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                Définir le Top {{ item.slot }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
             
         </div>
     </div>
@@ -298,6 +348,13 @@
 </div>
 
 <script src="{% static 'script/tab_bar.js' %}"></script>
+<script>
+    window.DJANGO_URLS = {
+        swapTopBeers: "{% url 'swap_top_beers' %}"
+    };
+    window.CSRF_TOKEN = "{{ csrf_token }}";
+</script>
+<script src="{% static 'script/drag_drop.js' %}"></script>
 {% endblock %}
 
 {% block modals %}
@@ -428,4 +485,35 @@
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
+
+{% for item in top_beers_data %}
+<dialog id="modal_top_beer_{{ item.slot }}" class="modal">
+    <div class="modal-box custom-modal-form">
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_top_beer_{{ item.slot }}.close()">✕</button>
+        <h3 class="font-bold text-lg mb-4 text-center">Choix du Top {{ item.slot }}</h3>
+        
+        <form method="post" action="{% url 'update_top_beer' item.slot %}" class="flex flex-col gap-3">
+            {% csrf_token %}
+            <div class="form-control w-full">
+                <label class="label py-1"><span class="label-text text-xs font-bold">Sélectionnez une bière dégustée</span></label>
+                <select name="beer_id" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+                    <option value="">-- Vider l'emplacement --</option>
+                    {% for drink in my_drinks %}
+                        <option value="{{ drink.beer_id.id }}" 
+                            {% if item.beer and item.beer.id == drink.beer_id.id %}
+                                selected
+                            {% elif drink.beer_id.id == user.top_beer_1_id or drink.beer_id.id == user.top_beer_2_id or drink.beer_id.id == user.top_beer_3_id %}
+                                disabled class="text-gray-400 bg-gray-50 italic"
+                            {% endif %}>
+                            {{ drink.beer_id.name }} (Note: {{ drink.note }}/10)
+                        </option>
+                    {% endfor %}
+            </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm w-full mt-3 text-white">Enregistrer</button>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+{% endfor %}
 {% endblock %}

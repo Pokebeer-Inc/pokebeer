@@ -6,6 +6,7 @@ urlpatterns = [
     # Pages Principales & Navigation
     # ==========================================
     path("", views.index, name="index"),
+    path('load-more-beers/', views.load_more_beers, name='load_more_beers'),
     path('beers/', views.all_beers_view, name='all_beers'),
     path('map/', views.map_view, name='map'),
 
@@ -18,6 +19,8 @@ urlpatterns = [
     path('account/', views.account_view, name='account'),
     path('delete-account/', views.delete_account_view, name='delete_account'),
     path('accounts/', include('allauth.urls')),
+    path('update-top-beer/<int:slot>/', views.update_top_beer, name='update_top_beer'),
+    path('swap-top-beers/', views.swap_top_beers, name='swap_top_beers'),
 
     # ==========================================
     # Profils Publics & Social
