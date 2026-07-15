@@ -6,6 +6,7 @@ urlpatterns = [
     # Pages Principales & Navigation
     # ==========================================
     path("", views.index, name="index"),
+    path('load-more-beers/', views.load_more_beers, name='load_more_beers'),
     path('beers/', views.all_beers_view, name='all_beers'),
     path('map/', views.map_view, name='map'),
 
