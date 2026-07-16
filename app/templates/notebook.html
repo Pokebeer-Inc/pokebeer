@@ -19,6 +19,151 @@
 </div>
 
 <div id="tab-carnet" class="tab-panel {% if active_tab == 'carnet' or not active_tab %}block{% else %}hidden{% endif %}">
+    
+    <form method="get" class="mb-6">
+        <input type="hidden" name="tab" value="carnet">
+        
+        <div class="join w-full mb-2">
+            <input type="text" name="q" placeholder="Bière, brasserie..." value="{{ request.GET.q|default_if_none:'' }}" class="input input-sm input-bordered join-item w-full bg-white">
+            <button type="submit" class="btn btn-sm btn-primary join-item">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </button>
+        </div>
+        
+        <div class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-box">
+            <input type="checkbox" {% if request.GET.degree or request.GET.ibu or request.GET.style or request.GET.rating_min and request.GET.rating_min != '0' or request.GET.rating_max and request.GET.rating_max != '10' %}checked{% endif %} />
+            <div class="collapse-title text-sm font-medium flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                Filtres avancés
+            </div>
+            <div class="collapse-content text-sm overflow-visible">
+                <div class="flex flex-col gap-4 mt-2">
+                    
+                    <div>
+                        <div class="flex justify-between items-end mb-3">
+                            <h4 class="font-bold text-[10px] text-gray-500 uppercase tracking-wider">Note de dégustation</h4>
+                            <span id="rating-display" class="badge badge-primary badge-sm font-bold shadow-sm"></span>
+                        </div>
+                        
+                        <div class="relative w-full h-6 flex items-center mb-2">
+                            <div class="absolute w-full h-2 bg-base-300 rounded-full"></div>
+                            
+                            <div id="rating-track" class="absolute h-2 bg-primary rounded-full pointer-events-none"></div>
+                            
+                            <input type="range" name="rating_min" id="rating_min" min="0" max="10" value="{{ request.GET.rating_min|default:'0' }}" 
+                                   class="absolute w-full appearance-none bg-transparent pointer-events-none 
+                                          [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none 
+                                          [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white 
+                                          [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-primary 
+                                          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
+                                          [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 
+                                          [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-primary 
+                                          [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer">
+                                          
+                            <input type="range" name="rating_max" id="rating_max" min="0" max="10" value="{{ request.GET.rating_max|default:'10' }}" 
+                                   class="absolute w-full appearance-none bg-transparent pointer-events-none 
+                                          [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none 
+                                          [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white 
+                                          [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-primary 
+                                          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
+                                          [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 
+                                          [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-primary 
+                                          [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer">
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Alcool</h4>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="degree" value="" class="radio radio-xs radio-primary" {% if not request.GET.degree %}checked{% endif %} />
+                                <span class="text-xs">Toutes</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="degree" value="light" class="radio radio-xs radio-primary" {% if request.GET.degree == 'light' %}checked{% endif %} />
+                                <span class="text-xs">Légère (<5%)</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="degree" value="regular" class="radio radio-xs radio-primary" {% if request.GET.degree == 'regular' %}checked{% endif %} />
+                                <span class="text-xs">Moyenne (5-8%)</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="degree" value="strong" class="radio radio-xs radio-primary" {% if request.GET.degree == 'strong' %}checked{% endif %} />
+                                <span class="text-xs">Forte (>8%)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Amertume (IBU)</h4>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="ibu" value="" class="radio radio-xs radio-secondary" {% if not request.GET.ibu %}checked{% endif %} />
+                                <span class="text-xs">Toutes</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="ibu" value="low" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'low' %}checked{% endif %} />
+                                <span class="text-xs">Douce (<20)</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="ibu" value="medium" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'medium' %}checked{% endif %} />
+                                <span class="text-xs">Modérée (20-50)</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="radio" name="ibu" value="high" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'high' %}checked{% endif %} />
+                                <span class="text-xs">Forte (>50)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Style</h4>
+                        <select name="style" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+                            <option value="">Tous les styles</option>
+                            {% for style_name in styles %}
+                                <option value="{{ style_name }}" {% if request.GET.style == style_name %}selected{% endif %}>{{ style_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                </div>
+                <button type="submit" class="btn btn-neutral btn-sm w-full mt-4">Appliquer les filtres</button>
+            </div>
+        </div>
+
+        <div class="flex justify-end mt-4 mb-1">
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Trier par :</span>
+                <select name="sort" onchange="this.form.submit()" class="h-8 px-2 border border-base-300 rounded bg-white text-xs font-medium outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+                    <optgroup label="Votre avis">
+                        <option value="date_desc" {% if request.GET.sort == 'date_desc' or not request.GET.sort %}selected{% endif %}>Dégustation (Récente en 1er)</option>
+                        <option value="date_asc" {% if request.GET.sort == 'date_asc' %}selected{% endif %}>Dégustation (Ancienne en 1er)</option>
+                        <option value="note_desc" {% if request.GET.sort == 'note_desc' %}selected{% endif %}>Note (Décroissante)</option>
+                        <option value="note_asc" {% if request.GET.sort == 'note_asc' %}selected{% endif %}>Note (Croissante)</option>
+                    </optgroup>
+                    <optgroup label="Attributs de la bière">
+                        <option value="name_asc" {% if request.GET.sort == 'name_asc' %}selected{% endif %}>Nom (A-Z)</option>
+                        <option value="name_desc" {% if request.GET.sort == 'name_desc' %}selected{% endif %}>Nom (Z-A)</option>
+                        <option value="degree_desc" {% if request.GET.sort == 'degree_desc' %}selected{% endif %}>Alcool (Fort à Léger)</option>
+                        <option value="degree_asc" {% if request.GET.sort == 'degree_asc' %}selected{% endif %}>Alcool (Léger à Fort)</option>
+                        <option value="ibu_desc" {% if request.GET.sort == 'ibu_desc' %}selected{% endif %}>Amertume (Forte à Douce)</option>
+                        <option value="ibu_asc" {% if request.GET.sort == 'ibu_asc' %}selected{% endif %}>Amertume (Douce à Forte)</option>
+                    </optgroup>
+                </select>
+            </div>
+        </div>
+
+        {% if request.GET.q or request.GET.degree or request.GET.ibu or request.GET.style or request.GET.rating_min and request.GET.rating_min != '0' or request.GET.rating_max and request.GET.rating_max != '10' or request.GET.sort and request.GET.sort != 'date_desc' %}
+        <div class="mt-3">
+            <a href="{% url 'notebook' %}?tab=carnet" class="btn btn-outline btn-error btn-sm w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                Réinitialiser la recherche
+            </a>
+        </div>
+        {% endif %}
+        
+    </form>
+
     <div id="notebook-drinks-container" class="flex flex-col gap-3">
         {% include "partials/notebook_drinks.html" %}
     </div>
@@ -120,4 +265,5 @@
 
 <script src="{% static 'script/tab_bar.js' %}"></script>
 <script src="{% static 'script/load_more_generic.js' %}"></script>
+<script src="{% static 'script/double_slider.js' %}"></script>
 {% endblock %}

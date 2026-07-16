@@ -94,8 +94,24 @@
                 <button type="submit" class="btn btn-neutral btn-sm w-full mt-4">Appliquer les filtres</button>
             </div>
         </div>
-        
-        {% if request.GET.q or request.GET.degree or request.GET.ibu or request.GET.style %}
+
+        <div class="flex justify-end mt-4 mb-1">
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Trier par :</span>
+                <select name="sort" onchange="this.form.submit()" class="h-8 px-2 border border-base-300 rounded bg-white text-xs font-medium outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+                    <option value="date_desc" {% if request.GET.sort == 'date_desc' or not request.GET.sort %}selected{% endif %}>Ajout (Récent en 1er)</option>
+                    <option value="date_asc" {% if request.GET.sort == 'date_asc' %}selected{% endif %}>Ajout (Ancien en 1er)</option>
+                    <option value="name_asc" {% if request.GET.sort == 'name_asc' %}selected{% endif %}>Nom (A-Z)</option>
+                    <option value="name_desc" {% if request.GET.sort == 'name_desc' %}selected{% endif %}>Nom (Z-A)</option>
+                    <option value="degree_desc" {% if request.GET.sort == 'degree_desc' %}selected{% endif %}>Alcool (Fort à Léger)</option>
+                    <option value="degree_asc" {% if request.GET.sort == 'degree_asc' %}selected{% endif %}>Alcool (Léger à Fort)</option>
+                    <option value="ibu_desc" {% if request.GET.sort == 'ibu_desc' %}selected{% endif %}>Amertume (Forte à Douce)</option>
+                    <option value="ibu_asc" {% if request.GET.sort == 'ibu_asc' %}selected{% endif %}>Amertume (Douce à Forte)</option>
+                </select>
+            </div>
+        </div>
+
+        {% if request.GET.q or request.GET.degree or request.GET.ibu or request.GET.style or request.GET.sort and request.GET.sort != 'date_desc' %}
         <div class="mt-3">
             <a href="{% url 'all_beers' %}" class="btn btn-outline btn-error btn-sm w-full">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>

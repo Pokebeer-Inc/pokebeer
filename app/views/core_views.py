@@ -96,7 +96,7 @@ def index(request):
     
 def get_filtered_beers(request):
     """Extrait la logique de filtrage des bières pour la réutiliser."""
-    beers = Beer.objects.filter(is_deleted=False).exclude(added_by__in=get_excluded_users(request.user)).select_related('brewery_id').all().order_by('name')
+    beers = Beer.objects.filter(is_deleted=False).exclude(added_by__in=get_excluded_users(request.user)).select_related('brewery_id')
 
     query = request.GET.get('q')
     if query:
@@ -115,13 +115,29 @@ def get_filtered_beers(request):
     style_filter = request.GET.get('style')
     if style_filter: beers = beers.filter(style__iexact=style_filter)
 
-    if request.user.is_authenticated:
-        rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
-        if rated_beer_ids:
-            beers = beers.annotate(
-                is_rated=Case(When(id__in=rated_beer_ids, then=Value(1)), default=Value(0), output_field=IntegerField())
-            ).order_by('is_rated', 'name')
-            
+    order_fields = []
+    
+    # --- Logique de Tri ---
+    sort_by = request.GET.get('sort', 'date_desc')
+    if sort_by == 'name_asc':
+        order_fields.append('name')
+    elif sort_by == 'name_desc':
+        order_fields.append('-name')
+    elif sort_by == 'degree_desc':
+        order_fields.extend(['-degree', 'name'])
+    elif sort_by == 'degree_asc':
+        order_fields.extend(['degree', 'name'])
+    elif sort_by == 'ibu_desc':
+        order_fields.extend(['-bitterness', 'name'])
+    elif sort_by == 'ibu_asc':
+        order_fields.extend(['bitterness', 'name'])
+    elif sort_by == 'date_asc':
+        order_fields.append('id')
+    else: # date_desc (défaut : ajout récent)
+        order_fields.append('-id')
+        
+    beers = beers.order_by(*order_fields)
+        
     return beers
 
 def get_filtered_users(request):
@@ -146,6 +162,61 @@ def get_filtered_users(request):
         users = users.filter(added_beers__is_deleted=False).annotate(latest_beer_id=Max('added_beers__id')).order_by('-latest_beer_id')
         
     return users
+
+def get_filtered_notebook_drinks(request):
+    """Extrait la logique de filtrage des dégustations du carnet."""
+    drinks = Drinks.objects.filter(drinker_id=request.user).select_related('beer_id', 'beer_id__brewery_id')
+
+    query = request.GET.get('q')
+    if query:
+        drinks = drinks.filter(Q(beer_id__name__icontains=query) | Q(beer_id__brewery_id__name__icontains=query))
+
+    degree_filter = request.GET.get('degree')
+    if degree_filter == 'light': drinks = drinks.filter(beer_id__degree__lt=5)
+    elif degree_filter == 'regular': drinks = drinks.filter(beer_id__degree__gte=5, beer_id__degree__lte=8)
+    elif degree_filter == 'strong': drinks = drinks.filter(beer_id__degree__gt=8)
+
+    ibu_filter = request.GET.get('ibu')
+    if ibu_filter == 'low': drinks = drinks.filter(beer_id__bitterness__lt=20)
+    elif ibu_filter == 'medium': drinks = drinks.filter(beer_id__bitterness__gte=20, beer_id__bitterness__lte=50)
+    elif ibu_filter == 'high': drinks = drinks.filter(beer_id__bitterness__gt=50)
+
+    style_filter = request.GET.get('style')
+    if style_filter: 
+        drinks = drinks.filter(beer_id__style__iexact=style_filter)
+
+    rating_min = request.GET.get('rating_min')
+    if rating_min and rating_min.isdigit():
+        drinks = drinks.filter(note__gte=int(rating_min))
+        
+    rating_max = request.GET.get('rating_max')
+    if rating_max and rating_max.isdigit():
+        drinks = drinks.filter(note__lte=int(rating_max))
+
+    # Logique de Tri Fusionnée
+    sort_by = request.GET.get('sort', 'date_desc')
+    if sort_by == 'date_asc':
+        drinks = drinks.order_by('date', 'id')
+    elif sort_by == 'note_desc':
+        drinks = drinks.order_by('-note', '-date')
+    elif sort_by == 'note_asc':
+        drinks = drinks.order_by('note', '-date')
+    elif sort_by == 'name_asc':
+        drinks = drinks.order_by('beer_id__name', '-date')
+    elif sort_by == 'name_desc':
+        drinks = drinks.order_by('-beer_id__name', '-date')
+    elif sort_by == 'degree_desc':
+        drinks = drinks.order_by('-beer_id__degree', 'beer_id__name')
+    elif sort_by == 'degree_asc':
+        drinks = drinks.order_by('beer_id__degree', 'beer_id__name')
+    elif sort_by == 'ibu_desc':
+        drinks = drinks.order_by('-beer_id__bitterness', 'beer_id__name')
+    elif sort_by == 'ibu_asc':
+        drinks = drinks.order_by('beer_id__bitterness', 'beer_id__name')
+    else: # date_desc (défaut : dégustation récente)
+        drinks = drinks.order_by('-date', '-id')
+
+    return drinks
 
 @login_required(login_url='login')
 def load_more_beers(request):
@@ -312,7 +383,7 @@ def load_more_notebook_drinks(request):
     offset = int(request.GET.get('offset', 0))
     limit = 10
     
-    my_drinks = Drinks.objects.filter(drinker_id=request.user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')[offset:offset+limit]
+    my_drinks = get_filtered_notebook_drinks(request)[offset:offset+limit]
     
     if not my_drinks:
         return JsonResponse({'html': '', 'has_more': False})
@@ -359,8 +430,11 @@ def notebook_view(request):
     """Page du carnet de dégustation complet."""
     user = request.user
     
-    # Récupération des dégustations
-    my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')[:10]
+    # 1. Utilisation du Helper pour le carnet filtré
+    my_drinks = get_filtered_notebook_drinks(request)[:10]
+    
+    # 2. Récupération des styles (uniquement les styles des bières que l'utilisateur a bues)
+    styles = Drinks.objects.filter(drinker_id=user).exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True).distinct().order_by('beer_id__style')
     
     # Récupération des ajouts et suppressions de l'utilisateur
     my_added_beers = Beer.objects.filter(added_by=user, is_deleted=False).annotate(
@@ -372,12 +446,13 @@ def notebook_view(request):
     ).order_by('-id')
     
     # Avis des autres sur mes bières
-    feedback_on_my_beers = Drinks.objects.filter(beer_id__added_by=user).exclude(drinker_id=user).select_related('drinker_id', 'beer_id').order_by('-date')
+    feedback_on_my_beers = Drinks.objects.filter(beer_id__added_by=user).exclude(drinker_id=user).select_related('drinker_id', 'beer_id').order_by('-date')[:10]
 
     active_tab = request.GET.get('tab', 'carnet')
 
     context = {
         'my_drinks': my_drinks,
+        'styles': styles,
         'my_added_beers': my_added_beers,
         'my_deleted_beers': my_deleted_beers,
         'feedback_on_my_beers': feedback_on_my_beers,
