@@ -1,14 +1,15 @@
 import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from ..models import Beer, Brewery
-from ..services import ask_zythologue
 from django.db.models import Q
 from django.utils.text import slugify
 from google import genai
 from google.genai import types
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+
+from ..models import Beer, Brewery
+from ..services import ask_zythologue
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 

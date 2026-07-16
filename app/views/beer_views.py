@@ -1,6 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
+from django.http import JsonResponse
+import json
 
 from ..forms import BeerForm, DrinkForm
 from ..models import Beer, Drinks, Brewery
@@ -89,6 +92,76 @@ def delete_beer_view(request, beer_slug):
         messages.success(request, "Bière retirée du catalogue. Vos notes personnelles sont conservées.")
         return redirect('index')
     return redirect('beer_detail', beer_slug=beer.slug)
+
+@require_POST
+@login_required(login_url='login')
+def update_top_beer(request, slot):
+    """Met à jour l'un des 3 slots du Top 3 de l'utilisateur."""
+    if slot not in [1, 2, 3]:
+        messages.error(request, "Emplacement invalide.")
+        return redirect('account')
+
+    beer_id = request.POST.get('beer_id')
+    user = request.user
+
+    if beer_id:
+        beer = get_object_or_404(Beer, id=beer_id)
+        
+        if (slot != 1 and user.top_beer_1_id == beer.id) or \
+           (slot != 2 and user.top_beer_2_id == beer.id) or \
+           (slot != 3 and user.top_beer_3_id == beer.id):
+            messages.error(request, f"{beer.name} est déjà dans votre Top 3 !")
+            return redirect('account')
+
+        if slot == 1: user.top_beer_1 = beer
+        elif slot == 2: user.top_beer_2 = beer
+        elif slot == 3: user.top_beer_3 = beer
+        messages.success(request, f"Bière ajoutée à votre Top {slot} !")
+    else:
+        # Si aucun ID n'est fourni, on vide l'emplacement
+        if slot == 1: user.top_beer_1 = None
+        elif slot == 2: user.top_beer_2 = None
+        elif slot == 3: user.top_beer_3 = None
+        messages.info(request, f"Emplacement Top {slot} vidé.")
+
+    user.save()
+    return redirect('account')
+
+@require_POST
+@login_required
+def swap_top_beers(request):
+    """API pour intervertir (drag & drop) deux bières dans le Top 3."""
+    try:
+        data = json.loads(request.body)
+        slot_from = int(data.get('from_slot'))
+        slot_to = int(data.get('to_slot'))
+        
+        if slot_from not in [1, 2, 3] or slot_to not in [1, 2, 3]:
+            return JsonResponse({'success': False, 'error': 'Emplacements invalides'}, status=400)
+
+        user = request.user
+        
+        # Stockage temporaire des bières actuelles pour l'échange
+        top_beers = {
+            1: user.top_beer_1,
+            2: user.top_beer_2,
+            3: user.top_beer_3
+        }
+        
+        # Application de l'échange
+        if slot_from == 1: user.top_beer_1 = top_beers[slot_to]
+        elif slot_from == 2: user.top_beer_2 = top_beers[slot_to]
+        elif slot_from == 3: user.top_beer_3 = top_beers[slot_to]
+        
+        if slot_to == 1: user.top_beer_1 = top_beers[slot_from]
+        elif slot_to == 2: user.top_beer_2 = top_beers[slot_from]
+        elif slot_to == 3: user.top_beer_3 = top_beers[slot_from]
+        
+        user.save()
+        return JsonResponse({'success': True})
+        
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'success': False, 'error': 'Requête invalide'}, status=400)
 
 @login_required(login_url='login')
 def brewery_detail_view(request, brewery_id):

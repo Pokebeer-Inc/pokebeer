@@ -1,15 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.template.loader import render_to_string
+from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Count, Case, When, Value, IntegerField, Avg, Q, Max, Prefetch
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.http import JsonResponse
-from django.template.loader import render_to_string
 
 from ..forms import DrinkForm
-from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser, Brewery
-from .utils import get_excluded_users
+from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser
+from .utils import get_excluded_users, get_user_achievements
 
 @ensure_csrf_cookie
 @login_required(login_url='login')
@@ -93,36 +93,9 @@ def index(request):
         "topMonth": topMonth
     }
     return render(request, "home.html", context)
-
-@login_required(login_url='login')
-def load_more_beers(request):
-    """API pour charger les 10 bières suivantes."""
-    offset = int(request.GET.get('offset', 0))
-    limit = 10
-    
-    drunk_beer_ids = Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)
-    unrated_beers = Beer.objects.filter(is_deleted=False).exclude(id__in=drunk_beer_ids).select_related('brewery_id', 'added_by')[offset:offset+limit]
-    
-    # S'il n'y a plus de bières à charger
-    if not unrated_beers:
-        return JsonResponse({'html': '', 'has_more': False})
-    
-    rating_form = DrinkForm()
-    
-    # On génère le HTML à partir du partial
-    html = render_to_string(
-        'partials/unrated_beers.html', 
-        {'unrated_beers': unrated_beers, 'rating_form': rating_form}, 
-        request=request
-    )
-    
-    return JsonResponse({
-        'html': html, 
-        'has_more': len(unrated_beers) == limit # Vrai s'il y a probablement encore une page
-    })
     
 def get_filtered_beers(request):
-    """Extrait la logique de filtrage des bières pour la réutiliser (Clean Code)."""
+    """Extrait la logique de filtrage des bières pour la réutiliser."""
     beers = Beer.objects.filter(is_deleted=False).exclude(added_by__in=get_excluded_users(request.user)).select_related('brewery_id').all().order_by('name')
 
     query = request.GET.get('q')
@@ -175,30 +148,32 @@ def get_filtered_users(request):
     return users
 
 @login_required(login_url='login')
-def all_beers_view(request):
-    """Affiche toutes les bières et tous les membres avec système d'onglets."""
-    # On utilise nos helpers et on limite le chargement initial à 10 éléments
-    beers = get_filtered_beers(request)[:10]
-    users = get_filtered_users(request)[:10]
-
-    # Données pour les filtres et les formulaires
-    styles = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct().order_by('style')
+def load_more_beers(request):
+    """API pour charger les 10 bières suivantes."""
+    offset = int(request.GET.get('offset', 0))
+    limit = 10
+    
+    drunk_beer_ids = Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)
+    unrated_beers = Beer.objects.filter(is_deleted=False).exclude(id__in=drunk_beer_ids).select_related('brewery_id', 'added_by')[offset:offset+limit]
+    
+    # S'il n'y a plus de bières à charger
+    if not unrated_beers:
+        return JsonResponse({'html': '', 'has_more': False})
+    
     rating_form = DrinkForm()
-    rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)) if request.user.is_authenticated else []
-
-    user_query = request.GET.get('uq')
-    active_tab = 'membres' if (user_query or request.GET.get('tab') == 'membres') else 'bieres'
-
-    context = {
-        'beers': beers,
-        'rating_form': rating_form,
-        'rated_beer_ids': rated_beer_ids,
-        'users': users,
-        'active_tab': active_tab,
-        'styles': styles,
-    }
-    return render(request, 'all_beers.html', context)
-
+    
+    # On génère le HTML à partir du partial
+    html = render_to_string(
+        'partials/unrated_beers.html', 
+        {'unrated_beers': unrated_beers, 'rating_form': rating_form}, 
+        request=request
+    )
+    
+    return JsonResponse({
+        'html': html, 
+        'has_more': len(unrated_beers) == limit # Vrai s'il y a probablement encore une page
+    })
+    
 @login_required(login_url='login')
 def load_more_search_beers(request):
     """API pour charger les 10 bières suivantes dans la recherche."""
@@ -227,6 +202,31 @@ def load_more_search_users(request):
         
     html = render_to_string('partials/search_users.html', {'users': users}, request=request)
     return JsonResponse({'html': html, 'has_more': len(users) == limit})
+
+@login_required(login_url='login')
+def all_beers_view(request):
+    """Affiche toutes les bières et tous les membres avec système d'onglets."""
+    # On utilise nos helpers et on limite le chargement initial à 10 éléments
+    beers = get_filtered_beers(request)[:10]
+    users = get_filtered_users(request)[:10]
+
+    # Données pour les filtres et les formulaires
+    styles = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct().order_by('style')
+    rating_form = DrinkForm()
+    rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)) if request.user.is_authenticated else []
+
+    user_query = request.GET.get('uq')
+    active_tab = 'membres' if (user_query or request.GET.get('tab') == 'membres') else 'bieres'
+
+    context = {
+        'beers': beers,
+        'rating_form': rating_form,
+        'rated_beer_ids': rated_beer_ids,
+        'users': users,
+        'active_tab': active_tab,
+        'styles': styles,
+    }
+    return render(request, 'all_beers.html', context)
 
 @login_required(login_url='login')
 def map_view(request):
@@ -305,3 +305,14 @@ def map_view(request):
         'followers': followers,
     }
     return render(request, 'map.html', context)
+
+@login_required(login_url='login')
+def notebook_view(request):
+    """Page du carnet de dégustation complet (en construction)."""
+    return render(request, 'notebook.html')
+
+@login_required(login_url='login')
+def achievements_view(request):
+    """Page des trophées, hauts faits et cosmétiques."""
+    achievements = get_user_achievements(request.user)
+    return render(request, 'achievements.html', {'achievements': achievements})
