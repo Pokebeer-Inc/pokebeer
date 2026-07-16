@@ -12,6 +12,10 @@ urlpatterns = [
     path('trophees/', views.achievements_view, name='achievements'),
     path('load-more-search-beers/', views.load_more_search_beers, name='load_more_search_beers'),
     path('load-more-search-users/', views.load_more_search_users, name='load_more_search_users'),
+    path('carnet/', views.notebook_view, name='notebook'),
+    path('load-more-notebook-drinks/', views.load_more_notebook_drinks, name='load_more_notebook_drinks'),
+    path('load-more-added-beers/', views.load_more_added_beers, name='load_more_added_beers'),
+    path('load-more-notebook-feedback/', views.load_more_notebook_feedback, name='load_more_notebook_feedback'),
 
     # ==========================================
     # Authentification & Compte Utilisateur
@@ -61,7 +65,6 @@ urlpatterns = [
     path('modify-rate-beer/<int:drink_id>/', views.modify_rate_beer_view, name='modify_rate_beer'),
     path('delete-drink/<int:drink_id>/', views.delete_drink_view, name='delete_drink'),
     path('delete-spot/<int:spot_id>/', views.delete_spot_view, name='delete_spot'),
-    path('carnet/', views.notebook_view, name='notebook'),
 
     # ==========================================
     # API (Recherche, IA, etc.)

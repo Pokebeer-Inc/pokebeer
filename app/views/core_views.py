@@ -307,9 +307,83 @@ def map_view(request):
     return render(request, 'map.html', context)
 
 @login_required(login_url='login')
+def load_more_notebook_drinks(request):
+    """API pour charger les 10 dégustations suivantes du carnet."""
+    offset = int(request.GET.get('offset', 0))
+    limit = 10
+    
+    my_drinks = Drinks.objects.filter(drinker_id=request.user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')[offset:offset+limit]
+    
+    if not my_drinks:
+        return JsonResponse({'html': '', 'has_more': False})
+        
+    # Génération du HTML à partir du nouveau partial
+    html = render_to_string('partials/notebook_drinks.html', {'my_drinks': my_drinks}, request=request)
+    
+    return JsonResponse({'html': html, 'has_more': len(my_drinks) == limit})
+
+@login_required(login_url='login')
+def load_more_added_beers(request):
+    """API pour charger les 10 bières proposées suivantes."""
+    offset = int(request.GET.get('offset', 0))
+    limit = 10
+    user = request.user
+    
+    my_added_beers = Beer.objects.filter(added_by=user, is_deleted=False).annotate(
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
+    ).order_by('-id')[offset:offset+limit]
+    
+    if not my_added_beers:
+        return JsonResponse({'html': '', 'has_more': False})
+        
+    html = render_to_string('partials/notebook_added_beers.html', {'my_added_beers': my_added_beers}, request=request)
+    return JsonResponse({'html': html, 'has_more': len(my_added_beers) == limit})
+
+@login_required(login_url='login')
+def load_more_notebook_feedback(request):
+    """API pour charger les 10 avis suivants sur les bières proposées."""
+    offset = int(request.GET.get('offset', 0))
+    limit = 10
+    user = request.user
+    
+    feedback_on_my_beers = Drinks.objects.filter(beer_id__added_by=user).exclude(drinker_id=user).select_related('drinker_id', 'beer_id').order_by('-date')[offset:offset+limit]
+    
+    if not feedback_on_my_beers:
+        return JsonResponse({'html': '', 'has_more': False})
+        
+    html = render_to_string('partials/notebook_feedback.html', {'feedback_on_my_beers': feedback_on_my_beers}, request=request)
+    return JsonResponse({'html': html, 'has_more': len(feedback_on_my_beers) == limit})
+
+@login_required(login_url='login')
 def notebook_view(request):
-    """Page du carnet de dégustation complet (en construction)."""
-    return render(request, 'notebook.html')
+    """Page du carnet de dégustation complet."""
+    user = request.user
+    
+    # Récupération des dégustations
+    my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')[:10]
+    
+    # Récupération des ajouts et suppressions de l'utilisateur
+    my_added_beers = Beer.objects.filter(added_by=user, is_deleted=False).annotate(
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
+    ).order_by('-id')[:10]
+    
+    my_deleted_beers = Beer.objects.filter(added_by=user, is_deleted=True).annotate(
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
+    ).order_by('-id')
+    
+    # Avis des autres sur mes bières
+    feedback_on_my_beers = Drinks.objects.filter(beer_id__added_by=user).exclude(drinker_id=user).select_related('drinker_id', 'beer_id').order_by('-date')
+
+    active_tab = request.GET.get('tab', 'carnet')
+
+    context = {
+        'my_drinks': my_drinks,
+        'my_added_beers': my_added_beers,
+        'my_deleted_beers': my_deleted_beers,
+        'feedback_on_my_beers': feedback_on_my_beers,
+        'active_tab': active_tab,
+    }
+    return render(request, 'notebook.html', context)
 
 @login_required(login_url='login')
 def achievements_view(request):

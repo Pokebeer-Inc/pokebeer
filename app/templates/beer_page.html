@@ -27,8 +27,30 @@
                 <div tabindex="0" role="button" class="btn btn-sm btn-ghost btn-circle text-gray-500 mt-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                 </div>
-                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-36 right-0">
-                    <li><a onclick="modal_report_beer.showModal()" class="text-error font-semibold">Signaler</a></li>
+                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-40 right-0 border border-base-200">
+                    {% if beer.added_by == request.user %}
+                        {% if not beer.is_deleted %}
+                        <li>
+                            <a href="{% url 'edit_beer' beer.slug %}" class="font-semibold text-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                Modifier
+                            </a>
+                        </li>
+                        <li>
+                            <a onclick="modal_confirm_beer.showModal()" class="font-semibold text-error">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                Supprimer
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                        <li>
+                            <a onclick="modal_report_beer.showModal()" class="text-error font-semibold">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                Signaler
+                            </a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -58,17 +80,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 <span>Cette bière a été retirée du catalogue public. Elle ne figure ici que pour vos archives.</span>
             </div>
-        {% else %}
-            {% if beer.added_by == request.user %}
-            <div class="flex gap-2 mt-4 items-center">
-                <a href="{% url 'edit_beer' beer.slug %}" class="btn btn-sm btn-outline btn-primary flex-1">Modifier infos</a>
-                <form id="form-delete-beer" method="post" action="{% url 'delete_beer' beer.slug %}" class="flex-1">
-                    {% csrf_token %}
-                    <button type="button" class="btn btn-sm btn-outline btn-error w-full" onclick="modal_confirm_beer.showModal()">Supprimer bière</button>
-                </form>
-            </div>
         {% endif %}
-    {% endif %}
     </div>
 
     <div class="p-4">
@@ -224,6 +236,10 @@
         </div>
     </div>
 </div>
+
+<form id="form-delete-beer" method="post" action="{% url 'delete_beer' beer.slug %}" class="hidden">
+    {% csrf_token %}
+</form>
 
 <dialog id="modal_confirm_beer" class="modal z-[99999]">
     <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center">

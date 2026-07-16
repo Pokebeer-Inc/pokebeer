@@ -1,11 +1,123 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
-<div class="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-    <div class="bg-primary/20 p-6 rounded-full text-primary mb-4">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-    </div>
-    <h2 class="text-2xl font-castoro font-bold text-gray-900 mb-2">Mon Carnet</h2>
-    <p class="text-sm text-gray-500">Toutes vos notes et dégustations seront bientôt regroupées ici !</p>
+<link rel="stylesheet" href="{% static 'style/modal.css' %}">
+<link rel="stylesheet" href="{% static 'style/switch.css' %}">
+
+<div class="flex bg-base-200 p-1 rounded-full gap-1 text-[11px] font-bold text-center mb-4 mt-2">
+    <button type="button" 
+            class="tab-btn flex-1 py-2 px-2 rounded-full transition-all focus:outline-none {% if active_tab == 'carnet' or not active_tab %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700 hover:bg-base-300{% endif %}" 
+            onclick="switchTab(this, 'tab-carnet')">
+        Mon Carnet
+    </button>
+    <button type="button" 
+            class="tab-btn flex-1 py-2 px-2 rounded-full transition-all focus:outline-none {% if active_tab == 'ajouts' %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700 hover:bg-base-300{% endif %}" 
+            onclick="switchTab(this, 'tab-ajouts')">
+        Mes Ajouts
+    </button>
 </div>
+
+<div id="tab-carnet" class="tab-panel {% if active_tab == 'carnet' or not active_tab %}block{% else %}hidden{% endif %}">
+    <div id="notebook-drinks-container" class="flex flex-col gap-3">
+        {% include "partials/notebook_drinks.html" %}
+    </div>
+    
+    {% if my_drinks|length == 10 %}
+    <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
+            data-offset="10" 
+            data-container="notebook-drinks-container" 
+            data-url="{% url 'load_more_notebook_drinks' %}">
+        Charger plus de dégustations
+    </button>
+    {% endif %}
+</div>
+
+<div id="tab-ajouts" class="tab-panel {% if active_tab == 'ajouts' %}block{% else %}hidden{% endif %}">
+    
+    <div class="mb-4">
+        <h4 class="font-castoro text-xl font-bold mb-4 flex items-center gap-2 border-b border-primary pb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 11h1a3 3 0 0 1 0 6h-1"/>
+                <path d="M9 12v6"/>
+                <path d="M13 12v6"/>
+                <path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 2 11 2s2 1.5 3 1.5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5Z"/>
+                <path d="M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/>
+            </svg>
+            Bières que j'ai proposées
+        </h4>
+        <div id="notebook-added-beers-container" class="flex flex-col gap-2">
+            {% include "partials/notebook_added_beers.html" %}
+        </div>
+        
+        {% if my_added_beers|length == 10 %}
+        <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
+                data-offset="10" 
+                data-container="notebook-added-beers-container" 
+                data-url="{% url 'load_more_added_beers' %}"
+                data-autoscroll="false">
+            Charger plus de bières proposées
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="mb-4">
+        <h4 class="font-castoro text-xl font-bold mb-4 flex items-center gap-2 border-b border-primary pb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+            Avis sur mes ajouts
+        </h4>
+        <div id="notebook-feedback-container" class="flex flex-col gap-2">
+            {% include "partials/notebook_feedback.html" %}
+        </div>
+        
+        {% if feedback_on_my_beers|length == 10 %}
+        <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
+                data-offset="10" 
+                data-container="notebook-feedback-container" 
+                data-url="{% url 'load_more_notebook_feedback' %}"
+                data-autoscroll="false">
+            Charger plus d'avis
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="mb-4">
+        <details class="group bg-white rounded-box shadow-sm border border-base-200">
+            <summary class="text-sm p-3 cursor-pointer list-none flex justify-between items-center font-medium hover:opacity-70 transition-opacity">
+                <span>Bières retirées du catalogue</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+            </summary>
+            
+            <div class="flex flex-col gap-2 p-3 border-t border-base-200">
+                {% for beer in my_deleted_beers %}
+                <div class="flex items-center justify-between bg-base-100 p-3 rounded-lg border border-base-200 gap-3 relative overflow-hidden">
+                    <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
+                    <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm leading-tight truncate line-through">{{ beer.name }}</span>
+                            <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
+                                {{ beer.brewery_id.name }}
+                            </a>
+                        </div>
+                        <div class="flex gap-1 mt-0.5">
+                            {% if beer.style %}
+                            <span class="badge badge-secondary badge-outline badge-xs text-[9px]">{{ beer.style }}</span>
+                            {% endif %}
+                            <span class="badge badge-neutral badge-outline badge-xs text-[9px]">Alc. {{ beer.degree }}%</span>
+                        </div>
+                    </div>
+                    <div class="shrink-0 flex items-center pointer-events-none relative z-10">
+                        <span class="text-[10px] text-error font-bold italic">Supprimée</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-[10px] text-gray-500 text-center">Aucune bière retirée.</p>
+                {% endfor %}
+            </div>
+        </details>
+    </div>
+</div>
+
+<script src="{% static 'script/tab_bar.js' %}"></script>
+<script src="{% static 'script/load_more_generic.js' %}"></script>
 {% endblock %}
