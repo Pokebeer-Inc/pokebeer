@@ -47,14 +47,14 @@ def _format_beers_context(user_message):
         
     return "\n".join(context_list)
 
-def ask_sommelier(user_message):
+def ask_zythologue(user_message):
     if not settings.GEMINI_API_KEY:
-        return "Le service de sommelier est inactif (Clé Gemini manquante)."
+        return "Le service est inactif (Clé Gemini manquante)."
 
     # On récupère le contexte vectoriel
     beers_context = _format_beers_context(user_message) or "Aucune bière en stock actuellement."
 
-    prompt = f"""Tu es Gaétan, un sommelier bière sympathique et expert.
+    prompt = f"""Tu es Gaétan, un zythologue bière sympathique et expert.
 J'ai pré-sélectionné pour toi les bières les plus pertinentes selon la demande du client :
 {beers_context}
 

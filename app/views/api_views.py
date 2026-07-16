@@ -2,7 +2,7 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from ..models import Beer, Brewery
-from ..services import ask_sommelier
+from ..services import ask_zythologue
 from django.db.models import Q
 from django.utils.text import slugify
 from google import genai
@@ -27,7 +27,7 @@ def chat_api(request):
     if not user_message.strip():
         return JsonResponse({"response": "Message vide."}, status=400)
 
-    response_text = ask_sommelier(user_message)
+    response_text = ask_zythologue(user_message)
     
     return JsonResponse({"response": response_text})
 
@@ -42,7 +42,7 @@ def analyze_beer_label(request):
 
     try:
         prompt = """
-            Tu es un expert sommelier de la bière. 
+            Tu es un expert zythologue de la bière. 
             1. Analyse l'image de cette étiquette pour identifier la bière.
             2. Si des informations (comme la brasserie, le style, le degré d'alcool ou l'IBU) ne sont pas visibles ou lisibles sur l'image, UTILISE TES CONNAISSANCES INTERNES d'expert pour déduire et compléter ces champs manquants à partir du nom trouvé.
             3. Ne renvoie AUCUN autre texte que le JSON strict.

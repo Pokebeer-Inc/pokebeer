@@ -1,0 +1,53 @@
+{% for beer in beers %}
+<div class="card bg-white shadow-sm p-3 relative overflow-hidden hover:bg-base-200 active:scale-[0.98] transition-all">
+    <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
+    <div class="pointer-events-none flex-1 flex flex-col">
+        <h3 class="font-bold text-md leading-tight">{{ beer.name }}</h3>
+        <a class="text-xs text-gray-500 block mb-1 pointer-events-auto z-10 hover:text-primary transition-colors w-fit" href="{% url 'brewery_detail' beer.brewery_id.id %}">{{ beer.brewery_id.name }}</a>
+        <p class="text-[11px] text-gray-600 line-clamp-2 mb-2">{{ beer.description|truncatechars:80 }}</p>
+        <div class="flex gap-2 text-xs mb-3">
+            <span class="badge badge-outline badge-neutral badge-xs">Alc. {{ beer.degree }}%</span>
+            {% if beer.bitterness is not None %}
+            <span class="badge badge-outline badge-neutral badge-xs">IBU {{ beer.bitterness }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% if user.is_authenticated %}
+    <div class="relative z-10 mt-auto pointer-events-auto">
+        {% if beer.id in rated_beer_ids %}
+        <button class="btn btn-xs btn-disabled w-full">Déjà noté</button>
+        {% else %}
+        <button class="btn btn-xs btn-primary btn-outline w-full" onclick="modalRate{{beer.id}}.showModal()">Noter</button>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<dialog id="modalRate{{beer.id}}" class="modal">
+    <div class="modal-box custom-modal-form">
+        <h3 class="font-bold text-lg mb-4">Noter : {{ beer.name }}</h3>
+        <form method="post" action="{% url 'rate_beer' beer.id %}">
+            {% csrf_token %}
+            <div class="form-control w-full mb-3">
+                <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
+                {{ rating_form.date }}
+            </div>
+            <div class="form-control w-full mb-3">
+                <label class="label"><span class="label-text">{{ rating_form.note.label }}</span></label>
+                {{ rating_form.note }}
+            </div>
+            <div class="form-control w-full mb-4">
+                <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
+                {{ rating_form.comment }}
+            </div>
+            <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+{% empty %}
+<div class="flex flex-col items-center justify-center p-6 bg-white border border-base-200 rounded-xl shadow-sm text-center">
+    <h3 class="font-bold text-sm text-gray-800 mb-1">Aucune bière trouvée</h3>
+    <a href="{% url 'add_beer' %}" class="btn btn-primary btn-sm text-white mt-4">L'ajouter au catalogue</a>
+</div>
+{% endfor %}

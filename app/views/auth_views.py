@@ -11,6 +11,7 @@ from ..models import UserFollow, Beer, Drinks
 from django.views.decorators.http import require_POST
 import json
 from django.http import JsonResponse
+from .utils import get_user_achievements
 
 def register_view(request):
     """Handles user registration."""
@@ -133,6 +134,10 @@ def account_view(request):
             'note': drink.note if drink else None
         })
         
+    # Récupération des trophées débloqués
+    all_achievements = get_user_achievements(user)
+    unlocked_achievements = [a for a in all_achievements if a['tier_level'] > 0]
+        
     context = {
         'profile_form': profile_form,
         'password_form': password_form,
@@ -150,6 +155,7 @@ def account_view(request):
         'avg_ibu': averages['avg_ibu'] or 0,
         'pref_style': pref_style['beer_id__style'] if pref_style else "Pas encore défini",
         'top_beers_data': top_beers_data,
+        'unlocked_achievements': unlocked_achievements,
     }
     return render(request, 'account.html', context)
 

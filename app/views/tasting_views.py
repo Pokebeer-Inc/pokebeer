@@ -1,4 +1,4 @@
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
@@ -62,3 +62,8 @@ def delete_spot_view(request, spot_id):
         spot.delete()
         messages.success(request, "Lieu supprimé de la carte.")
     return redirect('map')
+
+@login_required(login_url='login')
+def notebook_view(request):
+    """Page du carnet de dégustation complet (en construction)."""
+    return render(request, 'notebook.html')

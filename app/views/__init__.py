@@ -6,3 +6,4 @@ from .beer_views import *
 from .tasting_views import *
 from .api_views import *
 from .utils import *
+from .trophy_views import *

@@ -9,6 +9,9 @@ urlpatterns = [
     path('load-more-beers/', views.load_more_beers, name='load_more_beers'),
     path('beers/', views.all_beers_view, name='all_beers'),
     path('map/', views.map_view, name='map'),
+    path('trophees/', views.achievements_view, name='achievements'),
+    path('load-more-search-beers/', views.load_more_search_beers, name='load_more_search_beers'),
+    path('load-more-search-users/', views.load_more_search_users, name='load_more_search_users'),
 
     # ==========================================
     # Authentification & Compte Utilisateur
@@ -58,6 +61,7 @@ urlpatterns = [
     path('modify-rate-beer/<int:drink_id>/', views.modify_rate_beer_view, name='modify_rate_beer'),
     path('delete-drink/<int:drink_id>/', views.delete_drink_view, name='delete_drink'),
     path('delete-spot/<int:spot_id>/', views.delete_spot_view, name='delete_spot'),
+    path('carnet/', views.notebook_view, name='notebook'),
 
     # ==========================================
     # API (Recherche, IA, etc.)

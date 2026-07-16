@@ -5,6 +5,7 @@ from django.db.models import Avg, Count, Max, Q
 from datetime import timedelta
 from django.utils import timezone
 from ..models import BeerUser, UserFollow, Beer, Drinks, UserBlock
+from .utils import get_user_achievements
 
 @login_required(login_url='login')
 def public_profile_view(request, username):
@@ -60,6 +61,9 @@ def public_profile_view(request, username):
                 'note': drink.note if drink else None
             })
             
+    all_achievements = get_user_achievements(profile_user)
+    unlocked_achievements = [a for a in all_achievements if a['tier_level'] > 0]
+            
     context = {
         'profile_user': profile_user,
         'user_drinks': user_drinks,
@@ -74,6 +78,7 @@ def public_profile_view(request, username):
         'avg_ibu': averages['avg_ibu'] or 0,
         'pref_style': pref_style['beer_id__style'] if pref_style else "Inconnu",
         'top_beers_data': top_beers_data,
+        'unlocked_achievements': unlocked_achievements,
     }
     return render(request, 'public_profile.html', context)
 
