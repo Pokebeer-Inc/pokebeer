@@ -6,7 +6,7 @@ from django.http import JsonResponse
 import json
 
 from ..forms import BeerForm, DrinkForm
-from ..models import Beer, Drinks, Brewery
+from ..models import Beer, Drinks, Brewery, Notification, UserFollow
 from .utils import get_excluded_users
 
 @login_required(login_url='login')
@@ -22,6 +22,14 @@ def add_beer_view(request):
             new_drink.drinker_id = request.user
             new_drink.beer_id = new_beer
             new_drink.save()
+            
+            # Trouve tous mes abonnés
+            followers = UserFollow.objects.filter(followed=request.user).values_list('follower_id', flat=True)
+            for f_id in followers:
+                Notification.objects.create(recipient_id=f_id, sender=request.user, notif_type='beer_added', beer=new_beer)
+            
+            from .utils import check_and_notify_achievements
+            check_and_notify_achievements(request.user)
             
             messages.success(request, f"Bière ajoutée et notée ! Merci {request.user.username}.")
             return redirect('index')
@@ -76,6 +84,12 @@ def edit_beer_view(request, beer_slug):
         form = BeerForm(request.POST, request.FILES, instance=beer)
         if form.is_valid():
             form.save()
+            
+            drinkers = Drinks.objects.filter(beer_id=beer).exclude(drinker_id=request.user).values_list('drinker_id', flat=True).distinct()
+            
+            for d_id in drinkers:
+                Notification.objects.create(recipient_id=d_id, sender=request.user, notif_type='beer_updated', beer=beer)
+                
             messages.success(request, "Les informations de la bière ont été mises à jour.")
             return redirect('beer_detail', beer_slug=beer.slug)
     else:
@@ -89,6 +103,10 @@ def delete_beer_view(request, beer_slug):
     if request.method == 'POST':
         beer.is_deleted = True
         beer.save()
+        
+        # Supprimer les notifications liées à cette bière
+        Notification.objects.filter(beer=beer).delete()
+        
         messages.success(request, "Bière retirée du catalogue. Vos notes personnelles sont conservées.")
         return redirect('index')
     return redirect('beer_detail', beer_slug=beer.slug)

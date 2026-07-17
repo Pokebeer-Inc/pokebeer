@@ -1,5 +1,5 @@
 from django.db.models import Max
-from ..models import UserBlock, Beer, Drinks, BeerSpot, UserFollow
+from ..models import UserBlock, Beer, Drinks, BeerSpot, UserFollow, Notification, UserAchievementState
 
 def get_excluded_users(user):
     """Retourne la liste des IDs d'utilisateurs avec qui il y a un blocage."""
@@ -116,3 +116,24 @@ def get_user_achievements(user):
         build_achievement("Copain de Gaétan", has_picon, [1, 1, 1, 1], icon_heart, "Mentionner le Picon dans sa biographie", is_hidden=True),
         build_achievement("Ours doré", has_ours, [1, 1, 1, 1], icon_ours_dore, "Boire une bière de la brasserie Ours Doré", is_hidden=True),
     ]
+    
+def check_and_notify_achievements(user):
+    if not user.is_authenticated: return
+    achievements = get_user_achievements(user)
+    
+    for ach in achievements:
+        state, created = UserAchievementState.objects.get_or_create(
+            user=user, achievement_name=ach['name']
+        )
+        # Si on passe à un niveau supérieur (et que ce n'est pas le niveau 0 bloqué)
+        if ach['tier_level'] > state.tier_level and ach['tier_level'] > 0:
+            Notification.objects.create(
+                recipient=user,
+                notif_type='achievement',
+                achievement_name=ach['name'],
+                text_content=f"{ach['name']} ({ach['tier_name']})"
+            )
+        # On met à jour l'état en base
+        if ach['tier_level'] != state.tier_level:
+            state.tier_level = ach['tier_level']
+            state.save()

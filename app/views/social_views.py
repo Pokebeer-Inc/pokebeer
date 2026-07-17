@@ -7,9 +7,9 @@ from django.utils import timezone
 from django.contrib.auth import logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 
-from ..models import BeerUser, UserFollow, Beer, Drinks, UserBlock
+from ..models import BeerUser, UserFollow, Beer, Drinks, UserBlock, Notification
 from ..forms import UserUpdateForm
-from .utils import get_user_achievements
+from .utils import get_user_achievements, check_and_notify_achievements
 
 @login_required(login_url='login')
 def account_view(request):
@@ -197,8 +197,10 @@ def follow_user(request, username):
             messages.info(request, f"Vous ne suivez plus {username}.")
         else:
             UserFollow.objects.create(follower=request.user, followed=user_to_follow) # S'abonner
+            Notification.objects.create(recipient=user_to_follow, sender=request.user, notif_type='follow')
             messages.success(request, f"Vous suivez maintenant {username} !")
             
+    check_and_notify_achievements(request.user)
     return redirect(request.META.get('HTTP_REFERER', 'index'))
 
 @login_required(login_url='login')

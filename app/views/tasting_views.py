@@ -3,7 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
 from ..forms import DrinkForm
-from ..models import Beer, Drinks, BeerSpot
+from ..models import Beer, Drinks, BeerSpot, Notification
+from .utils import check_and_notify_achievements
 
 @login_required(login_url='login')
 def rate_beer_view(request, beer_id):
@@ -23,10 +24,16 @@ def rate_beer_view(request, beer_id):
             drink.drinker_id = request.user
             drink.beer_id = beer
             drink.save()
+            
+            # Trouve tous les autres utilisateurs qui ont noté cette bière
+            other_drinkers = Drinks.objects.filter(beer_id=beer).exclude(drinker_id=request.user).values_list('drinker_id', flat=True).distinct()
+            for d_id in other_drinkers:
+                Notification.objects.create(recipient_id=d_id, sender=request.user, notif_type='beer_shared', beer=beer)
             messages.success(request, f"Votre avis sur {beer.name} a été enregistré !")
         else:
             messages.error(request, "Erreur dans le formulaire de notation.")
             
+    check_and_notify_achievements(request.user)
     return redirect(previous_url)
 
 @login_required(login_url='login')

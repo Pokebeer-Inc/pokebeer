@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4 relative flex justify-center items-center mt-2">
+    <a href="{% url 'account' %}" class="absolute left-0 btn btn-sm btn-circle btn-ghost">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    </a>
+    <h2 class="text-2xl font-castoro font-bold">Mes Notifications</h2>
+</div>
+
+<div class="flex flex-col gap-2 p-1">
+    {% for notif in notifications %}
+    
+    <div class="flex items-center justify-between p-3 bg-white rounded-xl shadow-sm border border-base-200 transition-all {% if notif.is_read %}opacity-60 bg-gray-50{% endif %}">
+        
+        <!-- Le lien cliquable marque comme lu et redirige -->
+        <a href="{% url 'read_notification' notif.id %}" class="flex items-center gap-3 flex-1 hover:opacity-80 transition-opacity">
+            
+            <div class="avatar shrink-0">
+                {% if notif.notif_type == 'achievement' %}
+                    <!-- Design spécifique avec les couleurs du trophée -->
+                    <div class="w-10 h-10 rounded-full shadow-sm border flex items-center justify-center overflow-hidden {{ notif.ach_style.bg }} {{ notif.ach_style.border }} {{ notif.ach_style.text_title }} {{ notif.ach_style.extra_classes }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            {{ notif.svg_icon|safe }}
+                        </svg>
+                    </div>
+                {% else %}
+                    <!-- Design classique pour les avatars utilisateurs -->
+                    <div class="w-10 h-10 rounded-full border border-base-300 flex items-center justify-center bg-white shadow-sm overflow-hidden text-primary">
+                        {% if notif.sender.socialaccount_set.all %}
+                            <img class="object-cover w-full h-full" src="{{ notif.sender.socialaccount_set.first.extra_data.picture }}" />
+                        {% else %}
+                            <img class="object-cover w-full h-full" src="https://ui-avatars.com/api/?name={{ notif.sender.username }}&background=E5A022&color=fff&bold=true" />
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="text-xs text-gray-800 leading-snug pr-2">
+                {% if notif.notif_type == 'follow' %}
+                    <span class="font-bold">{{ notif.sender.username }}</span> s'est abonné(e) à votre compte.
+                {% elif notif.notif_type == 'beer_shared' %}
+                    <span class="font-bold">{{ notif.sender.username }}</span> a goûté une bière que vous avez notée : <span class="font-bold">{{ notif.beer.name }}</span>.
+                {% elif notif.notif_type == 'beer_added' %}
+                    <span class="font-bold">{{ notif.sender.username }}</span> a goûté une nouvelle bière : <span class="font-bold">{{ notif.beer.name }}</span>.
+                {% elif notif.notif_type == 'achievement' %}
+                    Vous avez gagné un nouveau badge : <span class="font-bold">{{ notif.text_content }}</span>.
+                {% elif notif.notif_type == 'spot_invite' %}
+                    <span class="font-bold">{{ notif.sender.username }}</span> vous a invité(e) à rejoindre un lieu de dégustation : <span class="font-bold">{{ notif.spot.title }}</span>.
+                {% elif notif.notif_type == 'beer_updated' %}
+                    <span class="font-bold">{{ notif.sender.username }}</span> a mis à jour les informations d'une bière que vous avez notée : <span class="font-bold">{{ notif.beer.name }}</span>.
+                {% elif notif.notif_type == 'spot_updated' %}
+                    <span class="font-bold">{{ notif.sender.username }}</span> a modifié le lieu partagé : <span class="font-bold">{{ notif.spot.title }}</span>.
+                {% endif %}
+            </div>
+        </a>
+        
+        <div class="flex flex-col items-end gap-1 shrink-0 border-l border-base-200 pl-3">
+            <span class="text-[10px] text-gray-400 font-medium whitespace-nowrap">{{ notif.time_ago }}</span>
+            <form action="{% url 'delete_notification' notif.id %}" method="POST" class="m-0 p-0 h-full">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost btn-xs text-gray-400 hover:text-error hover:bg-error/10 px-1 min-h-0 h-6" title="Supprimer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+            </form>
+        </div>
+        
+    </div>
+    {% empty %}
+    <div class="text-center p-8 bg-white border border-base-200 rounded-xl shadow-sm text-gray-500 italic text-sm">
+        Vous n'avez aucune notification pour le moment.
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

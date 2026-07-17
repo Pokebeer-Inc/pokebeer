@@ -28,6 +28,13 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),
     path('update-top-beer/<int:slot>/', views.update_top_beer, name='update_top_beer'),
     path('swap-top-beers/', views.swap_top_beers, name='swap_top_beers'),
+    
+    # ==========================================
+    # Notifications
+    # ==========================================
+    path('notifications/', views.notifications_view, name='notifications'),
+    path('notifications/read/<int:notif_id>/', views.read_notification, name='read_notification'),
+    path('notifications/delete/<int:notif_id>/', views.delete_notification, name='delete_notification'),
 
     # ==========================================
     # Profils Publics & Social

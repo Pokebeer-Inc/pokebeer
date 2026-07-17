@@ -85,13 +85,18 @@
         
         <a href="{% if user.is_authenticated %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}" class="flex flex-col items-center justify-center w-full h-full {% if request.resolver_match.url_name == 'account' %}text-primary{% else %}text-gray-500 hover:text-primary{% endif %} transition-colors">
             {% if user.is_authenticated %}
-                <div class="avatar">
-                    <div class="w-7 h-7 rounded-full ring-2 {% if request.resolver_match.url_name == 'account' %}ring-primary{% else %}ring-transparent{% endif %} transition-all">
-                        {% if user.socialaccount_set.all %}
-                            <img class="object-cover" src="{{ user.socialaccount_set.first.extra_data.picture }}" alt="Profil" />
-                        {% else %}
-                            <img class="object-cover" src="https://ui-avatars.com/api/?name={{ user.username }}&background=E5A022&color=fff" alt="Profil" />
-                        {% endif %}
+                <div class="indicator">
+                    {% if user.has_unread_notifications %}
+                        <span class="indicator-item badge badge-error badge-xs w-2.5 h-2.5 p-0 mt-0.5 mr-0.5 border border-white"></span>
+                    {% endif %}
+                    <div class="avatar">
+                        <div class="w-7 h-7 rounded-full ring-2 {% if request.resolver_match.url_name == 'account' %}ring-primary{% else %}ring-transparent{% endif %} transition-all">
+                            {% if user.socialaccount_set.all %}
+                                <img class="object-cover" src="{{ user.socialaccount_set.first.extra_data.picture }}" alt="Profil" />
+                            {% else %}
+                                <img class="object-cover" src="https://ui-avatars.com/api/?name={{ user.username }}&background=E5A022&color=fff" alt="Profil" />
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             {% else %}

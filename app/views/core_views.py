@@ -8,8 +8,8 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from ..forms import DrinkForm
-from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser
-from .utils import get_excluded_users, get_user_achievements
+from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser, Notification
+from .utils import get_excluded_users, get_user_achievements, check_and_notify_achievements
 
 @ensure_csrf_cookie
 @login_required(login_url='login')
@@ -355,7 +355,28 @@ def map_view(request):
                         
                     # Seul le créateur original peut gérer qui a accès au point
                     if request.user == spot.user:
+                        old_friends = list(spot.friends.values_list('id', flat=True))
                         spot.friends.set(friend_ids)
+                        # Notifier uniquement les NOUVEAUX amis ajoutés sur ce point
+                        new_friends = [f for f in spot.friends.values_list('id', flat=True) if f not in old_friends]
+                        for f_id in new_friends:
+                            Notification.objects.create(recipient_id=f_id, sender=request.user, notif_type='spot_invite', spot=spot)
+                            
+                    # Identifier tous les utilisateurs concernés (le créateur + les amis du spot)
+                    users_to_notify = set(spot.friends.values_list('id', flat=True))
+                    users_to_notify.add(spot.user.id)
+                    
+                    # Retirer celui qui fait l'action pour ne pas s'auto-notifier
+                    users_to_notify.discard(request.user.id)
+                    
+                    # Retirer les "nouveaux" amis ajoutés lors de cette modif (ils reçoivent déjà l'invitation)
+                    if request.user == spot.user and 'new_friends' in locals():
+                        for nf_id in new_friends:
+                            users_to_notify.discard(nf_id)
+                            
+                    # Envoyer les notifications
+                    for u_id in users_to_notify:
+                        Notification.objects.create(recipient_id=u_id, sender=request.user, notif_type='spot_updated', spot=spot)
                         
                     messages.success(request, "Point modifié avec succès !")
                 else:
@@ -374,8 +395,11 @@ def map_view(request):
                     spot.drinks.set(drink_ids)
                 if friend_ids:
                     spot.friends.set(friend_ids)
+                    for f_id in spot.friends.values_list('id', flat=True):
+                        Notification.objects.create(recipient_id=f_id, sender=request.user, notif_type='spot_invite', spot=spot)
                 messages.success(request, "Point ajouté avec succès !")
                 
+        check_and_notify_achievements(request.user)
         return redirect('map')
 
     # Récupérer : Mes propres lieux + Les lieux où je suis tagué comme ami
