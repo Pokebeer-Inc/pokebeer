@@ -36,7 +36,7 @@
                 {% endif %}
             </div>
             
-            <div class="text-xs text-gray-800 leading-snug pr-2">
+            <div class="text-xs text-gray-800 leading-snug">
                 {% if notif.notif_type == 'follow' %}
                     <span class="font-bold">{{ notif.sender.username }}</span> s'est abonné(e) à votre compte.
                 {% elif notif.notif_type == 'beer_shared' %}
@@ -51,11 +51,13 @@
                     <span class="font-bold">{{ notif.sender.username }}</span> a mis à jour les informations d'une bière que vous avez notée : <span class="font-bold">{{ notif.beer.name }}</span>.
                 {% elif notif.notif_type == 'spot_updated' %}
                     <span class="font-bold">{{ notif.sender.username }}</span> a modifié le lieu partagé : <span class="font-bold">{{ notif.spot.title }}</span>.
+                {% elif notif.notif_type == 'drink_liked' %}
+                    <span class="font-bold">{{ notif.sender.username }}</span> a aimé votre avis sur la bière : <span class="font-bold">{{ notif.beer.name }}</span>.
                 {% endif %}
             </div>
         </a>
         
-        <div class="flex flex-col items-end gap-1 shrink-0 border-l border-base-200 pl-3">
+        <div class="flex flex-col items-end gap-1 shrink-0 pl-3">
             <span class="text-[10px] text-gray-400 font-medium whitespace-nowrap">{{ notif.time_ago }}</span>
             <form action="{% url 'delete_notification' notif.id %}" method="POST" class="m-0 p-0 h-full">
                 {% csrf_token %}

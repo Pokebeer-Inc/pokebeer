@@ -28,7 +28,7 @@ def read_notification(request, notif_id):
     
     if notif.notif_type == 'follow' and notif.sender:
         return redirect('public_profile', username=notif.sender.username)
-    elif notif.notif_type in ['beer_shared', 'beer_added', 'beer_updated'] and notif.beer:
+    elif notif.notif_type in ['beer_shared', 'beer_added', 'beer_updated', 'drink_liked'] and notif.beer:
         return redirect('beer_detail', beer_slug=notif.beer.slug)
     elif notif.notif_type == 'achievement':
         return redirect('achievements')

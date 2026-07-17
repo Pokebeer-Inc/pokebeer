@@ -3,11 +3,12 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import JsonResponse
+from django.db.models import Count, Q, F
 import json
 
 from ..forms import BeerForm, DrinkForm
-from ..models import Beer, Drinks, Brewery, Notification, UserFollow
-from .utils import get_excluded_users
+from ..models import Beer, Drinks, Brewery, Notification, UserFollow, DrinkReaction
+from .utils import get_excluded_users, check_and_notify_achievements
 
 @login_required(login_url='login')
 def add_beer_view(request):
@@ -49,8 +50,26 @@ def add_beer_view(request):
 def beer_detail_view(request, beer_slug):
     """Affiche les détails d'une bière, ses notes et commentaires."""
     beer = get_object_or_404(Beer, slug=beer_slug)
-    drinks = Drinks.objects.filter(beer_id=beer).exclude(drinker_id__in=get_excluded_users(request.user)).select_related('drinker_id').order_by('-date')
+    
+    # Calcul du Score (Likes - Dislikes) et Tri
+    drinks = Drinks.objects.filter(beer_id=beer).exclude(drinker_id__in=get_excluded_users(request.user)).select_related('drinker_id')
+    drinks = drinks.annotate(
+        likes=Count('reactions', filter=Q(reactions__is_like=True)),
+        dislikes=Count('reactions', filter=Q(reactions__is_like=False))
+    ).annotate(
+        score=F('likes') - F('dislikes')
+    ).order_by('-score', '-date')
 
+    # Identifier les réactions de l'utilisateur connecté pour l'UI
+    user_reactions = {}
+    if request.user.is_authenticated:
+        reactions = DrinkReaction.objects.filter(user=request.user, drink__in=drinks).values_list('drink_id', 'is_like')
+        user_reactions = {r[0]: r[1] for r in reactions}
+    
+    for drink in drinks:
+        drink.user_reaction = user_reactions.get(drink.id, None)
+
+    # Format
     user_rating = None
     user_drink = drinks.filter(drinker_id=request.user).first() if request.user.is_authenticated else None
     if user_drink:
@@ -73,7 +92,6 @@ def beer_detail_view(request, beer_slug):
         'user_rating': user_rating,
         'rating_form': rating_from
     }
-
     return render(request, 'beer_page.html', context)
 
 @login_required(login_url='login')
@@ -200,3 +218,67 @@ def brewery_detail_view(request, brewery_id):
         'rating_form': rating_form,
     }
     return render(request, 'brewery_page.html', context)
+
+@require_POST
+@login_required(login_url='login')
+def toggle_reaction_view(request, drink_id):
+    """API pour liker/disliker un avis."""
+    try:
+        data = json.loads(request.body)
+        is_like = data.get('is_like')
+        
+        drink = get_object_or_404(Drinks, id=drink_id)
+        if drink.drinker_id == request.user:
+            return JsonResponse({'success': False, 'error': "Vous ne pouvez pas réagir à votre propre avis."}, status=400)
+            
+        reaction, created = DrinkReaction.objects.get_or_create(
+            user=request.user, 
+            drink=drink, 
+            defaults={'is_like': is_like}
+        )
+        
+        current_reaction = is_like # On garde en mémoire l'état final
+        
+        # Logique : Bascule si déjà existant
+        if not created:
+            if reaction.is_like == is_like:
+                reaction.delete() # Clic sur le même bouton = annulation
+                current_reaction = None
+            else:
+                reaction.is_like = is_like
+                reaction.save() # Changement d'avis (ex: passe de Like à Dislike)
+                
+                if is_like:
+                    Notification.objects.create(
+                        recipient=drink.drinker_id, 
+                        sender=request.user, 
+                        notif_type='drink_liked', 
+                        beer=drink.beer_id
+                    )
+        else:
+            # Notification si c'est une nouvelle réaction et que c'est un Like
+            if is_like:
+                Notification.objects.create(
+                    recipient=drink.drinker_id, 
+                    sender=request.user, 
+                    notif_type='drink_liked', 
+                    beer=drink.beer_id
+                )
+        
+        # Vérification du trophée César
+        check_and_notify_achievements(request.user)
+        
+        # Recalcul des scores exacts
+        likes = drink.reactions.filter(is_like=True).count()
+        dislikes = drink.reactions.filter(is_like=False).count()
+        
+        return JsonResponse({
+            'success': True,
+            'score': likes - dislikes,
+            'likes': likes,
+            'dislikes': dislikes,
+            'current_reaction': current_reaction
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)

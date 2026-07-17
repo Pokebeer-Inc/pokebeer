@@ -72,6 +72,7 @@ urlpatterns = [
     path('modify-rate-beer/<int:drink_id>/', views.modify_rate_beer_view, name='modify_rate_beer'),
     path('delete-drink/<int:drink_id>/', views.delete_drink_view, name='delete_drink'),
     path('delete-spot/<int:spot_id>/', views.delete_spot_view, name='delete_spot'),
+    path('drink/<int:drink_id>/react/', views.toggle_reaction_view, name='toggle_reaction'),
 
     # ==========================================
     # API (Recherche, IA, etc.)

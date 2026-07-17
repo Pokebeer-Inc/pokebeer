@@ -193,6 +193,7 @@ class Notification(models.Model):
         ('spot_invite', 'Invitation à un lieu'),
         ('spot_updated', 'Lieu mis à jour'),
         ('beer_updated', 'Bière mise à jour'),
+        ('drink_liked', 'Avis aimé'),
     ]
 
     recipient = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='notifications')
@@ -237,3 +238,13 @@ class UserAchievementState(models.Model):
     
     class Meta:
         unique_together = ('user', 'achievement_name')
+        
+class DrinkReaction(models.Model):
+    user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='reactions')
+    drink = models.ForeignKey('Drinks', on_delete=models.CASCADE, related_name='reactions')
+    is_like = models.BooleanField(default=True) # True = Pouce en l'air, False = Pouce en bas
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'drink') # Un utilisateur ne peut réagir qu'une seule fois par avis
+        verbose_name = "Réaction"

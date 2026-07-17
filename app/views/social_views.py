@@ -23,6 +23,9 @@ def account_view(request):
             profile_form = UserUpdateForm(request.POST, instance=user)
             if profile_form.is_valid():
                 profile_form.save()
+                
+                check_and_notify_achievements(request.user)
+                
                 messages.success(request, "Profil mis à jour.")
                 return redirect('account')
 

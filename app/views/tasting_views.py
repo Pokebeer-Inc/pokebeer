@@ -46,6 +46,9 @@ def modify_rate_beer_view(request, drink_id):
         form = DrinkForm(request.POST, instance=drink)
         if form.is_valid():
             form.save()
+            
+            check_and_notify_achievements(request.user)
+            
             messages.success(request, f"Votre avis sur {beer.name} a été mis à jour !")
         else:
             messages.error(request, "Erreur dans le formulaire de modification.")
@@ -58,6 +61,9 @@ def delete_drink_view(request, drink_id):
     drink = get_object_or_404(Drinks, id=drink_id, drinker_id=request.user)
     if request.method == 'POST':
         drink.delete()
+        
+        check_and_notify_achievements(request.user)
+        
         messages.success(request, "Votre dégustation a bien été supprimée.")
     return redirect(request.META.get('HTTP_REFERER', 'account'))
 
