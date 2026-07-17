@@ -117,8 +117,9 @@ def get_filtered_beers(request):
 
     order_fields = []
     
-    # --- Logique de Tri ---
-    sort_by = request.GET.get('sort', 'date_desc')
+    # Logique de Tri
+    sort_by = request.GET.get('sort', 'unrated_first')
+    
     if sort_by == 'name_asc':
         order_fields.append('name')
     elif sort_by == 'name_desc':
@@ -133,7 +134,19 @@ def get_filtered_beers(request):
         order_fields.extend(['bitterness', 'name'])
     elif sort_by == 'date_asc':
         order_fields.append('id')
-    else: # date_desc (défaut : ajout récent)
+    elif sort_by == 'date_desc':
+        order_fields.append('-id')
+    else: # unrated_first (défaut)
+        if request.user.is_authenticated:
+            rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
+            if rated_beer_ids:
+                # Annotation dynamique uniquement si nécessaire
+                beers = beers.annotate(
+                    is_rated=Case(When(id__in=rated_beer_ids, then=Value(1)), default=Value(0), output_field=IntegerField())
+                )
+                order_fields.append('is_rated')
+        
+        # En second critère, on trie par les ajouts les plus récents
         order_fields.append('-id')
         
     beers = beers.order_by(*order_fields)
