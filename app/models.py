@@ -213,7 +213,6 @@ class Notification(models.Model):
 
     @property
     def time_ago(self):
-        from django.utils import timezone
         now = timezone.now()
         diff = now - self.created_at
         
