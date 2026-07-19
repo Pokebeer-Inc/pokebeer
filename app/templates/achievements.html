@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'style/achievements.css' %}">
+
+{% block content %}
+<div class="mb-6 text-center mt-2">
+    <h2 class="text-2xl font-castoro font-bold flex justify-center items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
+        Hauts Faits
+    </h2>
+    <p class="text-xs text-gray-500 mt-1">Dégustez, notez et explorez pour débloquer de nouveaux paliers !</p>
+</div>
+
+<div class="grid grid-cols-2 gap-3 p-1">
+    {% for ach in achievements %}
+    <div class="card shadow-md border-2 {{ ach.style.bg }} {{ ach.style.border }} {{ ach.style.extra_classes }} transition-all flex flex-col group hover:scale-[1.02] min-h-[170px]">
+        
+        <div class="card-body p-3 flex flex-col justify-between items-center text-center relative z-10 w-full h-full">
+            
+            <div class="w-12 h-12 rounded-full flex items-center justify-center bg-white shadow-sm shrink-0 mb-2 {{ ach.style.text_icon }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    {{ ach.icon|safe }}
+                </svg>
+            </div>
+            
+            <div class="flex flex-col justify-center flex-1 min-h-0 w-full gap-1">
+                <h3 class="font-bold text-base leading-tight mb-0.5 w-full {{ ach.style.text_title }}">{{ ach.name }}</h3>
+                <p class="text-xs leading-snug {{ ach.style.text_desc }}">{{ ach.desc }}</p>
+            </div>
+            
+            <div class="w-full shrink-0 mt-2">
+                <div class="flex justify-between items-end mb-1">
+                    <span class="text-xs font-bold opacity-90 {{ ach.style.text_title }}">
+                        {% if ach.is_maxed %}
+                            MAX
+                        {% else %}
+                            {{ ach.current }} / {{ ach.target }}
+                        {% endif %}
+                    </span>
+                    
+                    {% if ach.tier_name != "Bloqué" %}
+                        <span class="badge badge-xs {{ ach.style.badge }} font-bold text-[9px] uppercase tracking-wider">
+                            {{ ach.tier_name }}
+                        </span>
+                    {% endif %}
+                </div>
+                <progress class="progress w-full h-1.5 bg-black/10 {{ ach.style.bar }}" value="{{ ach.progress }}" max="100"></progress>
+            </div>
+            
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

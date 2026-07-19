@@ -27,8 +27,30 @@
                 <div tabindex="0" role="button" class="btn btn-sm btn-ghost btn-circle text-gray-500 mt-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                 </div>
-                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-36 right-0">
-                    <li><a onclick="modal_report_beer.showModal()" class="text-error font-semibold">Signaler</a></li>
+                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-40 right-0 border border-base-200">
+                    {% if beer.added_by == request.user %}
+                        {% if not beer.is_deleted %}
+                        <li>
+                            <a href="{% url 'edit_beer' beer.slug %}" class="font-semibold text-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                Modifier
+                            </a>
+                        </li>
+                        <li>
+                            <a onclick="modal_confirm_beer.showModal()" class="font-semibold text-error">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                Supprimer
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                        <li>
+                            <a onclick="modal_report_beer.showModal()" class="text-error font-semibold">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                Signaler
+                            </a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -58,17 +80,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 <span>Cette bière a été retirée du catalogue public. Elle ne figure ici que pour vos archives.</span>
             </div>
-        {% else %}
-            {% if beer.added_by == request.user %}
-            <div class="flex gap-2 mt-4 items-center">
-                <a href="{% url 'edit_beer' beer.slug %}" class="btn btn-sm btn-outline btn-primary flex-1">Modifier infos</a>
-                <form id="form-delete-beer" method="post" action="{% url 'delete_beer' beer.slug %}" class="flex-1">
-                    {% csrf_token %}
-                    <button type="button" class="btn btn-sm btn-outline btn-error w-full" onclick="modal_confirm_beer.showModal()">Supprimer bière</button>
-                </form>
-            </div>
         {% endif %}
-    {% endif %}
     </div>
 
     <div class="p-4">
@@ -159,17 +171,32 @@
             {% endif %}
         </div>
 
-        <div class="flex flex-col gap-3">
+        <div id="reviews-container" class="flex flex-col gap-3">
             {% for drink in drinks %}
                 {% if drink.drinker_id != request.user %} 
-                <div class="bg-base-100 rounded-lg p-3 border border-base-200 shadow-sm flex items-start gap-3">
-                    
+                <div id="drink-card-{{drink.id}}" data-score="{{ drink.score|default:0 }}" class="bg-base-100 rounded-lg p-3 border border-base-200 shadow-sm flex items-start gap-3 relative drink-card select-none transition-all mb-3"
+                     onmousedown="startPress(event, {{drink.id}})" onmouseup="cancelPress()" onmouseleave="cancelPress()"
+                     ontouchstart="startPress(event, {{drink.id}})" ontouchend="cancelPress()" ontouchcancel="cancelPress()"
+                     oncontextmenu="return false;">
+                     
+                    <!-- MENU FLOTTANT (Apparaît après appui long) -->
+                    <div id="reactions-{{drink.id}}" class="reaction-menu absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-base-100/95 backdrop-blur-sm shadow-xl border border-base-300 rounded-full px-3 py-1.5 flex gap-3 z-50 scale-0 hidden transition-transform duration-200 ease-out">
+                        <button onclick="react(event, {{drink.id}}, true)" class="btn btn-circle btn-sm {% if drink.user_reaction == True %}btn-success text-white{% else %}btn-ghost text-success hover:bg-success/20{% endif %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 0 1 1.789 2.894l-3.5 7A2 2 0 0 1 15.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 0 0-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h-2.5" /></svg>
+                        </button>
+                        <button onclick="react(event, {{drink.id}}, false)" class="btn btn-circle btn-sm {% if drink.user_reaction == False %}btn-error text-white{% else %}btn-ghost text-error hover:bg-error/20{% endif %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14H5.236a2 2 0 0 1-1.789-2.894l3.5-7A2 2 0 0 1 8.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v5a2 2 0 0 0 2 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2.5" /></svg>
+                        </button>
+                    </div>
+
+                    <!-- Note -->
                     <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs shrink-0
                         {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
                         {{ drink.note }}
                     </div>
                     
-                    <div class="flex-1 min-w-0 pr-2">
+                    <!-- Contenu textuel -->
+                    <div class="flex-1 min-w-0 pr-1 pb-1">
                         <h4 class="font-bold text-sm">
                             <a href="{% url 'public_profile' drink.drinker_id.username %}">{{ drink.drinker_id.username }}</a>
                         </h4>
@@ -177,15 +204,40 @@
                         {% if drink.comment %}<p class="text-xs text-gray-700 break-words">"{{ drink.comment }}"</p>{% endif %}
                     </div>
                     
+                    <!-- Score global (Likes - Dislikes) -->
+                    <div class="flex flex-col items-center justify-center shrink-0 min-w-[24px]">
+                        <span id="score-val-{{drink.id}}" class="text-xs font-bold {% if drink.score > 0 %}text-success{% elif drink.score < 0 %}text-error{% else %}text-gray-300 opacity-50{% endif %}">
+                            {% if drink.score > 0 %}+{{ drink.score }}{% elif drink.score < 0 %}{{ drink.score }}{% else %}0{% endif %}
+                        </span>
+                    </div>
+                    
+                    <!-- Dropdown signalement existant -->
                     <div class="dropdown dropdown-end shrink-0 -mt-1 -mr-1">
-                        <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-400 hover:text-gray-600">
+                        <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-400 hover:text-gray-600" onclick="event.stopPropagation()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                         </div>
                         <ul tabindex="0" class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-36 right-0">
                             <li><a onclick="document.getElementById('modal_report_drink_{{drink.id}}').showModal()" class="text-error text-xs font-semibold">Signaler l'avis</a></li>
                         </ul>
                     </div>
-                    
+
+                    <!-- NOUVEAU: Compteurs FLOTTANTS en bas à droite (à cheval) cliquables -->
+                    <div class="absolute -bottom-3 right-4 bg-base-100 border border-base-200 shadow-sm rounded-full px-2.5 py-1 flex justify-end gap-3 text-[10px] font-bold text-gray-400 z-10"
+                         onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
+                        
+                        <!-- Bouton Like direct -->
+                        <button type="button" onclick="react(event, {{drink.id}}, true)" class="flex items-center gap-1 hover:text-success transition-colors cursor-pointer">
+                            <svg id="thumb-up-{{drink.id}}" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 transition-colors {% if drink.user_reaction == True %}text-success{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 0 1 1.789 2.894l-3.5 7A2 2 0 0 1 15.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 0 0-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h-2.5" /></svg>
+                            <span id="likes-count-{{drink.id}}">{{ drink.likes }}</span>
+                        </button>
+                        
+                        <!-- Bouton Dislike direct -->
+                        <button type="button" onclick="react(event, {{drink.id}}, false)" class="flex items-center gap-1 hover:text-error transition-colors cursor-pointer">
+                            <svg id="thumb-down-{{drink.id}}" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 transition-colors {% if drink.user_reaction == False %}text-error{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14H5.236a2 2 0 0 1-1.789-2.894l3.5-7A2 2 0 0 1 8.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v5a2 2 0 0 0 2 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2.5" /></svg>
+                            <span id="dislikes-count-{{drink.id}}">{{ drink.dislikes }}</span>
+                        </button>
+                        
+                    </div>
                 </div>
 
                 <dialog id="modal_report_drink_{{drink.id}}" class="modal z-[99999]">
@@ -224,6 +276,10 @@
         </div>
     </div>
 </div>
+
+<form id="form-delete-beer" method="post" action="{% url 'delete_beer' beer.slug %}" class="hidden">
+    {% csrf_token %}
+</form>
 
 <dialog id="modal_confirm_beer" class="modal z-[99999]">
     <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center">
@@ -295,4 +351,6 @@
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
+
+<script src="{% static 'script/like_dislike_drinks.js' %}"></script>
 {% endblock %}

@@ -25,6 +25,11 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     
     class Meta:
         verbose_name = "Utilisateur"
+        
+    @property
+    def has_unread_notifications(self):
+        """Vérifie si l'utilisateur a au moins une notification non lue"""
+        return self.notifications.filter(is_read=False).exists()
 
     def __str__(self):
         return self.username
@@ -178,3 +183,67 @@ class UserBlock(models.Model):
 
     def __str__(self):
         return f"{self.blocker.username} a bloqué {self.blocked.username}"
+    
+class Notification(models.Model):
+    NOTIFICATION_TYPES = [
+        ('follow', 'Nouvel abonné'),
+        ('beer_shared', 'Bière goûtée en commun'),
+        ('beer_added', 'Nouvelle bière d\'un abonnement'),
+        ('achievement', 'Nouveau trophée'),
+        ('spot_invite', 'Invitation à un lieu'),
+        ('spot_updated', 'Lieu mis à jour'),
+        ('beer_updated', 'Bière mise à jour'),
+        ('drink_liked', 'Avis aimé'),
+    ]
+
+    recipient = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='notifications')
+    sender = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_notifications')
+    notif_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    
+    beer = models.ForeignKey('Beer', on_delete=models.CASCADE, null=True, blank=True)
+    spot = models.ForeignKey('BeerSpot', on_delete=models.CASCADE, null=True, blank=True)
+    achievement_name = models.CharField(max_length=100, null=True, blank=True)
+    text_content = models.CharField(max_length=255, null=True, blank=True) 
+    
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @property
+    def time_ago(self):
+        now = timezone.now()
+        diff = now - self.created_at
+        
+        if diff.days > 0:
+            return f"{diff.days} j"
+        
+        hours = diff.seconds // 3600
+        if hours > 0:
+            return f"{hours}h"
+            
+        minutes = (diff.seconds % 3600) // 60
+        if minutes > 0:
+            return f"{minutes} min"
+            
+        return "à l'instant"
+
+class UserAchievementState(models.Model):
+    """Mémorise les trophées déjà débloqués par l'utilisateur pour ne pas le spammer"""
+    user = models.ForeignKey('BeerUser', on_delete=models.CASCADE)
+    achievement_name = models.CharField(max_length=100)
+    tier_level = models.IntegerField(default=0)
+    
+    class Meta:
+        unique_together = ('user', 'achievement_name')
+        
+class DrinkReaction(models.Model):
+    user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='reactions')
+    drink = models.ForeignKey('Drinks', on_delete=models.CASCADE, related_name='reactions')
+    is_like = models.BooleanField(default=True) # True = Pouce en l'air, False = Pouce en bas
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'drink') # Un utilisateur ne peut réagir qu'une seule fois par avis
+        verbose_name = "Réaction"

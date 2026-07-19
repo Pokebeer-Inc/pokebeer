@@ -6,6 +6,18 @@
 <link rel="stylesheet" href="{% static 'style/switch.css' %}">
 
 <div class="flex flex-col items-center bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200 relative mt-2">
+
+    <div class="absolute top-2 left-2 z-10">
+        <a href="{% url 'notifications' %}" class="btn btn-xs btn-ghost btn-circle text-gray-500 indicator">
+            {% if user.has_unread_notifications %}
+                <span class="indicator-item badge badge-error badge-xs w-2.5 h-2.5 p-0 mt-1 mr-1 border border-white"></span>
+            {% endif %}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+        </a>
+    </div>
+
     <div class="absolute top-2 right-2 flex gap-1 items-center">
         <div class="dropdown dropdown-end">
             <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-500">
@@ -44,6 +56,20 @@
     <p class="text-xs text-gray-500 italic mt-1 text-center">
         {% if user.bio %}"{{ user.bio }}"{% endif %}
     </p>
+
+    {% if unlocked_achievements %}
+    <div class="flex flex-wrap justify-center gap-2 mt-3">
+        {% for ach in unlocked_achievements %}
+        <div class="tooltip tooltip-bottom z-50" data-tip="{{ ach.name }} ({{ ach.tier_name }})">
+            <a href="{% url 'achievements' %}" class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm border {{ ach.style.bg }} {{ ach.style.border }} {{ ach.style.text_title }} {{ ach.style.extra_classes }} hover:scale-110 transition-transform cursor-pointer block">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    {{ ach.icon|safe }}
+                </svg>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     
     <div class="flex gap-4 mt-3 border-t border-base-200 pt-2 w-full justify-center">
         <button class="text-center hover:opacity-70" onclick="modal_followers.showModal()">
@@ -62,8 +88,6 @@
     <!-- Onglets -->
     <div class="flex bg-base-200 p-1 rounded-full gap-1 text-[11px] font-bold text-center">
         <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all bg-white text-gray-900 shadow-sm focus:outline-none" onclick="switchTab(this, 'tab-stats')">Stats</button>
-        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-carnet')">Carnet</button>
-        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-ajouts')">Ajouts</button>
         <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-infos')">Infos</button>
     </div>
 
@@ -152,144 +176,6 @@
             
         </div>
     </div>
-    
-    <div id="tab-carnet" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 hidden">
-        <div class="flex flex-col gap-3">
-            {% for drink in my_drinks %}
-            <div class="bg-white rounded-lg p-3 relative overflow-hidden flex items-start gap-3 shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all">
-                <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="absolute inset-0 z-0"></a>
-                
-                <button onclick="modalEditDrink{{drink.id}}.showModal()" class="shrink-0 flex flex-col items-center gap-1 hover:scale-110 transition-transform z-10 relative">
-                    <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-sm bg-base-100 shadow-sm
-                    {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
-                    {{ drink.note }}
-                </div>
-                <span class="text-[9px] text-primary uppercase font-bold underline"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline-block mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>Modifier</span>
-            </button>
-            
-            <div class="flex-1 pointer-events-none">
-                <h4 class="font-bold text-sm leading-tight text-gray-900">
-                    {{ drink.beer_id.name }}
-                    {% if drink.beer_id.is_deleted %}
-                    <span class="badge badge-error badge-xs ml-1 font-normal opacity-80">Retirée du catalogue</span>
-                    {% endif %}
-                </h4>
-                <p class="text-[10px] text-gray-500 mb-1">
-                    {{ drink.date|date:"d M Y" }} 
-                    {% if drink.updated_at and drink.created_at and drink.updated_at|date:"YmdHi" != drink.created_at|date:"YmdHi" %}
-                    <span class="italic text-gray-400 font-medium">(modifié)</span>
-                    {% endif %}
-                </p>
-                {% if drink.comment %}<p class="text-[11px] text-gray-600 italic mt-1 line-clamp-2">"{{ drink.comment }}"</p>{% endif %}
-            </div>
-        </div>
-        {% empty %}
-        <p class="text-xs text-gray-500 text-center py-4">Aucune dégustation enregistrée.</p>
-        {% endfor %}
-    </div>
-</div>
-
-<div id="tab-ajouts" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 hidden">
-    <div class="mb-4">
-        <h3 class="text-sm border-b border-primary pb-1 mb-2">Bières que j'ai proposées</h3>
-        <div class="flex flex-col gap-2">
-            {% for beer in my_added_beers %}
-            <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3 relative overflow-hidden">
-                
-                <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
-                
-                <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
-                    <div class="flex flex-col">
-                        <span class="font-bold text-sm leading-tight truncate">{{ beer.name }}</span>
-                        <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
-                            {{ beer.brewery_id.name }}
-                        </a>
-                    </div>
-                    
-                    <div class="flex gap-1 mt-0.5">
-                        {% if beer.style %}
-                        <span class="badge badge-secondary badge-outline badge-xs text-[9px]">{{ beer.style }}</span>
-                        {% endif %}
-                        <span class="badge badge-neutral badge-outline badge-xs text-[9px]">Alc. {{ beer.degree }}%</span>
-                    </div>
-                </div>
-                
-                <div class="shrink-0 flex items-center pointer-events-none relative z-10">
-                    {% if beer.user_note is not None %}
-                    <span class="badge badge-warning badge-sm gap-1 font-bold">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                        {{ beer.user_note }}
-                    </span>
-                    {% else %}
-                    <span class="text-[10px] text-gray-400 italic">Non notée</span>
-                    {% endif %}
-                </div>     
-            </div>
-            {% empty %}
-            <p class="text-[10px] text-gray-500">Aucun ajout pour l'instant.</p>
-            {% endfor %}
-        </div>
-    </div>
-    <div class="mb-4">
-        <h3 class="text-sm border-b border-primary pb-1 mb-2">Avis sur mes ajouts</h3>
-        <div class="flex flex-col gap-2">
-            {% for fb in feedback_on_my_beers %}
-            <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center gap-2">
-                
-                <div class="leading-tight">
-                    <a href="{% url 'public_profile' fb.drinker_id.username %}" class="underline font-bold text-primary">{{ fb.drinker_id.username }}</a> a noté 
-                    <a href="{% url 'beer_detail' fb.beer_id.slug %}" class="font-bold underline">{{ fb.beer_id.name }}</a>
-                </div>
-                
-                <span class="badge badge-warning badge-sm gap-1 font-bold shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                    {{ fb.note }}
-                </span>
-            </div>
-            {% empty %}
-            <p class="text-[10px] text-gray-500">Pas encore d'avis sur vos bières.</p>
-            {% endfor %}
-        </div>
-    </div>
-    <div class="mb-4">
-        <details class="group">
-            <summary class="text-sm border-b border-primary pb-1 mb-2 cursor-pointer list-none flex justify-between items-center font-medium hover:opacity-70 transition-opacity">
-                <span>Bières retirées du catalogue</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-            </summary>
-            
-            <div class="flex flex-col gap-2 mt-3">
-                {% for beer in my_deleted_beers %}
-                <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3 relative overflow-hidden">
-                    
-                    <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
-                    
-                    <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
-                        <div class="flex flex-col">
-                            <span class="font-bold text-sm leading-tight truncate line-through">{{ beer.name }}</span>
-                            <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
-                                {{ beer.brewery_id.name }}
-                            </a>
-                        </div>
-                        
-                        <div class="flex gap-1 mt-0.5">
-                            {% if beer.style %}
-                            <span class="badge badge-secondary badge-outline badge-xs text-[9px]">{{ beer.style }}</span>
-                            {% endif %}
-                            <span class="badge badge-neutral badge-outline badge-xs text-[9px]">Alc. {{ beer.degree }}%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="shrink-0 flex items-center pointer-events-none relative z-10">
-                        <span class="text-[10px] text-error font-bold italic">Supprimée</span>
-                    </div>
-                </div>
-                {% empty %}
-                <p class="text-[10px] text-gray-500">Aucune bière retirée.</p>
-                {% endfor %}
-            </div>
-        </details>
-    </div>
 </div>
 
 <div id="tab-infos" class="tab-panel bg-white border-base-300 rounded-box p-3 mt-2 hidden">
@@ -299,12 +185,16 @@
         <h3 class="text-sm font-bold border-b border-primary pb-1 mb-2">Modifier mon profil</h3>
         
         {% for field in profile_form %}
-        {% if not user.socialaccount_set.all or field.name != 'email' %}
-        <div class="form-control w-full">
-            <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
-            {{ field }} 
-        </div>
-        {% endif %}
+            {% if user.socialaccount_set.all and field.name == 'email' %}
+                <div class="hidden">
+                    {{ field }}
+                </div>
+            {% else %}
+                <div class="form-control w-full">
+                    <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
+                    {{ field }} 
+                </div>
+            {% endif %}
         {% endfor %}
         
         <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-2">Valider</button>
@@ -358,50 +248,6 @@
 {% endblock %}
 
 {% block modals %}
-{% for drink in my_drinks %}
-<dialog id="modalEditDrink{{drink.id}}" class="modal items-start pt-10 sm:items-center sm:pt-0">
-    <div class="modal-box flex flex-col mx-auto w-11/12 max-w-md bg-white shadow-xl custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-10 bg-base-200" onclick="modalEditDrink{{drink.id}}.close()">✕</button>
-        <h3 class="text-sm font-bold border-b border-primary pb-2 mb-4 shrink-0">Modifier : {{ drink.beer_id.name }}</h3>
-        
-        <form method="post" action="{% url 'modify_rate_beer' drink.id %}" class="flex flex-col flex-1 overflow-y-auto">
-            {% csrf_token %}
-            <div class="form-control w-full mb-2">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Date</span></label>
-                <input type="date" name="date" value="{{ drink.date|date:'Y-m-d' }}" class="input input-sm input-bordered w-full bg-white" required>
-            </div>
-            <div class="form-control w-full mb-2">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Note /10</span></label>
-                <input type="number" name="note" value="{{ drink.note }}" min="0" max="10" class="input input-sm input-bordered w-full bg-white" required>
-            </div>
-            <div class="form-control w-full mb-4">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Commentaire</span></label>
-                <textarea name="comment" class="textarea textarea-bordered w-full h-20 text-xs bg-white">{{ drink.comment }}</textarea>
-            </div>
-            <button type="submit" class="btn btn-success btn-sm w-full text-white">Enregistrer</button>
-        </form>
-        
-        <form id="form-delete-drink-{{drink.id}}" method="post" action="{% url 'delete_drink' drink.id %}" class="mt-2 pt-2 border-t border-base-200">
-            {% csrf_token %}
-            <button type="button" class="btn btn-outline btn-error btn-sm w-full" onclick="document.getElementById('modal_confirm_drink_{{drink.id}}').showModal()">Supprimer ma note</button>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-</dialog>
-
-<dialog id="modal_confirm_drink_{{drink.id}}" class="modal z-[99999]">
-    <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center">
-        <h3 class="font-bold text-lg text-error">Confirmer la suppression</h3>
-        <p class="text-sm text-gray-600">Sûr de vouloir supprimer cette dégustation de votre carnet ?</p>
-        <div class="flex justify-center gap-3 mt-4 w-full">
-            <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
-            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="document.getElementById('form-delete-drink-{{drink.id}}').submit();">Oui, supprimer</button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-</dialog>
-{% endfor %} 
-
 <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
         <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_followers.close()">✕</button>

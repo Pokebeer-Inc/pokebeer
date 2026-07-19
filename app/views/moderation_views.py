@@ -1,8 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from ..models import BeerUser, UserFollow, Report, UserBlock
 from django.views.decorators.http import require_POST
+
+from ..models import BeerUser, UserFollow, Report, UserBlock
 
 @login_required(login_url='login')
 def my_reports_view(request):

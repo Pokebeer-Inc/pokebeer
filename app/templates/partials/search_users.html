@@ -1,0 +1,45 @@
+{% for u in users %}
+<div class="card bg-white shadow-sm border border-base-200 overflow-hidden hover:border-primary/50 transition-all">
+    {% if u.latest_beers_list %}
+        {% with beer=u.latest_beers_list.0 %}
+        <div class="p-3 border-b border-base-100 hover:bg-base-200 transition-colors block active:scale-[0.99] relative overflow-hidden">
+            <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
+            <span class="text-[9px] text-primary font-bold uppercase tracking-widest mb-1 block relative z-10 pointer-events-none">Dernier ajout</span>
+            <div class="flex justify-between items-start relative z-10">
+                <div class="pointer-events-none flex flex-col">
+                    <h4 class="font-bold text-sm leading-tight">{{ beer.name }}</h4>
+                    <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-xs text-gray-500 inline-block mb-1 pointer-events-auto hover:text-primary transition-colors w-fit">
+                        {{ beer.brewery_id.name }}
+                    </a>
+                </div>
+                <div class="flex gap-1 pointer-events-none">
+                    {% if beer.style %}<span class="badge badge-secondary badge-outline badge-xs">{{ beer.style }}</span>{% endif %}
+                    <span class="badge badge-neutral badge-outline badge-xs">{{ beer.degree }}%</span>
+                </div>
+            </div>
+        </div>
+        {% endwith %}
+    {% endif %}
+
+    <a href="{% url 'public_profile' u.username %}" class="p-3 bg-base-50/50 hover:bg-base-200 transition-colors flex items-center gap-3 active:scale-[0.99]">
+        <div class="avatar">
+            <div class="w-10 h-10 rounded-full border border-base-300 overflow-hidden shadow-inner">
+                {% if u.socialaccount_set.all %}
+                    <img src="{{ u.socialaccount_set.first.extra_data.picture }}" class="object-cover" />
+                {% else %}
+                    <img src="https://ui-avatars.com/api/?name={{ u.username }}&background=E5A022&color=fff&bold=true" class="object-cover" />
+                {% endif %}
+            </div>
+        </div>
+        <div class="flex flex-col">
+            <span class="text-sm font-bold">{{ u.username }}</span>
+            <span class="text-[10px] text-gray-400">Voir le profil</span>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+    </a>
+</div>
+{% empty %}
+<div class="text-center p-8 bg-white border border-base-200 rounded-xl shadow-sm text-gray-500 italic text-sm">
+    Aucun membre trouvé.
+</div>
+{% endfor %}

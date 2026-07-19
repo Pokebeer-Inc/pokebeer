@@ -5,10 +5,6 @@
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
 <link rel="stylesheet" href="{% static 'style/switch.css' %}">
 
-<div class="mb-4 text-center">
-    <h2 class="text-2xl font-castoro font-bold">Recherche</h2>
-</div>
-
 <div class="flex bg-base-200 p-1 rounded-full gap-1 text-[11px] font-bold text-center mb-6">
     <button type="button" 
             class="tab-btn flex-1 py-2 px-2 rounded-full transition-all focus:outline-none {% if active_tab == 'bieres' %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700 hover:bg-base-300{% endif %}" 
@@ -98,8 +94,25 @@
                 <button type="submit" class="btn btn-neutral btn-sm w-full mt-4">Appliquer les filtres</button>
             </div>
         </div>
-        
-        {% if request.GET.q or request.GET.degree or request.GET.ibu or request.GET.style %}
+
+        <div class="flex justify-end mt-4 mb-1">
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Trier par :</span>
+                <select name="sort" onchange="this.form.submit()" class="h-8 px-2 border border-base-300 rounded bg-white text-xs font-medium outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+                    <option value="unrated_first" {% if request.GET.sort == 'unrated_first' or not request.GET.sort %}selected{% endif %}>À découvrir (Non goûtées en 1er)</option>
+                    <option value="date_desc" {% if request.GET.sort == 'date_desc' %}selected{% endif %}>Ajout (Récent en 1er)</option>
+                    <option value="date_asc" {% if request.GET.sort == 'date_asc' %}selected{% endif %}>Ajout (Ancien en 1er)</option>
+                    <option value="name_asc" {% if request.GET.sort == 'name_asc' %}selected{% endif %}>Nom (A-Z)</option>
+                    <option value="name_desc" {% if request.GET.sort == 'name_desc' %}selected{% endif %}>Nom (Z-A)</option>
+                    <option value="degree_desc" {% if request.GET.sort == 'degree_desc' %}selected{% endif %}>Alcool (Fort à Léger)</option>
+                    <option value="degree_asc" {% if request.GET.sort == 'degree_asc' %}selected{% endif %}>Alcool (Léger à Fort)</option>
+                    <option value="ibu_desc" {% if request.GET.sort == 'ibu_desc' %}selected{% endif %}>Amertume (Forte à Douce)</option>
+                    <option value="ibu_asc" {% if request.GET.sort == 'ibu_asc' %}selected{% endif %}>Amertume (Douce à Forte)</option>
+                </select>
+            </div>
+        </div>
+
+        {% if request.GET.q or request.GET.degree or request.GET.ibu or request.GET.style or request.GET.sort and request.GET.sort != 'unrated_first' %}
         <div class="mt-3">
             <a href="{% url 'all_beers' %}" class="btn btn-outline btn-error btn-sm w-full">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -109,61 +122,18 @@
         {% endif %}
     </form>
 
-    <div class="flex flex-col gap-3">
-        {% for beer in beers %}
-        <div class="card bg-white shadow-sm p-3 relative overflow-hidden hover:bg-base-200 active:scale-[0.98] transition-all">
-            <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
-            <div class="pointer-events-none flex-1 flex flex-col">
-                <h3 class="font-bold text-md leading-tight">{{ beer.name }}</h3>
-                <a class="text-xs text-gray-500 block mb-1 pointer-events-auto z-10 hover:text-primary transition-colors w-fit" href="{% url 'brewery_detail' beer.brewery_id.id %}">{{ beer.brewery_id.name }}</a>
-                <p class="text-[11px] text-gray-600 line-clamp-2 mb-2">{{ beer.description|truncatechars:80 }}</p>
-                <div class="flex gap-2 text-xs mb-3">
-                    <span class="badge badge-outline badge-neutral badge-xs">Alc. {{ beer.degree }}%</span>
-                    {% if beer.bitterness is not None %}
-                    <span class="badge badge-outline badge-neutral badge-xs">IBU {{ beer.bitterness }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% if user.is_authenticated %}
-            <div class="relative z-10 mt-auto pointer-events-auto">
-                {% if beer.id in rated_beer_ids %}
-                <button class="btn btn-xs btn-disabled w-full">Déjà noté</button>
-                {% else %}
-                <button class="btn btn-xs btn-primary btn-outline w-full" onclick="modalRate{{beer.id}}.showModal()">Noter</button>
-                {% endif %}
-            </div>
-            {% endif %}
-        </div>
-
-        <dialog id="modalRate{{beer.id}}" class="modal">
-            <div class="modal-box custom-modal-form">
-                <h3 class="font-bold text-lg mb-4">Noter : {{ beer.name }}</h3>
-                <form method="post" action="{% url 'rate_beer' beer.id %}">
-                    {% csrf_token %}
-                    <div class="form-control w-full mb-3">
-                        <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
-                        {{ rating_form.date }}
-                    </div>
-                    <div class="form-control w-full mb-3">
-                        <label class="label"><span class="label-text">{{ rating_form.note.label }}</span></label>
-                        {{ rating_form.note }}
-                    </div>
-                    <div class="form-control w-full mb-4">
-                        <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
-                        {{ rating_form.comment }}
-                    </div>
-                    <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
-                </form>
-            </div>
-            <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-        </dialog>
-        {% empty %}
-        <div class="flex flex-col items-center justify-center p-6 bg-white border border-base-200 rounded-xl shadow-sm text-center">
-            <h3 class="font-bold text-sm text-gray-800 mb-1">Aucune bière trouvée</h3>
-            <a href="{% url 'add_beer' %}" class="btn btn-primary btn-sm text-white mt-4">L'ajouter au catalogue</a>
-        </div>
-        {% endfor %}
+    <div id="search-beers-container" class="flex flex-col gap-3">
+        {% include "partials/search_beers.html" %}
     </div>
+    
+    {% if beers|length == 10 %}
+    <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
+            data-offset="10" 
+            data-container="search-beers-container" 
+            data-url="{% url 'load_more_search_beers' %}">
+        Charger plus de bières
+    </button>
+    {% endif %}
 </div>
 
 <div id="tab-membres" class="tab-panel {% if active_tab == 'membres' %}block{% else %}hidden{% endif %}">
@@ -182,55 +152,20 @@
         {% endif %}
     </form>
 
-    <div class="flex flex-col gap-4">
-        {% for u in users %}
-        <div class="card bg-white shadow-sm border border-base-200 overflow-hidden hover:border-primary/50 transition-all">
-            {% if u.latest_beers_list %}
-                {% with beer=u.latest_beers_list.0 %}
-                <div class="p-3 border-b border-base-100 hover:bg-base-200 transition-colors block active:scale-[0.99] relative overflow-hidden">
-                    <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
-                    
-                    <span class="text-[9px] text-primary font-bold uppercase tracking-widest mb-1 block relative z-10 pointer-events-none">Dernier ajout</span>
-                    <div class="flex justify-between items-start relative z-10">
-                        <div class="pointer-events-none flex flex-col">
-                            <h4 class="font-bold text-sm leading-tight">{{ beer.name }}</h4>
-                            <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-xs text-gray-500 inline-block mb-1 pointer-events-auto hover:text-primary transition-colors w-fit">
-                                {{ beer.brewery_id.name }}
-                            </a>
-                        </div>
-                        <div class="flex gap-1 pointer-events-none">
-                            {% if beer.style %}<span class="badge badge-secondary badge-outline badge-xs">{{ beer.style }}</span>{% endif %}
-                            <span class="badge badge-neutral badge-outline badge-xs">{{ beer.degree }}%</span>
-                        </div>
-                    </div>
-                </div>
-                {% endwith %}
-            {% endif %}
-
-            <a href="{% url 'public_profile' u.username %}" class="p-3 bg-base-50/50 hover:bg-base-200 transition-colors flex items-center gap-3 active:scale-[0.99]">
-                <div class="avatar">
-                    <div class="w-10 h-10 rounded-full border border-base-300 overflow-hidden shadow-inner">
-                        {% if u.socialaccount_set.all %}
-                            <img src="{{ u.socialaccount_set.first.extra_data.picture }}" class="object-cover" />
-                        {% else %}
-                            <img src="https://ui-avatars.com/api/?name={{ u.username }}&background=E5A022&color=fff&bold=true" class="object-cover" />
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <span class="text-sm font-bold">{{ u.username }}</span>
-                    <span class="text-[10px] text-gray-400">Voir le profil</span>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-            </a>
-        </div>
-        {% empty %}
-        <div class="text-center p-8 bg-white border border-base-200 rounded-xl shadow-sm text-gray-500 italic text-sm">
-            Aucun membre trouvé.
-        </div>
-        {% endfor %}
+    <div id="search-users-container" class="flex flex-col gap-4">
+        {% include "partials/search_users.html" %}
     </div>
+    
+    {% if users|length == 10 %}
+    <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
+            data-offset="10" 
+            data-container="search-users-container" 
+            data-url="{% url 'load_more_search_users' %}">
+        Charger plus de membres
+    </button>
+    {% endif %}
 </div>
 
 <script src="{% static 'script/tab_bar.js' %}"></script>
+<script src="{% static 'script/load_more_generic.js' %}"></script>
 {% endblock %}

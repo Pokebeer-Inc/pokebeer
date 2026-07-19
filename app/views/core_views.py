@@ -1,15 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.template.loader import render_to_string
+from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Count, Case, When, Value, IntegerField, Avg, Q, Max, Prefetch
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.http import JsonResponse
-from django.template.loader import render_to_string
 
 from ..forms import DrinkForm
-from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser, Brewery
-from .utils import get_excluded_users
+from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser, Notification
+from .utils import get_excluded_users, get_user_achievements, check_and_notify_achievements
 
 @ensure_csrf_cookie
 @login_required(login_url='login')
@@ -93,6 +93,143 @@ def index(request):
         "topMonth": topMonth
     }
     return render(request, "home.html", context)
+    
+def get_filtered_beers(request):
+    """Extrait la logique de filtrage des bières pour la réutiliser."""
+    beers = Beer.objects.filter(is_deleted=False).exclude(added_by__in=get_excluded_users(request.user)).select_related('brewery_id')
+
+    query = request.GET.get('q')
+    if query:
+        beers = beers.filter(Q(name__icontains=query) | Q(brewery_id__name__icontains=query))
+
+    degree_filter = request.GET.get('degree')
+    if degree_filter == 'light': beers = beers.filter(degree__lt=5)
+    elif degree_filter == 'regular': beers = beers.filter(degree__gte=5, degree__lte=8)
+    elif degree_filter == 'strong': beers = beers.filter(degree__gt=8)
+
+    ibu_filter = request.GET.get('ibu')
+    if ibu_filter == 'low': beers = beers.filter(bitterness__lt=20)
+    elif ibu_filter == 'medium': beers = beers.filter(bitterness__gte=20, bitterness__lte=50)
+    elif ibu_filter == 'high': beers = beers.filter(bitterness__gt=50)
+        
+    style_filter = request.GET.get('style')
+    if style_filter: beers = beers.filter(style__iexact=style_filter)
+
+    order_fields = []
+    
+    # Logique de Tri
+    sort_by = request.GET.get('sort', 'unrated_first')
+    
+    if sort_by == 'name_asc':
+        order_fields.append('name')
+    elif sort_by == 'name_desc':
+        order_fields.append('-name')
+    elif sort_by == 'degree_desc':
+        order_fields.extend(['-degree', 'name'])
+    elif sort_by == 'degree_asc':
+        order_fields.extend(['degree', 'name'])
+    elif sort_by == 'ibu_desc':
+        order_fields.extend(['-bitterness', 'name'])
+    elif sort_by == 'ibu_asc':
+        order_fields.extend(['bitterness', 'name'])
+    elif sort_by == 'date_asc':
+        order_fields.append('id')
+    elif sort_by == 'date_desc':
+        order_fields.append('-id')
+    else: # unrated_first (défaut)
+        if request.user.is_authenticated:
+            rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
+            if rated_beer_ids:
+                # Annotation dynamique uniquement si nécessaire
+                beers = beers.annotate(
+                    is_rated=Case(When(id__in=rated_beer_ids, then=Value(1)), default=Value(0), output_field=IntegerField())
+                )
+                order_fields.append('is_rated')
+        
+        # En second critère, on trie par les ajouts les plus récents
+        order_fields.append('-id')
+        
+    beers = beers.order_by(*order_fields)
+        
+    return beers
+
+def get_filtered_users(request):
+    """Extrait la logique de filtrage des utilisateurs pour la réutiliser."""
+    user_query = request.GET.get('uq')
+    
+    excluded_ids = get_excluded_users(request.user)
+    if request.user.is_authenticated:
+        excluded_ids.append(request.user.id)
+    
+    latest_beer_prefetch = Prefetch(
+        'added_beers',
+        queryset=Beer.objects.filter(is_deleted=False).select_related('brewery_id').order_by('-id'),
+        to_attr='latest_beers_list'
+    )
+    
+    users = BeerUser.objects.exclude(id__in=excluded_ids).prefetch_related(latest_beer_prefetch, 'socialaccount_set')
+    
+    if user_query:
+        users = users.filter(username__icontains=user_query)
+    else:
+        users = users.filter(added_beers__is_deleted=False).annotate(latest_beer_id=Max('added_beers__id')).order_by('-latest_beer_id')
+        
+    return users
+
+def get_filtered_notebook_drinks(request):
+    """Extrait la logique de filtrage des dégustations du carnet."""
+    drinks = Drinks.objects.filter(drinker_id=request.user).select_related('beer_id', 'beer_id__brewery_id')
+
+    query = request.GET.get('q')
+    if query:
+        drinks = drinks.filter(Q(beer_id__name__icontains=query) | Q(beer_id__brewery_id__name__icontains=query))
+
+    degree_filter = request.GET.get('degree')
+    if degree_filter == 'light': drinks = drinks.filter(beer_id__degree__lt=5)
+    elif degree_filter == 'regular': drinks = drinks.filter(beer_id__degree__gte=5, beer_id__degree__lte=8)
+    elif degree_filter == 'strong': drinks = drinks.filter(beer_id__degree__gt=8)
+
+    ibu_filter = request.GET.get('ibu')
+    if ibu_filter == 'low': drinks = drinks.filter(beer_id__bitterness__lt=20)
+    elif ibu_filter == 'medium': drinks = drinks.filter(beer_id__bitterness__gte=20, beer_id__bitterness__lte=50)
+    elif ibu_filter == 'high': drinks = drinks.filter(beer_id__bitterness__gt=50)
+
+    style_filter = request.GET.get('style')
+    if style_filter: 
+        drinks = drinks.filter(beer_id__style__iexact=style_filter)
+
+    rating_min = request.GET.get('rating_min')
+    if rating_min and rating_min.isdigit():
+        drinks = drinks.filter(note__gte=int(rating_min))
+        
+    rating_max = request.GET.get('rating_max')
+    if rating_max and rating_max.isdigit():
+        drinks = drinks.filter(note__lte=int(rating_max))
+
+    # Logique de Tri Fusionnée
+    sort_by = request.GET.get('sort', 'date_desc')
+    if sort_by == 'date_asc':
+        drinks = drinks.order_by('date', 'id')
+    elif sort_by == 'note_desc':
+        drinks = drinks.order_by('-note', '-date')
+    elif sort_by == 'note_asc':
+        drinks = drinks.order_by('note', '-date')
+    elif sort_by == 'name_asc':
+        drinks = drinks.order_by('beer_id__name', '-date')
+    elif sort_by == 'name_desc':
+        drinks = drinks.order_by('-beer_id__name', '-date')
+    elif sort_by == 'degree_desc':
+        drinks = drinks.order_by('-beer_id__degree', 'beer_id__name')
+    elif sort_by == 'degree_asc':
+        drinks = drinks.order_by('beer_id__degree', 'beer_id__name')
+    elif sort_by == 'ibu_desc':
+        drinks = drinks.order_by('-beer_id__bitterness', 'beer_id__name')
+    elif sort_by == 'ibu_asc':
+        drinks = drinks.order_by('beer_id__bitterness', 'beer_id__name')
+    else: # date_desc (défaut : dégustation récente)
+        drinks = drinks.order_by('-date', '-id')
+
+    return drinks
 
 @login_required(login_url='login')
 def load_more_beers(request):
@@ -120,90 +257,49 @@ def load_more_beers(request):
         'html': html, 
         'has_more': len(unrated_beers) == limit # Vrai s'il y a probablement encore une page
     })
+    
+@login_required(login_url='login')
+def load_more_search_beers(request):
+    """API pour charger les 10 bières suivantes dans la recherche."""
+    offset = int(request.GET.get('offset', 0))
+    limit = 10
+    beers = get_filtered_beers(request)[offset:offset+limit]
+    
+    if not beers:
+        return JsonResponse({'html': '', 'has_more': False})
+        
+    rating_form = DrinkForm()
+    rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
+    
+    html = render_to_string('partials/search_beers.html', {'beers': beers, 'rating_form': rating_form, 'rated_beer_ids': rated_beer_ids}, request=request)
+    return JsonResponse({'html': html, 'has_more': len(beers) == limit})
+
+@login_required(login_url='login')
+def load_more_search_users(request):
+    """API pour charger les 10 membres suivants dans la recherche."""
+    offset = int(request.GET.get('offset', 0))
+    limit = 10
+    users = get_filtered_users(request)[offset:offset+limit]
+    
+    if not users:
+        return JsonResponse({'html': '', 'has_more': False})
+        
+    html = render_to_string('partials/search_users.html', {'users': users}, request=request)
+    return JsonResponse({'html': html, 'has_more': len(users) == limit})
 
 @login_required(login_url='login')
 def all_beers_view(request):
     """Affiche toutes les bières et tous les membres avec système d'onglets."""
-    # ==========================
-    # 1. LOGIQUE ONGLET BIÈRES
-    # ==========================
-    beers = Beer.objects.filter(is_deleted=False).exclude(added_by__in=get_excluded_users(request.user)).select_related('brewery_id').all().order_by('name')
+    # On utilise nos helpers et on limite le chargement initial à 10 éléments
+    beers = get_filtered_beers(request)[:10]
+    users = get_filtered_users(request)[:10]
 
-    query = request.GET.get('q')
-    if query:
-        beers = beers.filter(
-            Q(name__icontains=query) | 
-            Q(brewery_id__name__icontains=query)
-        )
-
-    degree_filter = request.GET.get('degree')
-    if degree_filter == 'light':
-        beers = beers.filter(degree__lt=5)
-    elif degree_filter == 'regular':
-        beers = beers.filter(degree__gte=5, degree__lte=8)
-    elif degree_filter == 'strong':
-        beers = beers.filter(degree__gt=8)
-
-    ibu_filter = request.GET.get('ibu')
-    if ibu_filter == 'low':
-        beers = beers.filter(bitterness__lt=20)
-    elif ibu_filter == 'medium':
-        beers = beers.filter(bitterness__gte=20, bitterness__lte=50)
-    elif ibu_filter == 'high':
-        beers = beers.filter(bitterness__gt=50)
-        
-    #Filtre par Style
-    style_filter = request.GET.get('style')
-    if style_filter:
-        beers = beers.filter(style__iexact=style_filter)
-
-    # Récupérer tous les styles uniques (non vides) pour le menu déroulant
+    # Données pour les filtres et les formulaires
     styles = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct().order_by('style')
-
     rating_form = DrinkForm()
-    rated_beer_ids = []
-    
-    if request.user.is_authenticated:
-        rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
-        if rated_beer_ids:
-            beers = beers.annotate(
-                is_rated=Case(
-                    When(id__in=rated_beer_ids, then=Value(1)),
-                    default=Value(0),
-                    output_field=IntegerField()
-                )
-            ).order_by('is_rated', 'name')
+    rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)) if request.user.is_authenticated else []
 
-    # ==========================
-    # 2. LOGIQUE ONGLET MEMBRES
-    # ==========================
     user_query = request.GET.get('uq')
-    
-    excluded_ids = get_excluded_users(request.user)
-    if request.user.is_authenticated:
-        excluded_ids.append(request.user.id)
-    
-    # On précharge la toute dernière bière ajoutée par chaque utilisateur
-    latest_beer_prefetch = Prefetch(
-        'added_beers',
-        queryset=Beer.objects.filter(is_deleted=False).select_related('brewery_id').order_by('-id'),
-        to_attr='latest_beers_list'
-    )
-    
-    users = BeerUser.objects.exclude(id__in=excluded_ids).prefetch_related(
-        latest_beer_prefetch, 'socialaccount_set'
-    )
-    
-    if user_query:
-        # Si recherche active, on cherche le pseudo
-        users = users.filter(username__icontains=user_query)[:30]
-    else:
-        # Par défaut : Utilisateurs ayant ajouté une bière, triés par le dernier ajout
-        users = users.filter(added_beers__is_deleted=False).annotate(
-            latest_beer_id=Max('added_beers__id')
-        ).order_by('-latest_beer_id')[:30]
-
-    # Déterminer quel onglet laisser ouvert au chargement de la page
     active_tab = 'membres' if (user_query or request.GET.get('tab') == 'membres') else 'bieres'
 
     context = {
@@ -259,7 +355,28 @@ def map_view(request):
                         
                     # Seul le créateur original peut gérer qui a accès au point
                     if request.user == spot.user:
+                        old_friends = list(spot.friends.values_list('id', flat=True))
                         spot.friends.set(friend_ids)
+                        # Notifier uniquement les NOUVEAUX amis ajoutés sur ce point
+                        new_friends = [f for f in spot.friends.values_list('id', flat=True) if f not in old_friends]
+                        for f_id in new_friends:
+                            Notification.objects.create(recipient_id=f_id, sender=request.user, notif_type='spot_invite', spot=spot)
+                            
+                    # Identifier tous les utilisateurs concernés (le créateur + les amis du spot)
+                    users_to_notify = set(spot.friends.values_list('id', flat=True))
+                    users_to_notify.add(spot.user.id)
+                    
+                    # Retirer celui qui fait l'action pour ne pas s'auto-notifier
+                    users_to_notify.discard(request.user.id)
+                    
+                    # Retirer les "nouveaux" amis ajoutés lors de cette modif (ils reçoivent déjà l'invitation)
+                    if request.user == spot.user and 'new_friends' in locals():
+                        for nf_id in new_friends:
+                            users_to_notify.discard(nf_id)
+                            
+                    # Envoyer les notifications
+                    for u_id in users_to_notify:
+                        Notification.objects.create(recipient_id=u_id, sender=request.user, notif_type='spot_updated', spot=spot)
                         
                     messages.success(request, "Point modifié avec succès !")
                 else:
@@ -278,8 +395,11 @@ def map_view(request):
                     spot.drinks.set(drink_ids)
                 if friend_ids:
                     spot.friends.set(friend_ids)
+                    for f_id in spot.friends.values_list('id', flat=True):
+                        Notification.objects.create(recipient_id=f_id, sender=request.user, notif_type='spot_invite', spot=spot)
                 messages.success(request, "Point ajouté avec succès !")
                 
+        check_and_notify_achievements(request.user)
         return redirect('map')
 
     # Récupérer : Mes propres lieux + Les lieux où je suis tagué comme ami
@@ -293,3 +413,92 @@ def map_view(request):
         'followers': followers,
     }
     return render(request, 'map.html', context)
+
+@login_required(login_url='login')
+def load_more_notebook_drinks(request):
+    """API pour charger les 10 dégustations suivantes du carnet."""
+    offset = int(request.GET.get('offset', 0))
+    limit = 10
+    
+    my_drinks = get_filtered_notebook_drinks(request)[offset:offset+limit]
+    
+    if not my_drinks:
+        return JsonResponse({'html': '', 'has_more': False})
+        
+    # Génération du HTML à partir du nouveau partial
+    html = render_to_string('partials/notebook_drinks.html', {'my_drinks': my_drinks}, request=request)
+    
+    return JsonResponse({'html': html, 'has_more': len(my_drinks) == limit})
+
+@login_required(login_url='login')
+def load_more_added_beers(request):
+    """API pour charger les 10 bières proposées suivantes."""
+    offset = int(request.GET.get('offset', 0))
+    limit = 10
+    user = request.user
+    
+    my_added_beers = Beer.objects.filter(added_by=user, is_deleted=False).annotate(
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
+    ).order_by('-id')[offset:offset+limit]
+    
+    if not my_added_beers:
+        return JsonResponse({'html': '', 'has_more': False})
+        
+    html = render_to_string('partials/notebook_added_beers.html', {'my_added_beers': my_added_beers}, request=request)
+    return JsonResponse({'html': html, 'has_more': len(my_added_beers) == limit})
+
+@login_required(login_url='login')
+def load_more_notebook_feedback(request):
+    """API pour charger les 10 avis suivants sur les bières proposées."""
+    offset = int(request.GET.get('offset', 0))
+    limit = 10
+    user = request.user
+    
+    feedback_on_my_beers = Drinks.objects.filter(beer_id__added_by=user).exclude(drinker_id=user).select_related('drinker_id', 'beer_id').order_by('-date')[offset:offset+limit]
+    
+    if not feedback_on_my_beers:
+        return JsonResponse({'html': '', 'has_more': False})
+        
+    html = render_to_string('partials/notebook_feedback.html', {'feedback_on_my_beers': feedback_on_my_beers}, request=request)
+    return JsonResponse({'html': html, 'has_more': len(feedback_on_my_beers) == limit})
+
+@login_required(login_url='login')
+def notebook_view(request):
+    """Page du carnet de dégustation complet."""
+    user = request.user
+    
+    # 1. Utilisation du Helper pour le carnet filtré
+    my_drinks = get_filtered_notebook_drinks(request)[:10]
+    
+    # 2. Récupération des styles (uniquement les styles des bières que l'utilisateur a bues)
+    styles = Drinks.objects.filter(drinker_id=user).exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True).distinct().order_by('beer_id__style')
+    
+    # Récupération des ajouts et suppressions de l'utilisateur
+    my_added_beers = Beer.objects.filter(added_by=user, is_deleted=False).annotate(
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
+    ).order_by('-id')[:10]
+    
+    my_deleted_beers = Beer.objects.filter(added_by=user, is_deleted=True).annotate(
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
+    ).order_by('-id')
+    
+    # Avis des autres sur mes bières
+    feedback_on_my_beers = Drinks.objects.filter(beer_id__added_by=user).exclude(drinker_id=user).select_related('drinker_id', 'beer_id').order_by('-date')[:10]
+
+    active_tab = request.GET.get('tab', 'carnet')
+
+    context = {
+        'my_drinks': my_drinks,
+        'styles': styles,
+        'my_added_beers': my_added_beers,
+        'my_deleted_beers': my_deleted_beers,
+        'feedback_on_my_beers': feedback_on_my_beers,
+        'active_tab': active_tab,
+    }
+    return render(request, 'notebook.html', context)
+
+@login_required(login_url='login')
+def achievements_view(request):
+    """Page des trophées, hauts faits et cosmétiques."""
+    achievements = get_user_achievements(request.user)
+    return render(request, 'achievements.html', {'achievements': achievements})

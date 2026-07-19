@@ -9,6 +9,13 @@ urlpatterns = [
     path('load-more-beers/', views.load_more_beers, name='load_more_beers'),
     path('beers/', views.all_beers_view, name='all_beers'),
     path('map/', views.map_view, name='map'),
+    path('trophees/', views.achievements_view, name='achievements'),
+    path('load-more-search-beers/', views.load_more_search_beers, name='load_more_search_beers'),
+    path('load-more-search-users/', views.load_more_search_users, name='load_more_search_users'),
+    path('carnet/', views.notebook_view, name='notebook'),
+    path('load-more-notebook-drinks/', views.load_more_notebook_drinks, name='load_more_notebook_drinks'),
+    path('load-more-added-beers/', views.load_more_added_beers, name='load_more_added_beers'),
+    path('load-more-notebook-feedback/', views.load_more_notebook_feedback, name='load_more_notebook_feedback'),
 
     # ==========================================
     # Authentification & Compte Utilisateur
@@ -21,6 +28,13 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),
     path('update-top-beer/<int:slot>/', views.update_top_beer, name='update_top_beer'),
     path('swap-top-beers/', views.swap_top_beers, name='swap_top_beers'),
+    
+    # ==========================================
+    # Notifications
+    # ==========================================
+    path('notifications/', views.notifications_view, name='notifications'),
+    path('notifications/read/<int:notif_id>/', views.read_notification, name='read_notification'),
+    path('notifications/delete/<int:notif_id>/', views.delete_notification, name='delete_notification'),
 
     # ==========================================
     # Profils Publics & Social
@@ -58,6 +72,7 @@ urlpatterns = [
     path('modify-rate-beer/<int:drink_id>/', views.modify_rate_beer_view, name='modify_rate_beer'),
     path('delete-drink/<int:drink_id>/', views.delete_drink_view, name='delete_drink'),
     path('delete-spot/<int:spot_id>/', views.delete_spot_view, name='delete_spot'),
+    path('drink/<int:drink_id>/react/', views.toggle_reaction_view, name='toggle_reaction'),
 
     # ==========================================
     # API (Recherche, IA, etc.)
