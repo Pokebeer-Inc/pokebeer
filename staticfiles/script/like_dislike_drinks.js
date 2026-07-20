@@ -1,6 +1,20 @@
 let pressTimer;
 let currentDrinkId = null;
 let isPressing = false; // Permet de savoir si on est en train de maintenir l'appui
+let lastTapTime = 0;
+
+// Gère le double-tap et double-clic
+function handleDoubleTap(e, drinkId) {
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTapTime;
+    
+    // Si le temps entre 2 clics est très court (moins de 400ms)
+    if (tapLength < 400 && tapLength > 0) {
+        react(e, drinkId, true); // Force un Like
+        e.preventDefault(); // Empêche le zoom par défaut du navigateur sur mobile
+    }
+    lastTapTime = currentTime;
+}
 
 // Démarre le chronomètre au toucher/clic long
 function startPress(e, drinkId) {
@@ -94,6 +108,60 @@ function react(event, drinkId, isLike) {
                 thumbUp.classList.add('text-success'); // Colore le pouce en haut en vert
             } else if (data.current_reaction === false) {
                 thumbDown.classList.add('text-error'); // Colore le pouce en bas en rouge
+            }
+
+            // ---------------------------------------------------------
+            // LOGIQUE DE TRI DYNAMIQUE
+            // ---------------------------------------------------------
+            
+            // Mettre à jour la valeur data-score de la carte
+            const card = document.getElementById('drink-card-' + drinkId);
+            if (card) {
+                card.dataset.score = data.score;
+            }
+
+            const container = document.getElementById('reviews-container');
+            if (container) {
+                const cards = Array.from(container.querySelectorAll('.drink-card'));
+                
+                // Sauvegarder la position de chaque carte AVANT le tri
+                const firstPositions = new Map();
+                cards.forEach(c => {
+                    firstPositions.set(c.id, c.getBoundingClientRect());
+                });
+                
+                // Trier le tableau de cartes
+                cards.sort((a, b) => {
+                    const scoreA = parseInt(a.dataset.score) || 0;
+                    const scoreB = parseInt(b.dataset.score) || 0;
+                    return scoreB - scoreA; // Tri décroissant
+                });
+                
+                // Mettre à jour le DOM (les cartes "sautent" à leur nouvelle position)
+                cards.forEach(c => container.appendChild(c));
+
+                // LAST, INVERT, PLAY : Animer le déplacement
+                cards.forEach(c => {
+                    const first = firstPositions.get(c.id);
+                    const last = c.getBoundingClientRect(); // Position APRÈS le tri
+                    
+                    const deltaX = first.left - last.left;
+                    const deltaY = first.top - last.top;
+                    
+                    // Si la carte a bougé
+                    if (deltaX !== 0 || deltaY !== 0) {
+                        // INVERT : On repousse instantanément la carte à son ancienne position (sans transition)
+                        c.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                        c.style.transition = 'transform 0s';
+                        
+                        // PLAY : On force le navigateur à appliquer le style, puis on anime vers la position 0
+                        requestAnimationFrame(() => {
+                            c.offsetTop; // Force le reflow (nécessaire pour que l'animation démarre)
+                            c.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                            c.style.transform = '';
+                        });
+                    }
+                });
             }
 
         } else {

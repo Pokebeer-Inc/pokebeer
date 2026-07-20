@@ -1,6 +1,20 @@
 let pressTimer;
 let currentDrinkId = null;
 let isPressing = false; // Permet de savoir si on est en train de maintenir l'appui
+let lastTapTime = 0;
+
+// Gère le double-tap et double-clic
+function handleDoubleTap(e, drinkId) {
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTapTime;
+    
+    // Si le temps entre 2 clics est très court (moins de 400ms)
+    if (tapLength < 400 && tapLength > 0) {
+        react(e, drinkId, true); // Force un Like
+        e.preventDefault(); // Empêche le zoom par défaut du navigateur sur mobile
+    }
+    lastTapTime = currentTime;
+}
 
 // Démarre le chronomètre au toucher/clic long
 function startPress(e, drinkId) {

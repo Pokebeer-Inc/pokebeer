@@ -77,7 +77,9 @@ def beer_detail_view(request, beer_slug):
             'note': user_drink.note,
             'comment': user_drink.comment,
             'date': user_drink.date,
-            'id': user_drink.id
+            'id': user_drink.id,
+            'likes': getattr(user_drink, 'likes', 0),
+            'dislikes': getattr(user_drink, 'dislikes', 0)
         }
         rating_from = DrinkForm()
         rating_from.fields['date'].initial = user_drink.date
