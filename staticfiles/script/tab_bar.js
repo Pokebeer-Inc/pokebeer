@@ -36,3 +36,55 @@ function switchTab(clickedBtn, panelId) {
         targetPanel.classList.add('block', directionClass);
     }
 }
+
+// Logique de détection du balayage (Swipe) globale
+document.addEventListener('DOMContentLoaded', () => {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    
+    // Le script s'active intelligemment uniquement sur les pages ayant exactement 2 onglets
+    if (tabBtns.length !== 2) return;
+
+    let startX = 0, startY = 0;
+    let isDragging = false;
+
+    function handleStart(e) {
+        // Ignorer le swipe si on interagit avec des éléments spécifiques (sliders, map, etc.)
+        if (e.target.closest('input[type="range"], .carousel, #map, .leaflet-container')) return;
+        
+        startX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+        startY = e.type.includes('mouse') ? e.pageY : e.touches[0].clientY;
+        isDragging = true;
+    }
+
+    function handleEnd(e) {
+        if (!isDragging) return;
+        isDragging = false;
+
+        let endX = e.type.includes('mouse') ? e.pageX : e.changedTouches[0].clientX;
+        let endY = e.type.includes('mouse') ? e.pageY : e.changedTouches[0].clientY;
+
+        let diffX = startX - endX;
+        let diffY = startY - endY;
+
+        // Seuil strict : le mouvement horizontal doit être d'au moins 60px et supérieur au vertical
+        if (Math.abs(diffX) > 60 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+            
+            // On vérifie quel onglet est actif
+            const isFirstTabActive = tabBtns[0].classList.contains('bg-white');
+            
+            if (diffX > 0 && isFirstTabActive) {
+                // Swipe vers la Gauche -> Ouvre le panel de Droite
+                tabBtns[1].click();
+            } else if (diffX < 0 && !isFirstTabActive) {
+                // Swipe vers la Droite -> Ouvre le panel de Gauche
+                tabBtns[0].click();
+            }
+        }
+    }
+
+    // Écouteurs globaux passifs
+    document.addEventListener('touchstart', handleStart, {passive: true});
+    document.addEventListener('touchend', handleEnd);
+    document.addEventListener('mousedown', handleStart);
+    document.addEventListener('mouseup', handleEnd);
+});
