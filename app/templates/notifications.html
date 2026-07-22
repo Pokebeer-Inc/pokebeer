@@ -53,6 +53,10 @@
                     <span class="font-bold">{{ notif.sender.username }}</span> a modifié le lieu partagé : <span class="font-bold">{{ notif.spot.title }}</span>.
                 {% elif notif.notif_type == 'drink_liked' %}
                     <span class="font-bold">{{ notif.sender.username }}</span> a aimé votre avis sur la bière : <span class="font-bold">{{ notif.beer.name }}</span>.
+                {% elif notif.notif_type == 'report_updated' %}
+                    <div class="flex flex-col w-full">
+                        <span>L'équipe a mis à jour le statut de votre signalement : <span class="font-bold">{{ notif.report.get_reason_display }}</span>.</span>
+                    </div>
                 {% endif %}
             </div>
         </a>

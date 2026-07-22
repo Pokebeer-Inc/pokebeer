@@ -194,11 +194,13 @@ class Notification(models.Model):
         ('spot_updated', 'Lieu mis à jour'),
         ('beer_updated', 'Bière mise à jour'),
         ('drink_liked', 'Avis aimé'),
+        ('report_updated', 'Signalement mis à jour'),
     ]
 
     recipient = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='notifications')
     sender = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_notifications')
     notif_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    report = models.ForeignKey('Report', on_delete=models.CASCADE, null=True, blank=True)
     
     beer = models.ForeignKey('Beer', on_delete=models.CASCADE, null=True, blank=True)
     spot = models.ForeignKey('BeerSpot', on_delete=models.CASCADE, null=True, blank=True)

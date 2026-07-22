@@ -34,6 +34,8 @@ def read_notification(request, notif_id):
         return redirect('achievements')
     elif notif.notif_type in ['spot_invite', 'spot_updated']:
         return redirect('map')
+    elif notif.notif_type == 'report_updated':
+        return redirect('my_reports')
         
     return redirect('notifications')
 
