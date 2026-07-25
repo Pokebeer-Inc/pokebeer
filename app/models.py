@@ -13,6 +13,7 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=150, blank=False, unique=True)
     is_staff = models.BooleanField(default=False)
     bio = models.TextField(verbose_name="Biographie", blank=True, null=True)
+    wishlist_beers = models.ManyToManyField('Beer', blank=True, related_name='wishlisted_by', verbose_name="Wishlist")
     top_beer_1 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     top_beer_2 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     top_beer_3 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -195,6 +196,7 @@ class Notification(models.Model):
         ('beer_updated', 'Bière mise à jour'),
         ('drink_liked', 'Avis aimé'),
         ('report_updated', 'Signalement mis à jour'),
+        ('wishlist_added', 'Bière ajoutée en wishlist'),
     ]
 
     recipient = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='notifications')
@@ -249,3 +251,17 @@ class DrinkReaction(models.Model):
     class Meta:
         unique_together = ('user', 'drink') # Un utilisateur ne peut réagir qu'une seule fois par avis
         verbose_name = "Réaction"
+        
+class CustomNotebook(models.Model):
+    user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='custom_notebooks')
+    title = models.CharField(max_length=150, verbose_name="Titre du carnet")
+    description = models.TextField(blank=True, null=True, verbose_name="Description")
+    drinks = models.ManyToManyField('Drinks', blank=True, related_name='notebooks', verbose_name="Dégustations")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Carnet personnalisé"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.user.username}"

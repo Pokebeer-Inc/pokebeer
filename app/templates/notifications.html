@@ -57,6 +57,8 @@
                     <div class="flex flex-col w-full">
                         <span>L'équipe a mis à jour le statut de votre signalement : <span class="font-bold">{{ notif.report.get_reason_display }}</span>.</span>
                     </div>
+                {% elif notif.notif_type == 'wishlist_added' %}
+                    <span><span class="font-bold">{{ notif.sender.username }}</span> a ajouté votre bière <span class="font-bold">{{ notif.beer.name }}</span> à sa wishlist.</span>
                 {% endif %}
             </div>
         </a>

@@ -16,6 +16,11 @@ urlpatterns = [
     path('load-more-notebook-drinks/', views.load_more_notebook_drinks, name='load_more_notebook_drinks'),
     path('load-more-added-beers/', views.load_more_added_beers, name='load_more_added_beers'),
     path('load-more-notebook-feedback/', views.load_more_notebook_feedback, name='load_more_notebook_feedback'),
+    path('carnet/create/', views.create_custom_notebook, name='create_custom_notebook'),
+    path('carnet/all/', views.notebook_detail_view, name='notebook_all'),
+    path('carnet/<int:notebook_id>/', views.notebook_detail_view, name='notebook_detail'),
+    path('carnet/<int:notebook_id>/delete/', views.delete_custom_notebook, name='delete_custom_notebook'),
+    path('carnet/<int:notebook_id>/edit/', views.edit_custom_notebook, name='edit_custom_notebook'),
 
     # ==========================================
     # Authentification & Compte Utilisateur
@@ -59,6 +64,8 @@ urlpatterns = [
     path('add-beer/', views.add_beer_view, name='add_beer'),
     path('edit-beer/<slug:beer_slug>/', views.edit_beer_view, name='edit_beer'),
     path('delete-beer/<slug:beer_slug>/', views.delete_beer_view, name='delete_beer'),
+    path('beer/<int:beer_id>/wishlist/', views.toggle_wishlist, name='toggle_wishlist'),
+    path('carnet/wishlist/', views.wishlist_view, name='wishlist_view'),
     
     # ==========================================
     # Gestion des Brasseries
