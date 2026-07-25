@@ -4,7 +4,8 @@ from pgvector.django import CosineDistance
 from .models import Beer
 
 # Initialisation du client avec la clé définie dans settings.py
-client = genai.Client(api_key=settings.GEMINI_API_KEY)
+def _config_client():
+    return genai.Client(api_key=settings.GEMINI_API_KEY)
 
 def get_embedding(text):
     """Transforme un texte en vecteur mathématique (768 dimensions) avec Gemini."""
@@ -14,7 +15,7 @@ def get_embedding(text):
         
     try:
         # text-embedding-004 est le modèle optimal pour les vecteurs
-        response = client.models.embed_content(
+        response = _config_client.models.embed_content(
             model='gemini-embedding-001',
             contents=text
         )
@@ -68,7 +69,7 @@ Message du client : "{user_message}"
 
     try:
         # gemini-2.5-flash est parfait pour des réponses rapides et précises
-        response = client.models.generate_content(
+        response = _config_client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt
         )
