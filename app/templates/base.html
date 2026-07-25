@@ -4,13 +4,10 @@
 <html data-theme="beer">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     {% tailwind_css %}
-    <title>PokeBeer</title>
+    <title>Pokebeer</title>
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
-    <script>
-        // Cette variable ne sert à rien d'autre qu'à forcer Django à envoyer le cookie
-        var _csrf_placeholder = "{{ csrf_token }}"; 
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body class="bg-base-200 text-black font-montserrat min-h-screen pb-20"> 
@@ -35,7 +32,7 @@
     
     <div id="chat-overlay" class="fixed inset-0 bg-black/20 z-[45] hidden transition-opacity duration-300"></div>
     
-    <div id="chat-window" class="fixed bottom-36 right-4 left-4 lg:left-auto lg:right-[calc(50%-13rem)] lg:w-96 bg-base-100 rounded-2xl shadow-2xl border border-base-300 z-50 hidden flex-col overflow-hidden transition-all duration-300">
+    <div id="chat-window" data-url="{% url 'chat_api' %}" class="fixed bottom-36 right-4 left-4 lg:left-auto lg:right-[calc(50%-13rem)] lg:w-96 bg-base-100 rounded-2xl shadow-2xl border border-base-300 z-50 hidden flex-col overflow-hidden transition-all duration-300">
         <div class="bg-primary text-black p-4 flex justify-between items-center shadow-md z-10">
             <div class="font-bold flex items-center gap-2 font-castoro text-lg">Gaétan, le zythologue</div>
             <button id="chat-close" class="btn btn-ghost btn-sm btn-circle text-black hover:bg-black/10">✕</button>
