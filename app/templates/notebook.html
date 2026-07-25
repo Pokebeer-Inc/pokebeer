@@ -21,45 +21,56 @@
 <div id="tab-carnet" class="tab-panel {% if active_tab == 'carnet' or not active_tab %}block{% else %}hidden{% endif %}">
     
     {% if not has_drinks %}
-    <!-- EMPTY STATE -->
-    <div class="flex flex-col items-center justify-center p-8 bg-white border border-base-200 rounded-xl shadow-sm text-center">
-        <div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+    <!-- EMPTY STATE : Panneau d'incitation -->
+    <div class="flex flex-col items-center justify-center p-6 bg-white border border-base-200 rounded-xl shadow-sm text-center mb-4">
+        <div class="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
         </div>
-        <h3 class="font-bold text-lg text-gray-800 mb-2">Votre carnet est vide</h3>
-        <p class="text-xs text-gray-500 mb-6">Vous n'avez pas encore noté de bière. Commencez votre aventure zythologique !</p>
-        <div class="flex flex-col gap-3 w-full max-w-xs">
+        <h3 class="font-bold text-base text-gray-800 mb-1">Votre carnet de dégustation est vide</h3>
+        <p class="text-xs text-gray-500 mb-4">Vous n'avez pas encore noté de bière. Commencez votre aventure zythologique !</p>
+        <div class="flex flex-col gap-2 w-full max-w-xs">
             <a href="{% url 'add_beer' %}" class="btn btn-primary btn-sm w-full text-white">Ajouter une bière au catalogue</a>
             <a href="{% url 'all_beers' %}" class="btn btn-outline btn-primary btn-sm w-full">Parcourir les bières</a>
         </div>
     </div>
-    {% else %}
+    {% endif %}
+
     <!-- GRILLE DE TUILES -->
     <div class="grid grid-cols-2 gap-3 p-1">
         
         <!-- Tuile: Toutes les bières -->
+        {% if user_drinks_all.count > 0 %}
         <a href="{% url 'notebook_all' %}" class="card shadow-md border-2 border-primary bg-primary transition-all flex flex-col group hover:scale-[1.02] min-h-[150px]">
-            <div class="card-body p-3 flex flex-col justify-center items-center text-center relative z-10 w-full h-full text-white">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center bg-white shadow-sm shrink-0 mb-2 text-primary">
+        {% else %}
+        <div class="card shadow-sm border-2 border-base-300 bg-base-200 opacity-60 cursor-not-allowed transition-all flex flex-col min-h-[150px]">
+        {% endif %}
+            <div class="card-body p-3 flex flex-col justify-center items-center text-center relative z-10 w-full h-full {% if user_drinks_all.count > 0 %}text-white{% else %}text-gray-400{% endif %}">
+                <div class="w-12 h-12 rounded-full flex items-center justify-center {% if user_drinks_all.count > 0 %}bg-white text-primary{% else %}bg-base-300 text-gray-400{% endif %} shadow-sm shrink-0 mb-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
                 </div>
-                <h3 class="font-bold text-base leading-tight mb-0.5 w-full text-white">Toutes les bières</h3>
-                <p class="text-[10px] leading-snug text-white/90 font-medium">{{ user_drinks_all.count }} bière{{ user_drinks_all.count|pluralize }}</p>
+                <h3 class="font-bold text-base leading-tight mb-0.5 w-full">Toutes les bières</h3>
+                <p class="text-[10px] leading-snug font-medium">{{ user_drinks_all.count }} bière{{ user_drinks_all.count|pluralize }}</p>
             </div>
-        </a>
+        {% if user_drinks_all.count > 0 %}</a>{% else %}</div>{% endif %}
 
         <!-- Tuile Wishlist -->
+        {% with wishlist_count=request.user.wishlist_beers.count %}
+        {% if wishlist_count > 0 %}
         <a href="{% url 'wishlist_view' %}" class="card shadow-md border-2 border-[#CD7F32]/50 bg-gradient-to-br from-[#CD7F32] to-[#8C5722] transition-all flex flex-col group hover:scale-[1.02] min-h-[150px]">
-            <div class="card-body p-3 flex flex-col justify-center items-center text-center relative z-10 w-full h-full text-white">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center bg-white shadow-sm shrink-0 mb-2 text-[#CD7F32]">
+        {% else %}
+        <div class="card shadow-sm border-2 border-base-300 bg-base-200 opacity-60 cursor-not-allowed transition-all flex flex-col min-h-[150px]">
+        {% endif %}
+            <div class="card-body p-3 flex flex-col justify-center items-center text-center relative z-10 w-full h-full {% if wishlist_count > 0 %}text-white{% else %}text-gray-400{% endif %}">
+                <div class="w-12 h-12 rounded-full flex items-center justify-center {% if wishlist_count > 0 %}bg-white text-[#CD7F32]{% else %}bg-base-300 text-gray-400{% endif %} shadow-sm shrink-0 mb-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                     </svg>
                 </div>
-                <h3 class="font-bold text-base leading-tight mb-0.5 w-full text-white">Ma Wishlist</h3>
-                <p class="text-[10px] leading-snug text-white/90 font-medium">{{ request.user.wishlist_beers.count }} bière{{ request.user.wishlist_beers.count|pluralize }}</p>
+                <h3 class="font-bold text-base leading-tight mb-0.5 w-full">Ma Wishlist</h3>
+                <p class="text-[10px] leading-snug font-medium">{{ wishlist_count }} bière{{ wishlist_count|pluralize }}</p>
             </div>
-        </a>
+        {% if wishlist_count > 0 %}</a>{% else %}</div>{% endif %}
+        {% endwith %}
 
         <!-- Tuiles: Carnets Custom -->
         {% for notebook in custom_notebooks %}
@@ -86,7 +97,6 @@
         </button>
         {% endif %}
     </div>
-    {% endif %}
 </div>
 
 <!-- Modal de création -->
