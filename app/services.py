@@ -14,8 +14,9 @@ def get_embedding(text):
         return None
         
     try:
+        client = config_client()
         # text-embedding-004 est le modèle optimal pour les vecteurs
-        response = config_client.models.embed_content(
+        response = client.models.embed_content(
             model='gemini-embedding-001',
             contents=text
         )
@@ -68,8 +69,9 @@ Message du client : "{user_message}"
 """
 
     try:
+        client = config_client()
         # gemini-2.5-flash est parfait pour des réponses rapides et précises
-        response = config_client.models.generate_content(
+        response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt
         )
