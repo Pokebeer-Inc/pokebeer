@@ -2,6 +2,7 @@
 
 import pgvector.django.vector
 from django.db import migrations
+from pgvector.django import VectorExtension
 
 
 class Migration(migrations.Migration):
@@ -11,6 +12,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        VectorExtension(),
+        
         migrations.AlterField(
             model_name='beer',
             name='embedding',
