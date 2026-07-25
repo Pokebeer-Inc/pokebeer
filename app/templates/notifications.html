@@ -1,12 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="mb-4 relative flex justify-center items-center mt-2">
-    <a href="{% url 'account' %}" class="absolute left-0 btn btn-sm btn-circle btn-ghost">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-    </a>
-    <h2 class="text-2xl font-castoro font-bold">Mes Notifications</h2>
-</div>
+
+{% url 'account' as account_url %}
+{% include "partials/page_header.html" with title="Notifications" back_url=account_url %}
 
 <div class="flex flex-col gap-2 p-1">
     {% for notif in notifications %}
