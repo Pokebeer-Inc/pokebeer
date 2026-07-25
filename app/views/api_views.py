@@ -40,6 +40,7 @@ def analyze_beer_label(request):
     image_bytes = image_file.read()
 
     try:
+        client = config_client()
         prompt = """
             Tu es un expert zythologue de la bière. 
             1. Analyse l'image de cette étiquette pour identifier la bière.
@@ -54,7 +55,7 @@ def analyze_beer_label(request):
             - "bitterness" : L'amertume IBU en nombre entier (déduis-le si possible, sinon null).
             """
 
-        response = config_client.models.generate_content(
+        response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=[
                 prompt,
