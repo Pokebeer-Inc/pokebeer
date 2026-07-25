@@ -65,3 +65,7 @@ tzdata==2025.3
 urllib3==2.6.3
 websockets==16.0
 whitenoise==6.12.0
+pytest
+pytest-django
+pytest-cov
+factory-boy
