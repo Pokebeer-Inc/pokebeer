@@ -1,13 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="mb-4 text-center relative">
-    <a href="{% url 'beer_detail' beer.slug %}" class="absolute left-0 top-0 btn btn-sm btn-circle btn-ghost">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-    </a>
-    <h2 class="text-2xl font-castoro font-bold">Modifier la bière</h2>
-    <p class="text-xs text-gray-500">{{ beer.name }}</p>
-</div>
+
+{% url 'beer_detail' as beer_detail_url %}
+{% include "partials/page_header.html" with title="Modifier la bière" subtitle=beer.name back_url=beer_detail_url %}
 
 <div class="card-body bg-white p-4 rounded-xl border border-base-300 space-y-2">
     <form method="post" autocomplete="off" class="flex flex-col gap-3">

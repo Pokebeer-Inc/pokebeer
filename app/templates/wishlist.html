@@ -4,18 +4,8 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
 
-<div class="mb-6 relative flex flex-col items-center mt-2">
-    <a href="{% url 'notebook' %}" class="absolute left-0 top-0 btn btn-sm btn-circle btn-ghost">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-    </a>
-    <div class="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-[#CD7F32] to-[#8C5722] shadow-sm mb-2 text-white">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-        </svg>
-    </div>
-    <h2 class="text-2xl font-castoro font-bold text-center px-8">Ma Wishlist</h2>
-    <p class="text-xs text-gray-600 italic text-center mt-1 px-4">Les bières que vous souhaitez découvrir</p>
-</div>
+{% url 'notebook' as notebook_url %}
+{% include "partials/page_header.html" with title="Ma Wishlist" subtitle="Les bières que vous souhaitez découvrir" back_url=notebook_url %}
 
 <form method="get" class="mb-6">
     <div class="join w-full mb-2">
@@ -34,35 +24,7 @@
         <div class="collapse-content text-sm overflow-visible">
             <div class="flex flex-col gap-4 mt-2">
                 
-                <div>
-                    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Alcool</h4>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="degree" value="" class="radio radio-xs radio-primary" {% if not request.GET.degree %}checked{% endif %} /><span class="text-xs">Toutes</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="degree" value="light" class="radio radio-xs radio-primary" {% if request.GET.degree == 'light' %}checked{% endif %} /><span class="text-xs">Légère (<5%)</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="degree" value="regular" class="radio radio-xs radio-primary" {% if request.GET.degree == 'regular' %}checked{% endif %} /><span class="text-xs">Moyenne (5-8%)</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="degree" value="strong" class="radio radio-xs radio-primary" {% if request.GET.degree == 'strong' %}checked{% endif %} /><span class="text-xs">Forte (>8%)</span></label>
-                    </div>
-                </div>
-
-                <div>
-                    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Amertume (IBU)</h4>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="ibu" value="" class="radio radio-xs radio-secondary" {% if not request.GET.ibu %}checked{% endif %} /><span class="text-xs">Toutes</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="ibu" value="low" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'low' %}checked{% endif %} /><span class="text-xs">Douce (<20)</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="ibu" value="medium" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'medium' %}checked{% endif %} /><span class="text-xs">Modérée (20-50)</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="ibu" value="high" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'high' %}checked{% endif %} /><span class="text-xs">Forte (>50)</span></label>
-                    </div>
-                </div>
-
-                <div>
-                    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Style</h4>
-                    <select name="style" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
-                        <option value="">Tous les styles</option>
-                        {% for style_name in styles %}
-                            <option value="{{ style_name }}" {% if request.GET.style == style_name %}selected{% endif %}>{{ style_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                {% include "partials/beer_filters.html" %}
 
             </div>
             <button type="submit" class="btn btn-neutral btn-sm w-full mt-4">Appliquer les filtres</button>

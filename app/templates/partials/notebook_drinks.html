@@ -70,12 +70,7 @@
 </dialog>
 
 {% empty %}
-<div class="flex flex-col items-center justify-center p-6 bg-white border border-base-200 rounded-xl shadow-sm text-center">
-    <h3 class="font-bold text-sm text-gray-800 mb-1">Aucune dégustation trouvée</h3>
-    <p class="text-[10px] text-gray-500 mb-3">Essayez de modifier vos filtres ou ajoutez une nouvelle bière.</p>
-    <div class="flex flex-col gap-3 w-full max-w-xs">
-        <a href="{% url 'add_beer' %}" class="btn btn-primary btn-sm w-full text-white">Ajouter une bière au catalogue</a>
-        <a href="{% url 'all_beers' %}" class="btn btn-outline btn-primary btn-sm w-full">Parcourir les bières</a>
-    </div>
-</div>
+
+{% include "partials/empty_state.html" with title="Aucune dégustation trouvée" description="Essayez de modifier vos filtres ou ajoutez une nouvelle bière." show_browse=True %}
+
 {% endfor %}

@@ -1,0 +1,13 @@
+<div class="mb-4 relative flex justify-center items-center mt-2">
+    {% if back_url %}
+    <a href="{{ back_url }}" class="absolute left-0 btn btn-sm btn-circle btn-ghost">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    </a>
+    {% endif %}
+    <div class="flex flex-col items-center">
+        <h2 class="text-2xl font-castoro font-bold flex items-center gap-2">{{ title|safe }}</h2>
+        {% if subtitle %}
+            <p class="text-xs text-gray-500 mt-1 text-center px-4 italic">{{ subtitle }}</p>
+        {% endif %}
+    </div>
+</div>

@@ -26,6 +26,9 @@ function toggleWishlist(event, beerId) {
                     icon.setAttribute('fill', 'none');
                 }
             });
+
+            // On lève un drapeau dans la session pour prévenir les autres pages que les données ont changé
+            sessionStorage.setItem('db_state_changed', 'true');
         }
     })
     .catch(err => console.error("Erreur Wishlist:", err));

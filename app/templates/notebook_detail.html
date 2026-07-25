@@ -4,38 +4,33 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
 
-<div class="mb-6 relative flex flex-col items-center mt-2">
-    <a href="{% url 'notebook' %}" class="absolute left-0 top-0 btn btn-sm btn-circle btn-ghost">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-    </a>
+<div class="relative mb-6">
+    {% url 'notebook' as notebook_url %}
     
     {% if notebook %}
-    <div class="absolute right-0 top-0 dropdown dropdown-end">
-        <div tabindex="0" role="button" class="btn btn-sm btn-ghost btn-circle text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        {% include "partials/page_header.html" with title=notebook.title subtitle=notebook.description back_url=notebook_url %}
+        
+        <div class="absolute right-0 top-2 dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-sm btn-ghost btn-circle text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </div>
+            <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-lg bg-base-100 rounded-box w-40 border border-base-200">
+                <li>
+                    <a onclick="modal_edit_notebook.showModal()" class="font-semibold text-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        Modifier
+                    </a>
+                </li>
+                <li>
+                    <a onclick="modal_confirm_delete_notebook.showModal()" class="font-semibold text-error">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Supprimer
+                    </a>
+                </li>
+            </ul>
         </div>
-        <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-lg bg-base-100 rounded-box w-40 border border-base-200">
-            <li>
-                <a onclick="modal_edit_notebook.showModal()" class="font-semibold text-primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                    Modifier
-                </a>
-            </li>
-            <li>
-                <a onclick="modal_confirm_delete_notebook.showModal()" class="font-semibold text-error">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    Supprimer
-                </a>
-            </li>
-        </ul>
-    </div>
-    {% endif %}
-
-    <h2 class="text-2xl font-castoro font-bold text-center px-12">
-        {% if notebook %}{{ notebook.title }}{% else %}Toutes les bières{% endif %}
-    </h2>
-    {% if notebook and notebook.description %}
-    <p class="text-xs text-gray-600 italic text-center mt-1 px-4">{{ notebook.description }}</p>
+    {% else %}
+        {% include "partials/page_header.html" with title="Toutes les bières" back_url=notebook_url %}
     {% endif %}
 </div>
 
@@ -74,38 +69,8 @@
                     </div>
                 </div>
 
-                <!-- Filtre Alcool -->
-                <div>
-                    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Alcool</h4>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="degree" value="" class="radio radio-xs radio-primary" {% if not request.GET.degree %}checked{% endif %} /><span class="text-xs">Toutes</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="degree" value="light" class="radio radio-xs radio-primary" {% if request.GET.degree == 'light' %}checked{% endif %} /><span class="text-xs">Légère (<5%)</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="degree" value="regular" class="radio radio-xs radio-primary" {% if request.GET.degree == 'regular' %}checked{% endif %} /><span class="text-xs">Moyenne (5-8%)</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="degree" value="strong" class="radio radio-xs radio-primary" {% if request.GET.degree == 'strong' %}checked{% endif %} /><span class="text-xs">Forte (>8%)</span></label>
-                    </div>
-                </div>
-
-                <!-- Filtre IBU -->
-                <div>
-                    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Amertume (IBU)</h4>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="ibu" value="" class="radio radio-xs radio-secondary" {% if not request.GET.ibu %}checked{% endif %} /><span class="text-xs">Toutes</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="ibu" value="low" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'low' %}checked{% endif %} /><span class="text-xs">Douce (<20)</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="ibu" value="medium" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'medium' %}checked{% endif %} /><span class="text-xs">Modérée (20-50)</span></label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="ibu" value="high" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'high' %}checked{% endif %} /><span class="text-xs">Forte (>50)</span></label>
-                    </div>
-                </div>
-
-                <!-- Filtre Style -->
-                <div>
-                    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Style</h4>
-                    <select name="style" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
-                        <option value="">Tous les styles</option>
-                        {% for style_name in styles %}
-                            <option value="{{ style_name }}" {% if request.GET.style == style_name %}selected{% endif %}>{{ style_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                {% include "partials/beer_filters.html" %}
+                
             </div>
             <button type="submit" class="btn btn-neutral btn-sm w-full mt-4">Appliquer les filtres</button>
         </div>
