@@ -9,9 +9,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 
 from ..models import Beer, Brewery
-from ..services import ask_zythologue
-
-client = genai.Client(api_key=settings.GEMINI_API_KEY)
+from ..services import ask_zythologue, config_client
 
 @require_POST
 def chat_api(request):
@@ -56,7 +54,7 @@ def analyze_beer_label(request):
             - "bitterness" : L'amertume IBU en nombre entier (déduis-le si possible, sinon null).
             """
 
-        response = client.models.generate_content(
+        response = config_client.models.generate_content(
             model='gemini-2.5-flash',
             contents=[
                 prompt,
