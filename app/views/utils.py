@@ -124,32 +124,54 @@ def check_and_notify_achievements(user):
     if not user.is_authenticated: return
     achievements = get_user_achievements(user)
     
+    # Récupération de tous les états existants en 1 seule requête
+    existing_states = {state.achievement_name: state for state in UserAchievementState.objects.filter(user=user)}
+    
+    notifications_to_create = []
+    states_to_update = []
+    states_to_create = []
+    
     for ach in achievements:
-        state, created = UserAchievementState.objects.get_or_create(
-            user=user, achievement_name=ach['name']
-        )
+        state = existing_states.get(ach['name'])
+        
+        if not state:
+            # L'état n'existe pas encore
+            state = UserAchievementState(user=user, achievement_name=ach['name'], tier_level=0)
+            states_to_create.append(state)
+            existing_states[ach['name']] = state
         
         # Cas 1 : On passe à un niveau supérieur
         if ach['tier_level'] > state.tier_level and ach['tier_level'] > 0:
-            Notification.objects.create(
-                recipient=user,
-                notif_type='achievement',
-                achievement_name=ach['name'],
-                text_content=f"{ach['name']} ({ach['tier_name']})"
+            notifications_to_create.append(
+                Notification(
+                    recipient=user,
+                    notif_type='achievement',
+                    achievement_name=ach['name'],
+                    text_content=f"{ach['name']} ({ach['tier_name']})"
+                )
             )
             
         # Cas 2 : On descend de niveau
         elif ach['tier_level'] < state.tier_level:
-            # On boucle sur les niveaux perdus pour nettoyer les anciennes notifications
-            for lost_tier in range(ach['tier_level'] + 1, state.tier_level + 1):
-                Notification.objects.filter(
-                    recipient=user,
-                    notif_type='achievement',
-                    achievement_name=ach['name'],
-                    text_content=f"{ach['name']} ({TIER_NAMES[lost_tier]})"
-                ).delete()
+            # Nettoyage en 1 seule requête avec __in
+            lost_tiers = [TIER_NAMES[t] for t in range(ach['tier_level'] + 1, state.tier_level + 1)]
+            lost_texts = [f"{ach['name']} ({tier})" for tier in lost_tiers]
+            Notification.objects.filter(
+                recipient=user,
+                notif_type='achievement',
+                achievement_name=ach['name'],
+                text_content__in=lost_texts
+            ).delete()
 
-        # On met à jour l'état en base
+        # Préparer la mise à jour
         if ach['tier_level'] != state.tier_level:
             state.tier_level = ach['tier_level']
-            state.save()
+            states_to_update.append(state)
+
+    # Exécution des requêtes en base de données par lots
+    if states_to_create:
+        UserAchievementState.objects.bulk_create(states_to_create)
+    if states_to_update:
+        UserAchievementState.objects.bulk_update(states_to_update, ['tier_level'])
+    if notifications_to_create:
+        Notification.objects.bulk_create(notifications_to_create)

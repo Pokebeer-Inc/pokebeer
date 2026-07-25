@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
 from ..forms import DrinkForm
-from ..models import Beer, Drinks, BeerSpot, Notification
+from ..models import Beer, Drinks, Notification
 from .utils import check_and_notify_achievements
 
 @login_required(login_url='login')
@@ -28,8 +28,7 @@ def rate_beer_view(request, beer_id):
             notebook_ids = request.POST.getlist('notebooks')
             if notebook_ids:
                 notebooks = request.user.custom_notebooks.filter(id__in=notebook_ids)
-                for nb in notebooks:
-                    nb.drinks.add(drink)
+                drink.notebooks.add(*notebooks)
             
             # Si la biere est notée, alors il faut l'enlever de la wishlist
             if beer in request.user.wishlist_beers.all():
@@ -37,8 +36,13 @@ def rate_beer_view(request, beer_id):
             
             # Trouve tous les autres utilisateurs qui ont noté cette bière
             other_drinkers = Drinks.objects.filter(beer_id=beer).exclude(drinker_id=request.user).values_list('drinker_id', flat=True).distinct()
-            for d_id in other_drinkers:
-                Notification.objects.create(recipient_id=d_id, sender=request.user, notif_type='beer_shared', beer=beer)
+            
+            notifications = [
+                Notification(recipient_id=d_id, sender=request.user, notif_type='beer_shared', beer=beer)
+                for d_id in other_drinkers
+            ]
+            Notification.objects.bulk_create(notifications)
+            
             messages.success(request, f"Votre avis sur {beer.name} a été enregistré !")
         else:
             messages.error(request, "Erreur dans le formulaire de notation.")
@@ -59,14 +63,14 @@ def modify_rate_beer_view(request, drink_id):
             
             # Mise à jour des carnets
             notebook_ids = request.POST.getlist('notebooks')
-            # On retire d'abord la bière de TOUS les carnets de l'utilisateur
-            for nb in drink.notebooks.filter(user=request.user):
-                nb.drinks.remove(drink)
-            # On la ré-ajoute uniquement à ceux qui sont actuellement cochés
+            # Retire la dégustation de tous les carnets de l'utilisateur
+            user_notebooks = request.user.custom_notebooks.all()
+            drink.notebooks.remove(*user_notebooks)
+            
+            # Ré-ajoute aux carnets cochés 
             if notebook_ids:
-                notebooks = request.user.custom_notebooks.filter(id__in=notebook_ids)
-                for nb in notebooks:
-                    nb.drinks.add(drink)
+                notebooks_to_add = request.user.custom_notebooks.filter(id__in=notebook_ids)
+                drink.notebooks.add(*notebooks_to_add)
             
             check_and_notify_achievements(request.user)
             
@@ -87,12 +91,3 @@ def delete_drink_view(request, drink_id):
         
         messages.success(request, "Votre dégustation a bien été supprimée.")
     return redirect(request.META.get('HTTP_REFERER', 'account'))
-
-@login_required(login_url='login')
-def delete_spot_view(request, spot_id):
-    """Permet au propriétaire de supprimer son spot sur la carte."""
-    spot = get_object_or_404(BeerSpot, id=spot_id, user=request.user)
-    if request.method == 'POST':
-        spot.delete()
-        messages.success(request, "Lieu supprimé de la carte.")
-    return redirect('map')

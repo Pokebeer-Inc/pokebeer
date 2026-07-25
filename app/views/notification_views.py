@@ -5,7 +5,7 @@ from .utils import get_user_achievements
 
 @login_required(login_url='login')
 def notifications_view(request):
-    notifications = Notification.objects.filter(recipient=request.user)
+    notifications = Notification.objects.filter(recipient=request.user).select_related('sender', 'beer', 'spot')
     
     # On récupère toutes les données des trophées (incluant les styles/couleurs)
     achievements_data = get_user_achievements(request.user)
