@@ -89,9 +89,7 @@ def test_beer_save_slug_generation(mock_get_embedding, base_brewery):
     # Création d'une bière avec exactement le même nom (doit générer un slug -1)
     # Note: name est UNIQUE, donc on doit tester la logique du slug avec un nom différent
     # mais qui générerait le même base_slug (ex: "super ipa" vs "Super IPA")
-    beer2 = Beer.objects.create(name="super ipa 2", description="Test", brewery_id=base_brewery)
-    beer2.name = "Super IPA" # Force le nom pour simuler la collision de slug
-    beer2.slug = None # Force le recalcul
+    beer2 = Beer.objects.create(name="Super IPA!", description="Test", brewery_id=base_brewery)
     beer2.save()
     
     assert beer2.slug == "super-ipa-1"
