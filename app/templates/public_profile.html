@@ -341,9 +341,5 @@
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
 
-<script>
-    if (new URLSearchParams(window.location.search).has('reported')) {
-        modal_block_user.showModal();
-    }
-</script>
+<script src="{% static 'script/public_profile.js' %}"></script>
 {% endblock %}

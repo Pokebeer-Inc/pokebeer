@@ -32,11 +32,15 @@ function drop(event) {
 
     if (draggedSlot && targetSlot && draggedSlot !== targetSlot) {
         
-        fetch(window.DJANGO_URLS.swapTopBeers, {
+        const container = document.getElementById('top-beers-container');
+        const swapUrl = container.dataset.url;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(swapUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': window.CSRF_TOKEN
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({
                 from_slot: draggedSlot,

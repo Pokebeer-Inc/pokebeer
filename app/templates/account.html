@@ -126,7 +126,7 @@
 
             <div class="col-span-2 flex flex-col mt-2">
                 <h3 class="text-[10px] text-gray-500 font-bold uppercase tracking-wider text-center mb-2">Mon Top 3 personnel</h3>
-                <div class="grid grid-cols-1 gap-2">
+                <div id="top-beers-container" class="grid grid-cols-1 gap-2" data-url="{% url 'swap_top_beers' %}">
                     {% for item in top_beers_data %}
                         {% if item.beer %}
                         <div class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-primary/30 cursor-move hover:bg-base-200 transition-colors"
@@ -238,12 +238,6 @@
 </div>
 
 <script src="{% static 'script/tab_bar.js' %}"></script>
-<script>
-    window.DJANGO_URLS = {
-        swapTopBeers: "{% url 'swap_top_beers' %}"
-    };
-    window.CSRF_TOKEN = "{{ csrf_token }}";
-</script>
 <script src="{% static 'script/drag_drop.js' %}"></script>
 {% endblock %}
 

@@ -58,11 +58,14 @@ async function sendMessage() {
     
     // 3. Appel API
     try {
-        const res = await fetch('/api/chat/', {
+        const chatUrl = chatWindow.dataset.url;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+        const res = await fetch(chatUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': _csrf_placeholder
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({ message: msg })
         });
