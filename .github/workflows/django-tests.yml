@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  test:
+  tests:
     runs-on: ubuntu-latest
 
     # Configuration des services annexes (Base de données)
@@ -44,7 +44,7 @@ jobs:
     - name: Setup Node.js and Tailwind
       uses: actions/setup-node@v4
       with:
-         node-version: '20'
+         node-version: '24'
     - run: python manage.py tailwind install
     - run: python manage.py tailwind build
 
