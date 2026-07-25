@@ -25,6 +25,16 @@ def rate_beer_view(request, beer_id):
             drink.beer_id = beer
             drink.save()
             
+            notebook_ids = request.POST.getlist('notebooks')
+            if notebook_ids:
+                notebooks = request.user.custom_notebooks.filter(id__in=notebook_ids)
+                for nb in notebooks:
+                    nb.drinks.add(drink)
+            
+            # Si la biere est notée, alors il faut l'enlever de la wishlist
+            if beer in request.user.wishlist_beers.all():
+                request.user.wishlist_beers.remove(beer)
+            
             # Trouve tous les autres utilisateurs qui ont noté cette bière
             other_drinkers = Drinks.objects.filter(beer_id=beer).exclude(drinker_id=request.user).values_list('drinker_id', flat=True).distinct()
             for d_id in other_drinkers:
@@ -46,6 +56,17 @@ def modify_rate_beer_view(request, drink_id):
         form = DrinkForm(request.POST, instance=drink)
         if form.is_valid():
             form.save()
+            
+            # Mise à jour des carnets
+            notebook_ids = request.POST.getlist('notebooks')
+            # On retire d'abord la bière de TOUS les carnets de l'utilisateur
+            for nb in drink.notebooks.filter(user=request.user):
+                nb.drinks.remove(drink)
+            # On la ré-ajoute uniquement à ceux qui sont actuellement cochés
+            if notebook_ids:
+                notebooks = request.user.custom_notebooks.filter(id__in=notebook_ids)
+                for nb in notebooks:
+                    nb.drinks.add(drink)
             
             check_and_notify_achievements(request.user)
             

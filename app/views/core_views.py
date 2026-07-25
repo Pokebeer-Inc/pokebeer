@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
 from django.http import JsonResponse
 from django.contrib import messages
@@ -8,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from ..forms import DrinkForm
-from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser, Notification
+from ..models import Beer, Drinks, BeerSpot, UserFollow, BeerUser, Notification, CustomNotebook
 from .utils import get_excluded_users, get_user_achievements, check_and_notify_achievements
 
 @ensure_csrf_cookie
@@ -85,12 +86,24 @@ def index(request):
 
     unrated_beers_display = unrated_beers[:10] if unrated_beers else []
     
+    # Wishlist limitée aux bières affichées sur la page d'accueil
+    wishlist_beer_ids = []
+    if request.user.is_authenticated:
+        displayed_ids = set()
+        displayed_ids.update([b.id for b in unrated_beers_display])
+        displayed_ids.update([b.id for b in recommended_beers])
+        displayed_ids.update([b.id for b in top])
+        displayed_ids.update([b.id for b in topMonth])
+        
+        wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
+
     context = {
         "unrated_beers": unrated_beers_display,
         "recommended_beers": recommended_beers,
         "rating_form": rating_form,
         "top": top,
-        "topMonth": topMonth
+        "topMonth": topMonth,
+        "wishlist_beer_ids": wishlist_beer_ids,
     }
     return render(request, "home.html", context)
     
@@ -179,6 +192,11 @@ def get_filtered_users(request):
 def get_filtered_notebook_drinks(request):
     """Extrait la logique de filtrage des dégustations du carnet."""
     drinks = Drinks.objects.filter(drinker_id=request.user).select_related('beer_id', 'beer_id__brewery_id')
+    
+    # Filtrage par carnet personnalisé
+    notebook_id = request.GET.get('notebook_id')
+    if notebook_id and notebook_id.isdigit():
+        drinks = drinks.filter(notebooks__id=int(notebook_id))
 
     query = request.GET.get('q')
     if query:
@@ -240,38 +258,59 @@ def load_more_beers(request):
     drunk_beer_ids = Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)
     unrated_beers = Beer.objects.filter(is_deleted=False).exclude(id__in=drunk_beer_ids).select_related('brewery_id', 'added_by')[offset:offset+limit]
     
-    # S'il n'y a plus de bières à charger
     if not unrated_beers:
         return JsonResponse({'html': '', 'has_more': False})
     
     rating_form = DrinkForm()
     
-    # On génère le HTML à partir du partial
+    displayed_ids = [b.id for b in unrated_beers]
+    wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
+    
     html = render_to_string(
         'partials/unrated_beers.html', 
-        {'unrated_beers': unrated_beers, 'rating_form': rating_form}, 
+        {
+            'unrated_beers': unrated_beers, 
+            'rating_form': rating_form,
+            'wishlist_beer_ids': wishlist_beer_ids
+        }, 
         request=request
     )
     
-    return JsonResponse({
-        'html': html, 
-        'has_more': len(unrated_beers) == limit # Vrai s'il y a probablement encore une page
-    })
-    
+    return JsonResponse({'html': html, 'has_more': len(unrated_beers) == limit})
+
 @login_required(login_url='login')
 def load_more_search_beers(request):
     """API pour charger les 10 bières suivantes dans la recherche."""
     offset = int(request.GET.get('offset', 0))
     limit = 10
-    beers = get_filtered_beers(request)[offset:offset+limit]
+    base_qs = get_filtered_beers(request)
+    
+    # On filtre uniquement les bières de la wishlist si la requête vient de cette page
+    if request.GET.get('source') == 'wishlist':
+        base_qs = base_qs.filter(wishlisted_by=request.user)
+        
+    beers = base_qs[offset:offset+limit]
     
     if not beers:
         return JsonResponse({'html': '', 'has_more': False})
         
     rating_form = DrinkForm()
-    rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
     
-    html = render_to_string('partials/search_beers.html', {'beers': beers, 'rating_form': rating_form, 'rated_beer_ids': rated_beer_ids}, request=request)
+    displayed_ids = [b.id for b in beers]
+    rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user, beer_id__in=displayed_ids).values_list('beer_id', flat=True))
+    wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
+    
+    html = render_to_string(
+        'partials/search_beers.html', 
+        {
+            'beers': beers, 
+            'rating_form': rating_form, 
+            'rated_beer_ids': rated_beer_ids,
+            'wishlist_beer_ids': wishlist_beer_ids
+        }, 
+        request=request
+    )
+    
     return JsonResponse({'html': html, 'has_more': len(beers) == limit})
 
 @login_required(login_url='login')
@@ -297,7 +336,12 @@ def all_beers_view(request):
     # Données pour les filtres et les formulaires
     styles = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct().order_by('style')
     rating_form = DrinkForm()
-    rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)) if request.user.is_authenticated else []
+    rated_beer_ids = []
+    wishlist_beer_ids = []
+    if request.user.is_authenticated:
+        displayed_ids = [b.id for b in beers]
+        rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user, beer_id__in=displayed_ids).values_list('beer_id', flat=True))
+        wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
 
     user_query = request.GET.get('uq')
     active_tab = 'membres' if (user_query or request.GET.get('tab') == 'membres') else 'bieres'
@@ -306,6 +350,7 @@ def all_beers_view(request):
         'beers': beers,
         'rating_form': rating_form,
         'rated_beer_ids': rated_beer_ids,
+        'wishlist_beer_ids': wishlist_beer_ids,
         'users': users,
         'active_tab': active_tab,
         'styles': styles,
@@ -464,16 +509,16 @@ def load_more_notebook_feedback(request):
 
 @login_required(login_url='login')
 def notebook_view(request):
-    """Page du carnet de dégustation complet."""
+    """Page racine listant les tuiles des carnets (et ajouts)."""
     user = request.user
     
-    # 1. Utilisation du Helper pour le carnet filtré
-    my_drinks = get_filtered_notebook_drinks(request)[:10]
+    # Vérifie si l'utilisateur a au moins une dégustation pour l'empty state
+    user_drinks_all = Drinks.objects.filter(drinker_id=user).select_related('beer_id').order_by('-date')
+    has_drinks = user_drinks_all.exists()
     
-    # 2. Récupération des styles (uniquement les styles des bières que l'utilisateur a bues)
-    styles = Drinks.objects.filter(drinker_id=user).exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True).distinct().order_by('beer_id__style')
+    custom_notebooks = CustomNotebook.objects.filter(user=user)
     
-    # Récupération des ajouts et suppressions de l'utilisateur
+    # Récupération des ajouts et suppressions de l'utilisateur (inchangé)
     my_added_beers = Beer.objects.filter(added_by=user, is_deleted=False).annotate(
         user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
     ).order_by('-id')[:10]
@@ -488,14 +533,151 @@ def notebook_view(request):
     active_tab = request.GET.get('tab', 'carnet')
 
     context = {
-        'my_drinks': my_drinks,
-        'styles': styles,
+        'has_drinks': has_drinks,
+        'user_drinks_all': user_drinks_all,
+        'custom_notebooks': custom_notebooks,
         'my_added_beers': my_added_beers,
         'my_deleted_beers': my_deleted_beers,
         'feedback_on_my_beers': feedback_on_my_beers,
         'active_tab': active_tab,
     }
     return render(request, 'notebook.html', context)
+
+@login_required(login_url='login')
+def notebook_detail_view(request, notebook_id=None):
+    """Page d'un carnet spécifique (avec les filtres, le tri et la liste)."""
+    user = request.user
+    notebook = None
+    notebook_drink_ids = []
+    
+    if notebook_id:
+        notebook = get_object_or_404(CustomNotebook, id=notebook_id, user=user)
+        # Injection du paramètre pour get_filtered_notebook_drinks
+        request.GET = request.GET.copy()
+        request.GET['notebook_id'] = str(notebook.id)
+        # Liste des IDs des dégustations pour pré-cocher les cases
+        notebook_drink_ids = list(notebook.drinks.values_list('id', flat=True))
+        
+    my_drinks = get_filtered_notebook_drinks(request)[:10]
+    
+    # Récupérer toutes les dégustations pour le formulaire de modification
+    user_drinks_all = Drinks.objects.filter(drinker_id=user).select_related('beer_id').order_by('-date')
+    
+    if notebook:
+        styles = notebook.drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True).distinct().order_by('beer_id__style')
+    else:
+        styles = Drinks.objects.filter(drinker_id=user).exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True).distinct().order_by('beer_id__style')
+
+    context = {
+        'notebook': notebook,
+        'my_drinks': my_drinks,
+        'styles': styles,
+        'user_drinks_all': user_drinks_all,
+        'notebook_drink_ids': notebook_drink_ids,
+    }
+    return render(request, 'notebook_detail.html', context)
+
+@require_POST
+@login_required(login_url='login')
+def create_custom_notebook(request):
+    """Crée un nouveau carnet personnalisé."""
+    if request.user.custom_notebooks.count() >= 50:
+        messages.error(request, "Vous avez atteint la limite de 50 carnets.")
+        return redirect('notebook')
+        
+    title = request.POST.get('title')
+    description = request.POST.get('description')
+    drink_ids = request.POST.getlist('drinks')
+    
+    if title:
+        notebook = CustomNotebook.objects.create(user=request.user, title=title, description=description)
+        if drink_ids:
+            valid_drinks = Drinks.objects.filter(id__in=drink_ids, drinker_id=request.user)
+            notebook.drinks.set(valid_drinks)
+        messages.success(request, "Carnet créé avec succès !")
+        
+    return redirect('notebook')
+
+@require_POST
+@login_required(login_url='login')
+def delete_custom_notebook(request, notebook_id):
+    """Supprime un carnet personnalisé."""
+    notebook = get_object_or_404(CustomNotebook, id=notebook_id, user=request.user)
+    notebook.delete()
+    messages.success(request, "Le carnet a été supprimé.")
+    return redirect('notebook')
+
+@require_POST
+@login_required(login_url='login')
+def edit_custom_notebook(request, notebook_id):
+    """Modifie le titre, la description et les bières d'un carnet personnalisé."""
+    notebook = get_object_or_404(CustomNotebook, id=notebook_id, user=request.user)
+    
+    title = request.POST.get('title')
+    description = request.POST.get('description')
+    drink_ids = request.POST.getlist('drinks')
+    
+    if title:
+        notebook.title = title
+        notebook.description = description
+        notebook.save()
+        
+        valid_drinks = Drinks.objects.filter(id__in=drink_ids, drinker_id=request.user)
+        notebook.drinks.set(valid_drinks)
+        
+        messages.success(request, "Le carnet a été modifié avec succès.")
+        
+    return redirect('notebook_detail', notebook_id=notebook.id)
+
+@require_POST
+@login_required(login_url='login')
+def toggle_wishlist(request, beer_id):
+    """API pour ajouter/retirer une bière de la wishlist."""
+    beer = get_object_or_404(Beer, id=beer_id)
+    user = request.user
+    
+    if beer in user.wishlist_beers.all():
+        user.wishlist_beers.remove(beer)
+        is_in_wishlist = False
+    else:
+        user.wishlist_beers.add(beer)
+        is_in_wishlist = True
+        
+        # Notification au créateur de la bière
+        if beer.added_by and beer.added_by != user:
+            Notification.objects.create(
+                recipient=beer.added_by,
+                sender=user,
+                notif_type='wishlist_added',
+                beer=beer
+            )
+        
+    return JsonResponse({'success': True, 'is_in_wishlist': is_in_wishlist})
+
+@login_required(login_url='login')
+def wishlist_view(request):
+    """Page affichant la wishlist de l'utilisateur."""
+    # On réutilise le helper de filtrage des bières en restreignant à la wishlist
+    beers = get_filtered_beers(request).filter(wishlisted_by=request.user)[:10]
+    
+    # Récupération des styles présents UNIQUEMENT dans les bières de la wishlist
+    styles = request.user.wishlist_beers.exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct().order_by('style')
+    
+    rating_form = DrinkForm()
+    
+    # Optimisation des annotations (notes et wishlist) sur l'affichage actuel
+    displayed_ids = [b.id for b in beers]
+    rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user, beer_id__in=displayed_ids).values_list('beer_id', flat=True))
+    wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
+
+    context = {
+        'beers': beers,
+        'styles': styles,
+        'rating_form': rating_form,
+        'rated_beer_ids': rated_beer_ids,
+        'wishlist_beer_ids': wishlist_beer_ids,
+    }
+    return render(request, 'wishlist.html', context)
 
 @login_required(login_url='login')
 def achievements_view(request):

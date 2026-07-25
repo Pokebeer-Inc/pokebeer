@@ -24,6 +24,12 @@ def add_beer_view(request):
             new_drink.beer_id = new_beer
             new_drink.save()
             
+            notebook_ids = request.POST.getlist('notebooks')
+            if notebook_ids:
+                notebooks = request.user.custom_notebooks.filter(id__in=notebook_ids)
+                for nb in notebooks:
+                    nb.drinks.add(new_drink)
+            
             # Trouve tous mes abonnés
             followers = UserFollow.objects.filter(followed=request.user).values_list('follower_id', flat=True)
             for f_id in followers:
@@ -79,7 +85,8 @@ def beer_detail_view(request, beer_slug):
             'date': user_drink.date,
             'id': user_drink.id,
             'likes': getattr(user_drink, 'likes', 0),
-            'dislikes': getattr(user_drink, 'dislikes', 0)
+            'dislikes': getattr(user_drink, 'dislikes', 0),
+            'notebook_ids': list(user_drink.notebooks.values_list('id', flat=True))
         }
         rating_from = DrinkForm()
         rating_from.fields['date'].initial = user_drink.date
@@ -88,11 +95,16 @@ def beer_detail_view(request, beer_slug):
     else:
         rating_from = DrinkForm()
 
+    wishlist_beer_ids = []
+    if request.user.is_authenticated and request.user.wishlist_beers.filter(id=beer.id).exists():
+        wishlist_beer_ids.append(beer.id)
+
     context = {
         'beer': beer,
         'drinks': drinks,
         'user_rating': user_rating,
-        'rating_form': rating_from
+        'rating_form': rating_from,
+        'wishlist_beer_ids': wishlist_beer_ids,
     }
     return render(request, 'beer_page.html', context)
 
@@ -207,9 +219,13 @@ def brewery_detail_view(request, brewery_id):
     brewery = get_object_or_404(Brewery, id=brewery_id)
     beers = Beer.objects.filter(brewery_id=brewery, is_deleted=False).order_by('name')
 
+    # Limiter aux bières de cette brasserie
     rated_beer_ids = []
+    wishlist_beer_ids = []
     if request.user.is_authenticated:
-        rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True))
+        displayed_ids = [b.id for b in beers]
+        rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user, beer_id__in=displayed_ids).values_list('beer_id', flat=True))
+        wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
 
     rating_form = DrinkForm()
 
@@ -217,6 +233,7 @@ def brewery_detail_view(request, brewery_id):
         'brewery': brewery,
         'beers': beers,
         'rated_beer_ids': rated_beer_ids,
+        'wishlist_beer_ids': wishlist_beer_ids,
         'rating_form': rating_form,
     }
     return render(request, 'brewery_page.html', context)
