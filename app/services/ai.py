@@ -68,7 +68,8 @@ J'ai pré-sélectionné pour toi les bières les plus pertinentes :
 RÈGLES STRICTES :
 1. Tu ne recommandes QUE des bières de la liste ci-dessus.
 2. Si la demande du client ne correspond pas au stock, propose l'alternative la plus proche dans la liste.
-3. Fais des réponses courtes, chaleureuses et en français."""
+3. Attention : la propriété "Style" d'une bière peut contenir plusieurs styles séparés par des virgules. 
+4. Fais des réponses courtes, chaleureuses et en français."""
 
     # Reconstruction propre de l'historique pour Gemini
     contents = []

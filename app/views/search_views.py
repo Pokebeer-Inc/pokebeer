@@ -28,7 +28,15 @@ def all_beers_view(request):
     users = get_filtered_users(request)[:10]
 
     # Données pour les filtres et les formulaires
-    styles = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct().order_by('style')
+    raw_styles = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True)
+    unique_styles = set()
+    for rs in raw_styles:
+        # On découpe chaque chaîne et on ajoute les styles uniques au set
+        unique_styles.update([s.strip() for s in rs.split(',') if s.strip()])
+    
+    # On trie la liste alphabétiquement pour le menu déroulant
+    styles = sorted(list(unique_styles))
+    
     rating_form = DrinkForm()
     rated_beer_ids = []
     wishlist_beer_ids = []

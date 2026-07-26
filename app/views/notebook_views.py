@@ -1,8 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
-from django.template.loader import render_to_string
-from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Q, Max
 
@@ -66,10 +64,15 @@ def notebook_detail_view(request, notebook_id=None):
     user_drinks_all = Drinks.objects.filter(drinker_id=user).select_related('beer_id').order_by('-date')
     
     if notebook:
-        styles = notebook.drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True).distinct().order_by('beer_id__style')
+        raw_styles = notebook.drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True)
     else:
-        styles = Drinks.objects.filter(drinker_id=user).exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True).distinct().order_by('beer_id__style')
-
+        raw_styles = Drinks.objects.filter(drinker_id=user).exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True)
+    
+    unique_styles = set()
+    for rs in raw_styles:
+        unique_styles.update([s.strip() for s in rs.split(',') if s.strip()])
+    styles = sorted(list(unique_styles))
+    
     context = {
         'notebook': notebook,
         'my_drinks': my_drinks,
@@ -130,51 +133,3 @@ def edit_custom_notebook(request, notebook_id):
         messages.success(request, "Le carnet a été modifié avec succès.")
         
     return redirect('notebook_detail', notebook_id=notebook.id)
-
-@login_required(login_url='login')
-def load_more_notebook_drinks(request):
-    """API pour charger les 10 dégustations suivantes du carnet."""
-    offset = int(request.GET.get('offset', 0))
-    limit = 10
-    
-    my_drinks = get_filtered_notebook_drinks(request)[offset:offset+limit]
-    
-    if not my_drinks:
-        return JsonResponse({'html': '', 'has_more': False})
-        
-    # Génération du HTML à partir du nouveau partial
-    html = render_to_string('partials/notebook_drinks.html', {'my_drinks': my_drinks}, request=request)
-    
-    return JsonResponse({'html': html, 'has_more': len(my_drinks) == limit})
-
-@login_required(login_url='login')
-def load_more_added_beers(request):
-    """API pour charger les 10 bières proposées suivantes."""
-    offset = int(request.GET.get('offset', 0))
-    limit = 10
-    user = request.user
-    
-    my_added_beers = Beer.objects.filter(added_by=user, is_deleted=False).annotate(
-        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))
-    ).order_by('-id')[offset:offset+limit]
-    
-    if not my_added_beers:
-        return JsonResponse({'html': '', 'has_more': False})
-        
-    html = render_to_string('partials/notebook_added_beers.html', {'my_added_beers': my_added_beers}, request=request)
-    return JsonResponse({'html': html, 'has_more': len(my_added_beers) == limit})
-
-@login_required(login_url='login')
-def load_more_notebook_feedback(request):
-    """API pour charger les 10 avis suivants sur les bières proposées."""
-    offset = int(request.GET.get('offset', 0))
-    limit = 10
-    user = request.user
-    
-    feedback_on_my_beers = Drinks.objects.filter(beer_id__added_by=user).exclude(drinker_id=user).select_related('drinker_id', 'beer_id').order_by('-date')[offset:offset+limit]
-    
-    if not feedback_on_my_beers:
-        return JsonResponse({'html': '', 'has_more': False})
-        
-    html = render_to_string('partials/notebook_feedback.html', {'feedback_on_my_beers': feedback_on_my_beers}, request=request)
-    return JsonResponse({'html': html, 'has_more': len(feedback_on_my_beers) == limit})

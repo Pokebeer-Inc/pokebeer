@@ -117,6 +117,15 @@ class BeerForm(forms.ModelForm):
                     raise forms.ValidationError(f"Cette bière existe déjà sous le nom '{existing_beer.name}'")
         return name
     
+    def clean_style(self):
+        style = self.cleaned_data.get('style')
+        if style:
+            # Sépare par la virgule, enlève les espaces inutiles, et met une majuscule à chaque style
+            styles = [s.strip().capitalize() for s in style.split(',') if s.strip()]
+            # Reconstruit une belle chaîne "Style 1, Style 2"
+            return ", ".join(styles)
+        return style
+    
 class DrinkForm(forms.ModelForm):
     class Meta:
         model = Drinks

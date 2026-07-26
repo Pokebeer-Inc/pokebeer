@@ -1,0 +1,3 @@
+{% for beer in user_added_beers %}
+    {% include "partials/beer_tile.html" with beer=beer rating=beer.user_note show_empty_note=True review_count=beer.count_rating %}
+{% endfor %}

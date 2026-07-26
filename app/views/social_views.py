@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.contrib import messages
-from django.db.models import Max, Q
+from django.db.models import Max, Q, Count
 from django.contrib.auth import logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 import json
@@ -116,10 +116,12 @@ def public_profile_view(request, username):
         return redirect('index')
     
     # Requêtes de base pour cet utilisateur
+    # Ne pas prendre les 10 premieres car on a besoin de toutes les bieres pour calculer les statistiques : filtrage dans le contexte
     user_drinks = Drinks.objects.filter(drinker_id=profile_user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
     user_added_beers = Beer.objects.filter(added_by=profile_user).annotate(
-        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=profile_user))
-    ).order_by('-id')
+        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=profile_user)),
+        count_rating=Count('drinks')
+    ).order_by('-id')[:10]
     
     # Social
     followers = UserFollow.objects.filter(followed=profile_user).select_related('follower')
@@ -137,7 +139,7 @@ def public_profile_view(request, username):
             
     context = {
         'profile_user': profile_user,
-        'user_drinks': user_drinks,
+        'user_drinks': user_drinks[:10],
         'user_added_beers': user_added_beers,
         'followers': followers,
         'following': following,
@@ -350,7 +352,15 @@ def wishlist_view(request):
     beers = get_filtered_beers(request).filter(wishlisted_by=request.user)[:10]
     
     # Récupération des styles présents UNIQUEMENT dans les bières de la wishlist
-    styles = request.user.wishlist_beers.exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct().order_by('style')
+    # Récupération et séparation des styles multiples
+    raw_styles = request.user.wishlist_beers.exclude(style__isnull=True).exclude(style='').values_list('style', flat=True)
+    unique_styles = set()
+    for rs in raw_styles:
+        # On découpe chaque chaîne et on ajoute les styles uniques au set
+        unique_styles.update([s.strip() for s in rs.split(',') if s.strip()])
+    
+    # On trie la liste alphabétiquement pour le menu déroulant
+    styles = sorted(list(unique_styles))
     
     rating_form = DrinkForm()
     

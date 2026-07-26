@@ -1,0 +1,3 @@
+{% for drink in user_drinks %}
+    {% include "partials/drink_tile.html" with drink=drink is_editable=False %}
+{% endfor %}

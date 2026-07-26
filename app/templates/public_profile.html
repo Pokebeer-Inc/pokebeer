@@ -155,82 +155,46 @@
     </div>
     
     <div id="tab-carnet" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 hidden">
-        <div class="flex flex-col gap-3">
-            {% for drink in user_drinks %}
-            <div class="bg-white rounded-lg p-3 relative overflow-hidden flex items-start gap-3 shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all">
-                <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="absolute inset-0 z-0"></a>
+        <div class="flex flex-col gap-3" id="public-drinks-container">
+            {% include 'partials/public_drinks.html' %}
+            
+            {% if not user_drinks %}
+                <p class="text-xs text-gray-500 text-center py-4">Aucune dégustation enregistrée.</p>
+            {% endif %}
+        </div>
+        
+        {% if user_drinks|length == 10 %}
+        <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
+                data-offset="10" 
+                data-container="public-drinks-container" 
+                data-url="{% url 'load_more_generic' 'public_drinks' %}?username={{ profile_user.username }}">
+            Charger plus de dégustations
+        </button>
+        {% endif %}
+    </div>
+
+    <div id="tab-ajouts" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 hidden">
+        <div class="mb-4">
+            <h3 class="text-sm border-b border-primary pb-1 mb-2">Bières proposées</h3>
+            
+            <div class="flex flex-col gap-2" id="public-added-beers-container">
+                {% include 'partials/public_added_beers.html' %}
                 
-                <div class="shrink-0 flex flex-col items-center gap-1 z-10 relative">
-                    <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-sm bg-base-100 shadow-sm
-                    {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
-                    {{ drink.note }}
-                </div>
+                {% if not user_added_beers %}
+                    <p class="text-[10px] text-gray-500">Aucun ajout pour l'instant.</p>
+                {% endif %}
             </div>
             
-            <div class="flex-1 pointer-events-none">
-                <h4 class="font-bold text-sm leading-tight text-gray-900">
-                    {{ drink.beer_id.name }}
-                    {% if drink.beer_id.is_deleted %}
-                    <span class="badge badge-error badge-xs ml-1 font-normal opacity-80">Retirée du catalogue</span>
-                    {% endif %}
-                </h4>
-                <p class="text-[10px] text-gray-500 mb-1">
-                    {{ drink.date|date:"d M Y" }} 
-                    {% if drink.updated_at and drink.created_at and drink.updated_at|date:"YmdHi" != drink.created_at|date:"YmdHi" %}
-                    <span class="italic text-gray-400 font-medium">(modifié)</span>
-                    {% endif %}
-                </p>
-                {% if drink.comment %}<p class="text-[11px] text-gray-600 italic mt-1 line-clamp-2">"{{ drink.comment }}"</p>{% endif %}
-            </div>
-        </div>
-        {% empty %}
-        <p class="text-xs text-gray-500 text-center py-4">Aucune dégustation enregistrée.</p>
-        {% endfor %}
-    </div>
-</div>
-
-<div id="tab-ajouts" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 hidden">
-    <div class="mb-4">
-        <h3 class="text-sm border-b border-primary pb-1 mb-2">Bières proposées</h3>
-        <div class="flex flex-col gap-2">
-            {% for beer in user_added_beers %}
-            <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3 relative overflow-hidden">
-                
-                <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
-                
-                <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
-                    <div class="flex flex-col">
-                        <span class="font-bold text-sm leading-tight truncate">{{ beer.name }}</span>
-                        <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
-                            {{ beer.brewery_id.name }}
-                        </a>
-                    </div>
-                    
-                    <div class="flex gap-1 mt-0.5">
-                        {% if beer.style %}
-                        <span class="badge badge-secondary badge-outline badge-xs text-[9px]">{{ beer.style }}</span>
-                        {% endif %}
-                        <span class="badge badge-neutral badge-outline badge-xs text-[9px]">Alc. {{ beer.degree }}%</span>
-                    </div>
-                </div>
-                
-                <div class="shrink-0 flex items-center pointer-events-none relative z-10">
-                    {% if beer.user_note is not None %}
-                    <span class="badge badge-warning badge-sm gap-1 font-bold">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                        {{ beer.user_note }}
-                    </span>
-                    {% else %}
-                    <span class="text-[10px] text-gray-400 italic">Non notée</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% empty %}
-            <p class="text-[10px] text-gray-500">Aucun ajout pour l'instant.</p>
-            {% endfor %}
+            {% if user_added_beers|length == 10 %}
+            <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
+                    data-offset="10" 
+                    data-container="public-added-beers-container" 
+                    data-url="{% url 'load_more_generic' 'public_added_beers' %}?username={{ profile_user.username }}">
+                Charger plus de bières
+            </button>
+            {% endif %}
         </div>
     </div>
-</div>
 
 </div>
 
@@ -288,8 +252,6 @@
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
 
-<script src="{% static 'script/tab_bar.js' %}"></script>
-
 <dialog id="modal_report_user" class="modal z-[99999]">
     <div class="modal-box custom-modal-form">
         <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_report_user.close()">✕</button>
@@ -344,4 +306,7 @@
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
+
+<script src="{% static 'script/tab_bar.js' %}"></script>
+<script src="{% static 'script/load_more_generic.js' %}"></script>
 {% endblock %}

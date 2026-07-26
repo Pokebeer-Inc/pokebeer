@@ -117,7 +117,7 @@
 <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
         data-offset="10" 
         data-container="notebook-drinks-container" 
-        data-url="{% url 'load_more_notebook_drinks' %}{% if notebook %}?notebook_id={{ notebook.id }}{% endif %}">
+        data-url="{% url 'load_more_generic' 'notebook_drinks' %}{% if notebook %}?notebook_id={{ notebook.id }}{% endif %}">
     Charger plus de dégustations
 </button>
 {% endif %}

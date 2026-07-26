@@ -15,7 +15,14 @@ def get_user_statistics(user_drinks):
     )
 
     loved_drinks = stats_drinks.filter(note__gte=7)
-    pref_style = loved_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values('beer_id__style').annotate(c=Count('id')).order_by('-c').first()
+    
+    style_counts = {}
+    valid_drinks = loved_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='')
+    for drink in valid_drinks:
+        for s in [st.strip() for st in drink.beer_id.style.split(',') if st.strip()]:
+            style_counts[s] = style_counts.get(s, 0) + 1
+            
+    pref_style_name = max(style_counts, key=style_counts.get) if style_counts else "Pas encore défini"
 
     return {
         'total_drinks': stats_drinks.count(),
@@ -23,7 +30,7 @@ def get_user_statistics(user_drinks):
         'avg_note': averages['avg_note'] or 0,
         'avg_abv': averages['avg_abv'] or 0,
         'avg_ibu': averages['avg_ibu'] or 0,
-        'pref_style': pref_style['beer_id__style'] if pref_style else "Pas encore défini",
+        'pref_style': pref_style_name,
     }
 
 def get_top_beers_data(user, user_drinks, include_empty=True):
