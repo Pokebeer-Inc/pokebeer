@@ -1,0 +1,21 @@
+{% if notif.notif_type == 'follow' %}
+    <span class="font-bold">{{ notif.sender.username }}</span> s'est abonné(e) à votre compte.
+{% elif notif.notif_type == 'beer_shared' %}
+    <span class="font-bold">{{ notif.sender.username }}</span> a goûté une bière que vous avez notée : <span class="font-bold">{{ notif.beer.name }}</span>.
+{% elif notif.notif_type == 'beer_added' %}
+    <span class="font-bold">{{ notif.sender.username }}</span> a goûté une nouvelle bière : <span class="font-bold">{{ notif.beer.name }}</span>.
+{% elif notif.notif_type == 'achievement' %}
+    Nouveau badge débloqué : <span class="font-bold">{{ notif.text_content }}</span>.
+{% elif notif.notif_type == 'spot_invite' %}
+    <span class="font-bold">{{ notif.sender.username }}</span> vous a invité(e) à rejoindre un lieu : <span class="font-bold">{{ notif.spot.title }}</span>.
+{% elif notif.notif_type == 'beer_updated' %}
+    <span class="font-bold">{{ notif.sender.username }}</span> a mis à jour les infos d'une bière : <span class="font-bold">{{ notif.beer.name }}</span>.
+{% elif notif.notif_type == 'spot_updated' %}
+    <span class="font-bold">{{ notif.sender.username }}</span> a modifié le lieu : <span class="font-bold">{{ notif.spot.title }}</span>.
+{% elif notif.notif_type == 'drink_liked' %}
+    <span class="font-bold">{{ notif.sender.username }}</span> a aimé votre avis sur : <span class="font-bold">{{ notif.beer.name }}</span>.
+{% elif notif.notif_type == 'report_updated' %}
+    Statut de votre signalement (<span class="font-bold">{{ notif.report.get_reason_display }}</span>) mis à jour.
+{% elif notif.notif_type == 'wishlist_added' %}
+    <span class="font-bold">{{ notif.sender.username }}</span> a ajouté <span class="font-bold">{{ notif.beer.name }}</span>à sa wishlist.
+{% endif %}
