@@ -84,10 +84,31 @@ def modify_rate_beer_view(request, drink_id):
 def delete_drink_view(request, drink_id):
     """Permet de supprimer sa propre note."""
     drink = get_object_or_404(Drinks, id=drink_id, drinker_id=request.user)
+    
     if request.method == 'POST':
+        user = request.user
+        beer_to_remove = drink.beer_id
+        
+        # Nettoyage du Top 3 (On retire la bière si elle y figure)
+        top_updated = False
+        if user.top_beer_1 == beer_to_remove:
+            user.top_beer_1 = None
+            top_updated = True
+        if user.top_beer_2 == beer_to_remove:
+            user.top_beer_2 = None
+            top_updated = True
+        if user.top_beer_3 == beer_to_remove:
+            user.top_beer_3 = None
+            top_updated = True
+            
+        if top_updated:
+            user.save()
+
+        # Suppression de la note de dégustation
         drink.delete()
         
         check_and_notify_achievements(request.user)
         
         messages.success(request, "Votre dégustation a bien été supprimée.")
+
     return redirect(request.META.get('HTTP_REFERER', 'account'))

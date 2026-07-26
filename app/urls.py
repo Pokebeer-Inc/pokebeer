@@ -40,6 +40,7 @@ urlpatterns = [
     path('notifications/', views.notifications_view, name='notifications'),
     path('notifications/read/<int:notif_id>/', views.read_notification, name='read_notification'),
     path('notifications/delete/<int:notif_id>/', views.delete_notification, name='delete_notification'),
+    path('api/notifications/unread/', views.api_unread_notifications, name='api_unread_notifications'),
 
     # ==========================================
     # Profils Publics & Social

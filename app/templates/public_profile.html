@@ -56,8 +56,12 @@
         {% for ach in unlocked_achievements %}
         <div class="tooltip tooltip-bottom z-50" data-tip="{{ ach.name }} ({{ ach.tier_name }})">
             <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm border {{ ach.style.bg }} {{ ach.style.border }} {{ ach.style.text_title }} {{ ach.style.extra_classes }}">
+                {% if ach.tier_slug == 'bronze' %}bg-gradient-to-br from-[#CD7F32] to-[#8C5722] border-[#CD7F32]/50 text-white shine-effect
+                {% elif ach.tier_slug == 'silver' %}bg-gradient-to-br from-[#F8F8F8] to-[#C0C0C0] border-[#C0C0C0]/50 text-gray-900 shine-effect
+                {% elif ach.tier_slug == 'gold' %}bg-gradient-to-br from-[#FFF080] to-[#FFD700] border-[#FFD700]/50 text-gray-900 shine-effect
+                {% elif ach.tier_slug == 'platinum' %}bg-gradient-to-br from-[#FFFFFF] to-[#E5E4E2] border-[#E5E4E2]/50 text-gray-900 shine-effect{% endif %}">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    {{ ach.icon|safe }}
+                    {% include "partials/achievement_icon.html" with slug=ach.slug %}
                 </svg>
             </div>
         </div>
