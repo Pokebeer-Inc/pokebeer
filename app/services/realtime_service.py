@@ -2,6 +2,7 @@ import requests
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.urls import reverse
+from app.services.security import get_secure_channel_name
 
 def broadcast_notifications(notifications_list):
     """Envoie une liste de notifications via le WebSocket Supabase en 1 seule requête."""
@@ -44,7 +45,7 @@ def broadcast_notifications(notifications_list):
         }
         
         messages.append({
-            "topic": f"room_user_{notif.recipient_id}",
+            "topic": get_secure_channel_name(notif.recipient_id),
             "event": "new_notification",
             "payload": payload
         })
@@ -58,7 +59,9 @@ def broadcast_notifications(notifications_list):
     }
     
     try:
-        response = requests.post(url, json={"messages": messages}, headers=headers, timeout=2)
+        # timeout=(0.5, 1) -> 0.5s pour se connecter, 1s max pour lire.
+        # Si Supabase rame, on abandonne silencieusement pour ne pas bloquer l'utilisateur.
+        response = requests.post(url, json={"messages": messages}, headers=headers, timeout=(0.5, 1))
         
         if response.status_code >= 400:
             print(f"ERREUR SUPABASE ({response.status_code}): {response.text}")

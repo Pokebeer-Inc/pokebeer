@@ -202,16 +202,25 @@
     function initRealtimeWebSockets() {
         const supabaseUrl = document.querySelector('meta[name="supabase-url"]')?.content;
         const supabaseKey = document.querySelector('meta[name="supabase-anon-key"]')?.content;
-        const userId = document.querySelector('meta[name="user-id"]')?.content;
-
-        if (!supabaseUrl || !supabaseKey || !userId) return;
-
+        const secureChannel = document.querySelector('meta[name="ws-channel"]')?.content;
+        
+        if (!supabaseUrl || !supabaseKey || !secureChannel) return;
+        
+        // Initialisation propre du client Supabase
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        const channel = supabase.channel(`room_user_${userId}`);
 
+        // On s'abonne au canal crypté, en gardant la configuration d'accusé de réception (ack: false)
+        const channel = supabase.channel(secureChannel, {
+            config: {
+                broadcast: { ack: false }
+            }
+        });
+
+        // Ecoute des événements "broadcast"
         channel.on('broadcast', { event: 'new_notification' }, (event) => {
             const notif = event.payload;
 
+            // Affichage du toast
             showToast({
                 message: notif.message,
                 type: notif.toastType || 'info',
@@ -222,6 +231,7 @@
                 duration: 6000
             });
             
+            // Mise à jour visuelle des cloches de notification
             const indicators = document.querySelectorAll('.indicator-item');
             indicators.forEach(ind => ind.classList.remove('hidden'));
 
