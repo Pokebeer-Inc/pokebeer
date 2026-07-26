@@ -17,5 +17,5 @@
 {% elif notif.notif_type == 'report_updated' %}
     Statut de votre signalement (<span class="font-bold">{{ notif.report.get_reason_display }}</span>) mis à jour.
 {% elif notif.notif_type == 'wishlist_added' %}
-    <span class="font-bold">{{ notif.sender.username }}</span> a ajouté <span class="font-bold">{{ notif.beer.name }}</span>à sa wishlist.
+    <span class="font-bold">{{ notif.sender.username }}</span> a ajouté <span class="font-bold">{{ notif.beer.name }}</span> à sa wishlist.
 {% endif %}

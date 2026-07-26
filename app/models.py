@@ -90,7 +90,7 @@ class Beer(models.Model):
             
         text_to_embed = f"Bière {self.name} de la brasserie {self.brewery_id.name}. Style: {self.style or 'inconnu'}. Profil: {self.description}"
         
-        from .services import get_embedding 
+        from .services.ai import get_embedding 
         vector = get_embedding(text_to_embed)
         if vector:
             self.embedding = vector

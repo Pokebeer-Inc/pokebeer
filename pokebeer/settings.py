@@ -101,6 +101,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'app.context_processors.supabase_config',
             ],
         },
     },
@@ -213,6 +214,11 @@ if DEBUG:
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media').replace('\\', '/')
+
+# Config pour websocket
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY')
+SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
 
 # Configuration S3 Supabase pour les médias
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')

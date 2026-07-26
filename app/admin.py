@@ -1,5 +1,7 @@
 from django.contrib import admin
 from .models import BeerUser, Beer, Drinks, Brewery, Report
+from .models import Notification
+from .services.realtime_service import broadcast_notifications
 
 admin.site.register(BeerUser)
 admin.site.register(Beer)
@@ -27,10 +29,11 @@ class ReportAdmin(admin.ModelAdmin):
         
         # Si c'est une modification (change=True) et que le statut ou la réponse a été modifié
         if change and ('status' in form.changed_data or 'admin_response' in form.changed_data):
-            from .models import Notification
-            Notification.objects.create(
+            
+            notif = Notification.objects.create(
                 recipient=obj.reporter, # La cible est uniquement l'auteur du signalement
                 sender=None,            # C'est une notification "Système"
                 notif_type='report_updated',
                 report=obj
             )
+            broadcast_notifications([notif])

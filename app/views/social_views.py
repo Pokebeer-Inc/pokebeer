@@ -13,6 +13,7 @@ from ..forms import UserUpdateForm, DrinkForm
 from .utils import get_user_achievements, check_and_notify_achievements
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
+from ..services.realtime_service import broadcast_notifications
 
 @login_required(login_url='login')
 def account_view(request):
@@ -147,7 +148,8 @@ def follow_user(request, username):
             messages.info(request, f"Vous ne suivez plus {username}.")
         else:
             UserFollow.objects.create(follower=request.user, followed=user_to_follow) # S'abonner
-            Notification.objects.create(recipient=user_to_follow, sender=request.user, notif_type='follow')
+            notif = Notification.objects.create(recipient=user_to_follow, sender=request.user, notif_type='follow')
+            broadcast_notifications([notif])
             messages.success(request, f"Vous suivez maintenant {username} !")
             
     check_and_notify_achievements(request.user)
@@ -197,21 +199,23 @@ def toggle_reaction_view(request, drink_id):
                 reaction.save() # Changement d'avis (ex: passe de Like à Dislike)
                 
                 if is_like:
-                    Notification.objects.create(
+                    notif = Notification.objects.create(
                         recipient=drink.drinker_id, 
                         sender=request.user, 
                         notif_type='drink_liked', 
                         beer=drink.beer_id
                     )
+                    broadcast_notifications([notif])
         else:
             # Notification si c'est une nouvelle réaction et que c'est un Like
             if is_like:
-                Notification.objects.create(
+                notif = Notification.objects.create(
                     recipient=drink.drinker_id, 
                     sender=request.user, 
                     notif_type='drink_liked', 
                     beer=drink.beer_id
                 )
+                broadcast_notifications([notif])
         
         # Vérification du trophée César
         check_and_notify_achievements(request.user)
@@ -317,12 +321,13 @@ def toggle_wishlist(request, beer_id):
         
         # Notification au créateur de la bière
         if beer.added_by and beer.added_by != user:
-            Notification.objects.create(
+            notif = Notification.objects.create(
                 recipient=beer.added_by,
                 sender=user,
                 notif_type='wishlist_added',
                 beer=beer
             )
+            broadcast_notifications([notif])
         
     return JsonResponse({'success': True, 'is_in_wishlist': is_in_wishlist})
 

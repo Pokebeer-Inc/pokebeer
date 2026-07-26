@@ -161,52 +161,77 @@
         // Check for unread user notifications periodically if notification polling enabled
         const notifMeta = document.querySelector('meta[name="user-authenticated"]');
         if (notifMeta && notifMeta.content === 'true') {
-            initNotificationPolling();
+            fetchMissedNotifications(); // Rattrape les notifs manquées à cause du rechargement
+            initRealtimeWebSockets();   // Écoute le direct
         }
     });
 
     let seenNotificationIds = new Set(JSON.parse(sessionStorage.getItem('toast_seen_notifs') || '[]'));
 
-    function initNotificationPolling() {
-        const poll = () => {
-            fetch('/api/notifications/unread/', {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-                .then(res => res.ok ? res.json() : null)
-                .then(data => {
-                    if (!data || !data.notifications) return;
-                    let hasNew = false;
-                    data.notifications.forEach(notif => {
-                        if (!seenNotificationIds.has(notif.id)) {
-                            seenNotificationIds.add(notif.id);
-                            hasNew = true;
-                            showToast({
-                                message: notif.message,
-                                type: notif.toastType || 'info',
-                                tierSlug: notif.tier_slug,
-                                icon: notif.icon,
-                                url: notif.read_url,
-                                isHtml: true,
-                                duration: 6000
-                            });
-                        }
+    // Fonction pour récupérer les ratés au chargement
+    function fetchMissedNotifications() {
+        fetch('/api/notifications/unread/', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+            if (!data || !data.notifications) return;
+            let hasNew = false;
+            data.notifications.forEach(notif => {
+                if (!seenNotificationIds.has(notif.id)) {
+                    seenNotificationIds.add(notif.id);
+                    hasNew = true;
+                    showToast({
+                        message: notif.message,
+                        type: notif.toastType || 'info',
+                        tierSlug: notif.tier_slug,
+                        icon: notif.icon,
+                        url: notif.read_url,
+                        isHtml: true,
+                        duration: 6000
                     });
-                    // Si on a affiché de nouveaux toasts, on sauvegarde la liste dans la session
-                    if (hasNew) {
-                        sessionStorage.setItem('toast_seen_notifs', JSON.stringify([...seenNotificationIds]));
-                    }
-                })
-                .catch(() => { });
-        };
-
-        // On vérifie une seule fois au premier chargement (après 1.5s pour laisser la page s'afficher)
-        setTimeout(poll, 1500);
-
-        // On vérifie uniquement quand l'utilisateur revient activement sur l'onglet
-        document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === 'visible') {
-                poll();
+                }
+            });
+            if (hasNew) {
+                sessionStorage.setItem('toast_seen_notifs', JSON.stringify([...seenNotificationIds]));
             }
-        });
+        }).catch(() => {});
+    }
+
+    // Fonction WebSocket pour le temps réel pur
+    function initRealtimeWebSockets() {
+        const supabaseUrl = document.querySelector('meta[name="supabase-url"]')?.content;
+        const supabaseKey = document.querySelector('meta[name="supabase-anon-key"]')?.content;
+        const userId = document.querySelector('meta[name="user-id"]')?.content;
+
+        if (!supabaseUrl || !supabaseKey || !userId) return;
+
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const channel = supabase.channel(`room_user_${userId}`);
+
+        channel.on('broadcast', { event: 'new_notification' }, (event) => {
+            const notif = event.payload;
+
+            showToast({
+                message: notif.message,
+                type: notif.toastType || 'info',
+                tierSlug: notif.tier_slug,
+                icon: notif.icon,
+                url: notif.read_url,
+                isHtml: true,
+                duration: 6000
+            });
+            
+            const indicators = document.querySelectorAll('.indicator-item');
+            indicators.forEach(ind => ind.classList.remove('hidden'));
+
+            // Si la page recharge à cause d'une soumission de formulaire, ce timer est détruit.
+            // La notification ne sera donc pas marquée comme "vue" et apparaîtra sur la page suivante !
+            setTimeout(() => {
+                seenNotificationIds.add(notif.id);
+                sessionStorage.setItem('toast_seen_notifs', JSON.stringify([...seenNotificationIds]));
+            }, 2500);
+
+        }).subscribe();
     }
 })();

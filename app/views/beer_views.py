@@ -5,7 +5,8 @@ from django.db.models import Count, Q, F
 
 from ..forms import BeerForm, DrinkForm
 from ..models import Beer, Drinks, Brewery, Notification, UserFollow, DrinkReaction
-from .utils import get_excluded_users
+from .utils import get_excluded_users, check_and_notify_achievements
+from ..services.realtime_service import broadcast_notifications
 
 @login_required(login_url='login')
 def add_beer_view(request):
@@ -34,9 +35,9 @@ def add_beer_view(request):
                 Notification(recipient_id=f_id, sender=request.user, notif_type='beer_added', beer=new_beer)
                 for f_id in followers
             ]
-            Notification.objects.bulk_create(notifications)
+            created_notifs = Notification.objects.bulk_create(notifications)
+            broadcast_notifications(created_notifs)
             
-            from .utils import check_and_notify_achievements
             check_and_notify_achievements(request.user)
             
             messages.success(request, f"Bière ajoutée et notée ! Merci {request.user.username}.")
@@ -124,7 +125,8 @@ def edit_beer_view(request, beer_slug):
                 Notification(recipient_id=d_id, sender=request.user, notif_type='beer_updated', beer=beer)
                 for d_id in drinkers
             ]
-            Notification.objects.bulk_create(notifications)
+            created_notifs = Notification.objects.bulk_create(notifications)
+            broadcast_notifications(created_notifs)
                 
             messages.success(request, "Les informations de la bière ont été mises à jour.")
             return redirect('beer_detail', beer_slug=beer.slug)

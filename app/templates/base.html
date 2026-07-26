@@ -10,8 +10,16 @@
     <title>Pokebeer</title>
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-base-200 text-black font-montserrat min-h-screen pb-20"> 
+<body class="bg-base-200 text-black font-montserrat min-h-screen pb-20">
+
+    <meta name="supabase-url" content="{{ SUPABASE_URL }}">
+    <meta name="supabase-anon-key" content="{{ SUPABASE_ANON_KEY }}">
+    {% if user.is_authenticated %}
+        <meta name="user-id" content="{{ user.id }}">
+    {% endif %}
+    
     <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4 flex flex-col gap-2 pointer-events-none transition-all duration-300"></div>
     
     {% if messages %}
