@@ -92,6 +92,7 @@
     <!-- Onglets -->
     <div class="flex bg-base-200 p-1 rounded-full gap-1 text-[11px] font-bold text-center">
         <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all bg-white text-gray-900 shadow-sm focus:outline-none" onclick="switchTab(this, 'tab-stats')">Stats</button>
+        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-feedback')">Feedback</button>
         <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-infos')">Infos</button>
     </div>
 
@@ -180,6 +181,27 @@
             
         </div>
     </div>
+</div>
+
+<div id="tab-feedback" class="tab-panel bg-white border-base-300 rounded-box p-3 mt-2 hidden">
+    <div class="flex flex-col items-center text-center mb-4 mt-2">
+        <div class="bg-primary/20 p-3 rounded-full text-primary mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+        </div>
+        <h3 class="text-sm font-bold">Un mot pour l'équipe ?</h3>
+        <p class="text-[11px] text-gray-500 mt-1">Une suggestion d'amélioration, un bug ou juste un mot doux ? Nous lisons tout avec attention.</p>
+    </div>
+
+    <form method="post" class="flex flex-col gap-2 [&_input]:font-normal [&_textarea]:font-normal">
+        {% csrf_token %}
+        {% for field in feedback_form %}
+            <div class="form-control w-full">
+                <label class="label py-0 hidden"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
+                {{ field }} 
+            </div>
+        {% endfor %}
+        <button type="submit" name="btn_feedback" class="btn btn-primary btn-sm mt-1">Envoyer le message</button>
+    </form>
 </div>
 
 <div id="tab-infos" class="tab-panel bg-white border-base-300 rounded-box p-3 mt-2 hidden">

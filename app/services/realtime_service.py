@@ -21,7 +21,7 @@ def broadcast_notifications(notifications_list):
         
         if notif.notif_type == 'report_updated': 
             toast_type = 'warning'
-        elif notif.notif_type in ['beer_added', 'spot_invite']: 
+        elif notif.notif_type in ['beer_added', 'spot_invite', 'feedback_replied']: 
             toast_type = 'success'
         elif notif.notif_type == 'achievement':
             if user_achievements is None:

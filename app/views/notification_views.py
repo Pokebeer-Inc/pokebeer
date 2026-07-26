@@ -41,7 +41,7 @@ def api_unread_notifications(request):
             icon_html = render_to_string('partials/achievement_icon.html', {'slug': ach_data['slug']}, request=request).strip()
         elif notif.notif_type == 'report_updated':
             toast_type = 'warning'
-        elif notif.notif_type in ['beer_added', 'spot_invite']:
+        elif notif.notif_type in ['beer_added', 'spot_invite', 'feedback_replied']:
             toast_type = 'success'
             
         data.append({
@@ -74,6 +74,8 @@ def read_notification(request, notif_id):
         return redirect('map')
     elif notif.notif_type == 'report_updated':
         return redirect('my_reports')
+    elif notif.notif_type == 'feedback_replied':
+        return redirect('account')
         
     return redirect('notifications')
 

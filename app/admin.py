@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import BeerUser, Beer, Drinks, Brewery, Report
-from .models import Notification
+from .models import Notification, Feedback
 from .services.realtime_service import broadcast_notifications
 
 admin.site.register(BeerUser)
@@ -35,5 +35,30 @@ class ReportAdmin(admin.ModelAdmin):
                 sender=None,            # C'est une notification "Système"
                 notif_type='report_updated',
                 report=obj
+            )
+            broadcast_notifications([notif])
+
+@admin.register(Feedback)
+class FeedbackAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('user__username', 'message', 'admin_reply')
+    # L'admin ne peut pas modifier le message original de l'utilisateur
+    readonly_fields = ('user', 'message', 'created_at')
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        
+        # Si on est en modification, que la réponse admin a été modifiée et n'est pas vide
+        if change and 'admin_reply' in form.changed_data and obj.admin_reply:
+            obj.status = 'replied' # On passe le statut en "Répondu"
+            obj.save()
+            
+            # On génère la notification et on l'envoie via WebSockets
+            notif = Notification.objects.create(
+                recipient=obj.user,
+                sender=None, 
+                notif_type='feedback_replied',
+                feedback=obj
             )
             broadcast_notifications([notif])
