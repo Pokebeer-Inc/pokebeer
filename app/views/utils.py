@@ -1,5 +1,6 @@
 from django.db.models import Max
-from ..models import UserBlock, Beer, Drinks, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction
+
+from ..models import Beer, Drinks, UserBlock, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction
 from ..services.realtime_service import broadcast_notifications
 
 TIER_NAMES = ["Bloqué", "Bronze", "Argent", "Or", "Platine"]
@@ -133,4 +134,3 @@ def check_and_notify_achievements(user):
         
         # On pousse les trophées dans le WebSocket
         broadcast_notifications(created_notifs)
-        

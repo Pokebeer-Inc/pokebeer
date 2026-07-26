@@ -149,7 +149,7 @@
         <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
                 data-offset="10" 
                 data-container="notebook-added-beers-container" 
-                data-url="{% url 'load_more_added_beers' %}"
+                data-url="{% url 'load_more_generic' 'added_beers' %}"
                 data-autoscroll="false">
             Charger plus de bières proposées
         </button>
@@ -169,7 +169,7 @@
         <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
                 data-offset="10" 
                 data-container="notebook-feedback-container" 
-                data-url="{% url 'load_more_notebook_feedback' %}"
+                data-url="{% url 'load_more_generic' 'notebook_feedback' %}"
                 data-autoscroll="false">
             Charger plus d'avis
         </button>

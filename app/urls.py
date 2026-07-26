@@ -6,16 +6,10 @@ urlpatterns = [
     # Pages Principales & Navigation
     # ==========================================
     path("", views.index, name="index"),
-    path('load-more-beers/', views.load_more_beers, name='load_more_beers'),
     path('beers/', views.all_beers_view, name='all_beers'),
     path('map/', views.map_view, name='map'),
     path('trophees/', views.achievements_view, name='achievements'),
-    path('load-more-search-beers/', views.load_more_search_beers, name='load_more_search_beers'),
-    path('load-more-search-users/', views.load_more_search_users, name='load_more_search_users'),
     path('carnet/', views.notebook_view, name='notebook'),
-    path('load-more-notebook-drinks/', views.load_more_notebook_drinks, name='load_more_notebook_drinks'),
-    path('load-more-added-beers/', views.load_more_added_beers, name='load_more_added_beers'),
-    path('load-more-notebook-feedback/', views.load_more_notebook_feedback, name='load_more_notebook_feedback'),
     path('carnet/create/', views.create_custom_notebook, name='create_custom_notebook'),
     path('carnet/all/', views.notebook_detail_view, name='notebook_all'),
     path('carnet/<int:notebook_id>/', views.notebook_detail_view, name='notebook_detail'),
@@ -89,4 +83,5 @@ urlpatterns = [
     path('api/search-brewery/', views.search_brewery, name='search_brewery'),
     path('api/search-beer/', views.search_beer, name='search_beer'),
     path('api/notifications/unread/', views.api_unread_notifications, name='api_unread_notifications'),
+    path('api/load-more/<str:item_type>/', views.load_more_generic, name='load_more_generic'),
 ]

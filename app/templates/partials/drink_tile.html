@@ -1,0 +1,38 @@
+<div class="bg-white rounded-lg p-3 relative overflow-hidden flex items-start gap-3 shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all">
+    <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="absolute inset-0 z-0"></a>
+    
+    {% if is_editable %}
+    <!-- Mode modifiable (Mon propre carnet) -->
+    <button onclick="modalEditDrink{{drink.id}}.showModal()" class="shrink-0 flex flex-col items-center gap-1 hover:scale-110 transition-transform z-10 relative">
+        <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-sm bg-base-100 shadow-sm
+        {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
+            {{ drink.note }}
+        </div>
+        <span class="text-[9px] text-primary uppercase font-bold underline"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline-block mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>Modifier</span>
+    </button>
+    {% else %}
+    <!-- Mode lecture seule (Profil public) -->
+    <div class="shrink-0 flex flex-col items-center gap-1 z-10 relative">
+        <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-sm bg-base-100 shadow-sm
+        {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
+            {{ drink.note }}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="flex-1 pointer-events-none">
+        <h4 class="font-bold text-sm leading-tight text-gray-900">
+            {{ drink.beer_id.name }}
+            {% if drink.beer_id.is_deleted %}
+            <span class="badge badge-error badge-xs ml-1 font-normal opacity-80">Retirée du catalogue</span>
+            {% endif %}
+        </h4>
+        <p class="text-[10px] text-gray-500 mb-1">
+            {{ drink.date|date:"d M Y" }} 
+            {% if drink.updated_at and drink.created_at and drink.updated_at|date:"YmdHi" != drink.created_at|date:"YmdHi" %}
+            <span class="italic text-gray-400 font-medium">(modifié)</span>
+            {% endif %}
+        </p>
+        {% if drink.comment %}<p class="text-[11px] text-gray-600 italic mt-1 line-clamp-2">"{{ drink.comment }}"</p>{% endif %}
+    </div>
+</div>

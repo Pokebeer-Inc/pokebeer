@@ -1,13 +1,5 @@
----
-title: Pokebeer
-emoji: 🍻
-colorFrom: red
-colorTo: yellow
-sdk: docker
-sdk_version: 4.19.2
-app_port: 7860
-pinned: false
----
+# Pokebeer
 
-# pokebeer
-Rate your beer and get suggestions from Gaétan
+Explorez, dégustez et notez des bières ! Soyez conseillé par Gaétan, notre zythologue IA
+
+Télécharger l'application ici : [Google Play](https://play.google.com/store/apps/details?id=com.scarone.pokebeer)

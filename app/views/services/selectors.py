@@ -22,7 +22,7 @@ def get_filtered_beers(request):
     elif ibu_filter == 'high': beers = beers.filter(bitterness__gt=50)
         
     style_filter = request.GET.get('style')
-    if style_filter: beers = beers.filter(style__iexact=style_filter)
+    if style_filter: beers = beers.filter(style__icontains=style_filter)
 
     order_fields = []
     
@@ -110,7 +110,7 @@ def get_filtered_notebook_drinks(request):
 
     style_filter = request.GET.get('style')
     if style_filter: 
-        drinks = drinks.filter(beer_id__style__iexact=style_filter)
+        drinks = drinks.filter(beer_id__style__icontains=style_filter)
 
     rating_min = request.GET.get('rating_min')
     if rating_min and rating_min.isdigit():
