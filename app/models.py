@@ -139,6 +139,25 @@ class BeerSpot(models.Model):
     def __str__(self):
         return f"{self.title} - {self.user.username}"
     
+class Feedback(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'En attente'),
+        ('replied', 'Répondu'),
+    ]
+    
+    user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='feedbacks', verbose_name="Utilisateur")
+    message = models.TextField(verbose_name="Message / Suggestion")
+    admin_reply = models.TextField(blank=True, null=True, verbose_name="Réponse de l'équipe")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Statut")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date")
+
+    class Meta:
+        verbose_name = "Feedback / Suggestion"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Feedback de {self.user.username} ({self.get_status_display()})"
+    
 class Report(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Envoyé'),
@@ -197,12 +216,14 @@ class Notification(models.Model):
         ('drink_liked', 'Avis aimé'),
         ('report_updated', 'Signalement mis à jour'),
         ('wishlist_added', 'Bière ajoutée en wishlist'),
+        ('feedback_replied', 'Réponse à votre feedback'),
     ]
 
     recipient = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='notifications')
     sender = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_notifications')
     notif_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
     report = models.ForeignKey('Report', on_delete=models.CASCADE, null=True, blank=True)
+    feedback = models.ForeignKey('Feedback', on_delete=models.CASCADE, null=True, blank=True)
     
     beer = models.ForeignKey('Beer', on_delete=models.CASCADE, null=True, blank=True)
     spot = models.ForeignKey('BeerSpot', on_delete=models.CASCADE, null=True, blank=True)

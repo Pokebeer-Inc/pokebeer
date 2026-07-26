@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from .models import BeerUser, Beer, Brewery, Drinks
+from .models import BeerUser, Beer, Brewery, Drinks, Feedback
 from django.utils.text import slugify
 
 class UserRegisterForm(UserCreationForm):
@@ -139,4 +139,23 @@ class DrinkForm(forms.ModelForm):
             field.widget.attrs.update({
                 'class': 'form-control',
                 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;'
+            })
+            
+class FeedbackForm(forms.ModelForm):
+    class Meta:
+        model = Feedback
+        fields = ['message']
+        labels = {
+            'message': "Votre suggestion, remarque ou bug"
+        }
+        widgets = {
+            'message': forms.Textarea(attrs={'rows': 4})
+        }
+
+    def __init__(self, *args, **kwargs):
+        super(FeedbackForm, self).__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({
+                'class': 'form-control',
+                'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;'
             })

@@ -9,7 +9,7 @@ from django.contrib.auth.forms import PasswordChangeForm
 import json
 
 from ..models import BeerUser, UserFollow, Beer, Drinks, UserBlock, Notification, DrinkReaction
-from ..forms import UserUpdateForm, DrinkForm
+from ..forms import UserUpdateForm, DrinkForm, FeedbackForm
 from .utils import get_user_achievements, check_and_notify_achievements
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
@@ -21,6 +21,7 @@ def account_view(request):
     user = request.user
     profile_form = UserUpdateForm(instance=user)
     password_form = PasswordChangeForm(user=user)
+    feedback_form = FeedbackForm()
     
     if request.method == 'POST':
         if 'btn_profile' in request.POST:
@@ -42,6 +43,16 @@ def account_view(request):
                 return redirect('account')
             else:
                 messages.error(request, "Erreur dans le changement de mot de passe.")
+                
+        # Gestion du feedback
+        if 'btn_feedback' in request.POST:
+            feedback_form = FeedbackForm(request.POST)
+            if feedback_form.is_valid():
+                feedback = feedback_form.save(commit=False)
+                feedback.user = user
+                feedback.save()
+                messages.success(request, "Merci ! Votre message a bien été envoyé à l'équipe.")
+                return redirect('account')
 
     # 2. Requêtes de base
     my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
@@ -61,6 +72,7 @@ def account_view(request):
     context = {
         'profile_form': profile_form,
         'password_form': password_form,
+        'feedback_form': feedback_form,
         'my_drinks': my_drinks,
         'followers': followers,
         'following': following,
