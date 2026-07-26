@@ -17,7 +17,7 @@
     <meta name="supabase-url" content="{{ SUPABASE_URL }}">
     <meta name="supabase-anon-key" content="{{ SUPABASE_ANON_KEY }}">
     {% if user.is_authenticated %}
-        <meta name="user-id" content="{{ user.id }}">
+        <meta name="ws-channel" content="{{ WS_CHANNEL_NAME }}">
     {% endif %}
     
     <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4 flex flex-col gap-2 pointer-events-none transition-all duration-300"></div>
