@@ -5,6 +5,7 @@ from django.contrib import messages
 from ..forms import DrinkForm
 from ..models import Beer, Drinks, Notification
 from .utils import check_and_notify_achievements
+from ..services.realtime_service import broadcast_notifications
 
 @login_required(login_url='login')
 def rate_beer_view(request, beer_id):
@@ -41,7 +42,8 @@ def rate_beer_view(request, beer_id):
                 Notification(recipient_id=d_id, sender=request.user, notif_type='beer_shared', beer=beer)
                 for d_id in other_drinkers
             ]
-            Notification.objects.bulk_create(notifications)
+            created_notifs = Notification.objects.bulk_create(notifications)
+            broadcast_notifications(created_notifs)
             
             messages.success(request, f"Votre avis sur {beer.name} a été enregistré !")
         else:

@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from ..models import Drinks, BeerSpot, UserFollow, Notification
 from .utils import get_excluded_users, check_and_notify_achievements
+from ..services.realtime_service import broadcast_notifications
 
 @login_required(login_url='login')
 def map_view(request):
@@ -58,7 +59,8 @@ def map_view(request):
                             Notification(recipient_id=f_id, sender=request.user, notif_type='spot_invite', spot=spot)
                             for f_id in new_friends
                         ]
-                        Notification.objects.bulk_create(notifications_invites)
+                        created_invites = Notification.objects.bulk_create(notifications_invites)
+                        broadcast_notifications(created_invites)
                             
                     # Identifier tous les utilisateurs concernés (le créateur + les amis du spot)
                     users_to_notify = set(spot.friends.values_list('id', flat=True))
@@ -77,7 +79,8 @@ def map_view(request):
                         Notification(recipient_id=u_id, sender=request.user, notif_type='spot_updated', spot=spot)
                         for u_id in users_to_notify
                     ]
-                    Notification.objects.bulk_create(notifications_updates)
+                    created_updates = Notification.objects.bulk_create(notifications_updates)
+                    broadcast_notifications(created_updates)
                         
                     messages.success(request, "Point modifié avec succès !")
                 else:
@@ -100,7 +103,8 @@ def map_view(request):
                         Notification(recipient_id=f_id, sender=request.user, notif_type='spot_invite', spot=spot)
                         for f_id in friend_ids
                     ]
-                    Notification.objects.bulk_create(notifications_invites)
+                    created_invites = Notification.objects.bulk_create(notifications_invites)
+                    broadcast_notifications(created_invites)
                     
                 messages.success(request, "Point ajouté avec succès !")
                 

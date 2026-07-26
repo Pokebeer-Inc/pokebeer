@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 
 from ..models import Beer, Brewery
-from ..services import ask_zythologue, config_client
+from ..services.ai import ask_zythologue, config_client
 
 def chat_api(request):
     """Endpoint API : Gère l'historique et la discussion avec l'IA."""

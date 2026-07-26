@@ -2,7 +2,7 @@ from google import genai
 from google.genai import types
 from django.conf import settings
 from pgvector.django import CosineDistance
-from .models import Beer
+from ..models import Beer
 
 # Initialisation du client avec la clé définie dans settings.py
 def config_client():
