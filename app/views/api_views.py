@@ -11,24 +11,39 @@ from django.contrib.auth.decorators import login_required
 from ..models import Beer, Brewery
 from ..services import ask_zythologue, config_client
 
-@require_POST
 def chat_api(request):
-    """
-    Endpoint API : Reçoit du JSON, appelle le service, renvoie du JSON.
-    Aucune logique métier ici.
-    """
-    try:
-        data = json.loads(request.body)
-        user_message = data.get('message', '')
-    except json.JSONDecodeError:
-        return JsonResponse({"response": "Format JSON invalide."}, status=400)
-
-    if not user_message.strip():
-        return JsonResponse({"response": "Message vide."}, status=400)
-
-    response_text = ask_zythologue(user_message)
+    """Endpoint API : Gère l'historique et la discussion avec l'IA."""
     
-    return JsonResponse({"response": response_text})
+    # 1. Requête GET : Le frontend demande l'historique au chargement de la page
+    if request.method == 'GET':
+        history = request.session.get('chat_history', [])
+        return JsonResponse({"history": history})
+
+    # 2. Requête POST : Nouveau message de l'utilisateur
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user_message = data.get('message', '')
+        except json.JSONDecodeError:
+            return JsonResponse({"response": "Format JSON invalide."}, status=400)
+
+        if not user_message.strip():
+            return JsonResponse({"response": "Message vide."}, status=400)
+
+        # On récupère l'historique existant
+        history = request.session.get('chat_history', [])
+        
+        # On passe le message et l'historique au service IA
+        response_text = ask_zythologue(user_message, history)
+        
+        # On sauvegarde le nouvel échange dans la session
+        history.append({'role': 'user', 'text': user_message})
+        history.append({'role': 'model', 'text': response_text})
+        
+        # On ne garde que les 10 derniers messages (5 échanges) pour ne pas surcharger la session
+        request.session['chat_history'] = history[-10:]
+        
+        return JsonResponse({"response": response_text})
 
 @require_POST
 @login_required

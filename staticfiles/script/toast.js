@@ -199,8 +199,14 @@
                 .catch(() => { });
         };
 
-        // Initial check after 3 seconds, then periodically
-        setTimeout(poll, 3000);
-        setInterval(poll, POLL_INTERVAL_MS);
+        // On vérifie une seule fois au premier chargement (après 1.5s pour laisser la page s'afficher)
+        setTimeout(poll, 1500);
+
+        // On vérifie uniquement quand l'utilisateur revient activement sur l'onglet
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === 'visible') {
+                poll();
+            }
+        });
     }
 })();

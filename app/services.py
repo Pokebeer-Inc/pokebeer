@@ -1,4 +1,5 @@
 from google import genai
+from google.genai import types
 from django.conf import settings
 from pgvector.django import CosineDistance
 from .models import Beer
@@ -49,33 +50,46 @@ def _format_beers_context(user_message):
         
     return "\n".join(context_list)
 
-def ask_zythologue(user_message):
+def ask_zythologue(user_message, history=None):
+    if history is None:
+        history = []
+        
     if not settings.GEMINI_API_KEY:
         return "Le service est inactif (Clé Gemini manquante)."
 
-    # On récupère le contexte vectoriel
+    # Contexte RAG mis à jour dynamiquement selon le NOUVEAU message
     beers_context = _format_beers_context(user_message) or "Aucune bière en stock actuellement."
 
-    prompt = f"""Tu es Gaétan, un zythologue bière sympathique et expert.
-J'ai pré-sélectionné pour toi les bières les plus pertinentes selon la demande du client :
+    # Séparation Clean Code : Instruction système (Le rôle strict)
+    sys_instruct = f"""Tu es Gaétan, un zythologue bière sympathique et expert.
+J'ai pré-sélectionné pour toi les bières les plus pertinentes :
 {beers_context}
 
 RÈGLES STRICTES :
 1. Tu ne recommandes QUE des bières de la liste ci-dessus.
-2. Si la demande du client ne correspond pas du tout au stock, propose l'alternative la plus proche dans la liste.
-3. Fais des réponses courtes, chaleureuses et en français.
+2. Si la demande du client ne correspond pas au stock, propose l'alternative la plus proche dans la liste.
+3. Fais des réponses courtes, chaleureuses et en français."""
 
-Message du client : "{user_message}"
-"""
+    # Reconstruction propre de l'historique pour Gemini
+    contents = []
+    for msg in history:
+        contents.append(types.Content(role=msg['role'], parts=[types.Part.from_text(text=msg['text'])]))
+        
+    # Ajout du message actuel
+    contents.append(types.Content(role="user", parts=[types.Part.from_text(text=user_message)]))
 
     try:
         client = config_client()
         # gemini-2.5-flash est parfait pour des réponses rapides et précises
         response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=prompt
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=sys_instruct,
+                temperature=0.4
+            )
         )
         return response.text
     except Exception as e:
         print(f"Erreur IA : {str(e)}")
-        return "Désolé, j'ai eu un coup de chaud en cave. Pouvez-vous répéter ?"
+        return "Désolé, j'ai eu un coup de chaud en cave. Pouvez-vous revenir plus tard s'il vous plaît ?"

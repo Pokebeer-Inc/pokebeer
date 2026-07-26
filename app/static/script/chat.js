@@ -9,6 +9,10 @@ const chatOverlay = document.getElementById('chat-overlay');
 chatToggle.addEventListener('click', () => {
     chatWindow.classList.toggle('hidden');
     chatOverlay.classList.toggle('hidden'); // On affiche/masque l'overlay en même temps
+
+    if (!chatWindow.classList.contains('hidden')) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 });
 
 // Fonction centralisée pour fermer le chat
@@ -91,3 +95,46 @@ async function sendMessage() {
     }
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const chatUrl = chatWindow.dataset.url;
+        const res = await fetch(chatUrl, {
+            method: 'GET',
+            headers: { 
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin' // Force l'envoi du cookie de session Django
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            
+            // Si on a un historique, on remplace le contenu
+            if (data.history && data.history.length > 0) {
+                chatMessages.innerHTML = ''; // Efface le message par défaut
+                
+                data.history.forEach(msg => {
+                    if (msg.role === 'user') {
+                        chatMessages.innerHTML += `
+                            <div class="chat chat-end">
+                                <div class="chat-bubble shadow-sm text-sm">${msg.text}</div>
+                            </div>`;
+                    } else {
+                        const formattedResponse = marked.parse(msg.text);
+                        chatMessages.innerHTML += `
+                            <div class="chat chat-start">
+                                <div class="chat-bubble bg-primary text-black shadow-sm text-sm markdown-content">${formattedResponse}</div>
+                            </div>`;
+                    }
+                });
+                // Le scroll vers le bas se fera tout seul lorsque l'utilisateur cliquera sur le bouton d'ouverture
+            }
+        } else {
+            console.error("Erreur API Historique : L'accès GET est probablement bloqué par Django (Vérifie @require_POST).");
+        }
+    } catch (err) {
+        console.error("Erreur réseau lors de la récupération de l'historique :", err);
+    }
+});
