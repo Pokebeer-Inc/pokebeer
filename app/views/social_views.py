@@ -9,7 +9,7 @@ from django.contrib.auth.forms import PasswordChangeForm
 import json
 
 from ..models import BeerUser, UserFollow, Beer, Drinks, UserBlock, Notification, DrinkReaction
-from ..forms import UserUpdateForm, DrinkForm, FeedbackForm
+from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, NotificationPreferenceForm
 from .utils import get_user_achievements, check_and_notify_achievements
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
@@ -22,6 +22,7 @@ def account_view(request):
     profile_form = UserUpdateForm(instance=user)
     password_form = PasswordChangeForm(user=user)
     feedback_form = FeedbackForm()
+    notif_form = NotificationPreferenceForm(instance=user)
     
     if request.method == 'POST':
         if 'btn_profile' in request.POST:
@@ -53,6 +54,14 @@ def account_view(request):
                 feedback.save()
                 messages.success(request, "Merci ! Votre message a bien été envoyé à l'équipe.")
                 return redirect('account')
+        
+        # Gestion des préférences de notifications
+        if 'btn_notifs' in request.POST:
+            notif_form = NotificationPreferenceForm(request.POST, instance=user)
+            if notif_form.is_valid():
+                notif_form.save()
+                messages.success(request, "Préférences de notifications mises à jour.")
+                return redirect('account')
 
     # 2. Requêtes de base
     my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
@@ -73,6 +82,7 @@ def account_view(request):
         'profile_form': profile_form,
         'password_form': password_form,
         'feedback_form': feedback_form,
+        'notif_form': notif_form,
         'my_drinks': my_drinks,
         'followers': followers,
         'following': following,

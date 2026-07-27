@@ -168,3 +168,15 @@ class FeedbackForm(forms.ModelForm):
                 'class': 'form-control',
                 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;'
             })
+            
+class NotificationPreferenceForm(forms.ModelForm):
+    class Meta:
+        model = BeerUser
+        fields = ['notif_global', 'notif_follow', 'notif_social', 'notif_network', 'notif_achievements']
+        widgets = {
+            'notif_global': forms.CheckboxInput(attrs={'class': 'toggle toggle-primary'}),
+            'notif_follow': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
+            'notif_social': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
+            'notif_network': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
+            'notif_achievements': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
+        }

@@ -17,6 +17,11 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     top_beer_1 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     top_beer_2 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     top_beer_3 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    notif_global = models.BooleanField(default=True, verbose_name="Toutes les notifications")
+    notif_follow = models.BooleanField(default=True, verbose_name="Nouveaux abonnés")
+    notif_social = models.BooleanField(default=True, verbose_name="Interactions (Likes, Wishlists)")
+    notif_network = models.BooleanField(default=True, verbose_name="Réseau (Ajouts de bières, Lieux)")
+    notif_achievements = models.BooleanField(default=True, verbose_name="Trophées et récompenses")
 
     USERNAME_FIELD = "username"
     EMAIL_FIELD = "email"
@@ -203,8 +208,23 @@ class UserBlock(models.Model):
 
     def __str__(self):
         return f"{self.blocker.username} a bloqué {self.blocked.username}"
+
+class NotificationManager(models.Manager):
+    def bulk_create(self, objs, **kwargs):
+        """Intercepte les bulk_create pour retirer les notifications refusées."""
+        # On filtre la liste avec notre nouvelle méthode is_allowed()
+        valid_objs = [obj for obj in objs if obj.is_allowed()]
+        
+        # Si après filtrage la liste est vide, on arrête tout
+        if not valid_objs:
+            return []
+            
+        return super().bulk_create(valid_objs, **kwargs)
     
 class Notification(models.Model):
+    
+    objects = NotificationManager()
+    
     NOTIFICATION_TYPES = [
         ('follow', 'Nouvel abonné'),
         ('beer_shared', 'Bière goûtée en commun'),
@@ -253,6 +273,35 @@ class Notification(models.Model):
             return f"{minutes} min"
             
         return "à l'instant"
+    
+    def is_allowed(self):
+        """Vérifie si l'utilisateur accepte ce type de notification."""
+        user = self.recipient
+        
+        # Les messages système sont toujours autorisés
+        if self.notif_type in ['report_updated', 'feedback_replied']:
+            return True
+            
+        if not user.notif_global:
+            return False
+        if self.notif_type == 'follow' and not user.notif_follow:
+            return False
+        if self.notif_type in ['drink_liked', 'wishlist_added'] and not user.notif_social:
+            return False
+        if self.notif_type == 'achievement' and not user.notif_achievements:
+            return False
+        if self.notif_type in ['beer_added', 'beer_shared', 'spot_invite', 'spot_updated', 'beer_updated'] and not user.notif_network:
+            return False
+            
+        return True
+    
+    def save(self, *args, **kwargs):
+        # On intercepte uniquement les nouvelles notifications (sans ID)
+        if not self.pk: 
+            if not self.is_allowed():
+                return # On annule silencieusement
+                
+        super().save(*args, **kwargs)
 
 class UserAchievementState(models.Model):
     """Mémorise les trophées déjà débloqués par l'utilisateur pour ne pas le spammer"""

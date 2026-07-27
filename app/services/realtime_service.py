@@ -16,6 +16,9 @@ def broadcast_notifications(notifications_list):
     user_achievements = None
 
     for notif in notifications_list:
+        if not notif.id:
+            continue # Sécurité : Ignore les notifications bloquées par les préférences utilisateur
+        
         toast_type = 'info'
         tier_slug = None
         icon_html = None

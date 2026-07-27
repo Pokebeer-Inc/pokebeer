@@ -223,7 +223,7 @@
             {% endif %}
         {% endfor %}
         
-        <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-2">Valider</button>
+        <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-2 text-white">Valider</button>
     </form>
     
     {% if not user.socialaccount_set.all %}
@@ -243,6 +243,36 @@
         <button type="submit" name="btn_password" class="btn btn-outline btn-error btn-sm mt-2">Changer</button>
     </form>
     {% endif %}
+
+    <div class="divider my-2"></div>
+
+    <form method="post" class="flex flex-col gap-3">
+        {% csrf_token %}
+        <h3 class="font-bold text-primary text-sm border-b pb-1">Notifications</h3>
+        
+        <!-- Toggle Global -->
+        <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm">
+            <div class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">{{ notif_form.notif_global.label }}</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Activer/désactiver toutes les alertes (hors messages de l'équipe).</span>
+            </div>
+            {{ notif_form.notif_global }}
+        </div>
+        
+        <!-- Sous-catégories dynamiques -->
+        <div id="notif-categories" class="flex flex-col gap-2 mt-1 pl-4 border-l-2 border-base-200 transition-all duration-300 {% if not user.notif_global %}opacity-50 pointer-events-none{% endif %}">
+            {% for field in notif_form %}
+                {% if field.name != 'notif_global' %}
+                <div class="form-control w-full flex-row justify-between items-center">
+                    <span class="label-text text-[11px] font-medium">{{ field.label }}</span>
+                    {{ field }}
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        
+        <button type="submit" name="btn_notifs" class="btn btn-primary btn-sm mt-2 text-white">Enregistrer mes préférences</button>
+    </form>
 
     <div class="divider my-4 before:bg-error/30 after:bg-error/30 text-error font-bold text-xs uppercase">Zone de danger</div>
     
@@ -265,6 +295,7 @@
 
 <script src="{% static 'script/tab_bar.js' %}"></script>
 <script src="{% static 'script/drag_drop.js' %}"></script>
+<script src="{% static 'script/notif_preferences.js' %}"></script>
 {% endblock %}
 
 {% block modals %}
