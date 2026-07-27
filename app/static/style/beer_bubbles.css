@@ -1,0 +1,54 @@
+ /* On force la transparence du thème par défaut pour révéler la bière */
+body, html, [data-theme] {
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+.bg-base-100.min-h-screen.max-w-md {
+    background-color: transparent !important;
+}
+
+/* L'arrière-plan de la couleur d'une bonne bière */
+.beer-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(180deg, #F59E0B 0%, #D97706 50%, #B45309 100%);
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* Le style de base d'une bulle */
+.bubble {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    bottom: -50px;
+    animation: rise ease-in infinite;
+}
+
+/* L'animation de montée */
+@keyframes rise {
+    0% { transform: translateY(0) scale(1) translateX(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-110vh) scale(1.5) translateX(20px); opacity: 0; }
+}
+
+/* Génération de bulles de tailles et vitesses différentes */
+.bubble:nth-child(1) { left: 10%; width: 15px; height: 15px; animation-duration: 4s; animation-delay: 0s; }
+.bubble:nth-child(2) { left: 25%; width: 30px; height: 30px; animation-duration: 5s; animation-delay: 2s; }
+.bubble:nth-child(3) { left: 40%; width: 10px; height: 10px; animation-duration: 3s; animation-delay: 1s; }
+.bubble:nth-child(4) { left: 60%; width: 20px; height: 20px; animation-duration: 6s; animation-delay: 0s; }
+.bubble:nth-child(5) { left: 80%; width: 25px; height: 25px; animation-duration: 4.5s; animation-delay: 3s; }
+.bubble:nth-child(6) { left: 90%; width: 12px; height: 12px; animation-duration: 3.5s; animation-delay: 1.5s; }
+.bubble:nth-child(7) { left: 50%; width: 18px; height: 18px; animation-duration: 4.2s; animation-delay: 0.5s; }
+.bubble:nth-child(8) { left: 70%; width: 22px; height: 22px; animation-duration: 5.5s; animation-delay: 2.5s; }
+.bubble:nth-child(9) { left: 15%; width: 14px; height: 14px; animation-duration: 3.8s; animation-delay: 1.2s; }
+.bubble:nth-child(10) { left: 35%; width: 28px; height: 28px; animation-duration: 6.2s; animation-delay: 0.8s; }
+.bubble:nth-child(11) { left: 85%; width: 16px; height: 16px; animation-duration: 4.8s; animation-delay: 1.8s; }
+.bubble:nth-child(12) { left: 5%; width: 24px; height: 24px; animation-duration: 5.2s; animation-delay: 0.3s; }
