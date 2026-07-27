@@ -17,10 +17,35 @@ class UserRegisterForm(UserCreationForm):
         if BeerUser.objects.filter(email=email).exists():
             raise forms.ValidationError("Cet email est déjà utilisé.")
         return email
+    
+    def __init__(self, *args, **kwargs):
+        super(UserRegisterForm, self).__init__(*args, **kwargs)
+        
+        # On définit explicitement les labels
+        self.fields['username'].label = "Pseudo"
+        self.fields['email'].label = "Adresse Email"
+        
+        # On applique les classes visuelles et le placeholder
+        for field_name, field in self.fields.items():
+            
+            field.widget.attrs.update({
+                'class': 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
+            })
 
 class UserLoginForm(AuthenticationForm):
-    # Built-in AuthenticationForm handles username/password checks securely
-    pass
+    def __init__(self, *args, **kwargs):
+        super(UserLoginForm, self).__init__(*args, **kwargs)
+        
+        # On définit explicitement les labels
+        self.fields['username'].label = "Pseudo"
+        self.fields['password'].label = "Mot de passe"
+        
+        # On applique les classes visuelles et le placeholder
+        for field_name, field in self.fields.items():
+            
+            field.widget.attrs.update({
+                'class': 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
+            })
 
 class UserUpdateForm(forms.ModelForm):
     class Meta:
