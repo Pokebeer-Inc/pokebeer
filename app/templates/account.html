@@ -208,7 +208,7 @@
     
     <form method="post" class="flex flex-col gap-3 [&_input]:font-normal [&_textarea]:font-normal">
         {% csrf_token %}
-        <h3 class="text-sm font-bold border-b border-primary pb-1 mb-2">Modifier mon profil</h3>
+        <h3 class="text-sm font-bold border-b border-primary pb-1">Modifier mon profil</h3>
         
         {% for field in profile_form %}
             {% if user.socialaccount_set.all and field.name == 'email' %}
@@ -244,11 +244,11 @@
     </form>
     {% endif %}
 
-    <div class="divider my-2"></div>
+    <div class="divider my-4"></div>
 
     <form method="post" class="flex flex-col gap-3">
         {% csrf_token %}
-        <h3 class="font-bold text-primary text-sm border-b pb-1">Notifications</h3>
+        <h3 class="text-sm font-bold border-b border-primary pb-1">Notifications</h3>
         
         <!-- Toggle Global -->
         <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm">
@@ -285,12 +285,11 @@
     </div>
     
 </div>
-</div>
-
-<div class="w-full text-center mb-2 p-4 opacity-60">
+<div class="w-full text-center p-4 opacity-60">
     <p class="text-[9px] text-gray-500 uppercase tracking-widest leading-relaxed font-bold">
         L'abus d'alcool est dangereux pour la santé.<br>À consommer avec modération.
     </p>
+</div>
 </div>
 
 <script src="{% static 'script/tab_bar.js' %}"></script>
