@@ -1,16 +1,41 @@
 from django.contrib import admin
+from django.db import models
+from django.contrib.postgres.fields import ArrayField
+from unfold.admin import ModelAdmin
+from unfold.contrib.forms.widgets import ArrayWidget, WysiwygWidget
 from .models import BeerUser, Beer, Drinks, Brewery, Report
 from .models import Notification, Feedback
 from .services.realtime_service import broadcast_notifications
+
 
 admin.site.register(BeerUser)
 admin.site.register(Beer)
 admin.site.register(Drinks)
 admin.site.register(Brewery)
 
+
 @admin.register(Report)
-class ReportAdmin(admin.ModelAdmin):
-    list_display = ('id', 'reporter', 'get_target', 'reason', 'status', 'created_at')
+class ReportAdmin(ModelAdmin):
+    #Configuration DjangoUnfold
+    readonly_preprocess_fields = {
+        "model_field_name": "html.unescape",
+        "other_field_name": lambda content: content.strip(),
+    }
+
+    formfield_overrides = {
+        models.TextField: {
+            "widget": WysiwygWidget,
+        },
+        ArrayField: {
+            "widget": ArrayWidget,
+        }
+    }
+
+    compressed_fields = False
+    warn_unsaved_form = True
+
+
+    list_display = ('reporter', 'get_target', 'reason', 'status', 'created_at')
     list_filter = ('status', 'reason', 'created_at')
     search_fields = ('reporter__username', 'description', 'admin_response')
     # On empêche l'admin de modifier la plainte originale, il ne peut modifier que le statut et la réponse
@@ -39,7 +64,25 @@ class ReportAdmin(admin.ModelAdmin):
             broadcast_notifications([notif])
 
 @admin.register(Feedback)
-class FeedbackAdmin(admin.ModelAdmin):
+class FeedbackAdmin(ModelAdmin):
+  #Configuration DjangoUnfold
+    readonly_preprocess_fields = {
+        "model_field_name": "html.unescape",
+        "other_field_name": lambda content: content.strip(),
+    }
+
+    formfield_overrides = {
+        models.TextField: {
+            "widget": WysiwygWidget,
+        },
+        ArrayField: {
+            "widget": ArrayWidget,
+        }
+    }
+
+    compressed_fields = False
+    warn_unsaved_form = True
+   
     list_display = ('id', 'user', 'status', 'created_at')
     list_filter = ('status', 'created_at')
     search_fields = ('user__username', 'message', 'admin_reply')

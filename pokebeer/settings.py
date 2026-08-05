@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from django.utils.translation import gettext_lazy as _
+from django.urls import reverse_lazy
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -57,6 +58,8 @@ INSTALLED_APPS = [
     'storages',
     'tailwind',
     'theme',
+    "unfold",
+    "unfold.contrib.forms", 
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -94,7 +97,7 @@ ROOT_URLCONF = 'pokebeer.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "app" / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -243,3 +246,63 @@ STORAGES = {
 }
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+UNFOLD = {
+    "SITE_TITLE": "Pokebeer",
+    "SITE_HEADER": "Pokebeer Administration",
+    "SITE_SUBHEADER": "Outil de gestion et d'analyse",
+    "SITE_DROPDOWN": [
+        {
+            "icon": "home",
+            "title": _("Retour au site"),
+            "link": "https://pokebeer.vercel.app/",
+        },
+        # ...
+    ],
+    "SITE_URL": "/",
+    "SHOW_VIEW_ON_SITE": True, 
+    "SHOW_UI_WARNINGS": True,
+    "SIDEBAR": {
+        "show_search": False, 
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": _("Navigation"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Dashboard"),
+                        "icon": "dashboard", 
+                        "link": reverse_lazy("admin:index"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": _("Users"),
+                        "icon": "people",
+                        "link": reverse_lazy("admin:app_beeruser_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Modération"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Feedback"),
+                        "icon": "comment", 
+                        "link": reverse_lazy("admin:app_feedback_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": _("Signalement"),
+                        "icon": "gavel", 
+                        "link": reverse_lazy("admin:app_report_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },                              
+                ],
+            },
+        ],
+    },
+}
