@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'storages',
     'tailwind',
     'theme',
+    "unfold",  # before django.contrib.admin
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

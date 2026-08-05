@@ -1,4 +1,5 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 from .models import BeerUser, Beer, Drinks, Brewery, Report
 from .models import Notification, Feedback
 from .services.realtime_service import broadcast_notifications
@@ -8,8 +9,9 @@ admin.site.register(Beer)
 admin.site.register(Drinks)
 admin.site.register(Brewery)
 
+
 @admin.register(Report)
-class ReportAdmin(admin.ModelAdmin):
+class ReportAdmin(ModelAdmin):
     list_display = ('id', 'reporter', 'get_target', 'reason', 'status', 'created_at')
     list_filter = ('status', 'reason', 'created_at')
     search_fields = ('reporter__username', 'description', 'admin_response')
@@ -39,7 +41,7 @@ class ReportAdmin(admin.ModelAdmin):
             broadcast_notifications([notif])
 
 @admin.register(Feedback)
-class FeedbackAdmin(admin.ModelAdmin):
+class FeedbackAdmin(ModelAdmin):
     list_display = ('id', 'user', 'status', 'created_at')
     list_filter = ('status', 'created_at')
     search_fields = ('user__username', 'message', 'admin_reply')
