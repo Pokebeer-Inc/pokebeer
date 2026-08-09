@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.db import models
+from django.db.models import Count
 from django.contrib.postgres.fields import ArrayField
 from unfold.admin import ModelAdmin
 from unfold.contrib.forms.widgets import ArrayWidget, WysiwygWidget
@@ -105,3 +106,28 @@ class FeedbackAdmin(ModelAdmin):
                 feedback=obj
             )
             broadcast_notifications([notif])
+
+def dashboard_callback(request, context):
+    beer_count_by_style = (
+        Beer.objects
+        .exclude(style__isnull=True)
+        .exclude(style='')
+        .values('style')
+        .annotate(nb_bieres=Count('id'))
+        .order_by('style')
+    )
+
+    kpi_users = (BeerUser.objects.count)
+    kpi_beers = (Beer.objects.count)
+    kpi_brewery = (Brewery.objects.count)
+    kpi_report = (Report.objects.count)
+
+    context.update({
+        "beer_count_by_style": list(beer_count_by_style),
+        "kpi_users":kpi_users,
+        "kpi_beers":kpi_beers,
+        "kpi_brewery":kpi_brewery,
+        "kpi_report":kpi_report
+    })
+
+    return context

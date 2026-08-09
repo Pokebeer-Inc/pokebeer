@@ -248,6 +248,7 @@ STORAGES = {
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 UNFOLD = {
+    "DASHBOARD_CALLBACK": "app.admin.dashboard_callback",
     "SITE_TITLE": "Pokebeer",
     "SITE_HEADER": "Pokebeer Administration",
     "SITE_SUBHEADER": "Outil de gestion et d'analyse",

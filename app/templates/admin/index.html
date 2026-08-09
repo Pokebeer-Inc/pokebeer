@@ -1,19 +1,111 @@
 {% extends 'admin/base.html' %}
 
 {% load i18n %}
+{% load static %}
 
 {% block title %}
-    {% if subtitle %}
-        {{ subtitle }} |
-    {% endif %}
-
-    {{ title }} | {{ site_title|default:_('Django site admin') }}
+{% if subtitle %}
+{{ subtitle }} |
+{% endif %}
+{{ title }} | {{ site_title|default:_('Django site admin') }}
 {% endblock %}
 
 {% block branding %}
-    {% include "unfold/helpers/site_branding.html" %}
+{% include "unfold/helpers/site_branding.html" %}
 {% endblock %}
 
 {% block content %}
-    #TODO Insérer un dashboard global ici
+
+<div class="px-4 py-6 lg:px-8">
+
+<!-- Titre -->
+<div class="mb-6">
+    <h1 class="text-2xl font-semibold">
+        Dashboard
+    </h1>
+
+    <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+        Vue d'ensemble de PokéBeer
+    </p>
+</div>
+
+
+<!-- Statistiques -->
+<div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+    <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+        <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
+            Utilisateurs
+        </p>
+
+        <p class="mt-2 text-3xl font-semibold">
+            {{ kpi_users }}
+        </p>
+    </div>
+
+
+    <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+        <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
+            Bières
+        </p>
+
+        <p class="mt-2 text-3xl font-semibold">
+            {{ kpi_beers }}
+        </p>
+    </div>
+
+
+    <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+        <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
+            Brasseries
+        </p>
+
+        <p class="mt-2 text-3xl font-semibold">
+            {{ kpi_brewery }}
+        </p>
+    </div>
+
+
+    <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+        <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
+            Signalements
+        </p>
+
+        <p class="mt-2 text-3xl font-semibold">
+            {{ kpi_report }}
+        </p>
+    </div>
+
+</div>
+
+
+<!-- Bières par style -->
+<div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+
+    <div class="mb-6">
+        <h2 class="text-lg font-semibold">
+            Bières par style
+        </h2>
+
+        <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+            Répartition des bières selon leur style
+        </p>
+    </div>
+
+    <div id="beerStyleChart"></div>
+
+</div>
+
+</div>
+
+<!-- Données du graphique -->
+
+{{ beer_count_by_style|json_script:"beer-style-data" }}
+
+<!-- ApexCharts -->
+
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+<script src="{% static 'script/admin_dashboard.js' %}"></script>
+
 {% endblock %}
