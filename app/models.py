@@ -235,7 +235,7 @@ class Notification(models.Model):
         ('beer_updated', 'Bière mise à jour'),
         ('drink_liked', 'Avis aimé'),
         ('report_updated', 'Signalement mis à jour'),
-        ('wishlist_added', 'Bière ajoutée en wishlist'),
+        ('wishlist_added', 'Bière ajoutée à la liste de souhaits'),
         ('feedback_replied', 'Réponse à votre feedback'),
     ]
 
