@@ -17,9 +17,9 @@
 {% elif notif.notif_type == 'report_updated' %}
     Statut de votre signalement (<span class="font-bold">{{ notif.report.get_reason_display }}</span>) mis à jour.
 {% elif notif.notif_type == 'wishlist_added' %}
-    <span class="font-bold">{{ notif.sender.username }}</span> a ajouté <span class="font-bold">{{ notif.beer.name }}</span> à sa wishlist.
+    <span class="font-bold">{{ notif.sender.username }}</span> a ajouté <span class="font-bold">{{ notif.beer.name }}</span> à sa liste de souhaits.
 {% elif notif.notif_type == 'feedback_replied' %}
-    L'équipe a répondu à votre feedback :<br>
+    L'équipe a répondu à votre message :<br>
     <div class="mt-1 p-2 bg-base-200 rounded-lg text-xs italic border-l-2 border-primary text-gray-700">
         "{{ notif.feedback.admin_reply }}"
     </div>
