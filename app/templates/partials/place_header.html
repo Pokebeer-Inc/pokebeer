@@ -1,0 +1,106 @@
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'style/map.css' %}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+<div class="flex flex-col -mx-4 -mt-4 bg-base-100 relative mb-4">
+    
+    <div class="w-full h-64 bg-gray-200 relative">
+        <a href="javascript:history.back()" class="absolute top-4 left-4 btn btn-sm btn-circle btn-neutral bg-black/50 border-none text-white z-10 backdrop-blur-sm shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+        </a>
+
+        {% if place.image %}
+        <img src="{{ place.image.url }}" alt="{{ place.name }}" class="w-full h-full object-cover">
+        {% else %}
+        <img src="{% static 'images/beer_placeholder.png' %}" alt="{{ place.name }}" class="w-full h-full object-cover opacity-50">
+        {% endif %}
+        
+        <div class="absolute bottom-0 w-full h-32 bg-gradient-to-t from-base-100 to-transparent"></div>
+    </div>
+
+    <div class="px-4 pt-2 pb-5 bg-base-100 relative z-10 rounded-t-3xl -mt-6">
+        
+        <div class="flex justify-between items-start mb-1">
+            <h1 class="text-3xl font-castoro font-bold leading-tight flex items-center gap-2">
+                {{ place.name }}
+                {% if place.is_verified %}
+                <div class="tooltip tooltip-top" data-tip="Vérifié(e)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-success drop-shadow-sm" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                {% endif %}
+            </h1>
+        </div>
+
+        {% if place.address %}
+        <div class="flex flex-col gap-1 mb-4 text-gray-500">
+            <a href="https://www.google.com/maps/search/?api=1&query={{ place.name|urlencode }}%20{{ place.address|urlencode }}" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               class="flex items-center gap-1 group hover:text-primary transition-colors cursor-pointer w-fit">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                
+                <span class="text-xs text-gray-400 group-hover:text-primary leading-tight font-semibold">
+                    {{ place.address }}
+                </span>
+            </a>
+        </div>
+        {% endif %}
+
+        {% if place.latitude and place.longitude %}
+        <div class="w-full h-48 mb-4 rounded-xl overflow-hidden border border-base-200 shadow-inner relative z-0">
+            <div id="place-map" class="w-full h-full" 
+                 data-lat="{{ place.latitude|stringformat:'f' }}" 
+                 data-lng="{{ place.longitude|stringformat:'f' }}">
+            </div>
+        </div>
+        {% endif %}
+        
+        <p class="text-sm text-gray-600 text-justify">{{ place.description }}</p>
+
+        <!-- Réseaux et Contacts -->
+        {% if place.website or place.instagram or place.facebook or place.phone or place.email %}
+        <div class="mt-4 pt-2 flex flex-wrap gap-2 justify-around">
+            
+            {% if place.website %}
+            <a href="{{ place.website }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline btn-neutral gap-1 rounded-full whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+            </a>
+            {% endif %}
+            
+            {% if place.instagram %}
+            <a href="{{ place.instagram }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline btn-neutral gap-1 rounded-full whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+            </a>
+            {% endif %}
+
+            {% if place.facebook %}
+            <a href="{{ place.facebook }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline btn-neutral gap-1 rounded-full whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z"/></svg>
+            </a>
+            {% endif %}
+
+            {% if place.phone %}
+            <a href="tel:{{ place.phone }}" class="btn btn-xs btn-outline btn-neutral gap-1 rounded-full whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+            </a>
+            {% endif %}
+
+            {% if place.email %}
+            <a href="mailto:{{ place.email }}" class="btn btn-xs btn-outline btn-neutral gap-1 rounded-full whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            </a>
+            {% endif %}
+            
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if brewery.latitude and brewery.longitude %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="{% static 'script/mini_map.js' %}"></script>
+{% endif %}
