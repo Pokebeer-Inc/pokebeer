@@ -1,4 +1,4 @@
-.custom-modal-form {
+/*.custom-modal-form {
     height: auto;
     min-height: fit-content !important;
     max-height: 90% !important;
@@ -12,4 +12,18 @@
     margin-bottom: 0;
     border-bottom-right-radius: 0;
     border-bottom-left-radius: 0;
+}*/
+
+.custom-modal-form {
+    max-height: 96% !important;
+    overflow-y: auto; 
+}
+
+.custom-modal-text {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    overflow-y: auto;
 }

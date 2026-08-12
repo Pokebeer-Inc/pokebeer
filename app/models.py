@@ -64,9 +64,9 @@ class Brewery(models.Model):
 class Beer(models.Model):
     name = models.CharField(max_length=150, blank=False, unique=True, verbose_name="Nom")
     image = models.ImageField(upload_to='beers/', blank=True, null=True, verbose_name="Image")
-    description = models.TextField(verbose_name="Description")
-    bitterness = models.IntegerField(null=True, blank=True, verbose_name="Amertume (IBU)")
-    degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, verbose_name="Degré")
+    description = models.TextField(blank=True, null=True, verbose_name="Description officielle")
+    bitterness = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(500)], verbose_name="IBU")
+    degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Degré")
     brewery_id = models.ForeignKey(Brewery, on_delete=models.CASCADE)
     slug = models.SlugField(max_length=150, unique=True, blank=True, null=True, verbose_name="Slug")
     style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
