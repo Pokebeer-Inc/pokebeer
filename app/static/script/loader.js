@@ -22,11 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = link.getAttribute('target');
         const isAnchor = href && href.startsWith('#');
         const isJs = href && href.startsWith('javascript:');
+        const isTel = href && href.startsWith('tel:');
+        const isMailto = href && href.startsWith('mailto:');
         const isNewTab = target === '_blank';
         const hasDownload = link.hasAttribute('download');
 
-        // Ne déclenche le loader que si c'est une vraie navigation vers une autre page
-        if (href && !isAnchor && !isJs && !isNewTab && !hasDownload) {
+        // Ne déclenche le loader que si c'est une vraie navigation vers une autre page (on exclut l'ouverture des apps natives)
+        if (href && !isAnchor && !isJs && !isTel && !isMailto && !isNewTab && !hasDownload) {
             showLoader();
         }
     });

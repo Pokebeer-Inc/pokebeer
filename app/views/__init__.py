@@ -10,3 +10,4 @@ from .notification_views import *
 from .notebook_views import *
 from .search_views import *
 from .map_views import *
+from .bar_views import *

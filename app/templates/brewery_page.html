@@ -3,31 +3,8 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
-<div class="flex flex-col -mx-4 -mt-4 bg-base-100 relative mb-4">
-    
-    <div class="w-full h-64 bg-gray-200 relative">
-        <a href="javascript:history.back()" class="absolute top-4 left-4 btn btn-sm btn-circle btn-neutral bg-black/50 border-none text-white z-10 backdrop-blur-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-        </a>
 
-        {% if brewery.image %}
-        <img src="{{ brewery.image.url }}" alt="{{ brewery.name }}" class="w-full h-full object-cover">
-        {% else %}
-        <img src="/static/images/beer_placeholder.png" alt="{{ brewery.name }}" class="w-full h-full object-cover">
-        {% endif %}
-        
-        <div class="absolute bottom-0 w-full h-24 bg-gradient-to-t from-base-100 to-transparent"></div>
-    </div>
-
-    <div class="px-4 pt-4 pb-4 border-b border-base-200">
-        <h1 class="text-3xl font-castoro font-bold leading-tight">{{ brewery.name }}</h1>
-        <h2 class="text-md font-semibold text-gray-500 mb-3 flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            {{ brewery.city }}
-        </h2>
-        <p class="text-sm text-gray-600 text-justify">{{ brewery.description }}</p>
-    </div>
-</div>
+{% include "partials/place_header.html" with place=brewery %}
 
 <div class="px-2">
     <h3 class="font-castoro text-xl font-bold mb-4 flex items-center gap-2 border-b border-primary pb-2">
@@ -51,7 +28,7 @@
                 <h3 class="font-bold text-md leading-tight">{{ beer.name }}</h3>
                 <p class="text-[11px] text-gray-600 line-clamp-2 mt-1 mb-2">{{ beer.description|truncatechars:80 }}</p>
                 <div class="flex gap-2 text-xs mb-3 mt-auto">
-                    {% if beer.style %}<span class="badge badge-secondary badge-outline badge-xs">{{ beer.style }}</span>{% endif %}
+                    {% if beer.style %}<span class="badge badge-secondary badge-outline badge-xs h-auto text-center">{{ beer.style }}</span>{% endif %}
                     <span class="badge badge-outline badge-neutral badge-xs">Alc. {{ beer.degree }}%</span>
                     {% if beer.bitterness is not None %}
                     <span class="badge badge-outline badge-neutral badge-xs">IBU {{ beer.bitterness }}</span>

@@ -62,9 +62,10 @@ urlpatterns = [
     path('carnet/wishlist/', views.wishlist_view, name='wishlist_view'),
     
     # ==========================================
-    # Gestion des Brasseries
+    # Gestion des Brasseries & Bars
     # ==========================================
     path('brewery/<int:brewery_id>/', views.brewery_detail_view, name='brewery_detail'),
+    path('bar/<int:bar_id>/', views.bar_detail_view, name='bar_detail'),
 
     # ==========================================
     # Dégustations (Avis) & Lieux (Spots)

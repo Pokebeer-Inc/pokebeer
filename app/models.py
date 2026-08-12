@@ -51,11 +51,66 @@ class UserFollow(models.Model):
 class Brewery(models.Model):
     name = models.CharField(max_length=150, blank=False, unique=True, verbose_name="Nom")
     description = models.TextField(verbose_name="Description")
-    city = models.CharField(max_length=150, verbose_name="Ville")
     image = models.ImageField(upload_to='breweries/', blank=True, null=True, verbose_name="Image")
+    
+    # champs de contact
+    address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Adresse complète")
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Téléphone")
+    email = models.EmailField(blank=True, null=True, verbose_name="Email")
+    website = models.URLField(blank=True, null=True, verbose_name="Site web")
+    instagram = models.URLField(blank=True, null=True, verbose_name="Instagram")
+    facebook = models.URLField(blank=True, null=True, verbose_name="Facebook")
+    
+    # Géolocalisation
+    latitude = models.FloatField(blank=True, null=True, verbose_name="Latitude")
+    longitude = models.FloatField(blank=True, null=True, verbose_name="Longitude")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Date de création")
+    updated_at = models.DateTimeField(auto_now=True, null=True, verbose_name="Dernière modification")
+    
+    # Vérification
+    is_verified = models.BooleanField(default=False, verbose_name="Brasserie vérifiée")
+    verified_by = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_breweries', verbose_name="Vérifiée par")
+    verified_at = models.DateTimeField(null=True, blank=True, verbose_name="Date de vérification")
 
     class Meta:
         verbose_name = "Brasserie"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+    
+class Bar(models.Model):
+    name = models.CharField(max_length=150, unique=True, verbose_name="Nom")
+    description = models.TextField(blank=True, null=True, verbose_name="Description")
+    image = models.ImageField(upload_to='bars/', blank=True, null=True, verbose_name="Image")
+    
+    # Localisation et Contact
+    address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Adresse complète")
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Téléphone")
+    email = models.EmailField(blank=True, null=True, verbose_name="Email")
+    website = models.URLField(blank=True, null=True, verbose_name="Site web")
+    instagram = models.URLField(blank=True, null=True, verbose_name="Instagram")
+    facebook = models.URLField(blank=True, null=True, verbose_name="Facebook")
+    
+    # Géolocalisation
+    latitude = models.FloatField(blank=True, null=True, verbose_name="Latitude")
+    longitude = models.FloatField(blank=True, null=True, verbose_name="Longitude")
+    
+    # Traçabilité et Modération
+    added_by = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='added_bars', verbose_name="Ajouté par")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Dernière modification")
+    
+    # Vérification
+    is_verified = models.BooleanField(default=False, verbose_name="Bar vérifié")
+    verified_by = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_bars', verbose_name="Vérifié par")
+    verified_at = models.DateTimeField(null=True, blank=True, verbose_name="Date de vérification")
+
+    class Meta:
+        verbose_name = "Bar"
+        verbose_name_plural = "Bars"
         ordering = ['name']
 
     def __str__(self):
