@@ -87,14 +87,14 @@ class BeerForm(forms.ModelForm):
         fields = ['name', 'brewery_name', 'style', 'description', 'bitterness', 'degree']
         labels = {
             'name': 'Nom de la bière',
-            'description': 'Description',
-            'bitterness': 'Amertume (IBU)',
-            'degree': 'Degré d\'alcool (%)',
-            'style': 'Style de bière',
+            'description': 'Description officielle (Optionnel)',
+            'bitterness': 'IBU (Optionnel)',
+            'degree': 'Alcool (%)',
+            'style': 'Style de bière (Optionnel)',
         }
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 3}),
-            'name': forms.TextInput(attrs={'autocomplete': 'off'})
+            'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Historique, arômes selon le brasseur...'}),
+            'name': forms.TextInput(attrs={'autocomplete': 'off', 'placeholder': 'Ex: Punk IPA'})
         }
 
     def __init__(self, *args, **kwargs):
@@ -104,9 +104,12 @@ class BeerForm(forms.ModelForm):
             initial['brewery_name'] = kwargs['instance'].brewery_id.name
             
         super(BeerForm, self).__init__(*args, **kwargs)
+        
         for field in self.fields.values():
+            existing_classes = field.widget.attrs.get('class', '')
+            
             field.widget.attrs.update({
-                'class': 'form-control',
+                'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip(),
                 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;'
             })
 
@@ -168,10 +171,9 @@ class DrinkForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(DrinkForm, self).__init__(*args, **kwargs)
-        # Style uniforme pour faire "Pro"
         for field in self.fields.values():
             field.widget.attrs.update({
-                'class': 'form-control',
+                'class': 'form-control placeholder:text-gray-400',
                 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;'
             })
             
