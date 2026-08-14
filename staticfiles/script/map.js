@@ -23,6 +23,24 @@ document.addEventListener("DOMContentLoaded", function() {
         shadowSize: [41, 41]
     });
 
+    const breweryIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    const barIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
     // 2. Extraction des données préparées par Django dans le HTML caché
     const spotsContainer = document.getElementById('spots-data-container');
     const spotsData = {};
@@ -52,6 +70,58 @@ document.addEventListener("DOMContentLoaded", function() {
             // Ajout direct du marqueur sur la carte
             const marker = L.marker([lat, lng], {icon: brownIcon}).addTo(map);
             marker.bindPopup(popupHtml);
+        });
+    }
+
+    // Chargement des Bars et Brasseries
+    const placesContainer = document.getElementById('places-data-container');
+    if (placesContainer) {
+        document.querySelectorAll('.place-data-item').forEach(item => {
+            const lat = parseFloat(item.dataset.lat);
+            const lng = parseFloat(item.dataset.lng);
+            const type = item.dataset.type;
+            const url = item.dataset.url;
+            const name = item.dataset.name;
+
+            const icon = type === 'bar' ? barIcon : breweryIcon;
+            
+            const marker = L.marker([lat, lng], {icon: icon, title: name}).addTo(map);
+            
+            // Événement au clic : Ouverture de la modale et chargement du contenu
+            marker.on('click', function() {
+                const modal = document.getElementById('modal_place');
+                const contentDiv = document.getElementById('modal_place_content');
+                
+                // Affiche le loader
+                contentDiv.innerHTML = '<div class="flex justify-center p-20"><span class="loading loading-spinner text-primary loading-lg"></span></div>';
+                modal.showModal();
+
+                // Aspire la page ciblée
+                fetch(url)
+                    .then(response => response.text())
+                    .then(html => {
+                        // Transforme le texte HTML en vrai document parcourable
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        
+                        // Extrait UNIQUEMENT le contenu utile (le block content) pour éviter les doublons de navbar
+                        const extractedContent = doc.querySelector('.p-4.flex-1.mb-16');
+                        
+                        if (extractedContent) {
+                            contentDiv.innerHTML = extractedContent.innerHTML;
+                            
+                            // UX : Cache le bouton "Retour" natif de la page aspirée puisqu'on a déjà la croix de la modale
+                            const backBtn = contentDiv.querySelector('a[href="javascript:history.back()"]');
+                            if (backBtn) backBtn.style.display = 'none';
+                        } else {
+                            contentDiv.innerHTML = '<p class="text-center p-10 text-error">Erreur lors du chargement des données.</p>';
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Erreur Fetch:', err);
+                        contentDiv.innerHTML = '<p class="text-center p-10 text-error">Impossible de joindre le serveur.</p>';
+                    });
+            });
         });
     }
 

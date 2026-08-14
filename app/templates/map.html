@@ -72,6 +72,15 @@
 </div>
 {% endfor %}
 </div>
+<div id="places-data-container" class="hidden">
+    {% for bar in bars %}
+    <div class="place-data-item" data-type="bar" data-url="{% url 'bar_detail' bar.id %}" data-lat="{{ bar.latitude|stringformat:'f' }}" data-lng="{{ bar.longitude|stringformat:'f' }}" data-name="{{ bar.name|escapejs }}"></div>
+    {% endfor %}
+    
+    {% for brewery in breweries %}
+    <div class="place-data-item" data-type="brewery" data-url="{% url 'brewery_detail' brewery.id %}" data-lat="{{ brewery.latitude|stringformat:'f' }}" data-lng="{{ brewery.longitude|stringformat:'f' }}" data-name="{{ brewery.name|escapejs }}"></div>
+    {% endfor %}
+</div>
 
 {% endblock %}
 {% block modals %}
@@ -191,6 +200,20 @@
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
 
+<dialog id="modal_place" class="modal modal-bottom sm:modal-middle z-[99999]">
+    <div class="modal-box p-0 w-full max-w-2xl custom-modal-form overflow-y-auto relative bg-base-100">
+        <button type="button" class="btn btn-sm btn-circle btn-neutral absolute right-3 top-3 z-[100] shadow-md bg-black/50 border-none text-white backdrop-blur-sm" onclick="modal_place.close()">✕</button>
+        
+        <div id="modal_place_content" class="w-full min-h-[300px] flex flex-col p-4">
+            <div class="flex justify-center p-20 w-full">
+                <span class="loading loading-spinner text-primary loading-lg"></span>
+            </div>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="{% static 'script/map.js' %}"></script>
+<script src="{% static 'script/wishlist.js' %}"></script>
 {% endblock %}
