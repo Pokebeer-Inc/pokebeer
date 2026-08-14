@@ -28,7 +28,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                 </div>
                 <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-40 right-0 border border-base-200">
-                    {% if beer.added_by == request.user %}
+                    {% if beer.added_by == request.user or is_brewery_manager %}
                         {% if not beer.is_deleted %}
                         <li>
                             <a href="{% url 'edit_beer' beer.slug %}" class="font-semibold text-primary">

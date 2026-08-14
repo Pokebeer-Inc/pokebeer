@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     const breweryIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41],
@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     const barIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41],
@@ -110,9 +110,14 @@ document.addEventListener("DOMContentLoaded", function() {
                         if (extractedContent) {
                             contentDiv.innerHTML = extractedContent.innerHTML;
                             
-                            // UX : Cache le bouton "Retour" natif de la page aspirée puisqu'on a déjà la croix de la modale
+                            // UX 1 : Cache le bouton "Retour" natif de la page aspirée puisqu'on a déjà la croix de la modale
                             const backBtn = contentDiv.querySelector('a[href="javascript:history.back()"]');
                             if (backBtn) backBtn.style.display = 'none';
+
+                            // UX 2 : Supprime la mini-carte pour éviter une redondance sur la page map
+                            const miniMap = contentDiv.querySelector('#place-map');
+                            if (miniMap) miniMap.parentElement.remove();
+                            
                         } else {
                             contentDiv.innerHTML = '<p class="text-center p-10 text-error">Erreur lors du chargement des données.</p>';
                         }

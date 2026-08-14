@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% url 'brewery_detail' brewery.id as brewery_detail_url %}
+{% include "partials/page_header.html" with title="Modifier la brasserie" subtitle=brewery.name back_url=brewery_detail_url %}
+
+<div class="card bg-white/90 backdrop-blur-md border border-white/50 mt-10 relative z-10 max-w-2xl mx-auto mb-10 shadow-sm">
+    <div class="card-body">
+
+        <form method="post" enctype="multipart/form-data" class="flex flex-col gap-4">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% for field in form %}
+                    <div class="form-control w-full {% if field.name == 'description' %}col-span-full{% endif %}">
+                        <label class="label py-1">
+                            <span class="label-text font-bold text-xs">
+                                {{ field.label }}
+                                {% if field.field.required %}
+                                    <span class="text-error ml-1">*</span>
+                                {% endif %}
+                            </span>
+                        </label>
+                        
+                        {% if field.name == 'image' %}
+                            <div class="p-3 border border-base-200 rounded-xl bg-gray-50/50 text-sm text-gray-600 leading-relaxed
+                                        [&>a]:block [&>a]:mt-1 [&>a]:mb-4 [&>a]:text-primary [&>a]:font-semibold [&>a]:break-all [&>a]:hover:underline
+                                        [&>input[type=checkbox]]:float-left [&>input[type=checkbox]]:mt-0.5 [&>input[type=checkbox]]:mr-2 [&>input[type=checkbox]]:checkbox [&>input[type=checkbox]]:checkbox-error [&>input[type=checkbox]]:checkbox-sm
+                                        [&>label]:block [&>label]:mb-4 [&>label]:text-error [&>label]:font-bold [&>label]:cursor-pointer
+                                        [&>br]:hidden
+                                        [&>input[type=file]]:block [&>input[type=file]]:mt-2">
+                                {{ field }}
+                            </div>
+                        {% else %}
+                            {{ field }}
+                        {% endif %}
+                        
+                        {% if field.errors %}<span class="text-xs text-error mt-1">{{ field.errors }}</span>{% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <div class="flex gap-3 mt-4">
+                <a href="{% url 'brewery_detail' brewery.id %}" class="btn btn-ghost flex-1">Annuler</a>
+                <button type="submit" class="btn btn-primary text-white flex-1 shadow-md">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

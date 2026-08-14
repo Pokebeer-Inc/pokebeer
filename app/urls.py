@@ -27,6 +27,7 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),
     path('update-top-beer/<int:slot>/', views.update_top_beer, name='update_top_beer'),
     path('swap-top-beers/', views.swap_top_beers, name='swap_top_beers'),
+    path('register/pro/<str:pro_type>/', views.register_pro_view, name='register_pro'),
     
     # ==========================================
     # Notifications
@@ -66,6 +67,9 @@ urlpatterns = [
     # ==========================================
     path('brewery/<int:brewery_id>/', views.brewery_detail_view, name='brewery_detail'),
     path('bar/<int:bar_id>/', views.bar_detail_view, name='bar_detail'),
+    path('brewery/<int:brewery_id>/edit/', views.edit_brewery_view, name='edit_brewery'),
+    path('brewery/<int:brewery_id>/add-manager/', views.add_brewery_manager, name='add_brewery_manager'),
+    path('brewery/<int:brewery_id>/remove-manager/<int:user_id>/', views.remove_brewery_manager, name='remove_brewery_manager'),
 
     # ==========================================
     # Dégustations (Avis) & Lieux (Spots)
@@ -85,4 +89,5 @@ urlpatterns = [
     path('api/search-beer/', views.search_beer, name='search_beer'),
     path('api/notifications/unread/', views.api_unread_notifications, name='api_unread_notifications'),
     path('api/load-more/<str:item_type>/', views.load_more_generic, name='load_more_generic'),
+    path('api/brewery/<int:brewery_id>/search-users/', views.api_search_users_for_manager, name='api_search_users_for_manager'),
 ]

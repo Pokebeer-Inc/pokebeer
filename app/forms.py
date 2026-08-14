@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from .models import BeerUser, Beer, Brewery, Drinks, Feedback
+from .models import BeerUser, Beer, Brewery, Drinks, Feedback, Bar
 from django.utils.text import slugify
 
 class UserRegisterForm(UserCreationForm):
@@ -74,6 +74,73 @@ class UserUpdateForm(forms.ModelForm):
         if BeerUser.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("Cet email est déjà utilisé par un autre membre.")
         return email
+    
+class ProUserForm(forms.ModelForm):
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'input input-bordered w-full bg-white'}), 
+        label="Mot de passe"
+    )
+    class Meta:
+        model = BeerUser
+        fields = ['username', 'email']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}),
+            'email': forms.EmailInput(attrs={'class': 'input input-bordered w-full bg-white'}),
+        }
+
+PRO_FIELDS = ['name', 'siret', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
+
+class BarProForm(forms.ModelForm):
+    siret = forms.CharField(max_length=14, min_length=14, required=True, label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
+    
+    class Meta:
+        model = Bar
+        fields = PRO_FIELDS
+        widgets = {field: forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}) for field in PRO_FIELDS if field not in ['description', 'image', 'siret']}
+        widgets['description'] = forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 3})
+        
+    def __init__(self, *args, **kwargs):
+        super(BarProForm, self).__init__(*args, **kwargs)
+        for field in self.fields.values():
+            existing_classes = field.widget.attrs.get('class', '')
+            
+            field.widget.attrs.update({
+                'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip()
+            })
+
+class BreweryProForm(forms.ModelForm):
+    siret = forms.CharField(max_length=14, min_length=14, required=True, label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
+    
+    class Meta:
+        model = Brewery
+        fields = PRO_FIELDS
+        widgets = {field: forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}) for field in PRO_FIELDS if field not in ['description', 'image', 'siret']}
+        widgets['description'] = forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 3})
+        
+    def __init__(self, *args, **kwargs):
+        super(BreweryProForm, self).__init__(*args, **kwargs)
+        for field in self.fields.values():
+            existing_classes = field.widget.attrs.get('class', '')
+            
+            field.widget.attrs.update({
+                'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip()
+            })
+            
+class BreweryEditForm(forms.ModelForm):
+    class Meta:
+        model = Brewery
+        fields = ['name', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}),
+            'address': forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}),
+            'phone': forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}),
+            'email': forms.EmailInput(attrs={'class': 'input input-bordered w-full bg-white'}),
+            'website': forms.URLInput(attrs={'class': 'input input-bordered w-full bg-white'}),
+            'instagram': forms.URLInput(attrs={'class': 'input input-bordered w-full bg-white'}),
+            'facebook': forms.URLInput(attrs={'class': 'input input-bordered w-full bg-white'}),
+            'description': forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 4}),
+            'image': forms.ClearableFileInput(attrs={'class': 'file-input file-input-bordered file-input-primary w-full bg-white text-gray-700 mt-2'}),
+}
 
 class BeerForm(forms.ModelForm):
     brewery_name = forms.CharField(

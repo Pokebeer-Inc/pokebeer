@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.db.models import Count, Q, F
 
 from ..forms import BeerForm, DrinkForm
-from ..models import Beer, Drinks, Brewery, Notification, UserFollow, DrinkReaction
+from ..models import Beer, Drinks, Notification, UserFollow, DrinkReaction
 from .utils import get_excluded_users, check_and_notify_achievements
 from ..services.realtime_service import broadcast_notifications
 
@@ -38,6 +38,16 @@ def add_beer_view(request):
             created_notifs = Notification.objects.bulk_create(notifications)
             broadcast_notifications(created_notifs)
             
+            if new_beer.brewery_id:
+                managers = new_beer.brewery_id.managers.exclude(id=request.user.id) # Exclut si le créateur EST le manager
+                if managers.exists():
+                    manager_notifs = [
+                        Notification(recipient=m, sender=request.user, notif_type='beer_added_to_brewery', beer=new_beer)
+                        for m in managers
+                    ]
+                    created_manager_notifs = Notification.objects.bulk_create(manager_notifs)
+                    broadcast_notifications(created_manager_notifs)
+            
             check_and_notify_achievements(request.user)
             
             messages.success(request, f"Bière ajoutée et notée ! Merci {request.user.username}.")
@@ -45,7 +55,11 @@ def add_beer_view(request):
         else:
             messages.error(request, "Erreur dans le formulaire. Veuillez vérifier les champs.")
     else:
-        beer_form = BeerForm(prefix='beer')
+        # On lit le paramètre dans l'URL ?brewery=
+        initial_brewery = request.GET.get('brewery', '')
+        
+        # On l'injecte dans le champ 'brewery_name' du formulaire
+        beer_form = BeerForm(prefix='beer', initial={'brewery_name': initial_brewery})
         drink_form = DrinkForm(prefix='drink')
 
     context = {
@@ -98,12 +112,20 @@ def beer_detail_view(request, beer_slug):
         rating_from = DrinkForm()
 
     wishlist_beer_ids = []
-    if request.user.is_authenticated and request.user.wishlist_beers.filter(id=beer.id).exists():
-        wishlist_beer_ids.append(beer.id)
+    is_brewery_manager = False # NOUVEAU
+    
+    if request.user.is_authenticated:
+        if request.user.wishlist_beers.filter(id=beer.id).exists():
+            wishlist_beer_ids.append(beer.id)
+            
+        # On vérifie si le user est manager de la brasserie liée à cette bière
+        if beer.brewery_id:
+            is_brewery_manager = beer.brewery_id.managers.filter(id=request.user.id).exists()
 
     context = {
         'beer': beer,
         'drinks': drinks,
+        'is_brewery_manager': is_brewery_manager,
         'user_rating': user_rating,
         'rating_form': rating_from,
         'wishlist_beer_ids': wishlist_beer_ids,
@@ -112,8 +134,18 @@ def beer_detail_view(request, beer_slug):
 
 @login_required(login_url='login')
 def edit_beer_view(request, beer_slug):
-    """Éditer les infos d'une bière qu'on a proposée."""
-    beer = get_object_or_404(Beer, slug=beer_slug, added_by=request.user, is_deleted=False)
+    """Éditer les infos d'une bière qu'on a proposée ou dont on gère la brasserie."""
+    
+    beer = get_object_or_404(Beer, slug=beer_slug, is_deleted=False)
+    
+    # Vérification des droits (Créateur OU Manager)
+    is_creator = (beer.added_by == request.user)
+    is_manager = beer.brewery_id and beer.brewery_id.managers.filter(id=request.user.id).exists()
+    
+    if not (is_creator or is_manager):
+        messages.error(request, "Vous n'avez pas l'autorisation de modifier cette bière.")
+        return redirect('beer_detail', beer_slug=beer.slug)
+
     if request.method == 'POST':
         form = BeerForm(request.POST, request.FILES, instance=beer)
         if form.is_valid():
@@ -127,6 +159,15 @@ def edit_beer_view(request, beer_slug):
             ]
             created_notifs = Notification.objects.bulk_create(notifications)
             broadcast_notifications(created_notifs)
+            
+            if is_manager and not is_creator and beer.added_by:
+                notif_creator = Notification.objects.create(
+                    recipient=beer.added_by,
+                    sender=request.user,
+                    notif_type='beer_updated_by_manager',
+                    beer=beer
+                )
+                broadcast_notifications([notif_creator])
                 
             messages.success(request, "Les informations de la bière ont été mises à jour.")
             return redirect('beer_detail', beer_slug=beer.slug)
@@ -137,7 +178,17 @@ def edit_beer_view(request, beer_slug):
 @login_required(login_url='login')
 def delete_beer_view(request, beer_slug):
     """Soft-delete d'une bière du catalogue."""
-    beer = get_object_or_404(Beer, slug=beer_slug, added_by=request.user, is_deleted=False)
+    
+    beer = get_object_or_404(Beer, slug=beer_slug, is_deleted=False)
+    
+    # Vérification des droits
+    is_creator = (beer.added_by == request.user)
+    is_manager = beer.brewery_id and beer.brewery_id.managers.filter(id=request.user.id).exists()
+    
+    if not (is_creator or is_manager):
+        messages.error(request, "Vous n'avez pas l'autorisation de retirer cette bière.")
+        return redirect('beer_detail', beer_slug=beer.slug)
+
     if request.method == 'POST':
         beer.is_deleted = True
         beer.save()
@@ -145,31 +196,15 @@ def delete_beer_view(request, beer_slug):
         # Supprimer les notifications liées à cette bière
         Notification.objects.filter(beer=beer).delete()
         
+        if is_manager and not is_creator and beer.added_by:
+            notif_creator = Notification.objects.create(
+                recipient=beer.added_by,
+                sender=request.user,
+                notif_type='beer_deleted_by_manager',
+                text_content=beer.name  # On utilise le texte libre car la bière est désormais cachée
+            )
+            broadcast_notifications([notif_creator])
+        
         messages.success(request, "Bière retirée du catalogue. Vos notes personnelles sont conservées.")
         return redirect('index')
     return redirect('beer_detail', beer_slug=beer.slug)
-
-@login_required(login_url='login')
-def brewery_detail_view(request, brewery_id):
-    """Affiche les détails d'une brasserie et la liste de ses bières."""
-    brewery = get_object_or_404(Brewery, id=brewery_id)
-    beers = Beer.objects.filter(brewery_id=brewery, is_deleted=False).order_by('name')
-
-    # Limiter aux bières de cette brasserie
-    rated_beer_ids = []
-    wishlist_beer_ids = []
-    if request.user.is_authenticated:
-        displayed_ids = [b.id for b in beers]
-        rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user, beer_id__in=displayed_ids).values_list('beer_id', flat=True))
-        wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
-
-    rating_form = DrinkForm()
-
-    context = {
-        'brewery': brewery,
-        'beers': beers,
-        'rated_beer_ids': rated_beer_ids,
-        'wishlist_beer_ids': wishlist_beer_ids,
-        'rating_form': rating_form,
-    }
-    return render(request, 'brewery_page.html', context)
