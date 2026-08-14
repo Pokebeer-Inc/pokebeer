@@ -24,11 +24,11 @@
         "{{ notif.feedback.admin_reply }}"
     </div>
 {% elif notif.notif_type == 'manager_added' %}
-    <span class="font-bold">{{ notif.sender.username }}</span> vous a nommé(e) gérant(e) de l'établissement : <span class="font-bold">{{ notif.brewery.name|default:notif.bar.name }}</span>.
+    <span class="font-bold">{{ notif.sender.username }}</span> vous a nommé(e) gérant(e) de l'établissement : <span class="font-bold">{{ notif.brewery.name }}</span>.
 {% elif notif.notif_type == 'manager_removed' %}
     <span class="font-bold">{{ notif.sender.username }}</span> vous a retiré(e) de l'équipe de gestion de : <span class="font-bold">{{ notif.text_content }}</span>.
 {% elif notif.notif_type == 'place_updated' %}
-    <span class="font-bold">{{ notif.sender.username }}</span> a mis à jour les informations de votre établissement : <span class="font-bold">{{ notif.brewery.name|default:notif.bar.name }}</span>.
+    <span class="font-bold">{{ notif.sender.username }}</span> a mis à jour les informations de votre établissement : <span class="font-bold">{{ notif.brewery.name }}</span>.
 {% elif notif.notif_type == 'beer_added_to_brewery' %}
     <span class="font-bold">{{ notif.sender.username }}</span> a référencé une nouvelle bière pour votre brasserie : <span class="font-bold">{{ notif.beer.name }}</span>.
 {% elif notif.notif_type == 'beer_updated_by_manager' %}
