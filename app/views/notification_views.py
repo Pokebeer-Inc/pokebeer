@@ -43,6 +43,10 @@ def api_unread_notifications(request):
             toast_type = 'warning'
         elif notif.notif_type in ['beer_added', 'spot_invite', 'feedback_replied']:
             toast_type = 'success'
+        elif notif.notif_type in ['manager_added', 'place_updated', 'beer_added_to_brewery', 'beer_updated_by_manager', 'beer_deleted_by_manager']:
+            toast_type = 'info'
+        elif notif.notif_type == 'manager_removed':
+            toast_type = 'error'
             
         data.append({
             'id': notif.id,
@@ -68,6 +72,8 @@ def read_notification(request, notif_id):
         return redirect('public_profile', username=notif.sender.username)
     elif notif.notif_type in ['beer_shared', 'beer_added', 'beer_updated', 'drink_liked', 'wishlist_added'] and notif.beer:
         return redirect('beer_detail', beer_slug=notif.beer.slug)
+    elif notif.notif_type in ['manager_added', 'place_updated'] and notif.brewery:
+        return redirect('brewery_detail', brewery_id=notif.brewery.id)
     elif notif.notif_type == 'achievement':
         return redirect('achievements')
     elif notif.notif_type in ['spot_invite', 'spot_updated']:

@@ -236,6 +236,11 @@ AWS_S3_ADDRESSING_STYLE = 'path'
 # Ne pas écraser les fichiers avec le même nom (ajoutera des caractères aléatoires)
 AWS_S3_FILE_OVERWRITE = False
 
+# Rendre les URLs générées publiques et propres (sans signature expirante)
+AWS_QUERYSTRING_AUTH = False
+supabase_domain = os.getenv('SUPABASE_URL', '').replace('https://', '')
+AWS_S3_CUSTOM_DOMAIN = f"{supabase_domain}/storage/v1/object/public/{AWS_STORAGE_BUCKET_NAME}"
+
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3.S3Storage",

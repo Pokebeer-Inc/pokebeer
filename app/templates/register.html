@@ -38,6 +38,9 @@
         <p class="text-center mt-6 text-sm text-gray-600">
             Déjà un compte ? <a href="{% url 'login' %}" class="text-secondary hover:underline font-bold">Se connecter</a>
         </p>
+
+        {% include "partials/pro_link.html" %}
+
     </div>
 </div>
 {% endblock %}

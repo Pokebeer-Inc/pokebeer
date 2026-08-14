@@ -2,7 +2,7 @@
 
 {% block content %}
 
-{% url 'beer_detail' as beer_detail_url %}
+{% url 'beer_detail' beer.slug as beer_detail_url %}
 {% include "partials/page_header.html" with title="Modifier la bière" subtitle=beer.name back_url=beer_detail_url %}
 
 <div class="card-body bg-white p-4 rounded-xl border border-base-300 space-y-2">

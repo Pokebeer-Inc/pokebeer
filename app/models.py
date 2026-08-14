@@ -36,6 +36,21 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     def has_unread_notifications(self):
         """Vérifie si l'utilisateur a au moins une notification non lue"""
         return self.notifications.filter(is_read=False).exists()
+    
+    @property
+    def is_pro(self):
+        """Renvoie True si l'utilisateur gère au moins un établissement"""
+        return self.managed_breweries.exists() or self.managed_bars.exists()
+
+    @property
+    def my_breweries(self):
+        """Renvoie la liste des brasseries gérées"""
+        return self.managed_breweries.all()
+
+    @property
+    def my_bars(self):
+        """Renvoie la liste des bars gérés"""
+        return self.managed_bars.all()
 
     def __str__(self):
         return self.username
@@ -49,9 +64,11 @@ class UserFollow(models.Model):
         unique_together = ('follower', 'followed')
 
 class Brewery(models.Model):
-    name = models.CharField(max_length=150, blank=False, unique=True, verbose_name="Nom")
+    name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
     description = models.TextField(verbose_name="Description")
     image = models.ImageField(upload_to='breweries/', blank=True, null=True, verbose_name="Image")
+    siret = models.CharField(max_length=14, unique=True, blank=True, null=True, verbose_name="Numéro SIRET")
+    managers = models.ManyToManyField('BeerUser', blank=True, related_name='managed_breweries', verbose_name="Gérants")
     
     # champs de contact
     address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Adresse complète")
@@ -82,9 +99,11 @@ class Brewery(models.Model):
         return self.name
     
 class Bar(models.Model):
-    name = models.CharField(max_length=150, unique=True, verbose_name="Nom")
+    name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
     description = models.TextField(blank=True, null=True, verbose_name="Description")
     image = models.ImageField(upload_to='bars/', blank=True, null=True, verbose_name="Image")
+    siret = models.CharField(max_length=14, unique=True, blank=True, null=True, verbose_name="Numéro SIRET")
+    managers = models.ManyToManyField('BeerUser', blank=True, related_name='managed_bars', verbose_name="Gérants")
     
     # Localisation et Contact
     address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Adresse complète")
@@ -301,6 +320,8 @@ class Notification(models.Model):
     feedback = models.ForeignKey('Feedback', on_delete=models.CASCADE, null=True, blank=True)
     
     beer = models.ForeignKey('Beer', on_delete=models.CASCADE, null=True, blank=True)
+    brewery = models.ForeignKey('Brewery', on_delete=models.CASCADE, null=True, blank=True)
+    bar = models.ForeignKey('Bar', on_delete=models.CASCADE, null=True, blank=True)
     spot = models.ForeignKey('BeerSpot', on_delete=models.CASCADE, null=True, blank=True)
     achievement_name = models.CharField(max_length=100, null=True, blank=True)
     text_content = models.CharField(max_length=255, null=True, blank=True) 

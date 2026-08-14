@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
 
-from ..models import Drinks, BeerSpot, UserFollow, Notification
+from ..models import Drinks, BeerSpot, UserFollow, Notification, Bar, Brewery
 from .utils import get_excluded_users, check_and_notify_achievements
 from ..services.realtime_service import broadcast_notifications
 
@@ -115,11 +115,17 @@ def map_view(request):
     user_spots = BeerSpot.objects.filter(
         Q(user=request.user) | Q(friends=request.user)
     ).exclude(user__in=get_excluded_users(request.user)).distinct().prefetch_related('drinks', 'drinks__beer_id', 'friends')
+    
+    # Afficher les bars et les brasseries
+    bars = Bar.objects.filter(latitude__isnull=False, longitude__isnull=False)
+    breweries = Brewery.objects.filter(latitude__isnull=False, longitude__isnull=False)
 
     context = {
         'user_drinks': user_drinks,
         'user_spots': user_spots,
         'followers': followers,
+        'bars': bars,
+        'breweries': breweries,
     }
     return render(request, 'map.html', context)
 
