@@ -196,6 +196,9 @@ def delete_beer_view(request, beer_slug):
         # Supprimer les notifications liées à cette bière
         Notification.objects.filter(beer=beer).delete()
         
+        if beer.added_by:
+            check_and_notify_achievements(beer.added_by)
+        
         if is_manager and not is_creator and beer.added_by:
             notif_creator = Notification.objects.create(
                 recipient=beer.added_by,

@@ -15,7 +15,7 @@ def get_excluded_users(user):
 
 def get_user_achievements(user):
     """Calcule et retourne la liste des hauts faits d'un utilisateur."""
-    poche_count = Beer.objects.filter(added_by=user).count()
+    poche_count = Beer.objects.filter(added_by=user, is_deleted=False).count()
     juge_count = Drinks.objects.filter(drinker_id=user).count()
     comm_count = UserFollow.objects.filter(follower=user).count()
     voyageur_count = BeerSpot.objects.filter(user=user).count()

@@ -70,10 +70,8 @@ def read_notification(request, notif_id):
     
     if notif.notif_type == 'follow' and notif.sender:
         return redirect('public_profile', username=notif.sender.username)
-    elif notif.notif_type in ['beer_shared', 'beer_added', 'beer_updated', 'drink_liked', 'wishlist_added'] and notif.beer:
+    elif notif.notif_type in ['beer_shared', 'beer_added', 'beer_updated', 'drink_liked', 'wishlist_added', 'beer_added_to_brewery', 'beer_updated_by_manager'] and notif.beer:
         return redirect('beer_detail', beer_slug=notif.beer.slug)
-    elif notif.notif_type in ['manager_added', 'place_updated'] and notif.brewery:
-        return redirect('brewery_detail', brewery_id=notif.brewery.id)
     elif notif.notif_type == 'achievement':
         return redirect('achievements')
     elif notif.notif_type in ['spot_invite', 'spot_updated']:
@@ -82,7 +80,8 @@ def read_notification(request, notif_id):
         return redirect('my_reports')
     elif notif.notif_type == 'feedback_replied':
         return redirect('account')
-        
+    elif notif.notif_type in ['manager_added', 'place_updated'] and notif.brewery:
+        return redirect('brewery_detail', brewery_id=notif.brewery.id)
     return redirect('notifications')
 
 @login_required(login_url='login')

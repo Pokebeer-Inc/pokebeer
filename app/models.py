@@ -315,7 +315,7 @@ class Notification(models.Model):
 
     recipient = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='notifications')
     sender = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_notifications')
-    notif_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    notif_type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES)
     report = models.ForeignKey('Report', on_delete=models.CASCADE, null=True, blank=True)
     feedback = models.ForeignKey('Feedback', on_delete=models.CASCADE, null=True, blank=True)
     
