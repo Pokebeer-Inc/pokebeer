@@ -28,7 +28,7 @@ def get_user_achievements(user):
     has_picon = 1 if user.bio and 'picon' in user.bio.lower() else 0
     has_ours = 1 if Drinks.objects.filter(drinker_id=user, beer_id__brewery_id__name__icontains='ours dor').exists() else 0
 
-    def build_achievement(slug, name, current_val, thresholds, desc, is_hidden=False):
+    def build_achievement(slug, name, current_val, thresholds, desc, category="global", is_hidden=False):
         tier = 0
         for i, t in enumerate(thresholds):
             if current_val >= t:
@@ -52,6 +52,7 @@ def get_user_achievements(user):
             'slug': slug,
             'name': name,
             'desc': display_desc,
+            'category': category,
             'current': current_display,
             'target': next_t,
             'progress': progress,
@@ -62,15 +63,20 @@ def get_user_achievements(user):
         }
 
     return [
-        build_achievement("poche", "Poche", poche_count, [1, 10, 100, 500], "Ajouter des bières au catalogue"),
-        build_achievement("juge", "Juge", juge_count, [5, 10, 100, 500], "Noter des bières"),
-        build_achievement("communaute", "Communautaire", comm_count, [10, 100, 500, 1000], "S'abonner à d'autres membres"),
-        build_achievement("voyageur", "Voyageur", voyageur_count, [5, 50, 250, 500], "Placer des lieux sur la carte"),
-        build_achievement("bad_trip", "Mauvaise cuite", bad_count, [5, 50, 250, 500], "Noter des bières en dessous de 2/10"),
-        build_achievement("cesar", "César", cesar_count, [10, 50, 100, 500], "Ajouter des pouces pour réagir aux avis"),
-        build_achievement("irlandais", "Irlandais", irlandais_score, [5, 6, 8, 10], "Noter une Guinness avec une excellente note", is_hidden=True),
-        build_achievement("picon", "Copain de Gaétan", has_picon, [1, 1, 1, 1], "Mentionner le Picon dans sa biographie", is_hidden=True),
-        build_achievement("ours", "Ours doré", has_ours, [1, 1, 1, 1], "Boire une bière de la brasserie Ours Doré", is_hidden=True),
+        build_achievement("poche", "Poche", poche_count, [1, 10, 100, 500], "Ajouter des bières au catalogue", category="global"),
+        build_achievement("juge", "Juge", juge_count, [5, 10, 100, 500], "Noter des bières", category="global"),
+        build_achievement("communaute", "Communautaire", comm_count, [10, 100, 500, 1000], "S'abonner à d'autres membres", category="global"),
+        build_achievement("voyageur", "Voyageur", voyageur_count, [5, 50, 250, 500], "Placer des lieux sur la carte", category="global"),
+        build_achievement("bad_trip", "Mauvaise cuite", bad_count, [5, 50, 250, 500], "Noter des bières en dessous de 2/10", category="global"),
+        build_achievement("cesar", "César", cesar_count, [10, 50, 100, 500], "Ajouter des pouces pour réagir aux avis", category="global"),
+        build_achievement("irlandais", "Irlandais", irlandais_score, [5, 6, 8, 10], "Noter une Guinness avec une excellente note", category="global", is_hidden=True),
+        build_achievement("picon", "Copain de Gaétan", has_picon, [1, 1, 1, 1], "Mentionner le Picon dans sa biographie", category="global", is_hidden=True),
+        
+        # Brasseries
+        build_achievement("ours", "Ours doré", has_ours, [1, 1, 1, 1], "Boire et noter une bière de la brasserie de l'Ours Doré", category="brewery"),
+        
+        # Bars
+        #...
     ]
     
 def check_and_notify_achievements(user):

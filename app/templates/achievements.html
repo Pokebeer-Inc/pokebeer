@@ -6,9 +6,51 @@
 
 {% include "partials/page_header.html" with title="Hauts Faits" subtitle="Dégustez, notez et explorez pour débloquer de nouveaux paliers !" %}
 
-<div class="grid grid-cols-2 gap-3 p-1">
-    {% for ach in achievements %}
-    {% include "partials/achievement_card.html" with ach=ach %}
-    {% endfor %}
+<div class="p-1 pb-6">
+    
+    <!-- Trophées Globaux -->
+    <div class="grid grid-cols-2 gap-3 mb-6">
+        {% for ach in achievements %}
+            {% if ach.category == 'global' %}
+                {% include "partials/achievement_card.html" with ach=ach %}
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Trophées Brasseries -->
+    <h3 class="font-castoro text-xl font-bold mt-4 mb-3 px-1 flex items-center gap-2 border-b border-primary pb-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+        Brasseries
+    </h3>
+    <div class="grid grid-cols-2 gap-3 mb-6">
+        {% for ach in achievements %}
+            {% if ach.category == 'brewery' %}
+                {% include "partials/achievement_card.html" with ach=ach %}
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Trophées Bars -->
+    <h3 class="font-castoro text-xl font-bold mt-4 mb-3 px-1 flex items-center gap-2 border-b border-primary pb-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 fill-current" viewBox="0 0 390.037 390.037">
+            <path d="M300.019,76.804c0-21.751-16.084-39.816-36.983-42.928C258.682,14.511,241.347,0,220.687,0 c-11.913,0-23.089,4.829-31.187,13.217c-3.921-1.137-8.005-1.724-12.094-1.724c-15.9,0-30.386,8.828-37.93,22.331 c-1.998-0.28-4.019-0.421-6.056-0.421c-23.932,0-43.402,19.47-43.402,43.401c0,14.402,7.057,27.181,17.888,35.08 c-2.021,39.324,2.433,78.664,6.765,116.749c5.593,49.174,11.376,100.022,2.685,149.68c-0.509,2.91,0.294,5.896,2.194,8.157 c1.9,2.262,4.703,3.567,7.656,3.567h135.626c2.954,0,5.757-1.306,7.657-3.568s2.703-5.248,2.193-8.157 c-8.698-49.659-2.913-100.51,2.682-149.686c4.333-38.081,8.791-77.431,6.769-116.743 C292.963,103.983,300.019,91.205,300.019,76.804z M133.421,53.402c2.865,0,5.671,0.517,8.34,1.535 c2.611,0.996,5.522,0.854,8.025-0.392c2.503-1.247,4.369-3.484,5.146-6.171c2.878-9.94,12.119-16.882,22.475-16.882 c3.764,0,7.363,0.872,10.698,2.592c4.56,2.351,10.162,0.871,12.962-3.429C205.414,23.983,212.749,20,220.687,20 c12.865,0,23.339,10.435,23.401,23.286c-0.001,0.078-0.003,0.156-0.003,0.222c0,2.784,1.16,5.441,3.202,7.333 c2.041,1.892,4.785,2.853,7.555,2.638c0.681-0.052,1.262-0.077,1.774-0.077c12.904,0,23.402,10.498,23.402,23.401 c0,12.905-10.498,23.403-23.402,23.403h-73.328c-5.523,0-10,4.477-10,10v31.683c0,3.987-3.244,7.231-7.232,7.231 c-3.989,0-7.234-3.244-7.234-7.231v-31.683c0-5.523-4.477-10-10-10h-15.403c-12.904,0-23.402-10.499-23.402-23.403 C110.019,63.9,120.517,53.402,133.421,53.402z M138.865,370.037c0.782-5.846,1.387-11.688,1.842-17.525H249.33 c0.456,5.837,1.062,11.678,1.844,17.525H138.865z M255.492,226.366c-3.952,34.735-7.99,70.283-7.16,106.147H141.703 c0.829-35.862-3.209-71.407-7.16-106.14c-3.981-35.002-8.067-71.085-6.95-106.568c1.907,0.257,3.85,0.402,5.827,0.402h5.403v21.683 c0,15.016,12.217,27.231,27.234,27.231c15.016,0,27.232-12.216,27.232-27.231v-21.683h63.328c1.978,0,3.922-0.146,5.831-0.403 C263.566,155.273,259.474,191.366,255.492,226.366z"></path>
+            <circle cx="176.481" cy="219.019" r="12.659"></circle>
+            <circle cx="203.588" cy="274.178" r="20"></circle>
+            <circle cx="220.088" cy="181.495" r="9"></circle>
+        </svg>
+        Bars
+    </h3>
+    <div class="grid grid-cols-2 gap-3 mb-2">
+        {% for ach in achievements %}
+            {% if ach.category == 'bar' %}
+                {% include "partials/achievement_card.html" with ach=ach %}
+            {% endif %}
+        {% endfor %}
+        
+        <!-- Placeholder en attendant -->
+        <div class="col-span-2 text-center p-4 bg-white/50 border border-base-200 border-dashed rounded-xl text-gray-400 italic text-sm">
+            De nouveaux défis arriveront bientôt...
+        </div>
+    </div>
 </div>
 {% endblock %}

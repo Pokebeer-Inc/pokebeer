@@ -115,7 +115,14 @@
         <div class="flex-1 overflow-y-auto pr-2">
             <!-- Ajouter un accès (AJAX) -->
             <h4 class="font-bold text-sm mb-2 text-gray-700">Ajouter un collaborateur</h4>
-            <input type="text" id="search-collab" placeholder="Rechercher par nom d'utilisateur" class="input input-sm input-bordered w-full mb-3 sticky top-0 z-10 shadow-sm" onkeyup="searchUsersForCollab()">
+            
+            <input type="text" id="search-collab" 
+                   placeholder="Rechercher par nom d'utilisateur" 
+                   class="input input-sm input-bordered w-full mb-3 sticky top-0 z-10 shadow-sm" 
+                   onkeyup="searchUsersForCollab()"
+                   data-search-url="{% url 'api_search_users_for_manager' brewery.id %}"
+                   data-add-url="{% url 'add_brewery_manager' brewery.id %}"
+                   data-csrf-token="{{ csrf_token }}">
             
             <div id="search-results-container" class="max-h-48 overflow-y-auto mb-6 border border-base-200 rounded-lg p-2 bg-base-200/50">
                 <p class="text-xs text-gray-500 italic text-center py-2">Tapez un nom pour lancer la recherche...</p>
@@ -158,58 +165,7 @@
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
 
-<script>
-    let searchTimeout;
-    
-    function searchUsersForCollab() {
-        clearTimeout(searchTimeout); // Réinitialise le timer (Debouncer)
-        
-        const input = document.getElementById('search-collab').value.trim();
-        const container = document.getElementById('search-results-container');
-
-        if (input.length < 2) {
-            container.innerHTML = '<p class="text-xs text-gray-500 italic text-center py-2">Tapez au moins 2 caractères...</p>';
-            return;
-        }
-
-        // Affiche un loader pendant la recherche
-        container.innerHTML = '<div class="flex justify-center py-4"><span class="loading loading-spinner text-primary"></span></div>';
-
-        // Lance la recherche AJAX après 300ms de pause (évite de spammer l'API à chaque frappe clavier)
-        searchTimeout = setTimeout(() => {
-            fetch(`{% url 'api_search_users_for_manager' brewery.id %}?q=${encodeURIComponent(input)}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.users && data.users.length > 0) {
-                    container.innerHTML = data.users.map(u => `
-                        <div class="collab-item flex justify-between items-center py-2 border-b border-base-200 last:border-0">
-                            
-                            <div class="flex items-center gap-3">
-                                <div class="avatar">
-                                    <div class="w-8 h-8 rounded-full border border-base-300 overflow-hidden shadow-inner">
-                                        <img src="${u.avatar_url}" class="object-cover" />
-                                    </div>
-                                </div>
-                                <a href="/user/${u.username}/" class="text-sm font-semibold hover:text-primary transition-colors">${u.username}</a>
-                            </div>
-                            
-                            <form method="post" action="{% url 'add_brewery_manager' brewery.id %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="user_id" value="${u.id}">
-                                <button type="submit" class="btn btn-xs btn-primary btn-outline">Ajouter</button>
-                            </form>
-                        </div>
-                    `).join('');
-                } else {
-                    container.innerHTML = '<p class="text-xs text-gray-500 italic text-center py-2">Aucun utilisateur trouvé.</p>';
-                }
-            })
-            .catch(err => {
-                container.innerHTML = '<p class="text-xs text-error italic text-center py-2">Erreur lors de la recherche.</p>';
-            });
-        }, 300);
-    }
-</script>
+<script src="{% static 'script/manage_collaborators.js' %}"></script>
 {% endif %}
 
 <script src="{% static 'script/wishlist.js' %}"></script>
