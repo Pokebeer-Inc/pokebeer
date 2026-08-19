@@ -52,6 +52,12 @@ class ReportTargetFilter(admin.SimpleListFilter):
 
 @admin.register(Report)
 class ReportAdmin(ModelAdmin):
+    
+    class Media:
+        js = (
+            "script/admin_link_line.js",
+    )
+        
     form = ReportAdminForm
 
     compressed_fields = False
