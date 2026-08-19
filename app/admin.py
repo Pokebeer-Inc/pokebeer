@@ -24,9 +24,9 @@ class ReportTargetFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ("beer", "🍺 Bière"),
-            ("drink", "⭐ Note"),
-            ("user", "👤 Utilisateur"),
+            ("beer", "Bière"),
+            ("drink", "Note"),
+            ("user", "Utilisateur"),
         )
 
     def queryset(self, request, queryset):
@@ -52,7 +52,7 @@ class ReportTargetFilter(admin.SimpleListFilter):
 
 @admin.register(Report)
 class ReportAdmin(ModelAdmin):
-    
+
     class Media:
         js = (
             "script/admin_link_line.js",
