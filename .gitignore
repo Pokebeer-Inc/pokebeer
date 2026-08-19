@@ -10,4 +10,3 @@ media/
 .pytest_cache/
 .coverage
 htmlcov/
-Dockerfile
