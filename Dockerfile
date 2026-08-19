@@ -9,7 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Security: Non-root application user creation with home directory (-m)
-RUN groupadd -r appuser && useradd -r -m -g appuser appuser
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd --gid ${GID} appuser \
+    && useradd --uid ${UID} --gid ${GID} --create-home appuser
 
 WORKDIR /app
 

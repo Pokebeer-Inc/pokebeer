@@ -309,6 +309,31 @@ UNFOLD = {
                     },                              
                 ],
             },
+            {
+                "title": _("Eléments"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Bière"),
+                        "icon": "beer_meal", 
+                        "link": reverse_lazy("admin:app_beer_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": _("Brasserie"),
+                        "icon": "factory", 
+                        "link": reverse_lazy("admin:app_brewery_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": _("Bar"),
+                        "icon": "chair_counter", 
+                        "link": reverse_lazy("admin:app_bar_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },                                 
+                ],
+            },  
         ],
     },
 }
