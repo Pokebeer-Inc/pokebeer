@@ -1,7 +1,9 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from .models import BeerUser, Beer, Brewery, Drinks, Feedback, Bar
+from .models import BeerUser, Beer, Brewery, Drinks, Feedback, Bar, Report
 from django.utils.text import slugify
+
+from unfold.contrib.forms.widgets import ArrayWidget, WysiwygWidget
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField(required=True)
@@ -273,4 +275,17 @@ class NotificationPreferenceForm(forms.ModelForm):
             'notif_social': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
             'notif_network': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
             'notif_achievements': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
+        }
+
+
+class ReportAdminForm(forms.ModelForm):
+    class Meta:
+        model = Report
+        fields = (
+            "status",
+            "admin_response",
+        )
+
+        widgets = {
+            "admin_response": WysiwygWidget,
         }
