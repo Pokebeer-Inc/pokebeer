@@ -1,521 +1,723 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const mapElement = document.getElementById("bar-moderation-map");
+document.addEventListener("DOMContentLoaded", function () {
+
+    const mapElement = document.getElementById(
+        "bar-moderation-map"
+    );
 
     if (!mapElement) {
         return;
     }
 
-    const bars = window.BARS || [];
 
-    const map = L.map("bar-moderation-map");
+    /*
+     * ============================================================
+     * RÉCUPÉRATION DES BARS
+     * ============================================================
+     */
+
+    const barsContainer = document.getElementById(
+        "bars-data-container"
+    );
+
+    const bars = [];
+
+    if (barsContainer) {
+
+        barsContainer
+            .querySelectorAll(".bar-data-item")
+            .forEach(function (item) {
+
+                bars.push({
+
+                    id: item.dataset.id,
+
+                    name: item.dataset.name,
+
+                    description:
+                        item.dataset.description,
+
+                    address:
+                        item.dataset.address,
+
+                    phone:
+                        item.dataset.phone,
+
+                    email:
+                        item.dataset.email,
+
+                    website:
+                        item.dataset.website,
+
+                    instagram:
+                        item.dataset.instagram,
+
+                    facebook:
+                        item.dataset.facebook,
+
+                    siret:
+                        item.dataset.siret,
+
+                    latitude:
+                        parseFloat(item.dataset.lat),
+
+                    longitude:
+                        parseFloat(item.dataset.lng),
+
+                    isVerified:
+                        item.dataset.verified === "true",
+
+                    /*
+                     * NOUVEAU :
+                     * URL Django Admin générée par BarAdmin
+                     */
+                    verifyUrl:
+                        item.dataset.verifyUrl
+
+                });
+
+            });
+
+    }
+
+
+    /*
+     * ============================================================
+     * INITIALISATION DE LA CARTE
+     * ============================================================
+     */
+
+    const map = L.map(
+        "bar-moderation-map",
+        {
+            zoomControl: false
+        }
+    ).setView(
+        [50.8503, 4.3517],
+        11
+    );
+
+
+    L.control.zoom({
+        position: "topright"
+    }).addTo(map);
+
+
+    /*
+     * Même configuration que ton map.js principal
+     */
 
     L.tileLayer(
         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         {
-            attribution: "&copy; OpenStreetMap contributors",
-            maxZoom: 19,
+            maxZoom: 19
         }
     ).addTo(map);
 
-    const bounds = [];
-    const markers = new Map();
 
-    bars.forEach((bar) => {
+    /*
+     * Permet à Leaflet de recalculer correctement
+     * la taille lorsqu'Unfold affiche le composant.
+     */
+
+    new ResizeObserver(function () {
+        map.invalidateSize();
+    }).observe(mapElement);
+
+
+    /*
+     * ============================================================
+     * MARKERS
+     * ============================================================
+     */
+
+    const markers = {};
+
+    const coordinates = [];
+
+
+    bars.forEach(function (bar) {
+
+        if (
+            Number.isNaN(bar.latitude) ||
+            Number.isNaN(bar.longitude)
+        ) {
+            return;
+        }
+
+
         const position = [
             bar.latitude,
-            bar.longitude,
+            bar.longitude
         ];
 
-        bounds.push(position);
+        coordinates.push(position);
+
 
         const marker = L.circleMarker(
             position,
-            {
-                radius: 8,
-
-                color: bar.is_verified
-                    ? "#15803d"
-                    : "#ea580c",
-
-                fillColor: bar.is_verified
-                    ? "#22c55e"
-                    : "#f97316",
-
-                fillOpacity: 0.9,
-                weight: 2,
-            }
+            getMarkerStyle(bar)
         ).addTo(map);
 
+
         marker.bindPopup(
-            createBarPopup(bar),
+            createPopup(bar),
             {
-                maxWidth: 400,
+                maxWidth: 380,
                 minWidth: 320,
+                className: "bar-moderation-popup"
             }
         );
 
-        markers.set(bar.id, marker);
+
+        markers[bar.id] = marker;
+
     });
 
-    if (bounds.length > 0) {
+
+    /*
+     * ============================================================
+     * CENTRAGE DE LA CARTE
+     * ============================================================
+     */
+
+    if (coordinates.length > 0) {
+
         map.fitBounds(
-            bounds,
+            coordinates,
             {
-                padding: [30, 30],
+                padding: [50, 50]
             }
         );
-    } else {
-        map.setView(
-            [50.8503, 4.3517],
-            11
-        );
+
     }
 
 
-    function createBarPopup(bar) {
+    /*
+     * ============================================================
+     * STYLE DES MARKERS
+     * ============================================================
+     */
+
+    function getMarkerStyle(bar) {
+
+        return {
+
+            radius: 9,
+
+            color: bar.isVerified
+                ? "#15803d"
+                : "#c2410c",
+
+            fillColor: bar.isVerified
+                ? "#22c55e"
+                : "#f97316",
+
+            fillOpacity: 0.95,
+
+            weight: 2
+
+        };
+
+    }
+
+
+    /*
+     * ============================================================
+     * POPUP
+     * ============================================================
+     */
+
+    function createPopup(bar) {
+
         return `
-            <div class="bar-popup">
 
-                <div class="bar-popup-header">
+            <div class="bar-moderation-popup-content">
 
-                    <strong>
-                        🍺 ${escapeHtml(bar.name)}
-                    </strong>
+                <div class="bar-popup-title">
+
+                    <div class="bar-popup-icon">
+                        🍺
+                    </div>
+
+                    <div class="bar-popup-title-text">
+
+                        <h3>
+                            ${escapeHtml(bar.name)}
+                        </h3>
+
+                        <span class="
+                            bar-popup-status
+                            ${bar.isVerified
+                                ? "verified"
+                                : "pending"}
+                        ">
+
+                            ${
+                                bar.isVerified
+                                    ? "✓ Bar vérifié"
+                                    : "⚠ À vérifier"
+                            }
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                ${
+                    bar.description
+                        ? `
+
+                            <div class="bar-popup-description">
+
+                                ${escapeHtml(
+                                    bar.description
+                                )}
+
+                            </div>
+
+                        `
+                        : ""
+                }
+
+
+                <div class="bar-popup-info">
 
                     ${
-                        bar.is_verified
+                        bar.address
                             ? `
-                                <span class="bar-status verified">
-                                    ✓ Vérifié
-                                </span>
+
+                                <div class="bar-popup-info-row">
+
+                                    <span class="info-icon">
+                                        📍
+                                    </span>
+
+                                    <span>
+                                        ${escapeHtml(
+                                            bar.address
+                                        )}
+                                    </span>
+
+                                </div>
+
                             `
-                            : `
-                                <span class="bar-status pending">
-                                    À vérifier
-                                </span>
-                            `
+                            : ""
                     }
 
-                </div>
-
-
-                <div class="bar-popup-field">
-                    <label>
-                        Nom
-                    </label>
-
-                    <input
-                        type="text"
-                        id="bar-name-${bar.id}"
-                        value="${escapeHtml(bar.name)}"
-                    >
-                </div>
-
-
-                <div class="bar-popup-field">
-                    <label>
-                        Adresse
-                    </label>
-
-                    <input
-                        type="text"
-                        id="bar-address-${bar.id}"
-                        value="${escapeHtml(bar.address)}"
-                    >
-                </div>
-
-
-                <div class="bar-popup-field">
-                    <label>
-                        Téléphone
-                    </label>
-
-                    <input
-                        type="text"
-                        id="bar-phone-${bar.id}"
-                        value="${escapeHtml(bar.phone)}"
-                    >
-                </div>
-
-
-                <div class="bar-popup-field">
-                    <label>
-                        Email
-                    </label>
-
-                    <input
-                        type="email"
-                        id="bar-email-${bar.id}"
-                        value="${escapeHtml(bar.email)}"
-                    >
-                </div>
-
-
-                <div class="bar-popup-field">
-                    <label>
-                        SIRET
-                    </label>
-
-                    <input
-                        type="text"
-                        id="bar-siret-${bar.id}"
-                        value="${escapeHtml(bar.siret)}"
-                    >
-                </div>
-
-
-                <div class="bar-popup-field">
-                    <label>
-                        Site web
-                    </label>
-
-                    <input
-                        type="url"
-                        id="bar-website-${bar.id}"
-                        value="${escapeHtml(bar.website)}"
-                    >
-                </div>
-
-
-                <div class="bar-popup-field">
-                    <label>
-                        Description
-                    </label>
-
-                    <textarea
-                        id="bar-description-${bar.id}"
-                        rows="3"
-                    >${escapeHtml(bar.description)}</textarea>
-                </div>
-
-
-                <div class="bar-popup-actions">
-
-                    <button
-                        type="button"
-                        class="bar-save-button"
-                        onclick="saveBar(${bar.id})"
-                    >
-                        Enregistrer
-                    </button>
 
                     ${
-                        !bar.is_verified
+                        bar.phone
                             ? `
-                                <button
-                                    type="button"
-                                    class="bar-verify-button"
-                                    onclick="verifyBar(${bar.id})"
-                                >
-                                    ✓ Valider
-                                </button>
+
+                                <div class="bar-popup-info-row">
+
+                                    <span class="info-icon">
+                                        📞
+                                    </span>
+
+                                    <span>
+                                        ${escapeHtml(
+                                            bar.phone
+                                        )}
+                                    </span>
+
+                                </div>
+
+                            `
+                            : ""
+                    }
+
+
+                    ${
+                        bar.email
+                            ? `
+
+                                <div class="bar-popup-info-row">
+
+                                    <span class="info-icon">
+                                        ✉️
+                                    </span>
+
+                                    <span>
+                                        ${escapeHtml(
+                                            bar.email
+                                        )}
+                                    </span>
+
+                                </div>
+
+                            `
+                            : ""
+                    }
+
+
+                    ${
+                        bar.website
+                            ? `
+
+                                <div class="bar-popup-info-row">
+
+                                    <span class="info-icon">
+                                        🌐
+                                    </span>
+
+                                    <a
+                                        href="${escapeHtml(
+                                            bar.website
+                                        )}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        Site web
+                                    </a>
+
+                                </div>
+
+                            `
+                            : ""
+                    }
+
+
+                    ${
+                        bar.siret
+                            ? `
+
+                                <div class="bar-popup-info-row">
+
+                                    <span class="info-icon">
+                                        🏢
+                                    </span>
+
+                                    <span>
+
+                                        SIRET :
+
+                                        ${escapeHtml(
+                                            bar.siret
+                                        )}
+
+                                    </span>
+
+                                </div>
+
                             `
                             : ""
                     }
 
                 </div>
 
+
+                <div class="bar-popup-footer">
+
+                    ${
+                        !bar.isVerified
+                            ? `
+
+                                <button
+                                    type="button"
+                                    class="bar-verify-button"
+                                    onclick="verifyBar('${bar.id}')"
+                                >
+
+                                    <span>✓</span>
+
+                                    Valider ce bar
+
+                                </button>
+
+                            `
+                            : `
+
+                                <div class="bar-already-verified">
+
+                                    ✓ Ce bar est déjà vérifié
+
+                                </div>
+
+                            `
+                    }
+
+                </div>
+
             </div>
+
         `;
+
     }
 
 
-    window.saveBar = async function (id) {
-        const formData = new FormData();
+    /*
+     * ============================================================
+     * CSRF
+     * ============================================================
+     *
+     * Le token est fourni par {% csrf_token %} dans le template.
+     */
 
-        formData.append(
-            "name",
-            document.getElementById(
-                `bar-name-${id}`
-            ).value
+    function getCsrfToken() {
+
+        const csrfInput = document.querySelector(
+            "[name=csrfmiddlewaretoken]"
         );
 
-        formData.append(
-            "address",
-            document.getElementById(
-                `bar-address-${id}`
-            ).value
-        );
-
-        formData.append(
-            "phone",
-            document.getElementById(
-                `bar-phone-${id}`
-            ).value
-        );
-
-        formData.append(
-            "email",
-            document.getElementById(
-                `bar-email-${id}`
-            ).value
-        );
-
-        formData.append(
-            "siret",
-            document.getElementById(
-                `bar-siret-${id}`
-            ).value
-        );
-
-        formData.append(
-            "website",
-            document.getElementById(
-                `bar-website-${id}`
-            ).value
-        );
-
-        formData.append(
-            "description",
-            document.getElementById(
-                `bar-description-${id}`
-            ).value
-        );
-
-
-        try {
-            const response = await fetch(
-                `/admin/api/bars/${id}/`,
-                {
-                    method: "POST",
-
-                    headers: {
-                        "X-CSRFToken": getCookie(
-                            "csrftoken"
-                        ),
-                    },
-
-                    body: formData,
-                }
-            );
-
-            const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                throw new Error(
-                    result.message ||
-                    "Erreur lors de l'enregistrement."
-                );
-            }
-
-
-            const bar = bars.find(
-                (item) => item.id === id
-            );
-
-            if (bar && result.bar) {
-                Object.assign(
-                    bar,
-                    result.bar
-                );
-            }
-
-
-            const marker = markers.get(id);
-
-            if (marker && bar) {
-                marker.setPopupContent(
-                    createBarPopup(bar)
-                );
-
-                marker.openPopup();
-            }
-
-
-            showMessage(
-                "Bar enregistré.",
-                "success"
-            );
-
-        } catch (error) {
-
-            console.error(error);
-
-            showMessage(
-                "Impossible d'enregistrer le bar.",
-                "error"
-            );
-        }
-    };
-
-
-    window.verifyBar = async function (id) {
-        const bar = bars.find(
-            (item) => item.id === id
-        );
-
-        if (!bar) {
-            return;
-        }
-
-        if (
-            !window.confirm(
-                `Valider le bar "${bar.name}" ?`
-            )
-        ) {
-            return;
-        }
-
-
-        try {
-            const response = await fetch(
-                `/admin/api/bars/${id}/verify/`,
-                {
-                    method: "POST",
-
-                    headers: {
-                        "X-CSRFToken": getCookie(
-                            "csrftoken"
-                        ),
-                    },
-                }
-            );
-
-            const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                throw new Error(
-                    result.message ||
-                    "Erreur lors de la validation."
-                );
-            }
-
-
-            bar.is_verified = true;
-
-
-            const marker = markers.get(id);
-
-            if (marker) {
-
-                marker.setStyle({
-                    radius: 8,
-                    color: "#15803d",
-                    fillColor: "#22c55e",
-                    fillOpacity: 0.9,
-                    weight: 2,
-                });
-
-                marker.setPopupContent(
-                    createBarPopup(bar)
-                );
-
-                marker.openPopup();
-            }
-
-
-            showMessage(
-                "Bar validé.",
-                "success"
-            );
-
-        } catch (error) {
-
-            console.error(error);
-
-            showMessage(
-                "Impossible de valider le bar.",
-                "error"
-            );
-        }
-    };
-
-
-    function getCookie(name) {
-        const cookies =
-            document.cookie.split(";");
-
-        for (const cookie of cookies) {
-            const parts =
-                cookie.trim().split("=");
-
-            if (parts[0] === name) {
-                return decodeURIComponent(
-                    parts.slice(1).join("=")
-                );
-            }
+        if (csrfInput) {
+            return csrfInput.value;
         }
 
         return null;
     }
 
 
+    /*
+     * ============================================================
+     * VALIDATION
+     * ============================================================
+     */
+
+    window.verifyBar = function (id) {
+
+        const bar = bars.find(
+            function (bar) {
+                return bar.id === id;
+            }
+        );
+
+
+        if (!bar) {
+            console.error(
+                "Bar introuvable :",
+                id
+            );
+
+            return;
+        }
+
+
+        /*
+         * Vérification de l'URL fournie par Django
+         */
+
+        if (!bar.verifyUrl) {
+
+            console.error(
+                "URL de validation absente pour le bar :",
+                bar
+            );
+
+            return;
+        }
+
+
+        /*
+         * Récupération du token CSRF
+         */
+
+        const csrfToken = getCsrfToken();
+
+
+        if (!csrfToken) {
+
+            console.error(
+                "Token CSRF introuvable."
+            );
+
+            alert(
+                "Erreur de sécurité : token CSRF introuvable."
+            );
+
+            return;
+        }
+
+
+        /*
+         * Désactivation du bouton pendant la requête
+         */
+
+        const button = document.querySelector(
+            `.bar-verify-button[onclick="verifyBar('${id}')"]`
+        );
+
+
+        if (button) {
+
+            button.disabled = true;
+
+            button.innerHTML = `
+                <span>⏳</span>
+                Validation...
+            `;
+
+        }
+
+
+        /*
+         * POST vers l'endpoint Django Admin
+         */
+
+        fetch(
+            bar.verifyUrl,
+            {
+                method: "POST",
+
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+
+                credentials: "same-origin",
+            }
+        )
+
+        .then(function (response) {
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+
+            }
+
+            return response.json();
+
+        })
+
+        .then(function (data) {
+
+            if (!data.success) {
+
+                throw new Error(
+                    data.error ||
+                    "Erreur lors de la validation."
+                );
+
+            }
+
+
+            /*
+             * ====================================================
+             * MISE À JOUR LOCALE
+             * ====================================================
+             */
+
+            bar.isVerified = true;
+
+
+            /*
+             * ====================================================
+             * MISE À JOUR DU MARKER
+             * ====================================================
+             */
+
+            const marker = markers[bar.id];
+
+
+            if (marker) {
+
+                marker.setStyle(
+                    getMarkerStyle(bar)
+                );
+
+
+                /*
+                 * Mise à jour de la popup
+                 */
+
+                marker.setPopupContent(
+                    createPopup(bar)
+                );
+
+
+                /*
+                 * On garde la popup ouverte
+                 */
+
+                marker.openPopup();
+
+            }
+
+        })
+
+        .catch(function (error) {
+
+            console.error(
+                "Erreur lors de la validation :",
+                error
+            );
+
+
+            /*
+             * Réactivation du bouton
+             */
+
+            if (button) {
+
+                button.disabled = false;
+
+                button.innerHTML = `
+                    <span>✓</span>
+                    Valider ce bar
+                `;
+
+            }
+
+
+            alert(
+                "Impossible de valider le bar."
+            );
+
+        });
+
+    };
+
+
+    /*
+     * ============================================================
+     * SÉCURITÉ HTML
+     * ============================================================
+     */
+
     function escapeHtml(value) {
+
         if (
             value === null ||
             value === undefined
         ) {
+
             return "";
+
         }
+
 
         return String(value)
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
-    }
 
+            .replaceAll(
+                "&",
+                "&amp;"
+            )
 
-    function showMessage(
-        message,
-        type
-    ) {
-        const existing =
-            document.getElementById(
-                "bar-moderation-message"
+            .replaceAll(
+                "<",
+                "&lt;"
+            )
+
+            .replaceAll(
+                ">",
+                "&gt;"
+            )
+
+            .replaceAll(
+                '"',
+                "&quot;"
+            )
+
+            .replaceAll(
+                "'",
+                "&#039;"
             );
 
-        if (existing) {
-            existing.remove();
-        }
-
-        const messageElement =
-            document.createElement("div");
-
-        messageElement.id =
-            "bar-moderation-message";
-
-        messageElement.textContent =
-            message;
-
-        messageElement.style.position =
-            "fixed";
-
-        messageElement.style.top =
-            "20px";
-
-        messageElement.style.right =
-            "20px";
-
-        messageElement.style.zIndex =
-            "99999";
-
-        messageElement.style.padding =
-            "12px 18px";
-
-        messageElement.style.borderRadius =
-            "8px";
-
-        messageElement.style.fontWeight =
-            "600";
-
-        messageElement.style.background =
-            type === "error"
-                ? "#fee2e2"
-                : "#dcfce7";
-
-        messageElement.style.color =
-            type === "error"
-                ? "#991b1b"
-                : "#166534";
-
-        document.body.appendChild(
-            messageElement
-        );
-
-        setTimeout(() => {
-            messageElement.remove();
-        }, 3000);
     }
+
 });
