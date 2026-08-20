@@ -289,3 +289,16 @@ class ReportAdminForm(forms.ModelForm):
         widgets = {
             "admin_response": WysiwygWidget,
         }
+        
+
+class FeedbackAdminForm(forms.ModelForm):
+    class Meta:
+        model = Feedback
+        fields = (
+            "status",
+            "admin_reply",
+        )
+
+        widgets = {
+            "admin_response": WysiwygWidget,
+        }

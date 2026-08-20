@@ -7,7 +7,7 @@ from unfold.contrib.forms.widgets import ArrayWidget, WysiwygWidget
 from unfold.decorators import display
 from .models import BeerUser, Beer, Drinks, Brewery, Report, Bar
 from .models import Notification, Feedback
-from .forms import ReportAdminForm
+from .forms import ReportAdminForm, FeedbackAdminForm
 from .services.realtime_service import broadcast_notifications
 
 
@@ -212,28 +212,69 @@ class ReportAdmin(ModelAdmin):
 @admin.register(Feedback)
 class FeedbackAdmin(ModelAdmin):
   #Configuration DjangoUnfold
-    readonly_preprocess_fields = {
-        "model_field_name": "html.unescape",
-        "other_field_name": lambda content: content.strip(),
-    }
+    class Media:
+        js = (
+            "script/admin_link_line.js",
+    )
 
-    formfield_overrides = {
-        models.TextField: {
-            "widget": WysiwygWidget,
-        },
-        ArrayField: {
-            "widget": ArrayWidget,
-        }
-    }
+    form = FeedbackAdminForm
 
     compressed_fields = False
     warn_unsaved_form = True
    
-    list_display = ('id', 'user', 'status', 'created_at')
+    # L'admin ne peut pas modifier le message original de l'utilisateur
+    readonly_fields = (
+        'user', 
+        'message', 
+        'created_at'
+    )
+
+    fieldsets = (
+            (
+                "Suggestions",
+                {
+                    "fields": (
+                        "user",
+                        "message",
+                        "created_at",
+                    ),
+                },
+            ),
+            (
+                "Traitement",
+                {
+                    "fields": (
+                        "status",
+                        "admin_reply",
+                    ),
+                },
+            ),
+        )
+    
+
+    list_display = ('user', 'status_display', 'created_at_display')
     list_filter = ('status', 'created_at')
     search_fields = ('user__username', 'message', 'admin_reply')
-    # L'admin ne peut pas modifier le message original de l'utilisateur
-    readonly_fields = ('user', 'message', 'created_at')
+
+
+    @display(
+        description="Statut",
+        ordering="status",
+        label={
+            "En attente": "info",
+            "Répondu": "success",
+        },
+    )
+    def status_display(self, obj):
+        return obj.get_status_display()
+
+    @display(
+        description="Date",
+        ordering="created_at",
+    )
+
+    def created_at_display(self, obj):
+        return obj.created_at.strftime("%d/%m/%Y %H:%M")
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
