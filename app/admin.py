@@ -2,12 +2,19 @@ from django.contrib import admin
 from django.db import models
 from django.db.models import Count
 from django.contrib.postgres.fields import ArrayField
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.urls import path, reverse
+from django.utils import timezone
+
 from unfold.admin import ModelAdmin
 from unfold.contrib.forms.widgets import ArrayWidget, WysiwygWidget
 from unfold.decorators import display
+
 from .models import BeerUser, Beer, Drinks, Brewery, Report, Bar
 from .models import Notification, Feedback
-from .forms import ReportAdminForm
+
+from .forms import ReportAdminForm, FeedbackAdminForm
 from .services.realtime_service import broadcast_notifications
 
 
@@ -15,10 +22,75 @@ admin.site.register(BeerUser)
 admin.site.register(Beer)
 admin.site.register(Drinks)
 admin.site.register(Brewery)
-admin.site.register(Bar)
+
+
+@admin.register(Bar)
+class BarAdmin(ModelAdmin):
+
+    def get_urls(self):
+        urls = super().get_urls()
+
+        custom_urls = [
+            path(
+                "<int:bar_id>/verify/",
+                self.admin_site.admin_view(
+                    self.verify_bar
+                ),
+                name="bar_verify",
+            ),
+        ]
+
+        return custom_urls + urls
+
+    def verify_bar(self, request, bar_id):
+
+        if request.method != "POST":
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Méthode non autorisée",
+                },
+                status=405,
+            )
+
+        # Seuls les superusers peuvent valider un bar
+        if not request.user.is_superuser:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Permission refusée",
+                },
+                status=403,
+            )
+
+        bar = get_object_or_404(
+            Bar,
+            pk=bar_id,
+        )
+
+        bar.is_verified = True
+        bar.verified_by = request.user
+        bar.verified_at = timezone.now()
+
+        bar.save(
+            update_fields=[
+                "is_verified",
+                "verified_by",
+                "verified_at",
+            ]
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "bar_id": bar.id,
+                "is_verified": True,
+            }
+        )
 
 
 class ReportTargetFilter(admin.SimpleListFilter):
+
     title = "Type de signalement"
     parameter_name = "target_type"
 
@@ -30,6 +102,7 @@ class ReportTargetFilter(admin.SimpleListFilter):
         )
 
     def queryset(self, request, queryset):
+
         value = self.value()
 
         if value == "beer":
@@ -56,8 +129,8 @@ class ReportAdmin(ModelAdmin):
     class Media:
         js = (
             "script/admin_link_line.js",
-    )
-        
+        )
+
     form = ReportAdminForm
 
     compressed_fields = False
@@ -141,6 +214,7 @@ class ReportAdmin(ModelAdmin):
 
     @display(description="Type")
     def target_type(self, obj):
+
         if obj.reported_beer:
             return "Bière"
 
@@ -168,11 +242,11 @@ class ReportAdmin(ModelAdmin):
         description="Date",
         ordering="created_at",
     )
-
     def created_at_display(self, obj):
         return obj.created_at.strftime("%d/%m/%Y %H:%M")
 
     def get_target(self, obj):
+
         if obj.reported_beer:
             return f"{obj.reported_beer.name}"
 
@@ -189,7 +263,13 @@ class ReportAdmin(ModelAdmin):
         return self.get_target(obj)
 
     def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
+
+        super().save_model(
+            request,
+            obj,
+            form,
+            change,
+        )
 
         if not change:
             return
@@ -209,70 +289,166 @@ class ReportAdmin(ModelAdmin):
 
         broadcast_notifications([notif])
 
+
 @admin.register(Feedback)
 class FeedbackAdmin(ModelAdmin):
-  #Configuration DjangoUnfold
-    readonly_preprocess_fields = {
-        "model_field_name": "html.unescape",
-        "other_field_name": lambda content: content.strip(),
-    }
 
-    formfield_overrides = {
-        models.TextField: {
-            "widget": WysiwygWidget,
-        },
-        ArrayField: {
-            "widget": ArrayWidget,
-        }
-    }
+    class Media:
+        js = (
+            "script/admin_link_line.js",
+        )
+
+    form = FeedbackAdminForm
 
     compressed_fields = False
     warn_unsaved_form = True
-   
-    list_display = ('id', 'user', 'status', 'created_at')
-    list_filter = ('status', 'created_at')
-    search_fields = ('user__username', 'message', 'admin_reply')
+
     # L'admin ne peut pas modifier le message original de l'utilisateur
-    readonly_fields = ('user', 'message', 'created_at')
+    readonly_fields = (
+        "user",
+        "message",
+        "created_at",
+    )
+
+    fieldsets = (
+        (
+            "Suggestions",
+            {
+                "fields": (
+                    "user",
+                    "message",
+                    "created_at",
+                ),
+            },
+        ),
+        (
+            "Traitement",
+            {
+                "fields": (
+                    "status",
+                    "admin_reply",
+                ),
+            },
+        ),
+    )
+
+    list_display = (
+        "user",
+        "status_display",
+        "created_at_display",
+    )
+
+    list_filter = (
+        "status",
+        "created_at",
+    )
+
+    search_fields = (
+        "user__username",
+        "message",
+        "admin_reply",
+    )
+
+    @display(
+        description="Statut",
+        ordering="status",
+        label={
+            "En attente": "info",
+            "Répondu": "success",
+        },
+    )
+    def status_display(self, obj):
+        return obj.get_status_display()
+
+    @display(
+        description="Date",
+        ordering="created_at",
+    )
+    def created_at_display(self, obj):
+        return obj.created_at.strftime("%d/%m/%Y %H:%M")
 
     def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
-        
-        # Si on est en modification, que la réponse admin a été modifiée et n'est pas vide
-        if change and 'admin_reply' in form.changed_data and obj.admin_reply:
-            obj.status = 'replied' # On passe le statut en "Répondu"
+
+        super().save_model(
+            request,
+            obj,
+            form,
+            change,
+        )
+
+        # Si on est en modification, que la réponse admin
+        # a été modifiée et n'est pas vide
+        if change and "admin_reply" in form.changed_data and obj.admin_reply:
+
+            obj.status = "replied"
             obj.save()
-            
+
             # On génère la notification et on l'envoie via WebSockets
             notif = Notification.objects.create(
                 recipient=obj.user,
-                sender=None, 
-                notif_type='feedback_replied',
-                feedback=obj
+                sender=None,
+                notif_type="feedback_replied",
+                feedback=obj,
             )
+
             broadcast_notifications([notif])
 
+
 def dashboard_callback(request, context):
+
     beer_count_by_style = (
         Beer.objects
         .exclude(style__isnull=True)
-        .exclude(style='')
-        .values('style')
-        .annotate(nb_bieres=Count('id'))
-        .order_by('style')
+        .exclude(style="")
+        .values("style")
+        .annotate(nb_bieres=Count("id"))
+        .order_by("style")
     )
 
-    kpi_users = (BeerUser.objects.count)
-    kpi_beers = (Beer.objects.count)
-    kpi_brewery = (Brewery.objects.count)
-    kpi_report = (Report.objects.count)
+    bars = (
+        Bar.objects
+        .filter(
+            latitude__isnull=False,
+            longitude__isnull=False,
+        )
+        .values(
+            "id",
+            "name",
+            "description",
+            "address",
+            "phone",
+            "email",
+            "website",
+            "instagram",
+            "facebook",
+            "siret",
+            "latitude",
+            "longitude",
+            "is_verified",
+        )
+    )
+
+    # Ajout de l'URL sécurisée de validation pour chaque bar
+    bars = list(bars)
+
+    for bar in bars:
+        bar["verify_url"] = reverse(
+            "admin:bar_verify",
+            args=[bar["id"]],
+        )
 
     context.update({
         "beer_count_by_style": list(beer_count_by_style),
-        "kpi_users":kpi_users,
-        "kpi_beers":kpi_beers,
-        "kpi_brewery":kpi_brewery,
-        "kpi_report":kpi_report
+
+        "kpi_users": BeerUser.objects.count(),
+
+        "kpi_beers": Beer.objects.count(),
+
+        "kpi_brewery": Brewery.objects.count(),
+
+        "kpi_report": Report.objects.count(),
+
+        "bars": bars,
     })
 
     return context
