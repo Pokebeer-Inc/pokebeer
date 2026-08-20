@@ -6,6 +6,62 @@ from datetime import date
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
 from pgvector.django import VectorField
+import requests
+
+class GeocodableMixin(models.Model):
+    """
+    Classe abstraite qui ajoute la logique de géocodage automatique.
+    À hériter sur tout modèle possédant les champs 'address', 'latitude' et 'longitude'.
+    """
+    class Meta:
+        abstract = True
+
+    def _update_coordinates(self):
+        """Appelle l'API OpenStreetMap pour convertir l'adresse en coordonnées."""
+        if not self.address:
+            self.latitude = None
+            self.longitude = None
+            return
+
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            'q': self.address,
+            'format': 'json',
+            'limit': 1
+        }
+        # L'API Nominatim exige un User-Agent personnalisé
+        headers = {
+            'User-Agent': 'PokebeerApp/1.0' 
+        }
+
+        try:
+            response = requests.get(url, params=params, headers=headers, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if data:
+                    self.latitude = float(data[0]['lat'])
+                    self.longitude = float(data[0]['lon'])
+                else:
+                    # L'adresse n'a pas été trouvée par l'API
+                    self.latitude = None
+                    self.longitude = None
+        except Exception as e:
+            # En cas de coupure réseau ou erreur API, on ne fait pas crasher l'enregistrement
+            print(f"Erreur de géocodage : {e}")
+
+    def save(self, *args, **kwargs):
+        # On vérifie si c'est une modification d'un objet existant
+        if self.pk:
+            old_instance = type(self).objects.get(pk=self.pk)
+            # OPTIMISATION : On appelle l'API UNIQUEMENT si l'adresse a changé
+            if old_instance.address != self.address:
+                self._update_coordinates()
+        else:
+            # C'est une création de nouvel établissement
+            self._update_coordinates()
+
+        # On appelle le comportement de sauvegarde normal de Django
+        super().save(*args, **kwargs)
 
 class BeerUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=False, blank=False)
@@ -63,7 +119,7 @@ class UserFollow(models.Model):
     class Meta:
         unique_together = ('follower', 'followed')
 
-class Brewery(models.Model):
+class Brewery(GeocodableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
     description = models.TextField(verbose_name="Description")
     image = models.ImageField(upload_to='breweries/', blank=True, null=True, verbose_name="Image")
@@ -98,7 +154,7 @@ class Brewery(models.Model):
     def __str__(self):
         return self.name
     
-class Bar(models.Model):
+class Bar(GeocodableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
     description = models.TextField(blank=True, null=True, verbose_name="Description")
     image = models.ImageField(upload_to='bars/', blank=True, null=True, verbose_name="Image")
