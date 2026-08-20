@@ -149,7 +149,7 @@
                             <input type="checkbox" name="drinks" value="{{ drink.id }}" class="checkbox checkbox-sm checkbox-primary shrink-0" {% if drink.id in notebook_drink_ids %}checked{% endif %} />
                             <span class="label-text text-xs font-semibold truncate flex-1">
                                 {{ drink.beer_id.name }} 
-                                <span class="text-[10px] text-gray-500 font-normal ml-1">({{ drink.note }}/10)</span>
+                                {% if drink.note is not null %}<span class="text-[10px] text-gray-500 font-normal ml-1">({{ drink.note }}/10)</span>{% endif %}
                             </span>
                         </label>
                     {% endfor %}

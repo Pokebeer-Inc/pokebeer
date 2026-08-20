@@ -3,9 +3,15 @@
     <label class="label py-1"><span class="label-text text-xs font-bold text-gray-500 uppercase tracking-wider">Ajouter aux carnets (optionnel)</span></label>
     <div class="flex flex-col gap-1 max-h-32 overflow-y-auto border border-base-200 rounded-lg p-2 bg-base-50 shadow-inner">
         {% for notebook in user.custom_notebooks.all %}
-        <label class="cursor-pointer label justify-start gap-3 hover:bg-base-200 rounded px-2 transition-colors py-1">
+       <label class="cursor-pointer label justify-start gap-3 hover:bg-base-200 rounded px-2 transition-colors py-1">
             <input type="checkbox" name="notebooks" value="{{ notebook.id }}" class="checkbox checkbox-xs checkbox-primary shrink-0"
-            {% if current_drink and notebook.id in current_drink.notebook_ids %}checked{% endif %} />
+            {% if current_drink %}
+                {% if current_drink.notebook_ids and notebook.id in current_drink.notebook_ids %}
+                    checked
+                {% elif current_drink.notebooks and notebook in current_drink.notebooks.all %}
+                    checked
+                {% endif %}
+            {% endif %} />
             <span class="label-text text-xs font-medium">{{ notebook.title }}</span>
         </label>
         {% endfor %}

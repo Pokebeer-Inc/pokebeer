@@ -141,7 +141,9 @@
                     <input type="checkbox" name="drinks" value="{{ drink.id }}" data-beer-id="{{ drink.beer_id.id }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
                     <span class="label-text text-xs font-semibold">
                         {{ drink.beer_id.name }} 
+                        {% if drink.note is not null %}
                         <span class="text-[10px] text-gray-500 font-normal">({{ drink.note }}/10)</span>
+                        {% endif %}
                         {% if drink.beer_id.is_deleted %}
                         <span class="badge badge-error badge-xs ml-1 opacity-70">Supprimée</span>
                         {% endif %}

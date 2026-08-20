@@ -234,11 +234,7 @@ class Beer(models.Model):
 
 class Drinks(models.Model):
     date = models.DateField(default=date.today, verbose_name="Date")
-    note = models.IntegerField(
-        default=0, 
-        validators=[MinValueValidator(0), MaxValueValidator(10)],
-        verbose_name="Note /10"
-    )
+    note = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(10)], null=True, blank=True, verbose_name="Note")
     comment = models.TextField(verbose_name="Commentaire")
     
     drinker_id = models.ForeignKey(BeerUser, on_delete=models.CASCADE)

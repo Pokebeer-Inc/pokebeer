@@ -15,12 +15,13 @@
                 </div>
                 <div class="form-control w-full mb-2">
                     <label class="label py-1"><span class="label-text text-xs font-bold">Note /10</span></label>
-                    <input type="number" name="note" value="{{ drink.note }}" min="0" max="10" class="input input-sm input-bordered w-full bg-white" required>
+                    <input type="number" name="note" value="{{ drink.note }}" min="0" max="10" class="input input-sm input-bordered w-full bg-white">
                 </div>
                 <div class="form-control w-full mb-4">
                     <label class="label py-1"><span class="label-text text-xs font-bold">Commentaire</span></label>
                     <textarea name="comment" class="textarea textarea-bordered w-full h-20 text-xs bg-white">{{ drink.comment }}</textarea>
                 </div>
+                {% include "partials/notebook_selector.html" with current_drink=drink %}
                 <button type="submit" class="btn btn-success btn-sm w-full text-white">Enregistrer</button>
             </form>
             
