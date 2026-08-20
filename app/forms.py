@@ -240,6 +240,7 @@ class DrinkForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(DrinkForm, self).__init__(*args, **kwargs)
+        self.fields['note'].required = False
         for field in self.fields.values():
             field.widget.attrs.update({
                 'class': 'form-control placeholder:text-gray-400',
