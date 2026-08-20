@@ -1,0 +1,101 @@
+{% load static %}
+
+<div class="rounded-xl overflow-hidden shadow-sm  dark:bg-base-800">
+
+    <div class="px-6 py-5 border-b">
+
+        <div class="flex items-center justify-between">
+
+            <div>
+                <h2 class="text-lg font-semibold">
+                    Cartes des établissements de la plateforme
+                </h2>
+            </div>
+
+            <div class="flex items-center gap-4 text-sm">
+
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+
+                    <span class="text-gray-600 dark:text-gray-300">
+                        À vérifier
+                    </span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-green-500"></span>
+
+                    <span class="text-gray-600 dark:text-gray-300">
+                        Vérifié
+                    </span>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div
+        id="bar-moderation-map"
+        class="w-full"
+        style="height: 600px;"
+    ></div>
+
+
+    <form id="bar-moderation-csrf" class="hidden">
+        {% csrf_token %}
+    </form>
+
+    <div
+        id="bars-data-container"
+        class="hidden"
+    >
+
+        {% for bar in bars %}
+
+            <div
+                class="bar-data-item"
+
+                data-id="{{ bar.id }}"
+
+                data-name="{{ bar.name|default:''|escape }}"
+                data-description="{{ bar.description|default:''|escape }}"
+                data-address="{{ bar.address|default:''|escape }}"
+                data-phone="{{ bar.phone|default:''|escape }}"
+                data-email="{{ bar.email|default:''|escape }}"
+                data-website="{{ bar.website|default:''|escape }}"
+                data-instagram="{{ bar.instagram|default:''|escape }}"
+                data-facebook="{{ bar.facebook|default:''|escape }}"
+                data-siret="{{ bar.siret|default:''|escape }}"
+
+                data-lat="{{ bar.latitude }}"
+                data-lng="{{ bar.longitude }}"
+
+                data-verified="{% if bar.is_verified %}true{% else %}false{% endif %}"
+
+                data-verify-url="{% url 'admin:bar_verify' bar.id %}"
+            ></div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfhmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+>
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+></script>
+
+<script src="{% static 'script/bar_moderation.js' %}"></script>
+<link rel="stylesheet" href="{% static 'style/bar_moderation.css' %}">
+

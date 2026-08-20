@@ -30,6 +30,8 @@
 </div>
 
 
+
+
 <!-- Statistiques -->
 <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -78,6 +80,11 @@
 
 </div>
 
+<div class="pb-5">
+    {% include "admin/bar_moderation.html" %}
+</div>
+
+
 
 <!-- Bières par style -->
 <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
@@ -101,6 +108,8 @@
 <!-- Données du graphique -->
 
 {{ beer_count_by_style|json_script:"beer-style-data" }}
+
+
 
 <!-- ApexCharts -->
 

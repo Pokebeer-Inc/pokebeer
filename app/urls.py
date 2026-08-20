@@ -90,4 +90,5 @@ urlpatterns = [
     path('api/notifications/unread/', views.api_unread_notifications, name='api_unread_notifications'),
     path('api/load-more/<str:item_type>/', views.load_more_generic, name='load_more_generic'),
     path('api/brewery/<int:brewery_id>/search-users/', views.api_search_users_for_manager, name='api_search_users_for_manager'),
+
 ]
