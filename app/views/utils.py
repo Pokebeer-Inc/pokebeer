@@ -31,7 +31,7 @@ def get_user_achievements(user):
     # Brasserie Ours doré
     has_ours = 1 if Drinks.objects.filter(drinker_id=user, beer_id__brewery_id__name__icontains='ours dor').exists() else 0
     ours_brewery = Brewery.objects.filter(name__icontains='ours dor').first()
-    ours_url = reverse('brewery_detail', args=[ours_brewery.slug]) if ours_brewery else None
+    ours_url = reverse('brewery_detail', args=[ours_brewery.id]) if ours_brewery else None
     
     # Brasserie ...
     
