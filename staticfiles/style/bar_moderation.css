@@ -1,0 +1,282 @@
+
+    /*
+     * Leaflet popup
+     */
+
+    .bar-moderation-popup .leaflet-popup-content-wrapper {
+        border-radius: 14px;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .bar-moderation-popup .leaflet-popup-content {
+        margin: 0;
+        width: 320px !important;
+    }
+
+    .bar-moderation-popup .leaflet-popup-tip {
+        background: white;
+    }
+
+    /*
+     * Contenu principal
+     */
+
+    .bar-moderation-popup-content {
+        width: 320px;
+        font-family: inherit;
+        color: #111827;
+    }
+
+    /*
+     * Header
+     */
+
+    .bar-popup-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        padding: 16px;
+
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .bar-popup-icon {
+        width: 42px;
+        height: 42px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        flex-shrink: 0;
+
+        border-radius: 10px;
+
+        background: #fff7ed;
+
+        font-size: 21px;
+    }
+
+    .bar-popup-title-text {
+        min-width: 0;
+    }
+
+    .bar-popup-title-text h3 {
+        margin: 0 0 5px 0;
+
+        font-size: 16px;
+        font-weight: 700;
+
+        color: #111827;
+
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /*
+     * Status
+     */
+
+    .bar-popup-status {
+        display: inline-flex;
+        align-items: center;
+
+        padding: 3px 8px;
+
+        border-radius: 999px;
+
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .bar-popup-status.pending {
+        background: #ffedd5;
+        color: #c2410c;
+    }
+
+    .bar-popup-status.verified {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    /*
+     * Description
+     */
+
+    .bar-popup-description {
+        padding: 12px 16px;
+
+        border-bottom: 1px solid #e5e7eb;
+
+        font-size: 13px;
+        line-height: 1.5;
+
+        color: #4b5563;
+    }
+
+    /*
+     * Informations
+     */
+
+    .bar-popup-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        padding: 14px 16px;
+    }
+
+    .bar-popup-info-row {
+        display: flex;
+        align-items: flex-start;
+
+        gap: 9px;
+
+        font-size: 13px;
+        line-height: 1.4;
+
+        color: #374151;
+    }
+
+    .bar-popup-info-row .info-icon {
+        width: 20px;
+
+        flex-shrink: 0;
+
+        text-align: center;
+    }
+
+    .bar-popup-info-row a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+
+    .bar-popup-info-row a:hover {
+        text-decoration: underline;
+    }
+
+    /*
+     * Footer
+     */
+
+    .bar-popup-footer {
+        padding: 14px 16px 16px;
+
+        border-top: 1px solid #e5e7eb;
+    }
+
+    /*
+     * Bouton de validation
+     */
+
+    .bar-verify-button {
+        width: 100%;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        gap: 8px;
+
+        padding: 10px 14px;
+
+        border: 0;
+        border-radius: 9px;
+
+        background: #16a34a;
+        color: white;
+
+        font-size: 13px;
+        font-weight: 600;
+
+        cursor: pointer;
+
+        transition:
+            background 0.15s ease,
+            transform 0.1s ease,
+            opacity 0.15s ease;
+    }
+
+    .bar-verify-button:hover {
+        background: #15803d;
+    }
+
+    .bar-verify-button:active {
+        transform: scale(0.98);
+    }
+
+    .bar-verify-button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+    /*
+     * Bar déjà vérifié
+     */
+
+    .bar-already-verified {
+        width: 100%;
+
+        box-sizing: border-box;
+
+        padding: 10px 14px;
+
+        border-radius: 9px;
+
+        background: #f0fdf4;
+        color: #15803d;
+
+        text-align: center;
+
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+
+    /*
+     * ============================================================
+     * DARK MODE
+     * ============================================================
+     */
+
+    .dark .bar-moderation-popup .leaflet-popup-content-wrapper {
+        background: #111827;
+        color: #f9fafb;
+    }
+
+    .dark .bar-moderation-popup .leaflet-popup-tip {
+        background: #111827;
+    }
+
+    .dark .bar-moderation-popup-content {
+        color: #f9fafb;
+    }
+
+    .dark .bar-popup-header {
+        border-color: #374151;
+    }
+
+    .dark .bar-popup-title-text h3 {
+        color: #f9fafb;
+    }
+
+    .dark .bar-popup-description {
+        border-color: #374151;
+        color: #9ca3af;
+    }
+
+    .dark .bar-popup-info-row {
+        color: #d1d5db;
+    }
+
+    .dark .bar-popup-footer {
+        border-color: #374151;
+    }
+
+    .dark .bar-already-verified {
+        background: rgba(22, 163, 74, 0.15);
+        color: #4ade80;
+    }
