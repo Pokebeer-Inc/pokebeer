@@ -1,6 +1,7 @@
 from django.db.models import Max
+from django.urls import reverse
 
-from ..models import Beer, Drinks, UserBlock, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction
+from ..models import Beer, Drinks, UserBlock, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction, Brewery
 from ..services.realtime_service import broadcast_notifications
 
 TIER_NAMES = ["Bloqué", "Bronze", "Argent", "Or", "Platine"]
@@ -15,20 +16,28 @@ def get_excluded_users(user):
 
 def get_user_achievements(user):
     """Calcule et retourne la liste des hauts faits d'un utilisateur."""
+    
+    # Globaux
     poche_count = Beer.objects.filter(added_by=user, is_deleted=False).count()
     juge_count = Drinks.objects.filter(drinker_id=user).count()
     comm_count = UserFollow.objects.filter(follower=user).count()
     voyageur_count = BeerSpot.objects.filter(user=user).count()
     bad_count = Drinks.objects.filter(drinker_id=user, note__lt=2).count()
     cesar_count = DrinkReaction.objects.filter(user=user).count()
-    
     guinness_drink = Drinks.objects.filter(drinker_id=user, beer_id__name__icontains='guinness').aggregate(Max('note'))
     irlandais_score = guinness_drink['note__max'] or 0
-    
     has_picon = 1 if user.bio and 'picon' in user.bio.lower() else 0
+    
+    # Brasserie Ours doré
     has_ours = 1 if Drinks.objects.filter(drinker_id=user, beer_id__brewery_id__name__icontains='ours dor').exists() else 0
+    ours_brewery = Brewery.objects.filter(name__icontains='ours dor').first()
+    ours_url = reverse('brewery_detail', args=[ours_brewery.slug]) if ours_brewery else None
+    
+    # Brasserie ...
+    
+    # Bar ...
 
-    def build_achievement(slug, name, current_val, thresholds, desc, category="global", is_hidden=False):
+    def build_achievement(slug, name, current_val, thresholds, desc, category="global", url=None, is_hidden=False):
         tier = 0
         for i, t in enumerate(thresholds):
             if current_val >= t:
@@ -53,6 +62,7 @@ def get_user_achievements(user):
             'name': name,
             'desc': display_desc,
             'category': category,
+            'url': url,
             'current': current_display,
             'target': next_t,
             'progress': progress,
@@ -73,7 +83,7 @@ def get_user_achievements(user):
         build_achievement("picon", "Copain de Gaétan", has_picon, [1, 1, 1, 1], "Mentionner le Picon dans sa biographie", category="global", is_hidden=True),
         
         # Brasseries
-        build_achievement("ours", "Ours doré", has_ours, [1, 1, 1, 1], "Boire et noter une bière de la brasserie de l'Ours Doré", category="brewery"),
+        build_achievement("ours", "Ours doré", has_ours, [1, 1, 1, 1], "Boire une bière de la brasserie de l'Ours Doré", category="brewery", url=ours_url),
         
         # Bars
         #...
