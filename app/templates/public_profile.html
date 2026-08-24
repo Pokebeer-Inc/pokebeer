@@ -51,6 +51,12 @@
         {% if profile_user.bio %}"{{ profile_user.bio }}"{% endif %}
     </p>
 
+    <div class="mt-2 text-center">
+        <span class="badge badge-sm font-bold shadow-sm border-none {{ user.primary_role_badge.color }}">
+            {{ user.primary_role_badge.name }}
+        </span>
+    </div>
+
     {% if unlocked_achievements %}
     <div class="flex flex-wrap justify-center gap-2 mt-3">
         {% for ach in unlocked_achievements %}

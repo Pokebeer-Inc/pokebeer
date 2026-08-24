@@ -23,7 +23,8 @@
             <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-500">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
             </div>
-            <ul tabindex="0" class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-box w-52 right-0 gap-1">                {% if user.is_staff %}
+            <ul tabindex="0" class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-box w-52 right-0 gap-1">                
+                {% if user.is_staff %}
                 <li>
                     <a href="/admin/" class="flex items-center gap-2 font-medium">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -63,6 +64,12 @@
     <p class="text-xs text-gray-500 italic mt-1 text-center">
         {% if user.bio %}"{{ user.bio }}"{% endif %}
     </p>
+
+    <div class="mt-2 text-center">
+        <span class="badge badge-sm font-bold shadow-sm border-none {{ user.primary_role_badge.color }}">
+            {{ user.primary_role_badge.name }}
+        </span>
+    </div>
     
     {% if unlocked_achievements %}
     <div class="flex flex-wrap justify-center gap-2 mt-3">
@@ -95,7 +102,7 @@
 </div>
 </div>
 
-{% if user.is_pro %}
+{% if user.is_bartender or user.is_brewer %}
 <div class="flex flex-col bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200">
     <h3 class="font-castoro text-xl font-bold mb-4 flex items-center gap-2 border-b border-primary pb-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>

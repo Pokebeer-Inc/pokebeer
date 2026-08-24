@@ -273,8 +273,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     this.innerHTML = originalHtml;
                 }, {
                     enableHighAccuracy: true,
-                    maximumAge: 10000,
-                    timeout: 5000
+                    maximumAge: 0,
+                    timeout: 20000
                 });
             }
         });

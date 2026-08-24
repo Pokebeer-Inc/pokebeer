@@ -7,6 +7,9 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
 from pgvector.django import VectorField
 import requests
+from django.db.models.signals import post_save, m2m_changed
+from django.dispatch import receiver
+from django.contrib.auth.models import Group
 
 class GeocodableMixin(models.Model):
     """
@@ -67,7 +70,6 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=False, blank=False)
     created_at = models.DateTimeField(default=timezone.now)
     username = models.CharField(max_length=150, blank=False, unique=True)
-    is_staff = models.BooleanField(default=False)
     bio = models.TextField(verbose_name="Biographie", blank=True, null=True)
     wishlist_beers = models.ManyToManyField('Beer', blank=True, related_name='wishlisted_by', verbose_name="Wishlist")
     top_beer_1 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -92,11 +94,6 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     def has_unread_notifications(self):
         """Vérifie si l'utilisateur a au moins une notification non lue"""
         return self.notifications.filter(is_read=False).exists()
-    
-    @property
-    def is_pro(self):
-        """Renvoie True si l'utilisateur gère au moins un établissement"""
-        return self.managed_breweries.exists() or self.managed_bars.exists()
 
     @property
     def my_breweries(self):
@@ -107,6 +104,58 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     def my_bars(self):
         """Renvoie la liste des bars gérés"""
         return self.managed_bars.all()
+    
+    # ==========================================
+    # GESTION DES RÔLES (Groupes)
+    # ==========================================
+    @property
+    def is_brewer(self):
+        """Vérifie si l'utilisateur a le rôle Brasseur."""
+        return any(group.name == 'Brasseur' for group in self.groups.all())
+
+    @property
+    def is_bartender(self):
+        """Vérifie si l'utilisateur a le rôle Bartender."""
+        return any(group.name == 'Bartender' for group in self.groups.all())
+
+    @property
+    def is_contributor(self):
+        """Vérifie si l'utilisateur a le rôle Contributeur."""
+        return any(group.name == 'Contributeur' for group in self.groups.all())
+    
+    @property
+    def is_staff(self):
+        """Vérifie si l'utilisateur a le rôle Staff."""
+        return any(group.name == 'Staff' for group in self.groups.all())
+    
+    @property
+    def primary_role_badge(self):
+        """
+        Détermine le rôle le plus élevé de l'utilisateur et renvoie
+        un dictionnaire avec le nom du rôle et sa classe CSS (Tailwind/DaisyUI).
+        """
+        if self.is_superuser:
+            return {'name': 'Staff2', 'color': 'badge-warning text-white'}
+            #return {'name': 'Admin', 'color': 'badge-error text-white'}
+        # pas envie de montrer les comptes admins en immense pour des raisons de securité
+            
+        if self.is_staff:
+            return {'name': 'Staff1', 'color': 'badge-warning text-white'}
+        
+        # On récupère tous les noms de groupes d'un coup pour éviter les requêtes multiples
+        group_names = [group.name for group in self.groups.all()]
+        
+        if 'Brasseur' in group_names and 'Bartender' in group_names:
+            return {'name': 'Brasseur & Gérant', 'color': 'badge-primary text-white'}
+        if 'Brasseur' in group_names:
+            return {'name': 'Brasseur', 'color': 'badge-primary text-white'}
+        if 'Bartender' in group_names:
+            return {'name': 'Gérant de Bar', 'color': 'badge-primary text-white'}
+        if 'Contributeur' in group_names:
+            return {'name': 'Contributeur', 'color': 'badge-neutral text-white'}
+            
+        # Par défaut, si l'utilisateur n'a aucun groupe spécial
+        return {'name': 'Membre', 'color': 'badge-ghost'}
 
     def __str__(self):
         return self.username
@@ -463,3 +512,44 @@ class CustomNotebook(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.user.username}"
+    
+# ==========================================
+# Attibution des rôles
+# ==========================================
+
+@receiver(post_save, sender=BeerUser)
+def assign_default_role(sender, instance, created, **kwargs):
+    """
+    Signal déclenché juste après la sauvegarde d'un BeerUser.
+    Si c'est une création (created=True), on lui donne le rôle Contributeur par défaut.
+    """
+    if created:
+        # get_or_create évite que le code plante si le groupe venait à être supprimé
+        grp_contrib, _ = Group.objects.get_or_create(name='Contributeur')
+        instance.groups.add(grp_contrib)
+
+@receiver(m2m_changed, sender=Brewery.managers.through)
+def assign_brewer_role(sender, instance, action, pk_set, **kwargs):
+    """
+    Écoute l'ajout d'utilisateurs dans le champ 'managers' d'une Brasserie.
+    Leur donne automatiquement le rôle 'Brasseur'.
+    """
+    if action == "post_add":
+        grp_brasseur, _ = Group.objects.get_or_create(name='Brasseur')
+        # pk_set contient les IDs des utilisateurs qui viennent d'être ajoutés
+        users = BeerUser.objects.filter(pk__in=pk_set)
+        for user in users:
+            user.groups.add(grp_brasseur)
+
+
+@receiver(m2m_changed, sender=Bar.managers.through)
+def assign_bar_role(sender, instance, action, pk_set, **kwargs):
+    """
+    Écoute l'ajout d'utilisateurs dans le champ 'managers' d'un Bar.
+    Leur donne automatiquement le rôle 'Bar'.
+    """
+    if action == "post_add":
+        grp_bar, _ = Group.objects.get_or_create(name='Bar')
+        users = BeerUser.objects.filter(pk__in=pk_set)
+        for user in users:
+            user.groups.add(grp_bar)
