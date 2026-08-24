@@ -53,7 +53,7 @@
 
     <div class="mt-2 text-center">
         <span class="badge badge-sm font-bold shadow-sm border-none {{ user.primary_role_badge.color }}">
-            {{ user.primary_role_badge.name }}
+            {{ profile_user.primary_role_badge.name }}
         </span>
     </div>
 
@@ -87,6 +87,31 @@
         </button>
     </div>
 </div>
+
+{% if profile_user.has_public_establishments %}
+<div class="flex flex-col bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200">
+    <h3 class="font-castoro text-xl font-bold mb-4 flex items-center gap-2 border-b border-primary pb-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+        Établissement(s) géré(s)
+    </h3>
+    
+    <div class="flex flex-col gap-3">
+        {% for brewery in profile_user.my_breweries %}
+        <a href="{% url 'brewery_detail' brewery.id %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            <span class="font-semibold">{{ brewery.name }}</span>
+        </a>
+        {% endfor %}
+
+        {% for bar in profile_user.my_bars %}
+        <a href="{% url 'bar_detail' bar.id %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 7v3m0 0v3m0-3h3m-3 0H9" /></svg>
+            <span class="font-semibold">{{ bar.name }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 
 <div class="w-full mt-4">
     <!-- Onglets -->

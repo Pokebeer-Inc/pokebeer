@@ -80,6 +80,7 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     notif_social = models.BooleanField(default=True, verbose_name="Interactions (Likes, Wishlists)")
     notif_network = models.BooleanField(default=True, verbose_name="Réseau (Ajouts de bières, Lieux)")
     notif_achievements = models.BooleanField(default=True, verbose_name="Trophées et récompenses")
+    show_establishments = models.BooleanField(default=True, verbose_name="Afficher mes établissements publiquement")
 
     USERNAME_FIELD = "username"
     EMAIL_FIELD = "email"
@@ -94,6 +95,11 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     def has_unread_notifications(self):
         """Vérifie si l'utilisateur a au moins une notification non lue"""
         return self.notifications.filter(is_read=False).exists()
+    
+    @property
+    def has_public_establishments(self):
+        """Renvoie True si l'utilisateur est un pro ET qu'il autorise l'affichage"""
+        return self.show_establishments and (self.is_brewer or self.is_bartender)
 
     @property
     def my_breweries(self):
@@ -134,13 +140,9 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
         Détermine le rôle le plus élevé de l'utilisateur et renvoie
         un dictionnaire avec le nom du rôle et sa classe CSS (Tailwind/DaisyUI).
         """
-        if self.is_superuser:
-            return {'name': 'Staff2', 'color': 'badge-warning text-white'}
-            #return {'name': 'Admin', 'color': 'badge-error text-white'}
-        # pas envie de montrer les comptes admins en immense pour des raisons de securité
-            
-        if self.is_staff:
-            return {'name': 'Staff1', 'color': 'badge-warning text-white'}
+        
+        if self.is_staff or self.is_superuser:
+            return {'name': 'Staff', 'color': 'badge-warning text-white'}
         
         # On récupère tous les noms de groupes d'un coup pour éviter les requêtes multiples
         group_names = [group.name for group in self.groups.all()]
