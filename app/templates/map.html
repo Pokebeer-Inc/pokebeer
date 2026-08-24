@@ -196,7 +196,7 @@
         <p class="text-sm text-gray-600">Voulez-vous vraiment supprimer ce lieu et les souvenirs associés ?</p>
         <div class="flex justify-center gap-3 mt-4 w-full">
             <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
-            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="document.getElementById('form-delete-spot').submit();">Oui, supprimer</button>
+            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="this.disabled=true; document.getElementById('form-delete-spot').submit();">Oui, supprimer</button>
         </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>

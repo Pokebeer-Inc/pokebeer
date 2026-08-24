@@ -217,16 +217,64 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // 5. Gestion de la géolocalisation
+    let userMarker = null;
+    let geoWatchId = null;
+
+    const userIcon = L.divIcon({
+        className: 'custom-user-icon',
+        html: `<div class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                </svg>
+               </div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -16]
+    });
+
     const geolocBtn = document.getElementById('geoloc-btn');
     if (geolocBtn) {
         geolocBtn.addEventListener('click', function() {
             if(navigator.geolocation) {
                 const originalHtml = this.innerHTML;
+                
+                // Si la localisation est déjà active, on se contente de recentrer la carte
+                if (geoWatchId !== null && userMarker) {
+                    map.setView(userMarker.getLatLng(), 16);
+                    return;
+                }
+
+                // On affiche le loader
                 this.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
                 
-                navigator.geolocation.getCurrentPosition((position) => {
+                // watchPosition suit l'utilisateur en temps réel
+                geoWatchId = navigator.geolocation.watchPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    // Restaure le bouton et centre la carte uniquement lors du tout premier fix
+                    if (this.innerHTML !== originalHtml) {
+                        this.innerHTML = originalHtml;
+                        map.setView([lat, lng], 16);
+                    }
+
+                    // Crée le marqueur "bonhomme" s'il n'existe pas, ou déplace-le s'il existe déjà
+                    if (!userMarker) {
+                        userMarker = L.marker([lat, lng], {
+                            icon: userIcon, 
+                            zIndexOffset: 9999 // S'assure qu'il passe au-dessus des autres points
+                        }).addTo(map);
+                        userMarker.bindPopup("<div class='text-center font-bold text-primary mb-0'>Vous êtes ici</div>");
+                    } else {
+                        userMarker.setLatLng([lat, lng]);
+                    }
+                }, (error) => {
+                    console.error("Erreur de géolocalisation:", error);
                     this.innerHTML = originalHtml;
-                    map.setView([position.coords.latitude, position.coords.longitude], 16);
+                }, {
+                    enableHighAccuracy: true,
+                    maximumAge: 10000,
+                    timeout: 5000
                 });
             }
         });

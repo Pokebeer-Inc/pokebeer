@@ -300,7 +300,7 @@
         <p class="text-[10px] text-gray-400 italic">(Les notes personnelles des utilisateurs seront conservées dans leurs carnets).</p>
         <div class="flex justify-center gap-3 mt-4 w-full">
             <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
-            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="document.getElementById('form-delete-beer').submit();">Oui, retirer</button>
+            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="this.disabled=true; document.getElementById('form-delete-beer').submit();">Oui, retirer</button>
         </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
@@ -320,7 +320,7 @@
             <form method="dialog" class="flex-1">
                 <button class="btn btn-sm btn-ghost w-full">Annuler</button>
             </form>
-            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="document.getElementById('form-delete-rating').submit();">
+            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="this.disabled=true; document.getElementById('form-delete-rating').submit();">
                 Oui, supprimer
             </button>
         </div>

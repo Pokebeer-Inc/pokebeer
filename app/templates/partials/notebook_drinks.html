@@ -27,7 +27,7 @@
             
             <form id="form-delete-drink-{{drink.id}}" method="post" action="{% url 'delete_drink' drink.id %}" class="mt-2 pt-2 border-t border-base-200">
                 {% csrf_token %}
-                <button type="button" class="btn btn-outline btn-error btn-sm w-full" onclick="document.getElementById('modal_confirm_drink_{{drink.id}}').showModal()">Supprimer ma note</button>
+                <button type="button" class="btn btn-outline btn-error btn-sm w-full" onclick="this.disabled=true; document.getElementById('modal_confirm_drink_{{drink.id}}').showModal()">Supprimer ma note</button>
             </form>
         </div>
         <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
@@ -39,7 +39,7 @@
             <p class="text-sm text-gray-600">Sûr de vouloir supprimer cette dégustation de votre carnet ?</p>
             <div class="flex justify-center gap-3 mt-4 w-full">
                 <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
-                <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="document.getElementById('form-delete-drink-{{drink.id}}').submit();">Oui, supprimer</button>
+                <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="this.disabled=true; document.getElementById('form-delete-drink-{{drink.id}}').submit();">Oui, supprimer</button>
             </div>
         </div>
         <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
