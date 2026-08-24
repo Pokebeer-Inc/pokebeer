@@ -52,23 +52,27 @@ class UserLoginForm(AuthenticationForm):
 class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = BeerUser
-        fields = ['username', 'email', 'bio']
+        fields = ['username', 'email', 'bio', 'show_establishments']
         labels = {
             'username': "Nom d'utilisateur",
             'email': "Adresse Email",
-            'bio': "Ma Biographie"
+            'bio': "Ma Biographie",
+            'show_establishments': "Afficher mes établissements publiquement"
         }
         widgets = {
-            'bio': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Parlez-nous de vos goûts brassicoles...'})
+            'bio': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Parlez-nous de vos goûts brassicoles...'}),
+            'show_establishments': forms.CheckboxInput(attrs={'class': 'toggle toggle-primary toggle-sm'})
         }
 
     def __init__(self, *args, **kwargs):
         super(UserUpdateForm, self).__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.update({
-                'class': 'form-control',
-                'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;'
-            })
+        for field_name, field in self.fields.items():
+            # On exclut le toggle pour ne pas casser son design Tailwind
+            if field_name != 'show_establishments':
+                field.widget.attrs.update({
+                    'class': 'form-control',
+                    'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;'
+                })
 
     def clean_email(self):
         email = self.cleaned_data.get('email')

@@ -250,19 +250,31 @@
         <h3 class="text-sm font-bold border-b border-primary pb-1">Modifier mon profil</h3>
         
         {% for field in profile_form %}
-        {% if user.socialaccount_set.all and field.name == 'email' %}
-        <div class="hidden">
-            {{ field }}
+            {% if user.socialaccount_set.all and field.name == 'email' %}
+                <div class="hidden">{{ field }}</div>
+            {% elif field.name == 'show_establishments' %}
+                <!-- On l'ignore ici pour le traiter séparément en dessous -->
+            {% else %}
+                <div class="form-control w-full">
+                    <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
+                    {{ field }} 
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        {% if user.is_bartender or user.is_brewer %}
+        <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm mt-3">
+            <div class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">Mes établissements</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Les afficher sur mon profil public</span>
+            </div>
+            {{ profile_form.show_establishments }}
         </div>
         {% else %}
-        <div class="form-control w-full">
-            <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
-            {{ field }} 
-        </div>
+            <div class="hidden">{{ profile_form.show_establishments }}</div>
         {% endif %}
-        {% endfor %}
         
-        <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-2 text-white">Valider</button>
+        <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-3 text-white">Valider</button>
     </form>
     
     {% if not user.socialaccount_set.all %}
