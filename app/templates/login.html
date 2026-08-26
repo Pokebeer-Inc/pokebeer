@@ -45,25 +45,18 @@
         <h3 class="font-castoro font-bold text-2xl mb-2">Vérification de l'âge</h3>
         <p class="text-sm text-gray-600 mb-4">L'accès à cette application est strictement réservé aux personnes majeures.</p>
         
-        <form id="age-form" class="flex flex-col gap-4 text-left">
-            <div class="form-control w-full">
-                <label class="label"><span class="label-text font-bold">Votre date de naissance</span></label>
-                <input type="date" id="birthdate" class="input input-bordered w-full bg-white" required>
-            </div>
+        <form id="age-form" class="flex flex-col gap-4 text-center mt-4">
+            <p id="age-checkbox-text" class="text-sm font-semibold leading-tight text-gray-800">
+                Je confirme avoir l'âge légal requis dans mon pays.
+            </p>
             
-            <div class="form-control w-full">
-                <label class="flex items-start gap-3 cursor-pointer mt-2">
-                    <input type="checkbox" id="age-checkbox" class="checkbox checkbox-primary shrink-0 mt-0.5" required>
-                    <span id="age-checkbox-text" class="flex-1 min-w-0 text-xs font-semibold leading-tight text-left whitespace-normal break-words text-gray-800">
-                        Je certifie avoir l'âge légal requis et j'accepte les conditions.
-                    </span>
-                </label>
-            </div>
+            <button type="submit" class="btn btn-primary w-full text-white mt-2 shadow-sm">
+                Je confirme être majeur
+            </button>
             
-            <p class="text-[10px] text-gray-400 italic text-center">(Ceci n'est pas enregistré, seulement à des fins de vérification)</p>
-            
-            <button type="submit" class="btn btn-primary w-full text-white mt-2">Entrer sur l'application</button>
-            <p id="age-error" class="text-error text-xs text-center mt-2 hidden font-bold">Vous n'avez pas l'âge requis pour accéder à l'application.</p>
+            <p class="text-[10px] text-gray-400 italic mt-2 uppercase tracking-widest">
+                L'abus d'alcool est dangereux pour la santé. À consommer avec modération.
+            </p>
         </form>
     </div>
 </dialog>
