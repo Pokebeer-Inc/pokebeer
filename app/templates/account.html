@@ -316,7 +316,7 @@
             </div>
             {{ pro_settings_form.show_establishments }}
         </div>
-        <button type="submit" name="btn_pro_settings" class="btn btn-outline btn-primary btn-sm mt-2 w-full">
+        <button type="submit" name="btn_pro_settings" class="hidden">
             Sauvegarder l'affichage
         </button>
     </form>
@@ -349,7 +349,7 @@
             {% endfor %}
         </div>
         
-        <button type="submit" name="btn_notifs" class="btn btn-primary btn-sm mt-2 text-white">Enregistrer mes préférences</button>
+        <button type="submit" name="btn_notifs" class="hidden">Enregistrer mes préférences</button>
     </form>
     
     <div class="divider my-4 before:bg-error/30 after:bg-error/30 text-error font-bold text-xs uppercase">Zone de danger</div>
@@ -373,6 +373,7 @@
 <script src="{% static 'script/tab_bar.js' %}"></script>
 <script src="{% static 'script/drag_drop.js' %}"></script>
 <script src="{% static 'script/notif_preferences.js' %}"></script>
+<script src="{% static 'script/auto_checkbox.js' %}"></script>
 {% endblock %}
 
 {% block modals %}
