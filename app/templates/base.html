@@ -11,6 +11,8 @@
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="{% static 'style/loader.css' %}">
 </head>
 <body class="bg-base-100 text-black font-montserrat">
     
@@ -111,7 +113,47 @@
     
     <!-- Overlay de chargement global -->
     <div id="global-loader" class="fixed inset-0 bg-base-100/70 backdrop-blur-sm z-[9999] hidden flex-col items-center justify-center">
-        <span class="loading loading-spinner text-primary w-16 h-16"></span>
+        
+        <div class="beer-loader-container">
+            
+            <!-- Verre 1 : La Chope (Mug) -->
+            <div class="svg-glass-wrapper mug">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-20 h-20 text-primary drop-shadow-md">
+                    <g clip-path="url(#mug-clip)">
+                        <rect x="0" y="64" width="64" height="64" fill="currentColor" class="svg-liquid"/>
+                    </g>
+                    <!-- Contour du verre -->
+                    <path d="M18 16 C18 16, 14 54, 22 58 C30 62, 38 62, 46 58 C54 54, 50 16, 50 16" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Poignée -->
+                    <path d="M50 26 C62 26, 64 42, 48 46" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round"/>
+                    <!-- Mousse -->
+                    <path d="M14 18 C14 10, 22 8, 26 14 C30 6, 38 6, 42 14 C46 10, 54 12, 54 18 C54 26, 14 26, 14 18 Z" fill="#F3F4F6" stroke="#374151" stroke-width="3" class="svg-foam"/>
+                    
+                    <clipPath id="mug-clip">
+                        <path d="M18 16 C18 16, 14 54, 22 58 C30 62, 38 62, 46 58 C54 54, 50 16, 50 16" />
+                    </clipPath>
+                </svg>
+            </div>
+            
+            <!-- Verre 2 : La Pinte -->
+            <div class="svg-glass-wrapper pint">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-16 h-20 text-primary drop-shadow-md">
+                    <g clip-path="url(#pint-clip)">
+                        <rect x="0" y="64" width="64" height="64" fill="currentColor" class="svg-liquid"/>
+                    </g>
+                    <!-- Contour du verre -->
+                    <path d="M14 12 L22 58 C23 61, 41 61, 42 58 L50 12" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Mousse -->
+                    <path d="M10 14 C10 6, 20 4, 26 12 C34 2, 42 4, 46 12 C54 8, 58 14, 54 18 C50 24, 14 24, 10 14 Z" fill="#F3F4F6" stroke="#374151" stroke-width="3" class="svg-foam"/>
+                    
+                    <clipPath id="pint-clip">
+                        <path d="M14 12 L22 58 C23 61, 41 61, 42 58 L50 12"/>
+                    </clipPath>
+                </svg>
+            </div>
+            
+        </div>
+        
     </div>
     
     <script src="{% static 'script/loader.js' %}"></script>

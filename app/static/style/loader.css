@@ -1,0 +1,65 @@
+/* CONTENEUR GLOBAL */
+.beer-loader-container {
+    position: relative;
+    width: 80px;
+    height: 100px;
+}
+
+.svg-glass-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    margin-left: -40px; /* Moitié de la largeur */
+    width: 80px;
+    display: flex;
+    justify-content: center;
+    opacity: 0;
+    animation: svg-glass-cycle 4s infinite;
+}
+
+.svg-glass-wrapper.pint {
+    animation-delay: 2s;
+}
+
+/* LE LIQUIDE (Remplissage) */
+.svg-liquid {
+    animation: svg-liquid-fill 4s infinite ease-in-out;
+}
+.svg-glass-wrapper.pint .svg-liquid {
+    animation-delay: 2s;
+}
+
+/* LA MOUSSE (Gonflement) */
+.svg-foam {
+    transform-origin: center;
+    animation: svg-foam-swell 4s infinite ease-in-out;
+}
+.svg-glass-wrapper.pint .svg-foam {
+    animation-delay: 2s;
+}
+
+/* --- MOTEUR D'ANIMATION --- */
+
+/* 1. Cycle de présence et Secousse (Trinque) */
+@keyframes svg-glass-cycle {
+    0%, 5%   { opacity: 0; transform: rotate(0deg); }
+    10%      { opacity: 1; transform: rotate(0deg); }
+    35%      { opacity: 1; transform: rotate(0deg); } /* Fin du remplissage */
+    40%      { opacity: 1; transform: rotate(15deg); } /* Secousse Droite */
+    45%      { opacity: 1; transform: rotate(-10deg); } /* Secousse Gauche */
+    50%, 100%{ opacity: 0; transform: rotate(0deg); } /* Disparition */
+}
+
+/* 2. Remplissage du liquide de bas en haut */
+@keyframes svg-liquid-fill {
+    0%, 10%  { transform: translateY(0); }
+    35%, 45% { transform: translateY(-56px); }
+    50%, 100%{ transform: translateY(0); }
+}
+
+/* 3. Gonflement de la mousse */
+@keyframes svg-foam-swell {
+    0%, 25%  { transform: scale(0.6) translateY(15px); opacity: 0; }
+    35%, 45% { transform: scale(1) translateY(0); opacity: 1; }
+    50%, 100%{ transform: scale(0.6) translateY(15px); opacity: 0; }
+}
