@@ -52,27 +52,23 @@ class UserLoginForm(AuthenticationForm):
 class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = BeerUser
-        fields = ['username', 'email', 'bio', 'show_establishments']
+        fields = ['username', 'email', 'bio']
         labels = {
             'username': "Nom d'utilisateur",
             'email': "Adresse Email",
-            'bio': "Ma Biographie",
-            'show_establishments': "Afficher mes établissements publiquement"
+            'bio': "Ma Biographie"
         }
         widgets = {
-            'bio': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Parlez-nous de vos goûts brassicoles...'}),
-            'show_establishments': forms.CheckboxInput(attrs={'class': 'toggle toggle-primary toggle-sm'})
+            'bio': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Parlez-nous de vos goûts brassicoles...'})
         }
 
     def __init__(self, *args, **kwargs):
         super(UserUpdateForm, self).__init__(*args, **kwargs)
-        for field_name, field in self.fields.items():
-            # On exclut le toggle pour ne pas casser son design Tailwind
-            if field_name != 'show_establishments':
-                field.widget.attrs.update({
-                    'class': 'form-control',
-                    'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;'
-                })
+        for field in self.fields.values():
+            field.widget.attrs.update({
+                'class': 'form-control',
+                'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;'
+            })
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
@@ -80,6 +76,16 @@ class UserUpdateForm(forms.ModelForm):
         if BeerUser.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("Cet email est déjà utilisé par un autre membre.")
         return email
+
+class ProSettingsForm(forms.ModelForm):
+    show_establishments = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'toggle toggle-primary toggle-sm'})
+    )
+
+    class Meta:
+        model = BeerUser
+        fields = ['show_establishments']
     
 class ProUserForm(forms.ModelForm):
     password = forms.CharField(
@@ -191,7 +197,7 @@ class BeerForm(forms.ModelForm):
         b_name = self.cleaned_data['brewery_name']
         brewery, created = Brewery.objects.get_or_create(
             name__iexact=b_name,
-            defaults={'name': b_name, 'city': 'Inconnue', 'description': 'Ajoutée automatiquement'}
+            defaults={'name': b_name, 'description': 'Ajoutée automatiquement'}
         )
         beer.brewery_id = brewery
         

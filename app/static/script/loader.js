@@ -37,6 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('submit', (e) => {
         const form = e.target;
 
+        if (form.id === 'age-form') {
+            return;
+        }
+
         // On ignore les formulaires de fermeture de modale DaisyUI
         if (form.getAttribute('method') === 'dialog') {
             return;

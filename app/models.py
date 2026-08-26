@@ -531,27 +531,48 @@ def assign_default_role(sender, instance, created, **kwargs):
         instance.groups.add(grp_contrib)
 
 @receiver(m2m_changed, sender=Brewery.managers.through)
-def assign_brewer_role(sender, instance, action, pk_set, **kwargs):
-    """
-    Écoute l'ajout d'utilisateurs dans le champ 'managers' d'une Brasserie.
-    Leur donne automatiquement le rôle 'Brasseur'.
-    """
-    if action == "post_add":
-        grp_brasseur, _ = Group.objects.get_or_create(name='Brasseur')
-        # pk_set contient les IDs des utilisateurs qui viennent d'être ajoutés
+def update_brewer_role(sender, instance, action, pk_set, **kwargs):
+    """Ajoute ou retire automatiquement le rôle Brasseur en fonction des établissements gérés."""
+    grp_brasseur, _ = Group.objects.get_or_create(name='Brasseur')
+    
+    if action == "post_add" and pk_set:
         users = BeerUser.objects.filter(pk__in=pk_set)
         for user in users:
             user.groups.add(grp_brasseur)
+            
+    elif action == "post_remove" and pk_set:
+        users = BeerUser.objects.filter(pk__in=pk_set)
+        for user in users:
+            # S'il a été retiré et qu'il ne gère plus AUCUNE autre brasserie
+            if not user.managed_breweries.exists():
+                user.groups.remove(grp_brasseur)
+                
+    elif action == "pre_clear":
+        # Si on vide complètement la liste des gérants de cette brasserie d'un coup
+        for user in instance.managers.all():
+            # On vérifie s'il gère d'autres brasseries que celle-ci
+            if not user.managed_breweries.exclude(pk=instance.pk).exists():
+                user.groups.remove(grp_brasseur)
 
 
 @receiver(m2m_changed, sender=Bar.managers.through)
-def assign_bar_role(sender, instance, action, pk_set, **kwargs):
-    """
-    Écoute l'ajout d'utilisateurs dans le champ 'managers' d'un Bar.
-    Leur donne automatiquement le rôle 'Bar'.
-    """
-    if action == "post_add":
-        grp_bar, _ = Group.objects.get_or_create(name='Bar')
+def update_bar_role(sender, instance, action, pk_set, **kwargs):
+    """Ajoute ou retire automatiquement le rôle Bartender en fonction des établissements gérés."""
+    grp_bartender, _ = Group.objects.get_or_create(name='Bartender')
+    
+    if action == "post_add" and pk_set:
         users = BeerUser.objects.filter(pk__in=pk_set)
         for user in users:
-            user.groups.add(grp_bar)
+            user.groups.add(grp_bartender)
+            
+    elif action == "post_remove" and pk_set:
+        users = BeerUser.objects.filter(pk__in=pk_set)
+        for user in users:
+            # S'il a été retiré et qu'il ne gère plus AUCUN autre bar
+            if not user.managed_bars.exists():
+                user.groups.remove(grp_bartender)
+                
+    elif action == "pre_clear":
+        for user in instance.managers.all():
+            if not user.managed_bars.exclude(pk=instance.pk).exists():
+                user.groups.remove(grp_bartender)

@@ -9,7 +9,7 @@ from django.contrib.auth.forms import PasswordChangeForm
 import json
 
 from ..models import BeerUser, UserFollow, Beer, Drinks, UserBlock, Notification, DrinkReaction
-from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, NotificationPreferenceForm
+from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, NotificationPreferenceForm, ProSettingsForm
 from .utils import get_user_achievements, check_and_notify_achievements
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
@@ -23,6 +23,7 @@ def account_view(request):
     password_form = PasswordChangeForm(user=user)
     feedback_form = FeedbackForm()
     notif_form = NotificationPreferenceForm(instance=user)
+    pro_settings_form = ProSettingsForm(instance=user)
     
     if request.method == 'POST':
         if 'btn_profile' in request.POST:
@@ -34,6 +35,15 @@ def account_view(request):
                 
                 messages.success(request, "Profil mis à jour.")
                 return redirect('account')
+        
+        elif 'btn_pro_settings' in request.POST:
+            pro_settings_form = ProSettingsForm(request.POST, instance=user)
+            if pro_settings_form.is_valid():
+                pro_settings_form.save()
+                messages.success(request, "Paramètres de confidentialité mis à jour.")
+                return redirect('account')
+            else:
+                messages.error(request, "Erreur dans le changement de préférence de la visibilité.")
 
         elif 'btn_password' in request.POST:
             password_form = PasswordChangeForm(user=request.user, data=request.POST)
@@ -46,7 +56,7 @@ def account_view(request):
                 messages.error(request, "Erreur dans le changement de mot de passe.")
                 
         # Gestion du feedback
-        if 'btn_feedback' in request.POST:
+        elif 'btn_feedback' in request.POST:
             feedback_form = FeedbackForm(request.POST)
             if feedback_form.is_valid():
                 feedback = feedback_form.save(commit=False)
@@ -54,14 +64,18 @@ def account_view(request):
                 feedback.save()
                 messages.success(request, "Merci ! Votre message a bien été envoyé à l'équipe.")
                 return redirect('account')
+            else:
+                messages.error(request, "Erreur dans l'envoi de votre feedback.")
         
         # Gestion des préférences de notifications
-        if 'btn_notifs' in request.POST:
+        elif 'btn_notifs' in request.POST:
             notif_form = NotificationPreferenceForm(request.POST, instance=user)
             if notif_form.is_valid():
                 notif_form.save()
                 messages.success(request, "Préférences de notifications mises à jour.")
                 return redirect('account')
+            else:
+                messages.error(request, "Erreur dans le changement de préférence des notifications.")
 
     # 2. Requêtes de base
     my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
@@ -83,6 +97,7 @@ def account_view(request):
         'password_form': password_form,
         'feedback_form': feedback_form,
         'notif_form': notif_form,
+        'pro_settings_form': pro_settings_form,
         'my_drinks': my_drinks,
         'followers': followers,
         'following': following,

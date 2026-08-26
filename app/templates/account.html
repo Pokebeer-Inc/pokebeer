@@ -244,6 +244,29 @@
 </div>
 
 <div id="tab-infos" class="tab-panel bg-white border-base-300 rounded-box p-3 mt-2 hidden">
+
+    <div class="w-full mb-4">
+        {% if profile_form.errors %}
+            <div class="text-error bg-error/10 border border-error/30 p-3 rounded text-xs mb-2">
+                <strong>Erreur Profil :</strong> {{ profile_form.errors }}
+            </div>
+        {% endif %}
+        {% if password_form.errors %}
+            <div class="text-error bg-error/10 border border-error/30 p-3 rounded text-xs mb-2">
+                <strong>Erreur Mot de passe :</strong> {{ password_form.errors }}
+            </div>
+        {% endif %}
+        {% if notif_form.errors %}
+            <div class="text-error bg-error/10 border border-error/30 p-3 rounded text-xs mb-2">
+                <strong>Erreur Notifications :</strong> {{ notif_form.errors }}
+            </div>
+        {% endif %}
+        {% if pro_settings_form.errors %}
+            <div class="text-error bg-error/10 border border-error/30 p-3 rounded text-xs mb-2">
+                <strong>Erreur Affichage Pro :</strong> {{ pro_settings_form.errors }}
+            </div>
+        {% endif %}
+    </div>
     
     <form method="post" class="flex flex-col gap-3 [&_input]:font-normal [&_textarea]:font-normal">
         {% csrf_token %}
@@ -252,8 +275,6 @@
         {% for field in profile_form %}
             {% if user.socialaccount_set.all and field.name == 'email' %}
                 <div class="hidden">{{ field }}</div>
-            {% elif field.name == 'show_establishments' %}
-                <!-- On l'ignore ici pour le traiter séparément en dessous -->
             {% else %}
                 <div class="form-control w-full">
                     <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
@@ -261,20 +282,7 @@
                 </div>
             {% endif %}
         {% endfor %}
-
-        {% if user.is_bartender or user.is_brewer %}
-        <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm mt-3">
-            <div class="flex flex-col pr-4">
-                <span class="label-text font-bold text-xs">Mes établissements</span>
-                <span class="text-[9px] text-gray-500 mt-0.5">Les afficher sur mon profil public</span>
-            </div>
-            {{ profile_form.show_establishments }}
-        </div>
-        {% else %}
-            <div class="hidden">{{ profile_form.show_establishments }}</div>
-        {% endif %}
-        
-        <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-3 text-white">Valider</button>
+        <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-2 text-white">Valider</button>
     </form>
     
     {% if not user.socialaccount_set.all %}
@@ -292,6 +300,25 @@
         {% endfor %}
         
         <button type="submit" name="btn_password" class="btn btn-outline btn-error btn-sm mt-2">Changer</button>
+    </form>
+    {% endif %}
+
+    <div class="divider my-4"></div>
+
+    {% if user.is_bartender or user.is_brewer %}
+    <form method="post" class="flex flex-col gap-3">
+        <h3 class="text-sm font-bold border-b border-primary pb-1">Visibilité publique</h3>
+        {% csrf_token %}
+        <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm">
+            <div class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">Mes établissements</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Les afficher sur mon profil public</span>
+            </div>
+            {{ pro_settings_form.show_establishments }}
+        </div>
+        <button type="submit" name="btn_pro_settings" class="btn btn-outline btn-primary btn-sm mt-2 w-full">
+            Sauvegarder l'affichage
+        </button>
     </form>
     {% endif %}
     
