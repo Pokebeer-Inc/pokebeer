@@ -56,7 +56,7 @@ class GeocodableMixin(models.Model):
         # On vérifie si c'est une modification d'un objet existant
         if self.pk:
             old_instance = type(self).objects.get(pk=self.pk)
-            # OPTIMISATION : On appelle l'API UNIQUEMENT si l'adresse a changé
+            # On appelle l'API UNIQUEMENT si l'adresse a changé
             if old_instance.address != self.address:
                 self._update_coordinates()
         else:
