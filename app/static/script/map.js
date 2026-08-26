@@ -5,8 +5,11 @@ document.addEventListener("DOMContentLoaded", function() {
     
     // 1. Initialisation de la carte
     const map = L.map('map', {zoomControl: false}).setView([46.603354, 1.888334], 5);
-    L.control.zoom({ position: 'topright' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap France'
+    }).addTo(map);
 
     new ResizeObserver(() => {
         map.invalidateSize();
@@ -44,6 +47,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // 2. Extraction des données préparées par Django dans le HTML caché
     const spotsContainer = document.getElementById('spots-data-container');
     const spotsData = {};
+    const mapBounds = [];
 
     if (spotsContainer) {
         document.querySelectorAll('.spot-data-item').forEach(item => {
@@ -70,6 +74,7 @@ document.addEventListener("DOMContentLoaded", function() {
             // Ajout direct du marqueur sur la carte
             const marker = L.marker([lat, lng], {icon: brownIcon}).addTo(map);
             marker.bindPopup(popupHtml);
+            mapBounds.push([lat, lng]);
         });
     }
 
@@ -86,6 +91,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const icon = type === 'bar' ? barIcon : breweryIcon;
             
             const marker = L.marker([lat, lng], {icon: icon, title: name}).addTo(map);
+            mapBounds.push([lat, lng]);
             
             // Événement au clic : Ouverture de la modale et chargement du contenu
             marker.on('click', function() {
@@ -130,7 +136,12 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // 3. Gestion de l'ouverture de la modale d'édition
+    // Centrage automatique sur tous les points
+    if (mapBounds.length > 0) {
+        map.fitBounds(mapBounds, { maxZoom: 5, padding: [30, 30] }); 
+    }
+
+    // Gestion de l'ouverture de la modale d'édition
     window.openEditModal = function(spotId) {
         const data = spotsData[spotId];
         if (!data) return;
@@ -340,4 +351,88 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         document.getElementById('move-overlay').classList.add('-translate-y-full');
     }
+
+    // --- MOTEUR DE RECHERCHE DE LIEUX (Nominatim) ---
+    let searchMarker = null;
+
+    window.searchLocation = async function() {
+        const query = document.getElementById('map-search-input').value.trim();
+        const resultsContainer = document.getElementById('map-search-results');
+        
+        // Empêche les requêtes inutiles pour 1 ou 2 lettres
+        if (query.length < 3) {
+            resultsContainer.classList.add('hidden');
+            return;
+        }
+
+        // Affichage du loader pendant la recherche
+        resultsContainer.innerHTML = '<li class="p-2 flex justify-center"><span class="loading loading-spinner text-primary loading-sm"></span></li>';
+        resultsContainer.classList.remove('hidden');
+
+        try {
+            // Appel à l'API gratuite OpenStreetMap
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8`);
+            const data = await response.json();
+
+            resultsContainer.innerHTML = ''; // On vide le loader
+
+            // Gestion d'aucun résultat
+            if (data.length === 0) {
+                resultsContainer.innerHTML = '<li class="p-2 text-center text-xs text-gray-500 italic">Aucun résultat trouvé</li>';
+                return;
+            }
+
+            // Construction de la liste des résultats
+            data.forEach(place => {
+                const li = document.createElement('li');
+                li.innerHTML = `<a class="text-xs py-2 border-b border-base-200 last:border-none cursor-pointer block w-full hover:bg-base-200 font-medium">
+                                    <span class="truncate block w-full">${place.display_name}</span>
+                                </a>`;
+                
+                // Action au clic : focus sur la carte
+                li.onclick = () => {
+                    if (mapInstance) {
+                        mapInstance.setView([place.lat, place.lon], 16);
+                        
+                        if (searchMarker) {
+                            mapInstance.removeLayer(searchMarker);
+                        }
+                        
+                        searchMarker = L.marker([place.lat, place.lon]).addTo(mapInstance);
+                        
+                        const popupContent = `
+                            <div class="flex flex-col gap-2 max-w-[200px]">
+                                <span class="text-xs font-bold leading-tight">${place.display_name}</span>
+                                <button onclick="clearSearchMarker()" class="btn btn-xs btn-error btn-outline flex gap-1 w-full mt-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    Effacer
+                                </button>
+                            </div>
+                        `;
+                        searchMarker.bindPopup(popupContent).openPopup();
+                    }
+                    
+                    resultsContainer.classList.add('hidden');
+                    document.getElementById('map-search-input').value = place.display_name.split(',')[0];
+                };
+                resultsContainer.appendChild(li);
+            });
+        } catch (error) {
+            console.error("Erreur de géocodage :", error);
+            resultsContainer.innerHTML = '<li class="p-2 text-center text-xs text-error">Erreur de connexion</li>';
+        }
+    };
+
+    window.clearSearchMarker = function() {
+        if (searchMarker && mapInstance) {
+            mapInstance.removeLayer(searchMarker);
+            searchMarker = null; // On réinitialise la variable
+        }
+        document.getElementById('map-search-input').value = ''; // On vide la barre de recherche
+    };
+
+    // UX : Fermer les résultats si on clique n'importe où ailleurs sur la carte
+    map.on('click', function() {
+        document.getElementById('map-search-results').classList.add('hidden');
+    });
 });
