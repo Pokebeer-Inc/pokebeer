@@ -1,0 +1,7 @@
+[type=checkbox]:checked {
+    background-image: none;
+}
+
+:is(.toggle:checked,.toggle[aria-checked=true],.toggle:has(>input:checked)):before {
+        border: .1rem solid white;
+}
