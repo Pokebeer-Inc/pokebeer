@@ -50,42 +50,43 @@
     <p class="text-xs text-gray-500 italic mt-1 text-center">
         {% if profile_user.bio %}"{{ profile_user.bio }}"{% endif %}
     </p>
-
+    
     <div class="mt-2 text-center">
-        <span class="badge badge-sm font-bold shadow-sm border-none {{ user.primary_role_badge.color }}">
+        <span class="badge badge-sm font-bold shadow-sm border-none {{ profile_user.primary_role_badge.color }}">
             {{ profile_user.primary_role_badge.name }}
         </span>
+         <a href="{% url 'achievements' %}" class="badge badge-sm font-bold shadow-sm border-none {{ profile_user.primary_role_badge.color }}">Niv {{ level }}</a>
     </div>
-
+    
     {% if unlocked_achievements %}
     <div class="flex flex-wrap justify-center gap-2 mt-3">
         {% for ach in unlocked_achievements %}
         <div class="tooltip tooltip-bottom z-50" data-tip="{{ ach.name }} ({{ ach.tier_name }})">
             <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm border {{ ach.style.bg }} {{ ach.style.border }} {{ ach.style.text_title }} {{ ach.style.extra_classes }}
-                {% if ach.tier_slug == 'bronze' %}bg-gradient-to-br from-[#CD7F32] to-[#8C5722] border-[#CD7F32]/50 text-white shine-effect
-                {% elif ach.tier_slug == 'silver' %}bg-gradient-to-br from-[#F8F8F8] to-[#C0C0C0] border-[#C0C0C0]/50 text-gray-900 shine-effect
-                {% elif ach.tier_slug == 'gold' %}bg-gradient-to-br from-[#FFF080] to-[#FFD700] border-[#FFD700]/50 text-gray-900 shine-effect
-                {% elif ach.tier_slug == 'platinum' %}bg-gradient-to-br from-[#FFFFFF] to-[#E5E4E2] border-[#E5E4E2]/50 text-gray-900 shine-effect{% endif %}">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    {% include "partials/achievement_icon.html" with slug=ach.slug %}
-                </svg>
-            </div>
+            {% if ach.tier_slug == 'bronze' %}bg-gradient-to-br from-[#CD7F32] to-[#8C5722] border-[#CD7F32]/50 text-white shine-effect
+            {% elif ach.tier_slug == 'silver' %}bg-gradient-to-br from-[#F8F8F8] to-[#C0C0C0] border-[#C0C0C0]/50 text-gray-900 shine-effect
+            {% elif ach.tier_slug == 'gold' %}bg-gradient-to-br from-[#FFF080] to-[#FFD700] border-[#FFD700]/50 text-gray-900 shine-effect
+            {% elif ach.tier_slug == 'platinum' %}bg-gradient-to-br from-[#FFFFFF] to-[#E5E4E2] border-[#E5E4E2]/50 text-gray-900 shine-effect{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                {% include "partials/achievement_icon.html" with slug=ach.slug %}
+            </svg>
         </div>
-        {% endfor %}
     </div>
-    {% endif %}
-    
-    <div class="flex gap-4 mt-3 border-t border-base-200 pt-2 w-full justify-center">
-        <button class="text-center hover:opacity-70" onclick="modal_followers.showModal()">
-            <div class="font-bold text-primary">{{ followers|length }}</div>
-            <div class="text-[10px] text-gray-500 uppercase tracking-wide">Abonnés</div>
-        </button>
-        <div class="divider divider-horizontal mx-0"></div>
-        <button class="text-center hover:opacity-70" onclick="modal_following.showModal()">
-            <div class="font-bold text-primary">{{ following|length }}</div>
-            <div class="text-[10px] text-gray-500 uppercase tracking-wide">Abonnements</div>
-        </button>
-    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="flex gap-4 mt-3 border-t border-base-200 pt-2 w-full justify-center">
+    <button class="text-center hover:opacity-70" onclick="modal_followers.showModal()">
+        <div class="font-bold text-primary">{{ followers|length }}</div>
+        <div class="text-[10px] text-gray-500 uppercase tracking-wide">Abonnés</div>
+    </button>
+    <div class="divider divider-horizontal mx-0"></div>
+    <button class="text-center hover:opacity-70" onclick="modal_following.showModal()">
+        <div class="font-bold text-primary">{{ following|length }}</div>
+        <div class="text-[10px] text-gray-500 uppercase tracking-wide">Abonnements</div>
+    </button>
+</div>
 </div>
 
 {% if profile_user.has_public_establishments %}
@@ -102,7 +103,7 @@
             <span class="font-semibold">{{ brewery.name }}</span>
         </a>
         {% endfor %}
-
+        
         {% for bar in profile_user.my_bars %}
         <a href="{% url 'bar_detail' bar.id %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 7v3m0 0v3m0-3h3m-3 0H9" /></svg>
@@ -120,7 +121,7 @@
         <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-carnet')">Carnet</button>
         <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-ajouts')">Ajouts</button>
     </div>
-
+    
     <!-- Contenu des onglets -->
     <div id="tab-stats" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 block">
         <div class="grid grid-cols-2 gap-3">
@@ -153,30 +154,30 @@
                 <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Style Préféré (Notes >= 7)</span>
                 <span class="text-sm font-bold text-secondary mt-1">{{ pref_style|default:"Pas assez de données" }}</span>
             </div>
-
+            
             {% if top_beers_data %}
             <div class="col-span-2 flex flex-col mt-2">
                 <h3 class="text-[10px] text-gray-500 font-bold uppercase tracking-wider text-center mb-2">Son Top 3 personnel</h3>
                 <div class="grid grid-cols-1 gap-2">
                     {% for item in top_beers_data %}
-                        <div class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-primary/20 relative overflow-hidden hover:bg-base-200 active:scale-[0.98] transition-all">
-                            
-                            <a href="{% url 'beer_detail' item.beer.slug %}" class="absolute inset-0 z-0"></a>
-                            
-                            <div class="flex flex-col text-left truncate relative z-10 pointer-events-none">
-                                <span class="font-bold text-sm text-gray-900 truncate">{{ item.beer.name }}</span>
-                                <span class="text-[10px] text-gray-500 truncate">{{ item.beer.brewery_id.name }}</span>
-                            </div>
-                            
-                            <div class="shrink-0 ml-2 relative z-10 pointer-events-none">
-                                {% if item.note is not null %}
-                                <span class="badge badge-warning badge-sm gap-1 font-bold">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                                    {{ item.note }}
-                                </span>
-                                {% endif %}
-                            </div>
+                    <div class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-primary/20 relative overflow-hidden hover:bg-base-200 active:scale-[0.98] transition-all">
+                        
+                        <a href="{% url 'beer_detail' item.beer.slug %}" class="absolute inset-0 z-0"></a>
+                        
+                        <div class="flex flex-col text-left truncate relative z-10 pointer-events-none">
+                            <span class="font-bold text-sm text-gray-900 truncate">{{ item.beer.name }}</span>
+                            <span class="text-[10px] text-gray-500 truncate">{{ item.beer.brewery_id.name }}</span>
                         </div>
+                        
+                        <div class="shrink-0 ml-2 relative z-10 pointer-events-none">
+                            {% if item.note is not null %}
+                            <span class="badge badge-warning badge-sm gap-1 font-bold">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                {{ item.note }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
@@ -190,42 +191,42 @@
             {% include 'partials/public_drinks.html' %}
             
             {% if not user_drinks %}
-                <p class="text-xs text-gray-500 text-center py-4">Aucune dégustation enregistrée.</p>
+            <p class="text-xs text-gray-500 text-center py-4">Aucune dégustation enregistrée.</p>
             {% endif %}
         </div>
         
         {% if user_drinks|length == 10 %}
         <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
-                data-offset="10" 
-                data-container="public-drinks-container" 
-                data-url="{% url 'load_more_generic' 'public_drinks' %}?username={{ profile_user.username }}">
-            Charger plus de dégustations
-        </button>
-        {% endif %}
-    </div>
+        data-offset="10" 
+        data-container="public-drinks-container" 
+        data-url="{% url 'load_more_generic' 'public_drinks' %}?username={{ profile_user.username }}">
+        Charger plus de dégustations
+    </button>
+    {% endif %}
+</div>
 
-    <div id="tab-ajouts" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 hidden">
-        <div class="mb-4">
-            <h3 class="text-sm border-b border-primary pb-1 mb-2">Bières proposées</h3>
+<div id="tab-ajouts" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 hidden">
+    <div class="mb-4">
+        <h3 class="text-sm border-b border-primary pb-1 mb-2">Bières proposées</h3>
+        
+        <div class="flex flex-col gap-2" id="public-added-beers-container">
+            {% include 'partials/public_added_beers.html' %}
             
-            <div class="flex flex-col gap-2" id="public-added-beers-container">
-                {% include 'partials/public_added_beers.html' %}
-                
-                {% if not user_added_beers %}
-                    <p class="text-[10px] text-gray-500">Aucun ajout pour l'instant.</p>
-                {% endif %}
-            </div>
-            
-            {% if user_added_beers|length == 10 %}
-            <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
-                    data-offset="10" 
-                    data-container="public-added-beers-container" 
-                    data-url="{% url 'load_more_generic' 'public_added_beers' %}?username={{ profile_user.username }}">
-                Charger plus de bières
-            </button>
+            {% if not user_added_beers %}
+            <p class="text-[10px] text-gray-500">Aucun ajout pour l'instant.</p>
             {% endif %}
         </div>
-    </div>
+        
+        {% if user_added_beers|length == 10 %}
+        <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
+        data-offset="10" 
+        data-container="public-added-beers-container" 
+        data-url="{% url 'load_more_generic' 'public_added_beers' %}?username={{ profile_user.username }}">
+        Charger plus de bières
+    </button>
+    {% endif %}
+</div>
+</div>
 
 </div>
 

@@ -29,7 +29,7 @@ def broadcast_notifications(notifications_list):
             toast_type = 'success'
         elif notif.notif_type == 'achievement':
             if user_achievements is None:
-                user_achievements = {ach['name']: ach for ach in get_user_achievements(notif.recipient)}
+                user_achievements, _ = {ach['name']: ach for ach in get_user_achievements(notif.recipient)}
                 
             if notif.achievement_name in user_achievements:
                 ach_data = user_achievements[notif.achievement_name]

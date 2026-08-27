@@ -64,11 +64,12 @@
     <p class="text-xs text-gray-500 italic mt-1 text-center">
         {% if user.bio %}"{{ user.bio }}"{% endif %}
     </p>
-
+    
     <div class="mt-2 text-center">
         <span class="badge badge-sm font-bold shadow-sm border-none {{ user.primary_role_badge.color }}">
             {{ user.primary_role_badge.name }}
         </span>
+        <a href="{% url 'achievements' %}" class="badge badge-sm font-bold shadow-sm border-none {{ user.primary_role_badge.color }}">Niv {{ level }}</a>
     </div>
     
     {% if unlocked_achievements %}
@@ -116,7 +117,7 @@
             <span class="font-semibold">{{ brewery.name }}</span>
         </a>
         {% endfor %}
-
+        
         {% for bar in user.my_bars %}
         <a href="{% url 'bar_detail' bar.id %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 7v3m0 0v3m0-3h3m-3 0H9" /></svg>
@@ -244,43 +245,20 @@
 </div>
 
 <div id="tab-infos" class="tab-panel bg-white border-base-300 rounded-box p-3 mt-2 hidden">
-
-    <div class="w-full mb-4">
-        {% if profile_form.errors %}
-            <div class="text-error bg-error/10 border border-error/30 p-3 rounded text-xs mb-2">
-                <strong>Erreur Profil :</strong> {{ profile_form.errors }}
-            </div>
-        {% endif %}
-        {% if password_form.errors %}
-            <div class="text-error bg-error/10 border border-error/30 p-3 rounded text-xs mb-2">
-                <strong>Erreur Mot de passe :</strong> {{ password_form.errors }}
-            </div>
-        {% endif %}
-        {% if notif_form.errors %}
-            <div class="text-error bg-error/10 border border-error/30 p-3 rounded text-xs mb-2">
-                <strong>Erreur Notifications :</strong> {{ notif_form.errors }}
-            </div>
-        {% endif %}
-        {% if pro_settings_form.errors %}
-            <div class="text-error bg-error/10 border border-error/30 p-3 rounded text-xs mb-2">
-                <strong>Erreur Affichage Pro :</strong> {{ pro_settings_form.errors }}
-            </div>
-        {% endif %}
-    </div>
     
     <form method="post" class="flex flex-col gap-3 [&_input]:font-normal [&_textarea]:font-normal">
         {% csrf_token %}
         <h3 class="text-sm font-bold border-b border-primary pb-1">Modifier mon profil</h3>
         
         {% for field in profile_form %}
-            {% if user.socialaccount_set.all and field.name == 'email' %}
-                <div class="hidden">{{ field }}</div>
-            {% else %}
-                <div class="form-control w-full">
-                    <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
-                    {{ field }} 
-                </div>
-            {% endif %}
+        {% if user.socialaccount_set.all and field.name == 'email' %}
+        <div class="hidden">{{ field }}</div>
+        {% else %}
+        <div class="form-control w-full">
+            <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
+            {{ field }} 
+        </div>
+        {% endif %}
         {% endfor %}
         <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-2 text-white">Valider</button>
     </form>
@@ -302,9 +280,9 @@
         <button type="submit" name="btn_password" class="btn btn-outline btn-error btn-sm mt-2">Changer</button>
     </form>
     {% endif %}
-
+    
     <div class="divider my-4"></div>
-
+    
     {% if user.is_bartender or user.is_brewer %}
     <form method="post" class="flex flex-col gap-3">
         <h3 class="text-sm font-bold border-b border-primary pb-1">Visibilité publique</h3>

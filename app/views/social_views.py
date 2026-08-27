@@ -89,7 +89,7 @@ def account_view(request):
     top_beers_data = get_top_beers_data(user, my_drinks, include_empty=True)
         
     # Récupération des trophées débloqués
-    all_achievements = get_user_achievements(user)
+    all_achievements, level_data = get_user_achievements(user)
     unlocked_achievements = [a for a in all_achievements if a['tier_level'] > 0]
         
     context = {
@@ -103,6 +103,7 @@ def account_view(request):
         'following': following,
         'top_beers_data': top_beers_data,
         'unlocked_achievements': unlocked_achievements,
+        'level': level_data['current_level'],
         **stats
     }
     return render(request, 'account.html', context)
@@ -159,7 +160,7 @@ def public_profile_view(request, username):
     stats = get_user_statistics(user_drinks)
     top_beers_data = get_top_beers_data(profile_user, user_drinks, include_empty=False)
             
-    all_achievements = get_user_achievements(profile_user)
+    all_achievements, level_data = get_user_achievements(profile_user)
     unlocked_achievements = [a for a in all_achievements if a['tier_level'] > 0]
             
     context = {
@@ -171,6 +172,7 @@ def public_profile_view(request, username):
         'is_following': is_following,
         'top_beers_data': top_beers_data,
         'unlocked_achievements': unlocked_achievements,
+        'level': level_data['current_level'],
         **stats
     }
     return render(request, 'public_profile.html', context)
@@ -406,5 +408,10 @@ def wishlist_view(request):
 @login_required(login_url='login')
 def achievements_view(request):
     """Page des trophées, hauts faits et cosmétiques."""
-    achievements = get_user_achievements(request.user)
-    return render(request, 'achievements.html', {'achievements': achievements})
+    achievements, level_data = get_user_achievements(request.user)
+    
+    context = {
+        'achievements': achievements,
+        'level_data': level_data,
+    }
+    return render(request, 'achievements.html', context)
