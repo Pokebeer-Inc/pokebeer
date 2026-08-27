@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'django_cleanup.apps.CleanupConfig', # Doit TOUJOURS être placé en dernier pour intercepter toutes les suppressions
 ]
 
 MIDDLEWARE = [

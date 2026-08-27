@@ -163,34 +163,64 @@ class BeerForm(forms.ModelForm):
 
     class Meta:
         model = Beer
-        fields = ['name', 'brewery_name', 'style', 'description', 'bitterness', 'degree']
+        fields = ['name', 'brewery_name', 'style', 'description', 'bitterness', 'degree', 'image']
         labels = {
             'name': 'Nom de la bière',
             'description': 'Description officielle (Optionnel)',
             'bitterness': 'IBU (Optionnel)',
             'degree': 'Alcool (%)',
             'style': 'Style de bière (Optionnel)',
+            'image': 'Image officielle (Gérants uniquement)',
         }
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Historique, arômes selon le brasseur...'}),
-            'name': forms.TextInput(attrs={'autocomplete': 'off', 'placeholder': 'Ex: Punk IPA'})
+            'name': forms.TextInput(attrs={'autocomplete': 'off', 'placeholder': 'Ex: Punk IPA'}),
+            'image': forms.ClearableFileInput(attrs={'class': 'file-input file-input-bordered file-input-primary w-full bg-white text-gray-700'}),
         }
 
     def __init__(self, *args, **kwargs):
-        # Pré-remplir le champ 'brewery_name' si on est en mode édition (instance existante)
+        self.user = kwargs.pop('user', None)
+        
         if 'instance' in kwargs and kwargs['instance'] and kwargs['instance'].brewery_id:
             initial = kwargs.setdefault('initial', {})
             initial['brewery_name'] = kwargs['instance'].brewery_id.name
             
         super(BeerForm, self).__init__(*args, **kwargs)
         
-        for field in self.fields.values():
+        # On masque le champ image si l'utilisateur n'a pas les droits
+        if self.user:
+            if self.instance and self.instance.pk and self.instance.brewery_id:
+                # En édition : on vérifie s'il gère CETTE brasserie spécifique
+                if not self.instance.brewery_id.managers.filter(id=self.user.id).exists():
+                    self.fields.pop('image', None)
+            else:
+                # En création : s'il ne gère AUCUNE brasserie, inutile d'afficher le champ
+                if not self.user.my_breweries.exists():
+                    self.fields.pop('image', None)
+        else:
+            self.fields.pop('image', None)
+        
+        for field_name, field in self.fields.items():
             existing_classes = field.widget.attrs.get('class', '')
-            
-            field.widget.attrs.update({
-                'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip(),
-                'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;'
-            })
+            # On ne surcharge pas le style de l'input fichier
+            if field_name != 'image':
+                field.widget.attrs.update({
+                    'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip(),
+                    'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;'
+                })
+
+    def clean(self):
+        """Vérification de sécurité finale anti-fraude sur l'image"""
+        cleaned_data = super().clean()
+        image = cleaned_data.get('image')
+        b_name = cleaned_data.get('brewery_name')
+        
+        # Si une image est envoyée, on vérifie strictement que l'utilisateur gère la brasserie TAPPÉE
+        if image and b_name and self.user:
+            brewery = Brewery.objects.filter(name__iexact=b_name).first()
+            if not brewery or not brewery.managers.filter(id=self.user.id).exists():
+                self.add_error('image', "Action refusée : Vous devez être le gérant de cette brasserie pour uploader une image officielle.")
+        return cleaned_data
 
     def save(self, user=None, commit=True):
         beer = super(BeerForm, self).save(commit=False)

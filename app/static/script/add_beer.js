@@ -73,6 +73,7 @@ document.addEventListener("DOMContentLoaded", function() {
             input.value = item;
             container.innerHTML = '';
             container.classList.add('hidden');
+            input.dispatchEvent(new Event('input'));
         }
     );
 
@@ -168,5 +169,30 @@ document.addEventListener("DOMContentLoaded", function() {
             };
             reader.readAsDataURL(file);
         });
+    }
+
+    // AFFICHAGE DYNAMIQUE DE L'IMAGE
+    const breweryInput = document.getElementById('id_beer-brewery_name');
+    const imageContainer = document.getElementById('beer-image-container');
+
+    if (breweryInput && imageContainer) {
+        // Récupération des brasseries gérées depuis le HTML
+        const managedBreweries = imageContainer.dataset.managed.split('||').filter(Boolean);
+        
+        const toggleImageField = () => {
+            const currentVal = breweryInput.value.trim().toLowerCase();
+            
+            if (managedBreweries.includes(currentVal)) {
+                imageContainer.classList.remove('hidden');
+            } else {
+                imageContainer.classList.add('hidden');
+                // Sécurité : vider le fichier sélectionné si on perd les droits
+                const fileInput = imageContainer.querySelector('input[type="file"]');
+                if (fileInput) fileInput.value = '';
+            }
+        };
+
+        breweryInput.addEventListener('input', toggleImageField);
+        toggleImageField(); // Vérification initiale au chargement de la page
     }
 });

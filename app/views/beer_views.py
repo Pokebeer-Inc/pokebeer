@@ -12,7 +12,7 @@ from ..services.realtime_service import broadcast_notifications
 def add_beer_view(request):
     """Crée une bière ET ajoute une première note automatiquement."""
     if request.method == 'POST':
-        beer_form = BeerForm(request.POST, prefix='beer')
+        beer_form = BeerForm(request.POST, request.FILES, prefix='beer', user=request.user)
         drink_form = DrinkForm(request.POST, prefix='drink')
         
         if beer_form.is_valid() and drink_form.is_valid():
@@ -59,7 +59,7 @@ def add_beer_view(request):
         initial_brewery = request.GET.get('brewery', '')
         
         # On l'injecte dans le champ 'brewery_name' du formulaire
-        beer_form = BeerForm(prefix='beer', initial={'brewery_name': initial_brewery})
+        beer_form = BeerForm(prefix='beer', initial={'brewery_name': initial_brewery}, user=request.user)
         drink_form = DrinkForm(prefix='drink')
 
     context = {
@@ -147,7 +147,7 @@ def edit_beer_view(request, beer_slug):
         return redirect('beer_detail', beer_slug=beer.slug)
 
     if request.method == 'POST':
-        form = BeerForm(request.POST, request.FILES, instance=beer)
+        form = BeerForm(request.POST, request.FILES, instance=beer, user=request.user)
         if form.is_valid():
             form.save()
             
@@ -172,7 +172,7 @@ def edit_beer_view(request, beer_slug):
             messages.success(request, "Les informations de la bière ont été mises à jour.")
             return redirect('beer_detail', beer_slug=beer.slug)
     else:
-        form = BeerForm(instance=beer)
+        form = BeerForm(instance=beer, user=request.user)
     return render(request, 'edit_beer.html', {'form': form, 'beer': beer})
 
 @login_required(login_url='login')
