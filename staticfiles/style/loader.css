@@ -42,9 +42,8 @@
 
 /* 1. Cycle de présence et Secousse (Trinque) */
 @keyframes svg-glass-cycle {
-    0%, 5%   { opacity: 0; transform: rotate(0deg); }
-    10%      { opacity: 1; transform: rotate(0deg); }
-    35%      { opacity: 1; transform: rotate(0deg); } /* Fin du remplissage */
+    /* Le verre apparaît instantanément à 0% et reste fixe jusqu'à 35% */
+    0%, 35%  { opacity: 1; transform: rotate(0deg); } 
     40%      { opacity: 1; transform: rotate(15deg); } /* Secousse Droite */
     45%      { opacity: 1; transform: rotate(-10deg); } /* Secousse Gauche */
     50%, 100%{ opacity: 0; transform: rotate(0deg); } /* Disparition */
@@ -52,14 +51,16 @@
 
 /* 2. Remplissage du liquide de bas en haut */
 @keyframes svg-liquid-fill {
-    0%, 10%  { transform: translateY(0); }
+    /* Le liquide commence à monter instantanément dès 0% */
+    0%       { transform: translateY(0); } 
     35%, 45% { transform: translateY(-56px); }
     50%, 100%{ transform: translateY(0); }
 }
 
 /* 3. Gonflement de la mousse */
 @keyframes svg-foam-swell {
-    0%, 25%  { transform: scale(0.6) translateY(15px); opacity: 0; }
+    /* La mousse commence à gonfler et apparaître instantanément dès 0% */
+    0%       { transform: scale(0.6) translateY(15px); opacity: 0; }
     35%, 45% { transform: scale(1) translateY(0); opacity: 1; }
     50%, 100%{ transform: scale(0.6) translateY(15px); opacity: 0; }
 }

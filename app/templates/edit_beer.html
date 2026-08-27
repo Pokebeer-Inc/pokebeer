@@ -6,7 +6,7 @@
 {% include "partials/page_header.html" with title="Modifier la bière" subtitle=beer.name back_url=beer_detail_url %}
 
 <div class="card-body bg-white p-4 rounded-xl border border-base-300 space-y-2">
-    <form method="post" autocomplete="off" class="flex flex-col gap-3">
+    <form method="post" autocomplete="off" class="flex flex-col gap-3" enctype="multipart/form-data">
         {% csrf_token %}
         
         <div class="form-control w-full">
@@ -39,6 +39,18 @@
             <label class="label py-1"><span class="label-text font-bold text-xs">{{ form.description.label }}</span></label>
             {{ form.description }}
         </div>
+
+        {% if 'image' in form.fields %}
+        <div class="form-control w-full p-3 bg-primary/10 rounded-lg border border-primary/20">
+            <label class="label py-1">
+                <span class="label-text font-bold text-xs text-primary">{{ form.image.label }}</span>
+            </label>
+            {{ form.image }}
+            {% if form.image.errors %}
+            <span class="text-error font-bold text-xs mt-1 block">{{ form.image.errors.0 }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
 
         <button type="submit" class="btn btn-primary w-full text-white shadow-md mt-4">
             Enregistrer les modifications
