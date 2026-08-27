@@ -10,7 +10,7 @@ from .utils import get_user_achievements
 def notifications_view(request):
     notifications = Notification.objects.filter(recipient=request.user).select_related('sender', 'beer', 'spot')
     
-    achievements_data = get_user_achievements(request.user)
+    achievements_data, _ = get_user_achievements(request.user)
     achievements_dict = {ach['name']: ach for ach in achievements_data}
     
     for notif in notifications:
@@ -26,7 +26,7 @@ def api_unread_notifications(request):
         is_read=False
     ).select_related('sender', 'beer', 'spot', 'report').order_by('-created_at')[:5]
     
-    achievements_data = get_user_achievements(request.user)
+    achievements_data, _ = get_user_achievements(request.user)
     achievements_dict = {ach['name']: ach for ach in achievements_data}
     
     data = []

@@ -72,7 +72,7 @@ def get_user_achievements(user):
             'is_maxed': tier == 4
         }
 
-    return [
+    achievements_list = [
         build_achievement("poche", "Poche", poche_count, [1, 10, 100, 500], "Ajouter des bières au catalogue", category="global"),
         build_achievement("juge", "Juge", juge_count, [5, 10, 100, 500], "Noter des bières", category="global"),
         build_achievement("communaute", "Communautaire", comm_count, [10, 100, 500, 1000], "S'abonner à d'autres membres", category="global"),
@@ -89,9 +89,49 @@ def get_user_achievements(user):
         #...
     ]
     
+    total_points = (
+        (poche_count * 100) + 
+        (juge_count * 100) + 
+        (voyageur_count * 200) + 
+        (cesar_count * 50)
+    )
+
+    # Add points from unlocked achievements medals
+    for ach in achievements_list:
+        if ach['tier_level'] == 1:
+            total_points += 500
+        elif ach['tier_level'] == 2:
+            total_points += 1000
+        elif ach['tier_level'] == 3:
+            total_points += 1500
+        elif ach['tier_level'] == 4:
+            total_points += 2000
+
+    # Calculate Level and Progress
+    current_level = 1
+    points_required_for_next_level = 600
+    points_in_current_level = total_points
+
+    while points_in_current_level >= points_required_for_next_level:
+        points_in_current_level -= points_required_for_next_level
+        current_level += 1
+        points_required_for_next_level += 200
+
+    level_progress_percentage = int((points_in_current_level / points_required_for_next_level) * 100)
+
+    level_data = {
+        'total_points': total_points,
+        'current_level': current_level,
+        'points_in_current_level': points_in_current_level,
+        'points_required_for_next_level': points_required_for_next_level,
+        'progress_percentage': level_progress_percentage
+    }
+
+    return achievements_list, level_data
+    
 def check_and_notify_achievements(user):
     if not user.is_authenticated: return
-    achievements = get_user_achievements(user)
+    achievements, _ = get_user_achievements(user)
     
     # Récupération de tous les états existants en 1 seule requête
     existing_states = {state.achievement_name: state for state in UserAchievementState.objects.filter(user=user)}
