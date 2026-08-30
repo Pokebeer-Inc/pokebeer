@@ -81,6 +81,7 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     notif_network = models.BooleanField(default=True, verbose_name="Réseau (Ajouts de bières, Lieux)")
     notif_achievements = models.BooleanField(default=True, verbose_name="Trophées et récompenses")
     show_establishments = models.BooleanField(default=True, verbose_name="Afficher mes établissements publiquement")
+    fcm_token = models.CharField(max_length=255, blank=True, null=True, verbose_name="Token Firebase Android")
 
     USERNAME_FIELD = "username"
     EMAIL_FIELD = "email"
