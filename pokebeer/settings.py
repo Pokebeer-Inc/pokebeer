@@ -338,3 +338,13 @@ UNFOLD = {
         ],
     },
 }
+
+# Notification Android
+# Configuration Firebase
+FIREBASE_CREDENTIALS_FILENAME = os.environ.get('FIREBASE_CREDENTIALS_FILE')
+
+if FIREBASE_CREDENTIALS_FILENAME:
+    # Construit le chemin absolu propre, peu importe où le serveur tourne
+    FIREBASE_CREDENTIALS_PATH = os.path.join(BASE_DIR, FIREBASE_CREDENTIALS_FILENAME)
+else:
+    FIREBASE_CREDENTIALS_PATH = None

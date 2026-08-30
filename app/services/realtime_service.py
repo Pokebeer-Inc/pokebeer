@@ -1,9 +1,20 @@
 import requests
+import firebase_admin
+from firebase_admin import credentials, messaging
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.urls import reverse
 from app.services.security import get_secure_channel_name
+from django.utils.html import strip_tags
 
+# Initialisation de Firebase
+if not firebase_admin._apps and getattr(settings, 'FIREBASE_CREDENTIALS_PATH', None):
+    try:
+        cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+        firebase_admin.initialize_app(cred)
+    except Exception as e:
+        print(f"Attention: Impossible d'initialiser Firebase ({e})")
+        
 def broadcast_notifications(notifications_list):
     """Envoie une liste de notifications via le WebSocket Supabase en 1 seule requête."""
     if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY or not notifications_list:
@@ -52,6 +63,26 @@ def broadcast_notifications(notifications_list):
             "event": "new_notification",
             "payload": payload
         })
+        
+        # Envoi natif Android via Firebase
+        if getattr(notif.recipient, 'fcm_token', None) and firebase_admin._apps:
+            try:
+                clean_text = strip_tags(message_html).strip() 
+                
+                # Fallback de sécurité au cas où le template renvoie du vide
+                if not clean_text:
+                    clean_text = "Vous avez une nouvelle notification."
+                
+                push_message = messaging.Message(
+                    notification=messaging.Notification(
+                        title="Pokebeer",
+                        body=clean_text,
+                    ),
+                    token=notif.recipient.fcm_token,
+                )
+                messaging.send(push_message)
+            except Exception as e:
+                print(f"Erreur d'envoi FCM pour {notif.recipient.username}: {e}", flush=True)
 
     url = f"{settings.SUPABASE_URL}/realtime/v1/api/broadcast"
     

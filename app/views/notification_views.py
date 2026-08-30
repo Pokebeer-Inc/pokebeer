@@ -1,8 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
 from django.http import JsonResponse
 from django.urls import reverse
+import json
+
 from ..models import Notification
 from .utils import get_user_achievements
 
@@ -90,3 +93,24 @@ def delete_notification(request, notif_id):
     notif = get_object_or_404(Notification, id=notif_id, recipient=request.user)
     notif.delete()
     return redirect('notifications')
+
+@login_required
+@require_POST
+def update_fcm_token(request):
+    """Met à jour le token Firebase (FCM) de l'utilisateur pour les notifications Push."""
+    try:
+        data = json.loads(request.body)
+        token = data.get('token')
+        
+        if token:
+            # On assigne le nouveau token
+            request.user.fcm_token = token
+            # On ne sauvegarde QUE la colonne fcm_token en base de données
+            request.user.save(update_fields=['fcm_token']) 
+            
+            return JsonResponse({'status': 'success', 'message': 'Token mis à jour'})
+            
+        return JsonResponse({'status': 'error', 'message': 'Token manquant'}, status=400)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Données invalides'}, status=400)

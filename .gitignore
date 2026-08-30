@@ -10,3 +10,4 @@ media/
 .pytest_cache/
 .coverage
 htmlcov/
+*firebase-adminsdk*.json
