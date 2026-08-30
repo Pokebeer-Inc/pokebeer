@@ -6,6 +6,7 @@ from ..services.realtime_service import broadcast_notifications
 
 TIER_NAMES = ["Bloqué", "Bronze", "Argent", "Or", "Platine"]
 TIER_SLUGS = ["locked", "bronze", "silver", "gold", "platinum"]
+TIER_XP_REWARDS = [0, 500, 1000, 1500, 2000]
 
 def get_excluded_users(user):
     """Retourne la liste des IDs d'utilisateurs avec qui il y a un blocage."""
@@ -56,6 +57,8 @@ def get_user_achievements(user):
         display_desc = desc
         if is_hidden and tier == 0:
             display_desc = "Défi caché... Explorez pour le découvrir !"
+            
+        next_tier_xp = TIER_XP_REWARDS[tier + 1] if tier < 4 else 0
 
         return {
             'slug': slug,
@@ -69,7 +72,8 @@ def get_user_achievements(user):
             'tier_name': TIER_NAMES[tier],
             'tier_level': tier,
             'tier_slug': TIER_SLUGS[tier],
-            'is_maxed': tier == 4
+            'is_maxed': tier == 4,
+            'next_tier_xp': next_tier_xp
         }
 
     achievements_list = [
@@ -98,14 +102,7 @@ def get_user_achievements(user):
 
     # Add points from unlocked achievements medals
     for ach in achievements_list:
-        if ach['tier_level'] == 1:
-            total_points += 500
-        elif ach['tier_level'] == 2:
-            total_points += 1000
-        elif ach['tier_level'] == 3:
-            total_points += 1500
-        elif ach['tier_level'] == 4:
-            total_points += 2000
+        total_points += TIER_XP_REWARDS[ach['tier_level']]
 
     # Calculate Level and Progress
     current_level = 1

@@ -64,6 +64,18 @@
                 {% elif ach.tier_slug == 'gold' %}[&::-webkit-progress-value]:bg-gray-900 [&::-moz-progress-bar]:bg-gray-900
                 {% elif ach.tier_slug == 'platinum' %}[&::-webkit-progress-value]:bg-indigo-900 [&::-moz-progress-bar]:bg-indigo-900{% endif %}" 
                 value="{{ ach.progress }}" max="100"></progress>
+                
+            {% if not ach.is_maxed %}
+            <div class="w-full text-right mt-1.5">
+                <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider
+                    {% if ach.tier_slug == 'locked' %}text-gray-800
+                    {% elif ach.tier_slug == 'bronze' %}text-white
+                    {% else %}text-gray-900{% endif %}">
+                    + {{ ach.next_tier_xp }} XP
+                </span>
+            </div>
+            {% endif %}
+            
         </div>
     </div>
 </div>
