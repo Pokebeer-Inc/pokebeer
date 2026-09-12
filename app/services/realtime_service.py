@@ -82,7 +82,7 @@ def broadcast_notifications(notifications_list):
                 )
                 messaging.send(push_message)
             except Exception as e:
-                print(f"Erreur d'envoi FCM pour {notif.recipient.username}: {e}", flush=True)
+                print(f"Erreur d'envoi FCM pour {notif.recipient.username}: {e}")
 
     url = f"{settings.SUPABASE_URL}/realtime/v1/api/broadcast"
     
