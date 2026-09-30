@@ -6,11 +6,14 @@ from django.http import JsonResponse
 from ..forms import DrinkForm
 from ..models import Beer, Drinks
 from .services.selectors import get_filtered_beers, get_filtered_users
+from .utils import parse_offset
 
 @login_required(login_url='login')
 def load_more_search_users(request):
     """API pour charger les 10 membres suivants dans la recherche."""
-    offset = int(request.GET.get('offset', 0))
+    offset = parse_offset(request)
+    if offset is None:
+        return JsonResponse({'error': 'Offset invalide'}, status=400)
     limit = 10
     users = get_filtered_users(request)[offset:offset+limit]
     

@@ -79,7 +79,7 @@ def add_brewery_manager(request, brewery_id):
     
     if request.method == 'POST' and brewery.managers.filter(id=request.user.id).exists():
         user_id = request.POST.get('user_id')
-        user_to_add = get_object_or_404(BeerUser, id=user_id)
+        user_to_add = get_object_or_404(BeerUser, id=user_id, is_active=True)
         brewery.managers.add(user_to_add)
         
         notif = Notification.objects.create(recipient=user_to_add, sender=request.user, notif_type='manager_added', brewery=brewery)
@@ -125,7 +125,7 @@ def api_search_users_for_manager(request, brewery_id):
     existing_managers = brewery.managers.values_list('id', flat=True)
     
     # Recherche "icontains" (insensible à la casse) limitée à 10 résultats
-    users = BeerUser.objects.filter(username__icontains=query).exclude(id__in=existing_managers)[:10]
+    users = BeerUser.objects.filter(username__icontains=query, is_active=True).exclude(id__in=existing_managers)[:10]
     
     # On prépare les données avec l'URL de l'avatar (Google ou généré)
     data = []

@@ -15,20 +15,53 @@ if not firebase_admin._apps and getattr(settings, 'FIREBASE_CREDENTIALS_PATH', N
     except Exception as e:
         print(f"Attention: Impossible d'initialiser Firebase ({e})")
         
+def _achievements_by_name(recipient, cache):
+    """Trophées d'un destinataire indexés par nom, calculés une seule fois par destinataire."""
+    # Import local pour éviter les imports circulaires
+    from app.views.utils import get_user_achievements
+
+    if recipient.pk not in cache:
+        achievements, _level = get_user_achievements(recipient)
+        cache[recipient.pk] = {ach['name']: ach for ach in achievements}
+    return cache[recipient.pk]
+
+def _send_push(notif, message_html):
+    """Envoi natif Android via Firebase ; une erreur n'interrompt jamais le reste de la diffusion."""
+    try:
+        # Fallback de sécurité au cas où le template renvoie du vide
+        clean_text = strip_tags(message_html).strip() or "Vous avez une nouvelle notification."
+        push_message = messaging.Message(
+            notification=messaging.Notification(
+                title="Pokebeer",
+                body=clean_text,
+            ),
+            token=notif.recipient.fcm_token,
+        )
+        messaging.send(push_message)
+    except Exception as e:
+        print(f"Erreur d'envoi FCM pour {notif.recipient.username}: {e}")
+
 def broadcast_notifications(notifications_list):
-    """Envoie une liste de notifications via le WebSocket Supabase en 1 seule requête."""
-    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY or not notifications_list:
+    """Envoie une liste de notifications via le WebSocket Supabase en 1 seule requête, et en push Android via Firebase."""
+    supabase_enabled = bool(settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY)
+    push_enabled = bool(firebase_admin._apps)
+    if not notifications_list or not (supabase_enabled or push_enabled):
         return
 
-    # Import local pour éviter les imports circulaires
-    from app.views.utils import get_user_achievements 
-    
     messages = []
-    user_achievements = None
+    achievements_cache = {}
 
     for notif in notifications_list:
         if not notif.id:
             continue # Sécurité : Ignore les notifications bloquées par les préférences utilisateur
+
+        message_html = render_to_string('partials/notification_text.html', {'notif': notif}).strip()
+
+        if push_enabled and getattr(notif.recipient, 'fcm_token', None):
+            _send_push(notif, message_html)
+
+        if not supabase_enabled:
+            continue
         
         toast_type = 'info'
         tier_slug = None
@@ -39,15 +72,10 @@ def broadcast_notifications(notifications_list):
         elif notif.notif_type in ['beer_added', 'spot_invite', 'feedback_replied']: 
             toast_type = 'success'
         elif notif.notif_type == 'achievement':
-            if user_achievements is None:
-                user_achievements, _ = {ach['name']: ach for ach in get_user_achievements(notif.recipient)}
-                
-            if notif.achievement_name in user_achievements:
-                ach_data = user_achievements[notif.achievement_name]
+            ach_data = _achievements_by_name(notif.recipient, achievements_cache).get(notif.achievement_name)
+            if ach_data:
                 tier_slug = ach_data['tier_slug']
                 icon_html = render_to_string('partials/achievement_icon.html', {'slug': ach_data['slug']}).strip()
-
-        message_html = render_to_string('partials/notification_text.html', {'notif': notif}).strip()
         
         payload = {
             "id": notif.id,
@@ -63,26 +91,9 @@ def broadcast_notifications(notifications_list):
             "event": "new_notification",
             "payload": payload
         })
-        
-        # Envoi natif Android via Firebase
-        if getattr(notif.recipient, 'fcm_token', None) and firebase_admin._apps:
-            try:
-                clean_text = strip_tags(message_html).strip() 
-                
-                # Fallback de sécurité au cas où le template renvoie du vide
-                if not clean_text:
-                    clean_text = "Vous avez une nouvelle notification."
-                
-                push_message = messaging.Message(
-                    notification=messaging.Notification(
-                        title="Pokebeer",
-                        body=clean_text,
-                    ),
-                    token=notif.recipient.fcm_token,
-                )
-                messaging.send(push_message)
-            except Exception as e:
-                print(f"Erreur d'envoi FCM pour {notif.recipient.username}: {e}")
+
+    if not supabase_enabled:
+        return
 
     url = f"{settings.SUPABASE_URL}/realtime/v1/api/broadcast"
     

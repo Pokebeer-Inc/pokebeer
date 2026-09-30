@@ -4,6 +4,8 @@ from django.conf import settings
 from pgvector.django import CosineDistance
 from ..models import Beer
 
+CONTEXT_SIZE = 10
+
 # Initialisation du client avec la clé définie dans settings.py
 def config_client():
     return genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -27,16 +29,23 @@ def get_embedding(text):
         print(f"ERREUR Embedding Gemini : {e}")
         return None
 
-def _format_beers_context(user_message):
-    """Recherche Vectorielle (Sémantique) avec pgvector."""
+def _select_beers(user_message, limit=CONTEXT_SIZE):
+    """Recherche Vectorielle (Sémantique) avec pgvector, complétée par les bières pas encore vectorisées."""
+    catalogue = Beer.objects.filter(is_deleted=False).select_related('brewery_id')
     user_vector = get_embedding(user_message)
-    
-    if user_vector:
-        # Recherche les bières les plus proches sémantiquement
-        beers = Beer.objects.filter(is_deleted=False).exclude(embedding__isnull=True).select_related('brewery_id').order_by(CosineDistance('embedding', user_vector))[:10]
-    else:
+
+    if not user_vector:
         # Fallback si l'API échoue
-        beers = Beer.objects.filter(is_deleted=False).select_related('brewery_id').order_by('?')[:10]
+        return list(catalogue.order_by('?')[:limit])
+
+    # Recherche les bières les plus proches sémantiquement
+    beers = list(catalogue.exclude(embedding__isnull=True).order_by(CosineDistance('embedding', user_vector))[:limit])
+    if len(beers) < limit:
+        beers += catalogue.filter(embedding__isnull=True).order_by('?')[:limit - len(beers)]
+    return beers
+
+def _format_beers_context(user_message):
+    beers = _select_beers(user_message)
     
     if not beers:
         return None

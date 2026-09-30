@@ -9,6 +9,8 @@ import json
 from ..models import Notification
 from .utils import get_user_achievements
 
+FCM_TOKEN_MAX_LENGTH = 4096
+
 @login_required(login_url='login')
 def notifications_view(request):
     notifications = Notification.objects.filter(recipient=request.user).select_related('sender', 'beer', 'spot')
@@ -87,6 +89,7 @@ def read_notification(request, notif_id):
         return redirect('brewery_detail', brewery_id=notif.brewery.id)
     return redirect('notifications')
 
+@require_POST
 @login_required(login_url='login')
 def delete_notification(request, notif_id):
     """Supprime la notification définitivement."""
@@ -101,16 +104,19 @@ def update_fcm_token(request):
     try:
         data = json.loads(request.body)
         token = data.get('token')
-        
-        if token:
-            # On assigne le nouveau token
-            request.user.fcm_token = token
-            # On ne sauvegarde QUE la colonne fcm_token en base de données
-            request.user.save(update_fields=['fcm_token']) 
-            
-            return JsonResponse({'status': 'success', 'message': 'Token mis à jour'})
-            
-        return JsonResponse({'status': 'error', 'message': 'Token manquant'}, status=400)
-        
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, AttributeError):
         return JsonResponse({'status': 'error', 'message': 'Données invalides'}, status=400)
+
+    if not isinstance(token, str) or not token.strip():
+        return JsonResponse({'status': 'error', 'message': 'Token manquant'}, status=400)
+
+    # Firebase ne garantit pas de longueur maximale (~160 caractères aujourd'hui) : on ne refuse que l'absurde
+    if len(token) > FCM_TOKEN_MAX_LENGTH:
+        return JsonResponse({'status': 'error', 'message': 'Token trop long'}, status=400)
+
+    # On assigne le nouveau token
+    request.user.fcm_token = token
+    # On ne sauvegarde QUE la colonne fcm_token en base de données
+    request.user.save(update_fields=['fcm_token'])
+
+    return JsonResponse({'status': 'success', 'message': 'Token mis à jour'})

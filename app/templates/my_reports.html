@@ -36,6 +36,9 @@
                         {% else %}
                             <span class="italic text-gray-400">Avis sur "{{ report.reported_drink.beer_id.name }}" (Bière supprimée)</span>
                         {% endif %}
+
+                    {% elif report.reported_brewery %}
+                        <a href="{% url 'brewery_detail' report.reported_brewery.id %}" class="font-semibold text-primary hover:underline">Brasserie "{{ report.reported_brewery.name }}"</a>
                     {% endif %}
                 </div>
             </div>

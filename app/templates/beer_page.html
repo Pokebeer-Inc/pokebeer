@@ -272,7 +272,7 @@
                             
                             <div class="form-control w-full mb-4">
                                 <label class="label py-1"><span class="label-text text-xs font-bold">Détails</span></label>
-                                <textarea name="description" class="textarea textarea-bordered h-20" placeholder="Précisez pourquoi cet avis pose problème..." maxlength="1000" required></textarea>
+                                <textarea name="description" class="textarea textarea-bordered h-20" placeholder="Précisez pourquoi cet avis pose problème..." minlength="10" maxlength="1000" data-char-counter required></textarea>
                             </div>
                             
                             <button type="submit" class="btn btn-error w-full text-white">Envoyer le signalement</button>
@@ -352,7 +352,7 @@
             
             <div class="form-control w-full mb-4">
                 <label class="label py-1"><span class="label-text text-xs font-bold">Description détaillée</span></label>
-                <textarea name="description" class="textarea textarea-bordered h-24" placeholder="Veuillez fournir un lien vers la vraie bière s'il s'agit d'un doublon, ou expliquer l'erreur..." maxlength="1000" required></textarea>
+                <textarea name="description" class="textarea textarea-bordered h-24" placeholder="Veuillez fournir un lien vers la vraie bière s'il s'agit d'un doublon, ou expliquer l'erreur..." minlength="10" maxlength="1000" data-char-counter required></textarea>
             </div>
             
             <button type="submit" class="btn btn-error w-full text-white">Envoyer le signalement</button>

@@ -2,7 +2,9 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import NON_FIELD_ERRORS
 from django.db import transaction
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from ..forms import UserRegisterForm, UserLoginForm, ProUserForm, BarProForm, BreweryProForm
 
@@ -36,9 +38,13 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            next_url = request.GET.get('next', 'index')
+            next_url = request.GET.get('next')
+            if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+                next_url = 'index'
             messages.info(request, f"Ravi de vous revoir, {user.username} !")
             return redirect(next_url)
+        elif form.has_error(NON_FIELD_ERRORS, 'inactive'):
+            messages.error(request, form.error_messages['inactive'])
         else:
             messages.error(request, "Nom d'utilisateur ou mot de passe incorrect.")
     else:
@@ -70,9 +76,7 @@ def register_pro_view(request, pro_type):
                 # La transaction atomique garantit que tout est sauvegardé en même temps, ou rien du tout.
                 with transaction.atomic():
                     # 1. Création du compte utilisateur (Manager)
-                    user = user_form.save(commit=False)
-                    user.set_password(user_form.cleaned_data['password']) # Hashage sécurisé
-                    user.save()
+                    user = user_form.save()
 
                     # 2. Création de l'établissement lié
                     pro_instance = pro_form.save(commit=False)

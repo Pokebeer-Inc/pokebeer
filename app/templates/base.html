@@ -57,7 +57,7 @@
                 </div>
             </div>
             <div class="p-3 bg-base-100 border-t border-base-300 flex gap-2">
-                <input type="text" id="chat-input" placeholder="Je cherche une bière douce..." class="input input-bordered input-primary w-full input-sm" onkeypress="handleEnter(event)">
+                <input type="text" id="chat-input" maxlength="5000" placeholder="Je cherche une bière douce..." class="input input-bordered input-primary w-full input-sm" onkeypress="handleEnter(event)">
                 <button id="chat-send" class="btn btn-primary btn-sm" onclick="sendMessage()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                 </button>
@@ -166,5 +166,6 @@
 <script src="{% static 'script/chat.js' %}"></script>
 <script src="{% static 'script/base_flag.js' %}"></script>
 <script src="{% static 'script/base.js' %}"></script>
+<script src="{% static 'script/char_counter.js' %}"></script>
 {% endif %}
 </html>

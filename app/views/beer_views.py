@@ -1,12 +1,27 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q, F
 
-from ..forms import BeerForm, DrinkForm
+from ..forms import BeerForm, DrinkForm, clear_invalid_fields, error_summary
 from ..models import Beer, Drinks, Notification, UserFollow, DrinkReaction
 from .utils import get_excluded_users, check_and_notify_achievements
 from ..services.realtime_service import broadcast_notifications
+
+def _save_new_beer(user, beer_form, drink_form):
+    """Enregistre la bière et sa première note ensemble. Renvoie False si le nom a été pris entre-temps."""
+    try:
+        with transaction.atomic():
+            new_beer = beer_form.save(user=user)
+            new_drink = drink_form.save(commit=False)
+            new_drink.drinker_id = user
+            new_drink.beer_id = new_beer
+            new_drink.save()
+    except IntegrityError:
+        beer_form.instance.pk = None
+        return False
+    return True
 
 @login_required(login_url='login')
 def add_beer_view(request):
@@ -15,14 +30,17 @@ def add_beer_view(request):
         beer_form = BeerForm(request.POST, request.FILES, prefix='beer', user=request.user)
         drink_form = DrinkForm(request.POST, prefix='drink')
         
-        if beer_form.is_valid() and drink_form.is_valid():
-            new_beer = beer_form.save(user=request.user)
-            new_drink = drink_form.save(commit=False)
-            new_drink.drinker_id = request.user
-            new_drink.beer_id = new_beer
-            new_drink.save()
+        notebook_ids = [int(i) for i in request.POST.getlist('notebooks') if i.isdigit()]
+        forms_valid = beer_form.is_valid() & drink_form.is_valid()  # & : valide les deux pour afficher toutes les erreurs
+
+        if forms_valid and not _save_new_beer(request.user, beer_form, drink_form):
+            # Course entre deux ajouts simultanés : la contrainte d'unicité en base a le dernier mot
+            beer_form.add_error('name', "Cette bière vient d'être ajoutée par quelqu'un d'autre.")
+            forms_valid = False
+
+        if forms_valid:
+            new_beer, new_drink = beer_form.instance, drink_form.instance
             
-            notebook_ids = request.POST.getlist('notebooks')
             if notebook_ids:
                 notebooks = request.user.custom_notebooks.filter(id__in=notebook_ids)
                 for nb in notebooks:
@@ -52,8 +70,15 @@ def add_beer_view(request):
             
             messages.success(request, f"Bière ajoutée et notée ! Merci {request.user.username}.")
             return redirect('index')
-        else:
-            messages.error(request, "Erreur dans le formulaire. Veuillez vérifier les champs.")
+
+        messages.error(request, "La bière n'a pas pu être ajoutée. Les champs en rouge ont été vidés : " + " ; ".join(error_summary(beer_form, drink_form)))
+        clear_invalid_fields(beer_form)
+        clear_invalid_fields(drink_form)
+        return render(request, 'add_beer.html', {
+            'beer_form': beer_form,
+            'drink_form': drink_form,
+            'current_drink': {'notebook_ids': notebook_ids},
+        })
     else:
         # On lit le paramètre dans l'URL ?brewery=
         initial_brewery = request.GET.get('brewery', '')

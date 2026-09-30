@@ -19,6 +19,13 @@
 <div class="card-body bg-white p-4 rounded-xl border border-base-300 space-y-2">
     <form method="post" autocomplete="off" class="flex flex-col gap-5" enctype="multipart/form-data">
         {% csrf_token %}
+
+        {% if beer_form.non_field_errors or drink_form.non_field_errors %}
+        <div class="alert alert-error text-sm" role="alert">
+            {% for error in beer_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            {% for error in drink_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        </div>
+        {% endif %}
         
         <section>
             <h4 class="font-castoro text-xl font-bold mb-4 flex items-center gap-2 border-b border-primary pb-2">
@@ -33,6 +40,7 @@
                     </span>
                 </label>
                 {{ beer_form.name }} 
+                {% include "partials/field_errors.html" with field=beer_form.name %}
                 <div id="beer-suggestions" class="absolute z-50 w-full bg-base-100 shadow-lg rounded-b-md border border-base-300 top-full hidden mt-1 max-h-40 overflow-y-auto"></div>
             </div>
             
@@ -43,6 +51,7 @@
                     </span>
                 </label>
                 {{ beer_form.brewery_name }}
+                {% include "partials/field_errors.html" with field=beer_form.brewery_name %}
                 <div id="brewery-suggestions" class="absolute z-50 w-full bg-base-100 shadow-lg rounded-b-md border border-base-300 top-full hidden mt-1 max-h-40 overflow-y-auto"></div>
             </div>
             
@@ -53,6 +62,7 @@
                     </span>
                 </label>
                 {{ beer_form.style }}
+                {% include "partials/field_errors.html" with field=beer_form.style %}
             </div>
             
             <div class="flex gap-2 mb-3">
@@ -63,6 +73,7 @@
                         </span>
                     </label>
                     {{ beer_form.degree }}
+                    {% include "partials/field_errors.html" with field=beer_form.degree %}
                 </div>
                 <div class="form-control flex-1">
                     <label class="label py-1">
@@ -71,6 +82,7 @@
                         </span>
                     </label>
                     {{ beer_form.bitterness }}
+                    {% include "partials/field_errors.html" with field=beer_form.bitterness %}
                 </div>
             </div>
             
@@ -79,6 +91,7 @@
                     <span class="label-text font-bold text-xs">{{ beer_form.description.label }}</span>
                 </label>
                 {{ beer_form.description }}
+                {% include "partials/field_errors.html" with field=beer_form.description %}
                 <label class="label py-0 mt-1 items-start">
                     <span class="label-text-alt text-gray-500 italic whitespace-normal text-left leading-tight">Ne mettez pas votre avis ici, utilisez la section ci-dessous.</span>
                 </label>
@@ -109,12 +122,14 @@
                         <span class="label-text font-bold text-xs">{{ drink_form.note.label }}</span>
                     </label>
                     {{ drink_form.note }}
+                    {% include "partials/field_errors.html" with field=drink_form.note %}
                 </div>
                 <div class="form-control flex-1">
                     <label class="label py-1">
                         <span class="label-text font-bold text-xs">{{ drink_form.date.label }} <span class="text-error">*</span></span>
                     </label>
                     {{ drink_form.date }}
+                    {% include "partials/field_errors.html" with field=drink_form.date %}
                 </div>
             </div>
             
@@ -123,6 +138,7 @@
                     <span class="label-text font-bold text-xs">{{ drink_form.comment.label }} <span class="text-error">*</span></span>
                 </label>
                 {{ drink_form.comment }}
+                {% include "partials/field_errors.html" with field=drink_form.comment %}
             </div>
         </section>
         

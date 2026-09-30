@@ -1,0 +1,8 @@
+[run]
+omit =
+    */migrations/*
+    pokebeer/asgi.py
+    pokebeer/wsgi.py
+
+[report]
+skip_covered = true

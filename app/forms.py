@@ -1,9 +1,42 @@
+from datetime import timedelta
+
 from django import forms
+from django.conf import settings
+from django.contrib.auth import password_validation
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from .models import BeerUser, Beer, Brewery, Drinks, Feedback, Bar, Report
+from django.core.exceptions import ValidationError
+from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
+from django.utils import timezone
 from django.utils.text import slugify
 
 from unfold.contrib.forms.widgets import ArrayWidget, WysiwygWidget
+
+INVALID_FIELD_STYLE = "border: 2px solid #ef4444;"
+
+def clear_invalid_fields(form):
+    """Vide et surligne les champs en erreur d'un formulaire lié ; les champs valides restent préremplis.
+
+    À appeler après is_valid() : les erreurs déjà calculées sont conservées, seul le réaffichage change.
+    """
+    data = form.data.copy()
+    for name in form.errors:
+        field = form.fields.get(name)
+        if field is None:
+            continue
+        data[form.add_prefix(name)] = ''
+        field.widget.attrs['aria-invalid'] = 'true'
+        field.widget.attrs['style'] = f"{field.widget.attrs.get('style', '')} {INVALID_FIELD_STYLE}".strip()
+    form.data = data
+
+def error_summary(*forms):
+    """Liste lisible des erreurs ("Libellé : raison") de plusieurs formulaires."""
+    lines = []
+    for form in forms:
+        for name, errors in form.errors.items():
+            field = form.fields.get(name)
+            label = field.label if field is not None and field.label else None
+            lines += [f"{label} : {error}" if label else str(error) for error in errors]
+    return lines
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField(required=True)
@@ -35,6 +68,22 @@ class UserRegisterForm(UserCreationForm):
             })
 
 class UserLoginForm(AuthenticationForm):
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        'inactive': "Ce compte a été suspendu par la modération.",
+    }
+
+    def clean(self):
+        # ModelBackend refuse les comptes inactifs comme un mauvais mot de passe : on précise la raison,
+        # uniquement si le mot de passe est correct pour ne rien révéler à un tiers
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+        if username and password:
+            suspended = BeerUser.objects.filter(username=username, is_active=False).first()
+            if suspended and suspended.check_password(password):
+                raise ValidationError(self.error_messages['inactive'], code='inactive')
+        return super().clean()
+
     def __init__(self, *args, **kwargs):
         super(UserLoginForm, self).__init__(*args, **kwargs)
         
@@ -99,6 +148,23 @@ class ProUserForm(forms.ModelForm):
             'username': forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}),
             'email': forms.EmailInput(attrs={'class': 'input input-bordered w-full bg-white'}),
         }
+
+    def _post_clean(self):
+        # Après la construction de l'instance : les validateurs comparent le mot de passe au pseudo et à l'email saisis
+        super()._post_clean()
+        password = self.cleaned_data.get('password')
+        if password:
+            try:
+                password_validation.validate_password(password, self.instance)
+            except ValidationError as error:
+                self.add_error('password', error)
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password'])
+        if commit:
+            user.save()
+        return user
 
 PRO_FIELDS = ['name', 'siret', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
 
@@ -244,14 +310,12 @@ class BeerForm(forms.ModelForm):
         if name:
             # On transforme le nom tapé en slug (ex: "Pünk I.P.A " devient "punk-ipa")
             normalized_name = slugify(name)
-            # On ignore les bières supprimées dans la vérification des doublons
-            existing_beer = Beer.objects.filter(slug=normalized_name, is_deleted=False).first()
+            # On compare les noms normalisés et non les slugs : une bière recréée après suppression reçoit un slug suffixé
+            # ("punk-ipa-1"). Les bières supprimées sont ignorées, ainsi que la bière en cours de modification.
+            candidates = Beer.objects.filter(slug__startswith=normalized_name, is_deleted=False).exclude(pk=self.instance.pk)
+            existing_beer = next((beer for beer in candidates if slugify(beer.name) == normalized_name), None)
             if existing_beer:
-                # Si on est en mode modification et que c'est notre propre bière, on laisse passer
-                if self.instance and self.instance.pk == existing_beer.pk:
-                    pass
-                else:
-                    raise forms.ValidationError(f"Cette bière existe déjà sous le nom '{existing_beer.name}'")
+                raise forms.ValidationError(f"Cette bière existe déjà sous le nom '{existing_beer.name}'")
         return name
     
     def clean_style(self):
@@ -263,6 +327,22 @@ class BeerForm(forms.ModelForm):
             return ", ".join(styles)
         return style
     
+class CustomNotebookForm(forms.ModelForm):
+    class Meta:
+        model = CustomNotebook
+        fields = ['title', 'description']
+        labels = {'title': "Titre", 'description': "Description"}
+
+class BeerSpotForm(forms.Form):
+    """Validation des champs envoyés par la modale de la carte (création et modification d'un lieu)."""
+    spot_id = forms.IntegerField(required=False, min_value=1, label="Lieu")
+    title = forms.CharField(max_length=150, label="Titre")
+    description = forms.CharField(required=False, label="Description")
+    date = forms.DateField(required=False, label="Date")
+    # FloatField refuse aussi NaN et l'infini
+    lat = forms.FloatField(min_value=-90, max_value=90, label="Latitude")
+    lng = forms.FloatField(min_value=-180, max_value=180, label="Longitude")
+
 class DrinkForm(forms.ModelForm):
     class Meta:
         model = Drinks
@@ -318,6 +398,49 @@ class NotificationPreferenceForm(forms.ModelForm):
             'notif_achievements': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
         }
 
+
+class ReportForm(forms.Form):
+    """Signalement envoyé depuis les modales (bière, avis, profil, brasserie)."""
+    TARGET_MODELS = {'beer': Beer, 'drink': Drinks, 'user': BeerUser, 'brewery': Brewery}
+    DESCRIPTION_MIN_LENGTH = 10
+    DESCRIPTION_MAX_LENGTH = 1000
+
+    item_type = forms.ChoiceField(choices=[(key, key) for key in TARGET_MODELS], label="Élément signalé")
+    item_id = forms.IntegerField(min_value=1, label="Élément signalé")
+    reason = forms.ChoiceField(choices=Report.REASON_CHOICES, label="Raison")
+    description = forms.CharField(min_length=DESCRIPTION_MIN_LENGTH, max_length=DESCRIPTION_MAX_LENGTH, label="Description")
+
+    def __init__(self, *args, reporter, **kwargs):
+        self.reporter = reporter
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        since = timezone.now() - timedelta(hours=24)
+        if Report.objects.filter(reporter=self.reporter, created_at__gte=since).count() >= settings.REPORT_DAILY_LIMIT:
+            raise ValidationError(f"Vous avez atteint la limite de {settings.REPORT_DAILY_LIMIT} signalements par 24 heures. Réessayez plus tard.")
+
+        item_type, item_id = cleaned_data.get('item_type'), cleaned_data.get('item_id')
+        if not (item_type and item_id):
+            return cleaned_data
+
+        target = self.TARGET_MODELS[item_type].objects.filter(pk=item_id).first()
+        if target is None:
+            self.add_error('item_id', "L'élément signalé n'existe pas ou plus.")
+        elif target == self.reporter or (item_type == 'drink' and target.drinker_id_id == self.reporter.pk):
+            self.add_error('item_id', "Vous ne pouvez pas signaler votre propre profil ou votre propre avis.")
+        else:
+            cleaned_data['target'] = target
+        return cleaned_data
+
+    def save(self):
+        item_type = self.cleaned_data['item_type']
+        return Report.objects.create(
+            reporter=self.reporter,
+            reason=self.cleaned_data['reason'],
+            description=self.cleaned_data['description'],
+            **{f'reported_{item_type}': self.cleaned_data['target']},
+        )
 
 class ReportAdminForm(forms.ModelForm):
     class Meta:

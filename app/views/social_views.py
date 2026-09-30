@@ -81,8 +81,8 @@ def account_view(request):
     my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
     
     # Social
-    followers = UserFollow.objects.filter(followed=user).select_related('follower')
-    following = UserFollow.objects.filter(follower=user).select_related('followed')
+    followers = UserFollow.objects.filter(followed=user, follower__is_active=True).select_related('follower')
+    following = UserFollow.objects.filter(follower=user, followed__is_active=True).select_related('followed')
 
     # 3. Calcul des Statistiques
     stats = get_user_statistics(my_drinks)
@@ -131,7 +131,7 @@ def public_profile_view(request, username):
         return redirect('account')
         
     profile_user = get_object_or_404(
-        BeerUser.objects.select_related('top_beer_1', 'top_beer_2', 'top_beer_3'), 
+        BeerUser.objects.filter(is_active=True).select_related('top_beer_1', 'top_beer_2', 'top_beer_3'), 
         username=username
     )
     
@@ -150,8 +150,8 @@ def public_profile_view(request, username):
     ).order_by('-id')[:10]
     
     # Social
-    followers = UserFollow.objects.filter(followed=profile_user).select_related('follower')
-    following = UserFollow.objects.filter(follower=profile_user).select_related('followed')
+    followers = UserFollow.objects.filter(followed=profile_user, follower__is_active=True).select_related('follower')
+    following = UserFollow.objects.filter(follower=profile_user, followed__is_active=True).select_related('followed')
     
     # Est-ce que JE (l'utilisateur connecté) suis cette personne ?
     is_following = followers.filter(follower=request.user).exists()
@@ -177,10 +177,11 @@ def public_profile_view(request, username):
     }
     return render(request, 'public_profile.html', context)
 
+@require_POST
 @login_required(login_url='login')
 def follow_user(request, username):
     """Gère l'action de s'abonner ou se désabonner."""
-    user_to_follow = get_object_or_404(BeerUser, username=username)
+    user_to_follow = get_object_or_404(BeerUser, username=username, is_active=True)
     
     if request.user != user_to_follow:
         follow_record = UserFollow.objects.filter(follower=request.user, followed=user_to_follow)

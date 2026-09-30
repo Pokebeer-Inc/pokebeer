@@ -10,6 +10,7 @@ from ..forms import DrinkForm
 from ..models import Beer, Drinks, BeerUser, UserBlock
 from .services.recommendations import get_recommended_beers
 from .services.selectors import get_filtered_beers, get_filtered_users, get_filtered_notebook_drinks
+from .utils import parse_offset
 
 @ensure_csrf_cookie
 @login_required(login_url='login')
@@ -68,7 +69,9 @@ def index(request):
 @login_required(login_url='login')
 def load_more_generic(request, item_type):
     """API générique unique (Gateway) pour gérer tous les chargements dynamiques (Load More)."""
-    offset = int(request.GET.get('offset', 0))
+    offset = parse_offset(request)
+    if offset is None:
+        return JsonResponse({'error': 'Offset invalide'}, status=400)
     limit = 10
     user = request.user
     
@@ -127,7 +130,7 @@ def load_more_generic(request, item_type):
         if not username: 
             return JsonResponse({'error': 'Nom utilisateur manquant'}, status=400)
             
-        profile_user = get_object_or_404(BeerUser, username=username)
+        profile_user = get_object_or_404(BeerUser, username=username, is_active=True)
         
         if UserBlock.objects.filter(Q(blocker=user, blocked=profile_user) | Q(blocker=profile_user, blocked=user)).exists():
             return JsonResponse({'error': 'Profil inaccessible'}, status=403)

@@ -66,6 +66,24 @@ class GeocodableMixin(models.Model):
         # On appelle le comportement de sauvegarde normal de Django
         super().save(*args, **kwargs)
 
+STAFF_GROUP = 'Staff'
+
+class BeerUserManager(UserManager):
+    """UserManager adapté aux rôles par groupes : is_staff n'est pas un champ mais l'appartenance au groupe Staff."""
+
+    def _create_user_object(self, username, email, password, **extra_fields):
+        # UserManager passe toujours is_staff au constructeur, ce que la propriété en lecture seule refuse
+        extra_fields.pop('is_staff', None)
+        return super()._create_user_object(username, email, password, **extra_fields)
+
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        # Sans le groupe Staff, is_staff vaut False et l'admin Django refuse l'accès au superuser
+        user = super().create_superuser(username, email, password, **extra_fields)
+        user.groups.add(Group.objects.get_or_create(name=STAFF_GROUP)[0])
+        return user
+
+    create_superuser.alters_data = True
+
 class BeerUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=False, blank=False)
     created_at = models.DateTimeField(default=timezone.now)
@@ -81,13 +99,14 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     notif_network = models.BooleanField(default=True, verbose_name="Réseau (Ajouts de bières, Lieux)")
     notif_achievements = models.BooleanField(default=True, verbose_name="Trophées et récompenses")
     show_establishments = models.BooleanField(default=True, verbose_name="Afficher mes établissements publiquement")
-    fcm_token = models.CharField(max_length=255, blank=True, null=True, verbose_name="Token Firebase Android")
+    fcm_token = models.TextField(blank=True, null=True, verbose_name="Token Firebase Android")
+    is_active = models.BooleanField(default=True, verbose_name="Compte actif", help_text="Décocher pour suspendre le compte : connexion refusée et profil masqué.")
 
     USERNAME_FIELD = "username"
     EMAIL_FIELD = "email"
     REQUIRED_FIELDS = ["email"]
 
-    objects = UserManager()
+    objects = BeerUserManager()
     
     class Meta:
         verbose_name = "Utilisateur"
@@ -133,7 +152,7 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     @property
     def is_staff(self):
         """Vérifie si l'utilisateur a le rôle Staff."""
-        return any(group.name == 'Staff' for group in self.groups.all())
+        return any(group.name == STAFF_GROUP for group in self.groups.all())
     
     @property
     def primary_role_badge(self):
@@ -244,7 +263,7 @@ class Bar(GeocodableMixin):
         return self.name
 
 class Beer(models.Model):
-    name = models.CharField(max_length=150, blank=False, unique=True, verbose_name="Nom")
+    name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
     image = models.ImageField(upload_to='beers/', blank=True, null=True, verbose_name="Image")
     description = models.TextField(blank=True, null=True, verbose_name="Description officielle")
     bitterness = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(500)], verbose_name="IBU")
@@ -260,9 +279,23 @@ class Beer(models.Model):
     class Meta:
         verbose_name = "Bière"
         ordering = ['name']
+        constraints = [
+            # Une bière retirée du catalogue libère son nom ; le slug reste unique pour garder ses anciennes URLs
+            models.UniqueConstraint(
+                fields=['name'],
+                condition=models.Q(is_deleted=False),
+                name='unique_active_beer_name',
+                violation_error_message="Une bière du catalogue porte déjà ce nom.",
+            ),
+        ]
 
     def __str__(self):
         return self.name
+
+    @property
+    def embedding_text(self):
+        """Texte décrivant la bière, vectorisé pour la recherche sémantique du chat IA."""
+        return f"Bière {self.name} de la brasserie {self.brewery_id.name}. Style: {self.style or 'inconnu'}. Profil: {self.description}"
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -275,10 +308,8 @@ class Beer(models.Model):
                 counter += 1
             self.slug = slug
             
-        text_to_embed = f"Bière {self.name} de la brasserie {self.brewery_id.name}. Style: {self.style or 'inconnu'}. Profil: {self.description}"
-        
         from .services.ai import get_embedding 
-        vector = get_embedding(text_to_embed)
+        vector = get_embedding(self.embedding_text)
         if vector:
             self.embedding = vector
             
@@ -360,6 +391,7 @@ class Report(models.Model):
     reported_beer = models.ForeignKey('Beer', on_delete=models.CASCADE, null=True, blank=True, verbose_name="Bière signalée")
     reported_drink = models.ForeignKey('Drinks', on_delete=models.CASCADE, null=True, blank=True, verbose_name="Dégustation signalée")
     reported_user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, null=True, blank=True, related_name='reports_received', verbose_name="Membre signalé")
+    reported_brewery = models.ForeignKey('Brewery', on_delete=models.CASCADE, null=True, blank=True, verbose_name="Brasserie signalée")
 
     reason = models.CharField(max_length=20, choices=REASON_CHOICES, verbose_name="Raison")
     description = models.TextField(max_length=1000, verbose_name="Description détaillée")
@@ -502,6 +534,19 @@ class DrinkReaction(models.Model):
         unique_together = ('user', 'drink') # Un utilisateur ne peut réagir qu'une seule fois par avis
         verbose_name = "Réaction"
         
+class ChatUsage(models.Model):
+    """Nombre de messages envoyés au zythologue IA par un utilisateur sur une journée."""
+    user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='chat_usages')
+    day = models.DateField()
+    count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ('user', 'day')
+        verbose_name = "Utilisation du chat IA"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.day} ({self.count})"
+
 class CustomNotebook(models.Model):
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='custom_notebooks')
     title = models.CharField(max_length=150, verbose_name="Titre du carnet")
