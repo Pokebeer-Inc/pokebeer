@@ -1,4 +1,21 @@
 services:
+  db:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: ${DEV_DB_NAME:-pokebeer_dev}
+      POSTGRES_USER: ${DEV_DB_USER:-pokebeer}
+      POSTGRES_PASSWORD: ${DEV_DB_PASSWORD:?DEV_DB_PASSWORD doit être défini dans .env}
+    ports:
+      # Exposé uniquement sur la machine locale, jamais sur le réseau
+      - "127.0.0.1:${DEV_DB_PORT:-5432}:5432"
+    volumes:
+      - pokebeer_dev_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   web:
     build: .
     command: >
@@ -6,12 +23,20 @@ services:
       python manage.py migrate &&
       python manage.py tailwind install &&
       python manage.py tailwind build &&
-      python manage.py collectstatic --noinput &&
       python manage.py runserver 0.0.0.0:8000
       "
     volumes:
       - .:/app
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${WEB_PORT:-8000}:8000"
     env_file:
       - .env
+    environment:
+      # Dans le réseau compose, la base est joignable via le nom de service "db"
+      DEV_DATABASE_URL: postgresql://${DEV_DB_USER:-pokebeer}:${DEV_DB_PASSWORD}@db:5432/${DEV_DB_NAME:-pokebeer_dev}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pokebeer_dev_db:
