@@ -15,6 +15,7 @@ import os
 from dotenv import load_dotenv
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse_lazy
+from pokebeer.database import get_databases
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -117,26 +118,8 @@ WSGI_APPLICATION = 'pokebeer.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-if os.getenv('DATABASE_URL'):
-    import dj_database_url
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=os.getenv('DATABASE_URL'),
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            'NAME': os.getenv('DB_NAME'),
-            'USER': os.getenv('DB_USER'),
-            'PASSWORD': os.getenv('DB_PASSWORD'),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT'),
-        }
-    }
+# DEBUG=True -> DEV_DATABASE_URL (jamais la prod), sinon DATABASE_URL. Voir pokebeer/database.py
+DATABASES = get_databases(DEBUG)
 
 
 # Password validation
@@ -242,9 +225,10 @@ AWS_QUERYSTRING_AUTH = False
 supabase_domain = os.getenv('SUPABASE_URL', '').replace('https://', '')
 AWS_S3_CUSTOM_DOMAIN = f"{supabase_domain}/storage/v1/object/public/{AWS_STORAGE_BUCKET_NAME}"
 
+# En DEBUG, les uploads restent en local (media/) pour ne pas polluer le bucket de prod
 STORAGES = {
     "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
+        "BACKEND": "django.core.files.storage.FileSystemStorage" if DEBUG else "storages.backends.s3.S3Storage",
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
