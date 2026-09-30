@@ -1,11 +1,12 @@
 from django.db.models import Case, When, Value, IntegerField, Q, Max, Prefetch
 
 from ...models import Beer, Drinks, BeerUser
-from ..utils import get_excluded_users
+from ..utils import get_blocked_users, get_excluded_users
 
 def get_filtered_beers(request):
     """Extrait la logique de filtrage des bières pour la réutiliser."""
-    beers = Beer.objects.filter(is_deleted=False).exclude(added_by__in=get_excluded_users(request.user)).select_related('brewery_id')
+    # Bloqués seulement : le catalogue est partagé, les bières d'un compte suspendu restent visibles
+    beers = Beer.objects.filter(is_deleted=False).exclude(added_by__in=get_blocked_users(request.user)).select_related('brewery_id')
 
     query = request.GET.get('q')
     if query:

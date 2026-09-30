@@ -236,6 +236,9 @@ STORAGES = {
 }
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+CHAT_DAILY_LIMIT = 10
+CHAT_MESSAGE_MAX_LENGTH = 5000
+REPORT_DAILY_LIMIT = 10
 
 UNFOLD = {
     "DASHBOARD_CALLBACK": "app.admin.dashboard_callback",

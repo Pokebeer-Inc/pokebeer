@@ -4,8 +4,10 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.db.models import Q, Max
 
+from ..forms import CustomNotebookForm, error_summary
 from ..models import Beer, Drinks, CustomNotebook
 from .services.selectors import get_filtered_notebook_drinks
+from .utils import digit_ids
 
 @login_required(login_url='login')
 def notebook_view(request):
@@ -90,16 +92,19 @@ def create_custom_notebook(request):
         messages.error(request, "Vous avez atteint la limite de 50 carnets.")
         return redirect('notebook')
         
-    title = request.POST.get('title')
-    description = request.POST.get('description')
-    drink_ids = request.POST.getlist('drinks')
-    
-    if title:
-        notebook = CustomNotebook.objects.create(user=request.user, title=title, description=description)
-        if drink_ids:
-            valid_drinks = Drinks.objects.filter(id__in=drink_ids, drinker_id=request.user)
-            notebook.drinks.set(valid_drinks)
-        messages.success(request, "Carnet créé avec succès !")
+    form = CustomNotebookForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Le carnet n'a pas pu être créé : " + " ; ".join(error_summary(form)))
+        return redirect('notebook')
+
+    notebook = form.save(commit=False)
+    notebook.user = request.user
+    notebook.save()
+    drink_ids = digit_ids(request.POST.getlist('drinks'))
+    if drink_ids:
+        valid_drinks = Drinks.objects.filter(id__in=drink_ids, drinker_id=request.user)
+        notebook.drinks.set(valid_drinks)
+    messages.success(request, "Carnet créé avec succès !")
         
     return redirect('notebook')
 
@@ -118,18 +123,14 @@ def edit_custom_notebook(request, notebook_id):
     """Modifie le titre, la description et les bières d'un carnet personnalisé."""
     notebook = get_object_or_404(CustomNotebook, id=notebook_id, user=request.user)
     
-    title = request.POST.get('title')
-    description = request.POST.get('description')
-    drink_ids = request.POST.getlist('drinks')
-    
-    if title:
-        notebook.title = title
-        notebook.description = description
-        notebook.save()
-        
-        valid_drinks = Drinks.objects.filter(id__in=drink_ids, drinker_id=request.user)
-        notebook.drinks.set(valid_drinks)
-        
-        messages.success(request, "Le carnet a été modifié avec succès.")
+    form = CustomNotebookForm(request.POST, instance=notebook)
+    if not form.is_valid():
+        messages.error(request, "Le carnet n'a pas pu être modifié : " + " ; ".join(error_summary(form)))
+        return redirect('notebook_detail', notebook_id=notebook.id)
+
+    form.save()
+    valid_drinks = Drinks.objects.filter(id__in=digit_ids(request.POST.getlist('drinks')), drinker_id=request.user)
+    notebook.drinks.set(valid_drinks)
+    messages.success(request, "Le carnet a été modifié avec succès.")
         
     return redirect('notebook_detail', notebook_id=notebook.id)

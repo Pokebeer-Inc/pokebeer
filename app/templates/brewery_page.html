@@ -81,7 +81,6 @@
         
         <form method="post" action="{% url 'submit_report' %}">
             {% csrf_token %}
-            <!-- Bien que non prévu de base pour les brasseries dans ton modèle Report, tu peux le router vers 'other' ou adapter ton modèle si besoin -->
             <input type="hidden" name="item_type" value="brewery">
             <input type="hidden" name="item_id" value="{{ brewery.id }}">
             
@@ -96,7 +95,7 @@
             
             <div class="form-control w-full mb-4">
                 <label class="label py-1"><span class="label-text text-xs font-bold">Détails</span></label>
-                <textarea name="description" class="textarea textarea-bordered h-20" placeholder="Précisez le problème avec cet établissement..." maxlength="1000" required></textarea>
+                <textarea name="description" class="textarea textarea-bordered h-20" placeholder="Précisez le problème avec cet établissement..." minlength="10" maxlength="1000" data-char-counter required></textarea>
             </div>
             <button type="submit" class="btn btn-error w-full text-white">Envoyer le signalement</button>
         </form>

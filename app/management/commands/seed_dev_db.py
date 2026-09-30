@@ -20,8 +20,9 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--reset", action="store_true", help="Vide entièrement la base avant de la remplir.")
         parser.add_argument("--seed", type=int, default=42, help="Graine aléatoire (données reproductibles).")
+        parser.add_argument("--embed", action="store_true", help="Calcule ensuite les embeddings Gemini (appels API réels).")
 
-    def handle(self, *args, reset, seed, **options):
+    def handle(self, *args, reset, seed, embed, **options):
         try:
             assert_dev_database(settings.DEBUG, settings.DATABASES["default"])
         except ImproperlyConfigured as exc:
@@ -39,6 +40,8 @@ class Command(BaseCommand):
         for model_name, count in sorted(counts.items()):
             self.stdout.write(f"  {model_name:<28} {count}")
         self.stdout.write(self.style.SUCCESS("Base de développement remplie."))
+        if embed:
+            call_command("embed_beers", stdout=self.stdout)
         self.stdout.write(f"Comptes ({data.ADMIN_USERNAME} est superuser) : {', '.join(user['username'] for user in data.USERS)}")
         if not os.environ.get(PASSWORD_ENV):
             self.stdout.write(self.style.WARNING(f"Mot de passe généré (définissez {PASSWORD_ENV} pour le fixer) : {password}"))

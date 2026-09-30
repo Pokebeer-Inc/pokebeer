@@ -1,19 +1,37 @@
 from django.db.models import Max
 from django.urls import reverse
 
-from ..models import Beer, Drinks, UserBlock, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction, Brewery
+from ..models import Beer, BeerUser, Drinks, UserBlock, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction, Brewery
 from ..services.realtime_service import broadcast_notifications
 
 TIER_NAMES = ["Bloqué", "Bronze", "Argent", "Or", "Platine"]
 TIER_SLUGS = ["locked", "bronze", "silver", "gold", "platinum"]
 TIER_XP_REWARDS = [0, 500, 1000, 1500, 2000]
 
-def get_excluded_users(user):
+def digit_ids(values):
+    """Ne garde que les identifiants numériques d'une liste envoyée par un formulaire."""
+    return [int(value) for value in values if value.isdecimal() and value.isascii()]
+
+MAX_OFFSET = 100_000
+
+def parse_offset(request):
+    """Lit le paramètre ?offset= d'un chargement paginé. Renvoie None s'il n'est pas un entier entre 0 et MAX_OFFSET."""
+    raw = request.GET.get('offset', '0').strip()
+    if not raw.isdecimal() or not raw.isascii() or int(raw) > MAX_OFFSET:
+        return None
+    return int(raw)
+
+def get_blocked_users(user):
     """Retourne la liste des IDs d'utilisateurs avec qui il y a un blocage."""
     if not user.is_authenticated: return []
     blocked_by_me = UserBlock.objects.filter(blocker=user).values_list('blocked_id', flat=True)
     blocking_me = UserBlock.objects.filter(blocked=user).values_list('blocker_id', flat=True)
     return list(set(blocked_by_me) | set(blocking_me))
+
+def get_excluded_users(user):
+    """Retourne la liste des IDs d'utilisateurs à masquer : blocages et comptes suspendus."""
+    suspended = BeerUser.objects.filter(is_active=False).values_list('id', flat=True)
+    return list(set(get_blocked_users(user)) | set(suspended))
 
 def get_user_achievements(user):
     """Calcule et retourne la liste des hauts faits d'un utilisateur."""

@@ -1,6 +1,6 @@
 import json
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.db.models import Q
 from django.utils.text import slugify
 from google import genai
@@ -10,7 +10,10 @@ from django.contrib.auth.decorators import login_required
 
 from ..models import Beer, Brewery
 from ..services.ai import ask_zythologue, config_client
+from ..services.quota import consume_chat_quota
 
+@require_http_methods(["GET", "POST"])
+@login_required(login_url='login')
 def chat_api(request):
     """Endpoint API : Gère l'historique et la discussion avec l'IA."""
     
@@ -24,11 +27,17 @@ def chat_api(request):
         try:
             data = json.loads(request.body)
             user_message = data.get('message', '')
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, AttributeError):
             return JsonResponse({"response": "Format JSON invalide."}, status=400)
 
-        if not user_message.strip():
+        if not isinstance(user_message, str) or not user_message.strip():
             return JsonResponse({"response": "Message vide."}, status=400)
+
+        if len(user_message) > settings.CHAT_MESSAGE_MAX_LENGTH:
+            return JsonResponse({"response": f"Message trop long ({settings.CHAT_MESSAGE_MAX_LENGTH} caractères maximum)."}, status=400)
+
+        if not consume_chat_quota(request.user, settings.CHAT_DAILY_LIMIT):
+            return JsonResponse({"response": "Gaétan a assez parlé pour aujourd'hui, revenez demain !"}, status=429)
 
         # On récupère l'historique existant
         history = request.session.get('chat_history', [])

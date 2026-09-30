@@ -1,15 +1,22 @@
 name: Django CI
 
 on:
-  #push:
-  #  branches: [ "main" ]
+  push:
+    branches: [ "main" ]
   pull_request:
-    #branches: [ "main" ]
-    branches: [ "dev" ]
+    branches: [ "main", "dev" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # Configuration des services annexes (Base de données)
     services:
@@ -36,11 +43,14 @@ jobs:
       with:
         python-version: "3.12"
         cache: 'pip'
+        cache-dependency-path: |
+          requirements.txt
+          requirements-dev.txt
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
 
     - name: Setup Node.js and Tailwind
       uses: actions/setup-node@v4
@@ -58,4 +68,4 @@ jobs:
         
         GEMINI_API_KEY: 'cle-factice-pour-les-tests'
       run: |
-        pytest
+        pytest --cov-fail-under=90

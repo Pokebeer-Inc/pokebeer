@@ -1,8 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from ..forms import ReportForm, error_summary
 from ..models import BeerUser, UserFollow, Report, UserBlock
 
 @login_required(login_url='login')
@@ -15,27 +18,22 @@ def my_reports_view(request):
 @login_required(login_url='login')
 def submit_report(request):
     """Reçoit et enregistre un signalement depuis n'importe quelle modale."""
-    item_type = request.POST.get('item_type')
-    item_id = request.POST.get('item_id')
-    reason = request.POST.get('reason')
-    description = request.POST.get('description')
-    
-    report = Report(reporter=request.user, reason=reason, description=description)
-    
-    if item_type == 'beer':
-        report.reported_beer_id = item_id
-    elif item_type == 'drink':
-        report.reported_drink_id = item_id
-    elif item_type == 'user':
-        report.reported_user_id = item_id
-        
-    report.save()
+    form = ReportForm(request.POST, reporter=request.user)
+
+    # On ne revient que sur une page de ce site : le Referer est une donnée fournie par le client
+    referer = request.META.get('HTTP_REFERER')
+    if not url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        referer = reverse('index')
+
+    if not form.is_valid():
+        messages.error(request, "Votre signalement n'a pas pu être envoyé : " + " ; ".join(error_summary(form)))
+        return redirect(referer)
+
+    form.save()
     messages.success(request, "Votre signalement a été envoyé. Notre équipe va l'examiner.")
-    
-    referer = request.META.get('HTTP_REFERER', 'index')
-    
+
     # Si l'élément signalé est un utilisateur, on ajoute "?reported=1" à l'URL de retour
-    if item_type == 'user' and referer != 'index':
+    if form.cleaned_data['item_type'] == 'user':
         # On vérifie s'il y a déjà des paramètres dans l'URL pour ne pas casser le lien
         if '?' in referer:
             return redirect(f"{referer}&reported=1")
