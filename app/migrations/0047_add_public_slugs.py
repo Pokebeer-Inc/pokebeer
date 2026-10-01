@@ -26,6 +26,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Une colonne « slug » créée hors migrations (base de production) ferait échouer AddField.
+        # Ses valeurs sont de toute façon remplacées par 0048 : on repart d'une colonne gérée par Django.
+        migrations.RunSQL(
+            sql=f'ALTER TABLE app_{model_name} DROP COLUMN IF EXISTS slug',
+            reverse_sql=migrations.RunSQL.noop,
+        )
+        for model_name in SLUGGED_MODELS
+    ] + [
         migrations.AddField(model_name=model_name, name='slug', field=_slug_field(source))
         for model_name, source in SLUGGED_MODELS.items()
     ]
