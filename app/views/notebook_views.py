@@ -7,7 +7,6 @@ from django.db.models import Q, Max
 from ..forms import CustomNotebookForm, error_summary
 from ..models import Beer, Drinks, CustomNotebook
 from .services.selectors import get_filtered_notebook_drinks
-from .utils import digit_ids
 
 @login_required(login_url='login')
 def notebook_view(request):
@@ -46,19 +45,19 @@ def notebook_view(request):
     return render(request, 'notebook.html', context)
 
 @login_required(login_url='login')
-def notebook_detail_view(request, notebook_id=None):
+def notebook_detail_view(request, notebook_slug=None):
     """Page d'un carnet spécifique (avec les filtres, le tri et la liste)."""
     user = request.user
     notebook = None
-    notebook_drink_ids = []
+    notebook_drink_slugs = []
     
-    if notebook_id:
-        notebook = get_object_or_404(CustomNotebook, id=notebook_id, user=user)
+    if notebook_slug:
+        notebook = get_object_or_404(CustomNotebook, slug=notebook_slug, user=user)
         # Injection du paramètre pour get_filtered_notebook_drinks
         request.GET = request.GET.copy()
-        request.GET['notebook_id'] = str(notebook.id)
-        # Liste des IDs des dégustations pour pré-cocher les cases
-        notebook_drink_ids = list(notebook.drinks.values_list('id', flat=True))
+        request.GET['notebook_slug'] = notebook.slug
+        # Slugs des dégustations pour pré-cocher les cases
+        notebook_drink_slugs = list(notebook.drinks.values_list('slug', flat=True))
         
     my_drinks = get_filtered_notebook_drinks(request)[:10]
     
@@ -80,7 +79,7 @@ def notebook_detail_view(request, notebook_id=None):
         'my_drinks': my_drinks,
         'styles': styles,
         'user_drinks_all': user_drinks_all,
-        'notebook_drink_ids': notebook_drink_ids,
+        'notebook_drink_slugs': notebook_drink_slugs,
     }
     return render(request, 'notebook_detail.html', context)
 
@@ -100,37 +99,35 @@ def create_custom_notebook(request):
     notebook = form.save(commit=False)
     notebook.user = request.user
     notebook.save()
-    drink_ids = digit_ids(request.POST.getlist('drinks'))
-    if drink_ids:
-        valid_drinks = Drinks.objects.filter(id__in=drink_ids, drinker_id=request.user)
-        notebook.drinks.set(valid_drinks)
+    drink_slugs = request.POST.getlist('drinks')
+    if drink_slugs:
+        notebook.drinks.set(Drinks.objects.filter(slug__in=drink_slugs, drinker_id=request.user))
     messages.success(request, "Carnet créé avec succès !")
         
     return redirect('notebook')
 
 @require_POST
 @login_required(login_url='login')
-def delete_custom_notebook(request, notebook_id):
+def delete_custom_notebook(request, notebook_slug):
     """Supprime un carnet personnalisé."""
-    notebook = get_object_or_404(CustomNotebook, id=notebook_id, user=request.user)
+    notebook = get_object_or_404(CustomNotebook, slug=notebook_slug, user=request.user)
     notebook.delete()
     messages.success(request, "Le carnet a été supprimé.")
     return redirect('notebook')
 
 @require_POST
 @login_required(login_url='login')
-def edit_custom_notebook(request, notebook_id):
+def edit_custom_notebook(request, notebook_slug):
     """Modifie le titre, la description et les bières d'un carnet personnalisé."""
-    notebook = get_object_or_404(CustomNotebook, id=notebook_id, user=request.user)
+    notebook = get_object_or_404(CustomNotebook, slug=notebook_slug, user=request.user)
     
     form = CustomNotebookForm(request.POST, instance=notebook)
     if not form.is_valid():
         messages.error(request, "Le carnet n'a pas pu être modifié : " + " ; ".join(error_summary(form)))
-        return redirect('notebook_detail', notebook_id=notebook.id)
+        return redirect('notebook_detail', notebook_slug=notebook.slug)
 
     form.save()
-    valid_drinks = Drinks.objects.filter(id__in=digit_ids(request.POST.getlist('drinks')), drinker_id=request.user)
-    notebook.drinks.set(valid_drinks)
+    notebook.drinks.set(Drinks.objects.filter(slug__in=request.POST.getlist('drinks'), drinker_id=request.user))
     messages.success(request, "Le carnet a été modifié avec succès.")
         
-    return redirect('notebook_detail', notebook_id=notebook.id)
+    return redirect('notebook_detail', notebook_slug=notebook.slug)

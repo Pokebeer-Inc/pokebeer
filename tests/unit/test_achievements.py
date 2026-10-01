@@ -61,7 +61,7 @@ class TestAchievementTiers:
         f.make_drink(user, f.make_beer(brewery=ours))
         ach = achievement(user, "ours")
         assert ach["is_maxed"]
-        assert ach["url"] == f"/brewery/{ours.id}/"
+        assert ach["url"] == f"/brewery/{ours.slug}/"
 
     def test_deleted_beers_do_not_count_as_additions(self, user):
         f.make_beer(added_by=user, is_deleted=True)

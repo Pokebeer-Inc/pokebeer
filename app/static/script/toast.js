@@ -178,8 +178,8 @@
             if (!data || !data.notifications) return;
             let hasNew = false;
             data.notifications.forEach(notif => {
-                if (!seenNotificationIds.has(notif.id)) {
-                    seenNotificationIds.add(notif.id);
+                if (!seenNotificationIds.has(notif.slug)) {
+                    seenNotificationIds.add(notif.slug);
                     hasNew = true;
                     showToast({
                         message: notif.message,
@@ -238,7 +238,7 @@
             // Si la page recharge à cause d'une soumission de formulaire, ce timer est détruit.
             // La notification ne sera donc pas marquée comme "vue" et apparaîtra sur la page suivante !
             setTimeout(() => {
-                seenNotificationIds.add(notif.id);
+                seenNotificationIds.add(notif.slug);
                 sessionStorage.setItem('toast_seen_notifs', JSON.stringify([...seenNotificationIds]));
             }, 2500);
 

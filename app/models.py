@@ -4,7 +4,9 @@ from django.utils import timezone
 from django.contrib.auth.models import UserManager
 from datetime import date
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils.text import slugify
+from django.db.models.functions import Lower
+from .fields import PublicSlugField
+from .validators import username_validator
 from pgvector.django import VectorField
 import requests
 from django.db.models.signals import post_save, m2m_changed
@@ -87,7 +89,7 @@ class BeerUserManager(UserManager):
 class BeerUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=False, blank=False)
     created_at = models.DateTimeField(default=timezone.now)
-    username = models.CharField(max_length=150, blank=False, unique=True)
+    username = models.CharField(max_length=150, blank=False, unique=True, validators=[username_validator])
     bio = models.TextField(verbose_name="Biographie", blank=True, null=True)
     wishlist_beers = models.ManyToManyField('Beer', blank=True, related_name='wishlisted_by', verbose_name="Wishlist")
     top_beer_1 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -110,6 +112,10 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     
     class Meta:
         verbose_name = "Utilisateur"
+        constraints = [
+            # « Alice » et « alice » désigneraient deux comptes différents : l'unicité ignore la casse
+            models.UniqueConstraint(Lower('username'), name='unique_username_ci', violation_error_message="Ce pseudo est déjà utilisé."),
+        ]
         
     @property
     def has_unread_notifications(self):
@@ -192,6 +198,7 @@ class UserFollow(models.Model):
 
 class Brewery(GeocodableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
+    slug = PublicSlugField(source='name')
     description = models.TextField(verbose_name="Description")
     image = models.ImageField(upload_to='breweries/', blank=True, null=True, verbose_name="Image")
     siret = models.CharField(max_length=14, unique=True, blank=True, null=True, verbose_name="Numéro SIRET")
@@ -227,6 +234,7 @@ class Brewery(GeocodableMixin):
     
 class Bar(GeocodableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
+    slug = PublicSlugField(source='name')
     description = models.TextField(blank=True, null=True, verbose_name="Description")
     image = models.ImageField(upload_to='bars/', blank=True, null=True, verbose_name="Image")
     siret = models.CharField(max_length=14, unique=True, blank=True, null=True, verbose_name="Numéro SIRET")
@@ -269,7 +277,7 @@ class Beer(models.Model):
     bitterness = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(500)], verbose_name="IBU")
     degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Degré")
     brewery_id = models.ForeignKey(Brewery, on_delete=models.CASCADE)
-    slug = models.SlugField(max_length=150, unique=True, blank=True, null=True, verbose_name="Slug")
+    slug = PublicSlugField(source='name')
     style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
     added_by = models.ForeignKey(BeerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_beers')
     is_deleted = models.BooleanField(default=False, verbose_name="Supprimée du catalogue")
@@ -298,16 +306,6 @@ class Beer(models.Model):
         return f"Bière {self.name} de la brasserie {self.brewery_id.name}. Style: {self.style or 'inconnu'}. Profil: {self.description}"
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            base_slug = slugify(self.name)
-            slug = base_slug
-            counter = 1
-            # Si le slug existe déjà (pour une autre bière), on ajoute un tiret et un chiffre
-            while Beer.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-            self.slug = slug
-            
         from .services.ai import get_embedding 
         vector = get_embedding(self.embedding_text)
         if vector:
@@ -317,6 +315,7 @@ class Beer(models.Model):
 
 class Drinks(models.Model):
     date = models.DateField(default=date.today, verbose_name="Date")
+    slug = PublicSlugField()
     note = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(10)], null=True, blank=True, verbose_name="Note")
     comment = models.TextField(verbose_name="Commentaire")
     
@@ -335,6 +334,7 @@ class Drinks(models.Model):
     
 class BeerSpot(models.Model):
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='spots')
+    slug = PublicSlugField()
     title = models.CharField(max_length=150, verbose_name="Titre du lieu")
     description = models.TextField(blank=True, null=True, verbose_name="Description / Souvenirs")
     date = models.DateField(default=date.today, verbose_name="Date")
@@ -386,6 +386,7 @@ class Report(models.Model):
     ]
     
     reporter = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='submitted_reports', verbose_name="Signalé par")
+    slug = PublicSlugField()
     
     # Cibles possibles (une seule sera remplie par signalement)
     reported_beer = models.ForeignKey('Beer', on_delete=models.CASCADE, null=True, blank=True, verbose_name="Bière signalée")
@@ -434,6 +435,7 @@ class NotificationManager(models.Manager):
 class Notification(models.Model):
     
     objects = NotificationManager()
+    slug = PublicSlugField()
     
     NOTIFICATION_TYPES = [
         ('follow', 'Nouvel abonné'),
@@ -549,6 +551,7 @@ class ChatUsage(models.Model):
 
 class CustomNotebook(models.Model):
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='custom_notebooks')
+    slug = PublicSlugField()
     title = models.CharField(max_length=150, verbose_name="Titre du carnet")
     description = models.TextField(blank=True, null=True, verbose_name="Description")
     drinks = models.ManyToManyField('Drinks', blank=True, related_name='notebooks', verbose_name="Dégustations")

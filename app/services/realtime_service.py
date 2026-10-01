@@ -25,7 +25,7 @@ def _achievements_by_name(recipient, cache):
         cache[recipient.pk] = {ach['name']: ach for ach in achievements}
     return cache[recipient.pk]
 
-def _send_push(notif, message_html):
+def _send_push(notif, message_html, read_url):
     """Envoi natif Android via Firebase ; une erreur n'interrompt jamais le reste de la diffusion."""
     try:
         # Fallback de sécurité au cas où le template renvoie du vide
@@ -35,6 +35,8 @@ def _send_push(notif, message_html):
                 title="Pokebeer",
                 body=clean_text,
             ),
+            # Chemin relatif : l'application Android l'ouvre sur son propre domaine (jamais un hôte fourni par le message)
+            data={"read_url": read_url},
             token=notif.recipient.fcm_token,
         )
         messaging.send(push_message)
@@ -56,9 +58,10 @@ def broadcast_notifications(notifications_list):
             continue # Sécurité : Ignore les notifications bloquées par les préférences utilisateur
 
         message_html = render_to_string('partials/notification_text.html', {'notif': notif}).strip()
+        read_url = reverse('read_notification', args=[notif.slug])
 
         if push_enabled and getattr(notif.recipient, 'fcm_token', None):
-            _send_push(notif, message_html)
+            _send_push(notif, message_html, read_url)
 
         if not supabase_enabled:
             continue
@@ -78,9 +81,9 @@ def broadcast_notifications(notifications_list):
                 icon_html = render_to_string('partials/achievement_icon.html', {'slug': ach_data['slug']}).strip()
         
         payload = {
-            "id": notif.id,
+            "slug": notif.slug,
             "message": message_html,
-            "read_url": reverse('read_notification', args=[notif.id]),
+            "read_url": read_url,
             "toastType": toast_type,
             "tier_slug": tier_slug,
             "icon": icon_html

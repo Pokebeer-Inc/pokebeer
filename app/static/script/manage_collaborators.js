@@ -1,3 +1,10 @@
+// Les pseudos et URLs d'avatar viennent d'autres membres : ils sont échappés avant d'entrer dans le HTML
+function escapeHtml(value) {
+    const element = document.createElement('div');
+    element.textContent = value;
+    return element.innerHTML.replace(/"/g, '&quot;');
+}
+
 let searchTimeout;
     
 function searchUsersForCollab() {
@@ -32,16 +39,16 @@ function searchUsersForCollab() {
                         <div class="flex items-center gap-3">
                             <div class="avatar">
                                 <div class="w-8 h-8 rounded-full border border-base-300 overflow-hidden shadow-inner">
-                                    <img src="${u.avatar_url}" class="object-cover" />
+                                    <img src="${escapeHtml(u.avatar_url)}" class="object-cover" />
                                 </div>
                             </div>
-                            <a href="/user/${u.username}/" class="text-sm font-semibold hover:text-primary transition-colors">${u.username}</a>
+                            <a href="/user/${encodeURIComponent(u.username)}/" class="text-sm font-semibold hover:text-primary transition-colors">${escapeHtml(u.username)}</a>
                         </div>
                         
                         <!-- Le formulaire utilise l'URL et le Token récupérés via data-* -->
                         <form method="post" action="${addUrl}">
                             <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
-                            <input type="hidden" name="user_id" value="${u.id}">
+                            <input type="hidden" name="username" value="${escapeHtml(u.username)}">
                             <button type="submit" class="btn btn-xs btn-primary btn-outline">Ajouter</button>
                         </form>
                     </div>

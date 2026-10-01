@@ -38,7 +38,16 @@ def error_summary(*forms):
             lines += [f"{label} : {error}" if label else str(error) for error in errors]
     return lines
 
-class UserRegisterForm(UserCreationForm):
+class UniqueUsernameMixin:
+    """Refuse un pseudo déjà pris, sans tenir compte de la casse (« Alice » vaut « alice »), même lors d'un changement de pseudo."""
+
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        if BeerUser.objects.filter(username__iexact=username).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("Ce pseudo est déjà utilisé.", code='duplicate_username')
+        return username
+
+class UserRegisterForm(UniqueUsernameMixin, UserCreationForm):
     email = forms.EmailField(required=True)
 
     class Meta:
@@ -98,7 +107,7 @@ class UserLoginForm(AuthenticationForm):
                 'class': 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
             })
 
-class UserUpdateForm(forms.ModelForm):
+class UserUpdateForm(UniqueUsernameMixin, forms.ModelForm):
     class Meta:
         model = BeerUser
         fields = ['username', 'email', 'bio']
@@ -136,7 +145,7 @@ class ProSettingsForm(forms.ModelForm):
         model = BeerUser
         fields = ['show_establishments']
     
-class ProUserForm(forms.ModelForm):
+class ProUserForm(UniqueUsernameMixin, forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'input input-bordered w-full bg-white'}), 
         label="Mot de passe"
@@ -335,7 +344,7 @@ class CustomNotebookForm(forms.ModelForm):
 
 class BeerSpotForm(forms.Form):
     """Validation des champs envoyés par la modale de la carte (création et modification d'un lieu)."""
-    spot_id = forms.IntegerField(required=False, min_value=1, label="Lieu")
+    spot_slug = forms.SlugField(required=False, max_length=150, label="Lieu")
     title = forms.CharField(max_length=150, label="Titre")
     description = forms.CharField(required=False, label="Description")
     date = forms.DateField(required=False, label="Date")
@@ -402,11 +411,13 @@ class NotificationPreferenceForm(forms.ModelForm):
 class ReportForm(forms.Form):
     """Signalement envoyé depuis les modales (bière, avis, profil, brasserie)."""
     TARGET_MODELS = {'beer': Beer, 'drink': Drinks, 'user': BeerUser, 'brewery': Brewery}
+    # Champ public qui désigne la cible : le slug, ou le pseudo pour un membre
+    TARGET_LOOKUPS = {'beer': 'slug', 'drink': 'slug', 'user': 'username', 'brewery': 'slug'}
     DESCRIPTION_MIN_LENGTH = 10
     DESCRIPTION_MAX_LENGTH = 1000
 
     item_type = forms.ChoiceField(choices=[(key, key) for key in TARGET_MODELS], label="Élément signalé")
-    item_id = forms.IntegerField(min_value=1, label="Élément signalé")
+    item_ref = forms.CharField(max_length=150, label="Élément signalé")
     reason = forms.ChoiceField(choices=Report.REASON_CHOICES, label="Raison")
     description = forms.CharField(min_length=DESCRIPTION_MIN_LENGTH, max_length=DESCRIPTION_MAX_LENGTH, label="Description")
 
@@ -420,15 +431,15 @@ class ReportForm(forms.Form):
         if Report.objects.filter(reporter=self.reporter, created_at__gte=since).count() >= settings.REPORT_DAILY_LIMIT:
             raise ValidationError(f"Vous avez atteint la limite de {settings.REPORT_DAILY_LIMIT} signalements par 24 heures. Réessayez plus tard.")
 
-        item_type, item_id = cleaned_data.get('item_type'), cleaned_data.get('item_id')
-        if not (item_type and item_id):
+        item_type, item_ref = cleaned_data.get('item_type'), cleaned_data.get('item_ref')
+        if not (item_type and item_ref):
             return cleaned_data
 
-        target = self.TARGET_MODELS[item_type].objects.filter(pk=item_id).first()
+        target = self.TARGET_MODELS[item_type].objects.filter(**{self.TARGET_LOOKUPS[item_type]: item_ref}).first()
         if target is None:
-            self.add_error('item_id', "L'élément signalé n'existe pas ou plus.")
+            self.add_error('item_ref', "L'élément signalé n'existe pas ou plus.")
         elif target == self.reporter or (item_type == 'drink' and target.drinker_id_id == self.reporter.pk):
-            self.add_error('item_id', "Vous ne pouvez pas signaler votre propre profil ou votre propre avis.")
+            self.add_error('item_ref', "Vous ne pouvez pas signaler votre propre profil ou votre propre avis.")
         else:
             cleaned_data['target'] = target
         return cleaned_data

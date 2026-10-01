@@ -26,11 +26,14 @@ class TestSearchBrewery:
 
 class TestSearchBeer:
     def test_returns_name_slug_and_brewery(self, client, beer):
-        assert search(client, "search_beer", "test") == [{"name": "Test IPA", "slug": "test-ipa", "brewery": "Brasserie Test"}]
+        assert search(client, "search_beer", "test") == [{"name": "Test IPA", "slug": beer.slug, "brewery": "Brasserie Test"}]
 
     def test_matches_without_accents(self, client):
         f.make_beer(name="Bière de Noël")
         assert [b["name"] for b in search(client, "search_beer", "biere de noel")] == ["Bière de Noël"]
+
+    def test_random_slug_suffix_is_not_searchable(self, client, beer):
+        assert search(client, "search_beer", beer.slug[-6:]) == []
 
     def test_deleted_beers_are_hidden(self, client, beer):
         beer.is_deleted = True

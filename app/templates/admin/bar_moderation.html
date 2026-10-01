@@ -57,7 +57,7 @@
             <div
                 class="bar-data-item"
 
-                data-id="{{ bar.id }}"
+                data-slug="{{ bar.slug }}"
 
                 data-name="{{ bar.name|default:''|escape }}"
                 data-description="{{ bar.description|default:''|escape }}"
@@ -74,7 +74,7 @@
 
                 data-verified="{% if bar.is_verified %}true{% else %}false{% endif %}"
 
-                data-verify-url="{% url 'admin:bar_verify' bar.id %}"
+                data-verify-url="{% url 'admin:bar_verify' bar.slug %}"
             ></div>
 
         {% endfor %}

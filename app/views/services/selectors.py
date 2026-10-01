@@ -91,9 +91,9 @@ def get_filtered_notebook_drinks(request):
     drinks = Drinks.objects.filter(drinker_id=request.user).select_related('beer_id', 'beer_id__brewery_id')
     
     # Filtrage par carnet personnalisé
-    notebook_id = request.GET.get('notebook_id')
-    if notebook_id and notebook_id.isdigit():
-        drinks = drinks.filter(notebooks__id=int(notebook_id))
+    notebook_slug = request.GET.get('notebook_slug')
+    if notebook_slug:
+        drinks = drinks.filter(notebooks__slug=notebook_slug)
 
     query = request.GET.get('q')
     if query:

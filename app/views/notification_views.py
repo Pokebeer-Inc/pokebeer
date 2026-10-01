@@ -54,10 +54,10 @@ def api_unread_notifications(request):
             toast_type = 'error'
             
         data.append({
-            'id': notif.id,
+            'slug': notif.slug,
             'notif_type': notif.notif_type,
             'message': render_to_string('partials/notification_text.html', {'notif': notif}, request=request).strip(),
-            'read_url': reverse('read_notification', args=[notif.id]),
+            'read_url': reverse('read_notification', args=[notif.slug]),
             'time_ago': notif.time_ago,
             'icon': icon_html,
             'tier_slug': tier_slug,
@@ -67,9 +67,9 @@ def api_unread_notifications(request):
     return JsonResponse({'unread_count': len(data), 'notifications': data})
 
 @login_required(login_url='login')
-def read_notification(request, notif_id):
+def read_notification(request, notif_slug):
     """Marque la notification comme lue et redirige au bon endroit."""
-    notif = get_object_or_404(Notification, id=notif_id, recipient=request.user)
+    notif = get_object_or_404(Notification, slug=notif_slug, recipient=request.user)
     notif.is_read = True
     notif.save()
     
@@ -86,14 +86,14 @@ def read_notification(request, notif_id):
     elif notif.notif_type == 'feedback_replied':
         return redirect('account')
     elif notif.notif_type in ['manager_added', 'place_updated'] and notif.brewery:
-        return redirect('brewery_detail', brewery_id=notif.brewery.id)
+        return redirect('brewery_detail', brewery_slug=notif.brewery.slug)
     return redirect('notifications')
 
 @require_POST
 @login_required(login_url='login')
-def delete_notification(request, notif_id):
+def delete_notification(request, notif_slug):
     """Supprime la notification définitivement."""
-    notif = get_object_or_404(Notification, id=notif_id, recipient=request.user)
+    notif = get_object_or_404(Notification, slug=notif_slug, recipient=request.user)
     notif.delete()
     return redirect('notifications')
 

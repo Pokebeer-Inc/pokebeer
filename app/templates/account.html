@@ -112,14 +112,14 @@
     
     <div class="flex flex-col gap-3">
         {% for brewery in user.my_breweries %}
-        <a href="{% url 'brewery_detail' brewery.id %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
+        <a href="{% url 'brewery_detail' brewery.slug %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
             <span class="font-semibold">{{ brewery.name }}</span>
         </a>
         {% endfor %}
         
         {% for bar in user.my_bars %}
-        <a href="{% url 'bar_detail' bar.id %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
+        <a href="{% url 'bar_detail' bar.slug %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 7v3m0 0v3m0-3h3m-3 0H9" /></svg>
             <span class="font-semibold">{{ bar.name }}</span>
         </a>
@@ -449,10 +449,10 @@
             {% csrf_token %}
             <div class="form-control w-full">
                 <label class="label py-1"><span class="label-text text-xs font-bold">Sélectionnez une bière dégustée</span></label>
-                <select name="beer_id" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+                <select name="beer_slug" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
                     <option value="">-- Vider l'emplacement --</option>
                     {% for drink in my_drinks %}
-                    <option value="{{ drink.beer_id.id }}" 
+                    <option value="{{ drink.beer_id.slug }}" 
                     {% if item.beer and item.beer.id == drink.beer_id.id %}
                     selected
                     {% elif drink.beer_id.id == user.top_beer_1_id or drink.beer_id.id == user.top_beer_2_id or drink.beer_id.id == user.top_beer_3_id %}

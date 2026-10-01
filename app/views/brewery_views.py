@@ -7,9 +7,9 @@ from ..models import Beer, Drinks, Brewery, BeerUser, Notification
 from ..services.realtime_service import broadcast_notifications
 
 @login_required(login_url='login')
-def brewery_detail_view(request, brewery_id):
+def brewery_detail_view(request, brewery_slug):
     """Affiche les détails d'une brasserie et la liste de ses bières."""
-    brewery = get_object_or_404(Brewery, id=brewery_id)
+    brewery = get_object_or_404(Brewery, slug=brewery_slug)
     beers = Beer.objects.filter(brewery_id=brewery, is_deleted=False).order_by('name')
 
     # Gestion des droits de la brasserie
@@ -45,14 +45,14 @@ def brewery_detail_view(request, brewery_id):
     return render(request, 'brewery_page.html', context)
 
 @login_required(login_url='login')
-def edit_brewery_view(request, brewery_id):
+def edit_brewery_view(request, brewery_slug):
     """Permet aux managers de modifier les informations de la brasserie."""
-    brewery = get_object_or_404(Brewery, id=brewery_id)
+    brewery = get_object_or_404(Brewery, slug=brewery_slug)
     
     # Sécurité : Vérifier que l'utilisateur est bien manager
     if not brewery.managers.filter(id=request.user.id).exists():
         messages.error(request, "Vous n'avez pas l'autorisation de modifier cet établissement.")
-        return redirect('brewery_detail', brewery_id=brewery.id)
+        return redirect('brewery_detail', brewery_slug=brewery.slug)
 
     if request.method == 'POST':
         form = BreweryEditForm(request.POST, request.FILES, instance=brewery)
@@ -66,20 +66,19 @@ def edit_brewery_view(request, brewery_id):
                 broadcast_notifications(created_notifs)
                 
             messages.success(request, "Les informations de la brasserie ont été mises à jour.")
-            return redirect('brewery_detail', brewery_id=brewery.id)
+            return redirect('brewery_detail', brewery_slug=brewery.slug)
     else:
         form = BreweryEditForm(instance=brewery)
         
     return render(request, 'edit_brewery.html', {'form': form, 'brewery': brewery})
 
 @login_required(login_url='login')
-def add_brewery_manager(request, brewery_id):
+def add_brewery_manager(request, brewery_slug):
     """Ajoute un utilisateur comme collaborateur."""
-    brewery = get_object_or_404(Brewery, id=brewery_id)
+    brewery = get_object_or_404(Brewery, slug=brewery_slug)
     
     if request.method == 'POST' and brewery.managers.filter(id=request.user.id).exists():
-        user_id = request.POST.get('user_id')
-        user_to_add = get_object_or_404(BeerUser, id=user_id, is_active=True)
+        user_to_add = get_object_or_404(BeerUser, username=request.POST.get('username'), is_active=True)
         brewery.managers.add(user_to_add)
         
         notif = Notification.objects.create(recipient=user_to_add, sender=request.user, notif_type='manager_added', brewery=brewery)
@@ -87,16 +86,16 @@ def add_brewery_manager(request, brewery_id):
             
         messages.success(request, f"{user_to_add.username} a été ajouté aux collaborateurs.")
         
-    return redirect('brewery_detail', brewery_id=brewery.id)
+    return redirect('brewery_detail', brewery_slug=brewery.slug)
 
 @login_required(login_url='login')
-def remove_brewery_manager(request, brewery_id, user_id):
+def remove_brewery_manager(request, brewery_slug, username):
     """Retire l'accès à un collaborateur (sauf soi-même)."""
-    brewery = get_object_or_404(Brewery, id=brewery_id)
+    brewery = get_object_or_404(Brewery, slug=brewery_slug)
     
     if request.method == 'POST' and brewery.managers.filter(id=request.user.id).exists():
-        if request.user.id != int(user_id): # Empêcher de se supprimer soi-même
-            user_to_remove = get_object_or_404(BeerUser, id=user_id)
+        if request.user.username != username: # Empêcher de se supprimer soi-même
+            user_to_remove = get_object_or_404(BeerUser, username=username)
             brewery.managers.remove(user_to_remove)
             
             notif = Notification.objects.create(recipient=user_to_remove, sender=request.user, notif_type='manager_removed', text_content=brewery.name)
@@ -104,15 +103,15 @@ def remove_brewery_manager(request, brewery_id, user_id):
             
             messages.success(request, f"L'accès de {user_to_remove.username} a été retiré.")
             
-    return redirect('brewery_detail', brewery_id=brewery.id)
+    return redirect('brewery_detail', brewery_slug=brewery.slug)
 
 from django.http import JsonResponse
 
 @login_required(login_url='login')
-def api_search_users_for_manager(request, brewery_id):
+def api_search_users_for_manager(request, brewery_slug):
     """Recherche AJAX de collaborateurs, limitée à 10 résultats pour les performances"""
     query = request.GET.get('q', '').strip()
-    brewery = get_object_or_404(Brewery, id=brewery_id)
+    brewery = get_object_or_404(Brewery, slug=brewery_slug)
     
     # Sécurité : Seul un manager peut chercher des collaborateurs
     if not brewery.managers.filter(id=request.user.id).exists():
@@ -139,7 +138,6 @@ def api_search_users_for_manager(request, brewery_id):
             avatar_url = social_account.extra_data.get('picture')
             
         data.append({
-            'id': u.id, 
             'username': u.username,
             'avatar_url': avatar_url
         })

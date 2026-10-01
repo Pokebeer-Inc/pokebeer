@@ -37,7 +37,7 @@
 <!-- LE FORMULAIRE DE FILTRE -->
 <form method="get" class="mb-6">
     {% if notebook %}
-    <input type="hidden" name="notebook_id" value="{{ notebook.id }}">
+    <input type="hidden" name="notebook_slug" value="{{ notebook.slug }}">
     {% endif %}
     
     <div class="join w-full mb-2">
@@ -101,7 +101,7 @@
 
     {% if request.GET.q or request.GET.degree or request.GET.ibu or request.GET.style or request.GET.rating_min and request.GET.rating_min != '0' or request.GET.rating_max and request.GET.rating_max != '10' or request.GET.sort and request.GET.sort != 'date_desc' %}
     <div class="mt-3">
-        <a href="{% if notebook %}{% url 'notebook_detail' notebook.id %}{% else %}{% url 'notebook_all' %}{% endif %}" class="btn btn-outline btn-error btn-sm w-full">
+        <a href="{% if notebook %}{% url 'notebook_detail' notebook.slug %}{% else %}{% url 'notebook_all' %}{% endif %}" class="btn btn-outline btn-error btn-sm w-full">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             Réinitialiser la recherche
         </a>
@@ -117,7 +117,7 @@
 <button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
         data-offset="10" 
         data-container="notebook-drinks-container" 
-        data-url="{% url 'load_more_generic' 'notebook_drinks' %}{% if notebook %}?notebook_id={{ notebook.id }}{% endif %}">
+        data-url="{% url 'load_more_generic' 'notebook_drinks' %}{% if notebook %}?notebook_slug={{ notebook.slug }}{% endif %}">
     Charger plus de dégustations
 </button>
 {% endif %}
@@ -129,7 +129,7 @@
         <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_edit_notebook.close()">✕</button>
         <h3 class="font-bold text-lg text-primary mb-4 border-b border-primary pb-2">Modifier le carnet</h3>
         
-        <form method="post" action="{% url 'edit_custom_notebook' notebook.id %}">
+        <form method="post" action="{% url 'edit_custom_notebook' notebook.slug %}">
             {% csrf_token %}
             <div class="form-control w-full mb-3">
                 <label class="label py-1"><span class="label-text text-xs font-bold">Titre du carnet *</span></label>
@@ -146,7 +146,7 @@
                 <div class="h-40 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box flex flex-col gap-1">
                     {% for drink in user_drinks_all %}
                         <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-2 transition-colors">
-                            <input type="checkbox" name="drinks" value="{{ drink.id }}" class="checkbox checkbox-sm checkbox-primary shrink-0" {% if drink.id in notebook_drink_ids %}checked{% endif %} />
+                            <input type="checkbox" name="drinks" value="{{ drink.slug }}" class="checkbox checkbox-sm checkbox-primary shrink-0" {% if drink.slug in notebook_drink_slugs %}checked{% endif %} />
                             <span class="label-text text-xs font-semibold truncate flex-1">
                                 {{ drink.beer_id.name }} 
                                 {% if drink.note is not null %}<span class="text-[10px] text-gray-500 font-normal ml-1">({{ drink.note }}/10)</span>{% endif %}
@@ -174,7 +174,7 @@
             <form method="dialog" class="flex-1">
                 <button class="btn btn-sm btn-ghost w-full">Annuler</button>
             </form>
-            <form method="post" action="{% url 'delete_custom_notebook' notebook.id %}" class="flex-1">
+            <form method="post" action="{% url 'delete_custom_notebook' notebook.slug %}" class="flex-1">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-error text-white w-full">Oui, supprimer</button>
             </form>

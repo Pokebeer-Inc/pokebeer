@@ -8,4 +8,5 @@ def get_secure_channel_name(user_id):
     msg = str(user_id).encode('utf-8')
     # On génère un hash sécurisé et on garde les 16 premiers caractères
     secure_hash = hmac.new(key, msg, hashlib.sha256).hexdigest()[:16]
-    return f"room_{user_id}_{secure_hash}"
+    # Le nom ne contient pas l'identifiant : il ne révèle rien sur le compte
+    return f"room_{secure_hash}"

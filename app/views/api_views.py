@@ -2,6 +2,7 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST, require_http_methods
 from django.db.models import Q
+from django.db.models.functions import Greatest, Left, Length
 from django.utils.text import slugify
 from google import genai
 from google.genai import types
@@ -11,6 +12,7 @@ from django.contrib.auth.decorators import login_required
 from ..models import Beer, Brewery
 from ..services.ai import ask_zythologue, config_client
 from ..services.quota import consume_chat_quota
+from ..services.slugs import SUFFIX_LENGTH
 
 @require_http_methods(["GET", "POST"])
 @login_required(login_url='login')
@@ -119,8 +121,11 @@ def search_beer(request):
         
     query_slug = slugify(query) # Permet de matcher même si l'utilisateur oublie un accent
         
-    beers = Beer.objects.filter(
-        (Q(name__icontains=query) | Q(slug__icontains=query_slug)),
+    # Le slug se termine par un jeton aléatoire : on ne compare que sa partie lisible
+    beers = Beer.objects.annotate(
+        readable_slug=Left('slug', Greatest(Length('slug') - SUFFIX_LENGTH, 0))
+    ).filter(
+        (Q(name__icontains=query) | Q(readable_slug__icontains=query_slug)),
         is_deleted=False
     ).select_related('brewery_id')[:5]
     

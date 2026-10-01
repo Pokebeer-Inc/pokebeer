@@ -14,7 +14,7 @@ def rating(note="8", **overrides):
 
 class TestRateBeer:
     def rate(self, client, beer, **data):
-        return client.post(reverse("rate_beer", args=[beer.id]), rating(**data), HTTP_REFERER="/beers/")
+        return client.post(reverse("rate_beer", args=[beer.slug]), rating(**data), HTTP_REFERER="/beers/")
 
     def test_rating_is_saved_and_returns_to_referer(self, auth_client, user, beer):
         assert_redirects(self.rate(auth_client, beer), "/beers/")
@@ -37,7 +37,7 @@ class TestRateBeer:
 
     def test_only_own_notebooks_are_used(self, auth_client, user, other_user, beer):
         mine, foreign = f.make_notebook(user), f.make_notebook(other_user)
-        self.rate(auth_client, beer, notebooks=[mine.id, foreign.id])
+        self.rate(auth_client, beer, notebooks=[mine.slug, foreign.slug])
         assert list(Drinks.objects.get().notebooks.all()) == [mine]
 
     @pytest.mark.parametrize("note", ["0", "10", ""])
@@ -51,11 +51,11 @@ class TestRateBeer:
         assert not Drinks.objects.exists()
 
     def test_get_does_not_rate(self, auth_client, beer):
-        auth_client.get(reverse("rate_beer", args=[beer.id]))
+        auth_client.get(reverse("rate_beer", args=[beer.slug]))
         assert not Drinks.objects.exists()
 
     def test_unknown_beer_is_404(self, auth_client):
-        assert auth_client.post(reverse("rate_beer", args=[999999]), rating()).status_code == 404
+        assert auth_client.post(reverse("rate_beer", args=["unknown-slug"]), rating()).status_code == 404
 
 
 class TestModifyRating:
@@ -64,7 +64,7 @@ class TestModifyRating:
         drink = f.make_drink(user, beer, note=3)
         old.drinks.add(drink)
 
-        response = auth_client.post(reverse("modify_rate_beer", args=[drink.id]), rating(note="9", notebooks=[new.id]))
+        response = auth_client.post(reverse("modify_rate_beer", args=[drink.slug]), rating(note="9", notebooks=[new.slug]))
 
         assert_redirects(response, reverse("beer_detail", args=[beer.slug]))
         drink.refresh_from_db()
@@ -74,12 +74,12 @@ class TestModifyRating:
     def test_foreign_notebooks_of_the_drink_are_left_untouched(self, auth_client, user, other_user, beer):
         drink = f.make_drink(user, beer)
         foreign = f.make_notebook(other_user, drinks=[drink])
-        auth_client.post(reverse("modify_rate_beer", args=[drink.id]), rating())
+        auth_client.post(reverse("modify_rate_beer", args=[drink.slug]), rating())
         assert list(drink.notebooks.all()) == [foreign]
 
     def test_cannot_modify_someone_else_rating(self, other_client, user, beer):
         drink = f.make_drink(user, beer, note=3)
-        assert other_client.post(reverse("modify_rate_beer", args=[drink.id]), rating(note="10")).status_code == 404
+        assert other_client.post(reverse("modify_rate_beer", args=[drink.slug]), rating(note="10")).status_code == 404
         drink.refresh_from_db()
         assert drink.note == 3
 
@@ -90,7 +90,7 @@ class TestDeleteDrink:
         user.top_beer_1 = user.top_beer_3 = beer
         user.save()
 
-        auth_client.post(reverse("delete_drink", args=[drink.id]))
+        auth_client.post(reverse("delete_drink", args=[drink.slug]))
 
         user.refresh_from_db()
         assert not Drinks.objects.exists()
@@ -98,10 +98,10 @@ class TestDeleteDrink:
 
     def test_get_does_not_delete(self, auth_client, user, beer):
         drink = f.make_drink(user, beer)
-        auth_client.get(reverse("delete_drink", args=[drink.id]))
+        auth_client.get(reverse("delete_drink", args=[drink.slug]))
         assert Drinks.objects.filter(pk=drink.pk).exists()
 
     def test_cannot_delete_someone_else_drink(self, other_client, user, beer):
         drink = f.make_drink(user, beer)
-        assert other_client.post(reverse("delete_drink", args=[drink.id])).status_code == 404
+        assert other_client.post(reverse("delete_drink", args=[drink.slug])).status_code == 404
         assert Drinks.objects.filter(pk=drink.pk).exists()

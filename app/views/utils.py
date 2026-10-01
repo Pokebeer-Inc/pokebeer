@@ -8,11 +8,11 @@ TIER_NAMES = ["Bloqué", "Bronze", "Argent", "Or", "Platine"]
 TIER_SLUGS = ["locked", "bronze", "silver", "gold", "platinum"]
 TIER_XP_REWARDS = [0, 500, 1000, 1500, 2000]
 
-def digit_ids(values):
-    """Ne garde que les identifiants numériques d'une liste envoyée par un formulaire."""
-    return [int(value) for value in values if value.isdecimal() and value.isascii()]
-
 MAX_OFFSET = 100_000
+
+def posted_notebooks(request):
+    """Carnets de l'utilisateur désignés par les slugs du formulaire ; les slugs inconnus ou d'autrui sont ignorés."""
+    return list(request.user.custom_notebooks.filter(slug__in=request.POST.getlist('notebooks')))
 
 def parse_offset(request):
     """Lit le paramètre ?offset= d'un chargement paginé. Renvoie None s'il n'est pas un entier entre 0 et MAX_OFFSET."""
@@ -50,7 +50,7 @@ def get_user_achievements(user):
     # Brasserie Ours doré
     has_ours = 1 if Drinks.objects.filter(drinker_id=user, beer_id__brewery_id__name__icontains='ours dor').exists() else 0
     ours_brewery = Brewery.objects.filter(name__icontains='ours dor').first()
-    ours_url = reverse('brewery_detail', args=[ours_brewery.id]) if ours_brewery else None
+    ours_url = reverse('brewery_detail', args=[ours_brewery.slug]) if ours_brewery else None
     
     # Brasserie ...
     

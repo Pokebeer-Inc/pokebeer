@@ -100,7 +100,7 @@ class BarAdmin(ModelAdmin):
 
         custom_urls = [
             path(
-                "<int:bar_id>/verify/",
+                "<slug:bar_slug>/verify/",
                 self.admin_site.admin_view(
                     self.verify_bar
                 ),
@@ -110,7 +110,7 @@ class BarAdmin(ModelAdmin):
 
         return custom_urls + urls
 
-    def verify_bar(self, request, bar_id):
+    def verify_bar(self, request, bar_slug):
 
         if request.method != "POST":
             return JsonResponse(
@@ -133,7 +133,7 @@ class BarAdmin(ModelAdmin):
 
         bar = get_object_or_404(
             Bar,
-            pk=bar_id,
+            slug=bar_slug,
         )
 
         bar.is_verified = True
@@ -151,7 +151,7 @@ class BarAdmin(ModelAdmin):
         return JsonResponse(
             {
                 "success": True,
-                "bar_id": bar.id,
+                "bar_slug": bar.slug,
                 "is_verified": True,
             }
         )
@@ -492,7 +492,7 @@ def dashboard_callback(request, context):
             longitude__isnull=False,
         )
         .values(
-            "id",
+            "slug",
             "name",
             "description",
             "address",
@@ -514,7 +514,7 @@ def dashboard_callback(request, context):
     for bar in bars:
         bar["verify_url"] = reverse(
             "admin:bar_verify",
-            args=[bar["id"]],
+            args=[bar["slug"]],
         )
 
     context.update({

@@ -52,7 +52,7 @@ class TestAddBeer:
 
     def test_tasting_can_only_be_filed_in_own_notebooks(self, auth_client, user, other_user):
         mine, foreign = f.make_notebook(user), f.make_notebook(other_user)
-        auth_client.post(self.URL, add_beer_data(notebooks=[mine.id, foreign.id]))
+        auth_client.post(self.URL, add_beer_data(notebooks=[mine.slug, foreign.slug]))
         drink = Drinks.objects.get()
         assert list(drink.notebooks.all()) == [mine]
 
@@ -75,12 +75,12 @@ class TestReAddSoftDeletedBeer:
     def test_can_be_added_again_as_a_new_beer(self, auth_client, user, deleted):
         assert_redirects(auth_client.post(self.URL, add_beer_data(name="Test IPA")), reverse("index"))
         new = Beer.objects.get(name="Test IPA", is_deleted=False)
-        assert new.pk != deleted.pk and new.slug == "test-ipa-1" and new.added_by == user
+        assert new.pk != deleted.pk and new.slug.startswith("test-ipa-") and new.slug != deleted.slug and new.added_by == user
 
     def test_deleted_beer_keeps_its_url_and_tastings(self, auth_client, deleted):
         auth_client.post(self.URL, add_beer_data(name="Test IPA"))
         old = Beer.objects.get(pk=deleted.pk)
-        assert (old.slug, old.is_deleted, Drinks.objects.filter(beer_id=old).count()) == ("test-ipa", True, 1)
+        assert (old.slug, old.is_deleted, Drinks.objects.filter(beer_id=old).count()) == (deleted.slug, True, 1)
 
     def test_re_added_beer_is_still_protected_against_duplicates(self, auth_client, deleted):
         auth_client.post(self.URL, add_beer_data(name="Test IPA"))
@@ -122,9 +122,9 @@ class TestAddBeerErrors:
 
     def test_selected_notebooks_stay_ticked(self, auth_client, user, beer):
         notebook = f.make_notebook(user)
-        response = self.submit(auth_client, **{"beer-name": "test ipa", "notebooks": [notebook.id, "abc"]})
-        assert response.context["current_drink"] == {"notebook_ids": [notebook.id]}
-        assert re.search(rf'name="notebooks" value="{notebook.id}"[^>]*checked', response.content.decode())
+        response = self.submit(auth_client, **{"beer-name": "test ipa", "notebooks": [notebook.slug, "abc"]})
+        assert response.context["current_drink"] == {"notebook_slugs": [notebook.slug]}
+        assert re.search(rf'name="notebooks" value="{notebook.slug}"[^>]*checked', response.content.decode())
 
     def test_name_taken_between_validation_and_save_is_reported_without_crash(self, auth_client, monkeypatch, brewery):
         # Simule deux soumissions validées au même instant : seules les vérifications en base restent actives
@@ -158,7 +158,7 @@ class TestBeerDetail:
         drink = f.make_drink(user, beer, note=6)
         beer.brewery_id.managers.add(user)
         context = auth_client.get(reverse("beer_detail", args=[beer.slug])).context
-        assert (context["user_rating"]["id"], context["user_rating"]["note"]) == (drink.id, 6)
+        assert (context["user_rating"]["slug"], context["user_rating"]["note"]) == (drink.slug, 6)
         assert context["is_brewery_manager"]
 
 

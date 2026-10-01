@@ -51,24 +51,24 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (spotsContainer) {
         document.querySelectorAll('.spot-data-item').forEach(item => {
-            const id = item.dataset.id;
+            const slug = item.dataset.slug;
             const lat = parseFloat(item.dataset.lat);
             const lng = parseFloat(item.dataset.lng);
             // On récupère le design HTML du popup déjà formaté par Django
             const popupHtml = item.querySelector('.popup-template').innerHTML;
             
-            spotsData[id] = {
-                id: id,
+            spotsData[slug] = {
+                slug: slug,
                 title: item.dataset.title,
                 description: item.dataset.desc,
                 date: item.dataset.dateVal,
                 lat: lat,
                 lng: lng,
                 is_owner: item.dataset.isOwner === 'true',
-                // Nettoyage des chaînes "id1,id2," en vrais tableaux JavaScript
-                drink_ids: item.dataset.drinkIds.split(',').filter(Boolean),
-                other_beer_ids: item.dataset.otherBeerIds.split(',').filter(Boolean),
-                friend_ids: item.dataset.friendIds.split(',').filter(Boolean)
+                // Nettoyage des chaînes "slug1,slug2," en vrais tableaux JavaScript
+                drink_slugs: item.dataset.drinkSlugs.split(',').filter(Boolean),
+                other_beer_slugs: item.dataset.otherBeerSlugs.split(',').filter(Boolean),
+                friend_usernames: item.dataset.friendUsernames.split(',').filter(Boolean)
             };
 
             // Ajout direct du marqueur sur la carte
@@ -142,12 +142,12 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // Gestion de l'ouverture de la modale d'édition
-    window.openEditModal = function(spotId) {
-        const data = spotsData[spotId];
+    window.openEditModal = function(spotSlug) {
+        const data = spotsData[spotSlug];
         if (!data) return;
 
         document.getElementById('modal-title').innerText = "Modifier le lieu";
-        document.getElementById('spot-id').value = data.id;
+        document.getElementById('spot-slug').value = data.slug;
         document.getElementById('spot-title').value = data.title;
         document.getElementById('spot-desc').value = data.description;
         document.getElementById('spot-date').value = data.date;
@@ -157,17 +157,17 @@ document.addEventListener("DOMContentLoaded", function() {
         // Gestion de l'affichage des bières
         document.querySelectorAll('.drink-item').forEach(item => {
             const isDeleted = item.getAttribute('data-is-deleted') === 'true';
-            const drinkId = item.getAttribute('data-drink-id');
+            const drinkSlug = item.getAttribute('data-drink-slug');
             
-            item.style.display = (!isDeleted || data.drink_ids.includes(drinkId)) ? 'flex' : 'none';
+            item.style.display = (!isDeleted || data.drink_slugs.includes(drinkSlug)) ? 'flex' : 'none';
         });
 
         // Gestion du cochage / grisage des bières
         document.querySelectorAll('.drink-checkbox').forEach(cb => {
-            const beerId = cb.getAttribute('data-beer-id');
-            cb.checked = data.drink_ids.includes(cb.value);
+            const beerSlug = cb.getAttribute('data-beer-slug');
+            cb.checked = data.drink_slugs.includes(cb.value);
             
-            if (data.other_beer_ids.includes(beerId)) {
+            if (data.other_beer_slugs.includes(beerSlug)) {
                 cb.disabled = true;
                 cb.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
             } else {
@@ -183,9 +183,9 @@ document.addEventListener("DOMContentLoaded", function() {
         if (data.is_owner) {
             friendsSection.style.display = 'block';
             document.querySelectorAll('.friend-checkbox').forEach(cb => {
-                cb.checked = data.friend_ids.includes(cb.value);
+                cb.checked = data.friend_usernames.includes(cb.value);
             });
-            deleteForm.action = `/delete-spot/${spotId}/`;
+            deleteForm.action = `/delete-spot/${spotSlug}/`;
             deleteForm.style.display = "block";
         } else {
             friendsSection.style.display = 'none';
@@ -200,7 +200,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (isMovingMode) return;
 
         document.getElementById('modal-title').innerText = "Ajouter un lieu";
-        document.getElementById('spot-id').value = ""; 
+        document.getElementById('spot-slug').value = ""; 
         document.getElementById('spot-title').value = "";
         document.getElementById('spot-desc').value = "";
         

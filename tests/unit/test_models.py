@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from decimal import Decimal
 
@@ -13,19 +14,20 @@ pytestmark = pytest.mark.django_db
 
 
 class TestBeerSlug:
-    def test_slug_is_ascii_and_lowercase(self):
-        assert f.make_beer(name="Pünk I.P.A").slug == "punk-ipa"
+    def test_slug_is_ascii_lowercase_and_ends_with_a_random_token(self):
+        assert re.fullmatch(r"punk-ipa-[a-z0-9]{12}", f.make_beer(name="Pünk I.P.A").slug)
 
-    def test_colliding_slugs_get_incremental_suffix(self):
+    def test_same_name_gives_distinct_slugs(self):
         slugs = [f.make_beer(name=name).slug for name in ("Kölsch", "Kolsch", "KOLSCH!")]
-        assert slugs == ["kolsch", "kolsch-1", "kolsch-2"]
+        assert len(set(slugs)) == 3 and all(slug.startswith("kolsch-") for slug in slugs)
 
     def test_slug_is_stable_when_beer_is_renamed(self):
         beer = f.make_beer(name="Original")
+        slug = beer.slug
         beer.name = "Renamed"
         beer.save()
         beer.refresh_from_db()
-        assert beer.slug == "original"
+        assert beer.slug == slug
 
 
 class TestBeerEmbedding:
@@ -92,7 +94,7 @@ class TestUniqueness:
     def test_soft_deleted_beer_frees_its_name_but_keeps_its_slug(self, beer):
         Beer.objects.filter(pk=beer.pk).update(is_deleted=True)
         again = f.make_beer(name=beer.name)
-        assert again.slug == f"{beer.slug}-1"
+        assert again.slug != beer.slug and Beer.objects.get(pk=beer.pk).slug == beer.slug
 
     def test_restoring_a_beer_whose_name_was_reused_is_refused(self, beer):
         Beer.objects.filter(pk=beer.pk).update(is_deleted=True)
