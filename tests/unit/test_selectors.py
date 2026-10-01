@@ -133,10 +133,10 @@ class TestFilteredNotebookDrinks:
 
     def test_notebook_filter(self, user, notes):
         notebook = f.make_notebook(user, drinks=[notes[5]])
-        assert list(get_filtered_notebook_drinks(request_for(user, notebook_id=str(notebook.id)))) == [notes[5]]
+        assert list(get_filtered_notebook_drinks(request_for(user, notebook_slug=notebook.slug))) == [notes[5]]
 
-    def test_non_numeric_notebook_id_is_ignored(self, user, notes):
-        assert get_filtered_notebook_drinks(request_for(user, notebook_id="1 OR 1=1")).count() == 3
+    def test_unknown_notebook_slug_matches_nothing(self, user, notes):
+        assert get_filtered_notebook_drinks(request_for(user, notebook_slug="1 OR 1=1")).count() == 0
 
     @pytest.mark.parametrize("sort, expected", [("note_desc", [10, 5, 0]), ("name_desc", [10, 5, 0]), ("name_asc", [0, 5, 10])])
     def test_sorts(self, user, notes, sort, expected):

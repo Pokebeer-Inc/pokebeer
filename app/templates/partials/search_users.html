@@ -8,7 +8,7 @@
             <div class="flex justify-between items-start relative z-10">
                 <div class="pointer-events-none flex flex-col">
                     <h4 class="font-bold text-sm leading-tight">{{ beer.name }}</h4>
-                    <a href="{% url 'brewery_detail' beer.brewery_id.id %}" class="text-xs text-gray-500 inline-block mb-1 pointer-events-auto hover:text-primary transition-colors w-fit">
+                    <a href="{% url 'brewery_detail' beer.brewery_id.slug %}" class="text-xs text-gray-500 inline-block mb-1 pointer-events-auto hover:text-primary transition-colors w-fit">
                         {{ beer.brewery_id.name }}
                     </a>
                 </div>

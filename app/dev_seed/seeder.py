@@ -10,7 +10,6 @@ from django.contrib.auth.models import Group
 from django.contrib.sites.models import Site
 from django.db import transaction
 from django.utils import timezone
-from django.utils.text import slugify
 
 from app.models import (
     Bar, Beer, BeerSpot, BeerUser, Brewery, CustomNotebook, DrinkReaction, Drinks,
@@ -116,7 +115,6 @@ class DevDatabaseSeeder:
         self.beers = self._bulk(Beer, [
             Beer(
                 name=name,
-                slug=slugify(name),
                 style=style,
                 degree=Decimal(str(degree)),
                 bitterness=ibu,

@@ -6,7 +6,7 @@ from django.db.models import Count, Q, F
 
 from ..forms import BeerForm, DrinkForm, clear_invalid_fields, error_summary
 from ..models import Beer, Drinks, Notification, UserFollow, DrinkReaction
-from .utils import get_excluded_users, check_and_notify_achievements
+from .utils import get_excluded_users, check_and_notify_achievements, posted_notebooks
 from ..services.realtime_service import broadcast_notifications
 
 def _save_new_beer(user, beer_form, drink_form):
@@ -30,7 +30,7 @@ def add_beer_view(request):
         beer_form = BeerForm(request.POST, request.FILES, prefix='beer', user=request.user)
         drink_form = DrinkForm(request.POST, prefix='drink')
         
-        notebook_ids = [int(i) for i in request.POST.getlist('notebooks') if i.isdigit()]
+        notebooks = posted_notebooks(request)
         forms_valid = beer_form.is_valid() & drink_form.is_valid()  # & : valide les deux pour afficher toutes les erreurs
 
         if forms_valid and not _save_new_beer(request.user, beer_form, drink_form):
@@ -41,10 +41,8 @@ def add_beer_view(request):
         if forms_valid:
             new_beer, new_drink = beer_form.instance, drink_form.instance
             
-            if notebook_ids:
-                notebooks = request.user.custom_notebooks.filter(id__in=notebook_ids)
-                for nb in notebooks:
-                    nb.drinks.add(new_drink)
+            for notebook in notebooks:
+                notebook.drinks.add(new_drink)
             
             # Trouve tous mes abonnés
             followers = UserFollow.objects.filter(followed=request.user).values_list('follower_id', flat=True)
@@ -77,7 +75,7 @@ def add_beer_view(request):
         return render(request, 'add_beer.html', {
             'beer_form': beer_form,
             'drink_form': drink_form,
-            'current_drink': {'notebook_ids': notebook_ids},
+            'current_drink': {'notebook_slugs': [notebook.slug for notebook in notebooks]},
         })
     else:
         # On lit le paramètre dans l'URL ?brewery=
@@ -124,10 +122,10 @@ def beer_detail_view(request, beer_slug):
             'note': user_drink.note,
             'comment': user_drink.comment,
             'date': user_drink.date,
-            'id': user_drink.id,
+            'slug': user_drink.slug,
             'likes': getattr(user_drink, 'likes', 0),
             'dislikes': getattr(user_drink, 'dislikes', 0),
-            'notebook_ids': list(user_drink.notebooks.values_list('id', flat=True))
+            'notebook_slugs': list(user_drink.notebooks.values_list('slug', flat=True))
         }
         rating_from = DrinkForm()
         rating_from.fields['date'].initial = user_drink.date

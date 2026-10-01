@@ -1,29 +1,29 @@
 let pressTimer;
-let currentDrinkId = null;
+let currentDrinkSlug = null;
 let isPressing = false; // Permet de savoir si on est en train de maintenir l'appui
 let lastTapTime = 0;
 
 // Gère le double-tap et double-clic
-function handleDoubleTap(e, drinkId) {
+function handleDoubleTap(e, drinkSlug) {
     const currentTime = new Date().getTime();
     const tapLength = currentTime - lastTapTime;
     
     // Si le temps entre 2 clics est très court (moins de 400ms)
     if (tapLength < 400 && tapLength > 0) {
-        react(e, drinkId, true); // Force un Like
+        react(e, drinkSlug, true); // Force un Like
         e.preventDefault(); // Empêche le zoom par défaut du navigateur sur mobile
     }
     lastTapTime = currentTime;
 }
 
 // Démarre le chronomètre au toucher/clic long
-function startPress(e, drinkId) {
+function startPress(e, drinkSlug) {
     if (e.type === 'mousedown' && e.button !== 0) return; // Ignore clic droit
     
     isPressing = true;
     pressTimer = setTimeout(() => {
         if (isPressing) { // Vérifie qu'on est toujours en train d'appuyer
-            showReactions(drinkId);
+            showReactions(drinkSlug);
             // Petit retour haptique sur mobile pour indiquer que le menu s'ouvre
             if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(50);
         }
@@ -37,13 +37,13 @@ function cancelPress() {
 }
 
 // Affiche le menu des pouces
-function showReactions(drinkId) {
+function showReactions(drinkSlug) {
     hideAllReactions();
-    const menu = document.getElementById('reactions-' + drinkId);
+    const menu = document.getElementById('reactions-' + drinkSlug);
     if (menu) {
         menu.classList.remove('hidden', 'scale-0');
         menu.classList.add('scale-100');
-        currentDrinkId = drinkId;
+        currentDrinkSlug = drinkSlug;
     }
 }
 
@@ -53,24 +53,24 @@ function hideAllReactions() {
         menu.classList.remove('scale-100');
         menu.classList.add('hidden', 'scale-0');
     });
-    currentDrinkId = null;
+    currentDrinkSlug = null;
 }
 
 // Cache le menu si on clique n'importe où ailleurs (SAUF sur le menu lui-même)
 document.addEventListener('pointerdown', (e) => { // pointerdown est plus fiable que click sur mobile/desktop
-    if (currentDrinkId && !e.target.closest('.reaction-menu') && !e.target.closest('.drink-card')) {
+    if (currentDrinkSlug && !e.target.closest('.reaction-menu') && !e.target.closest('.drink-card')) {
         hideAllReactions();
     }
 });
 
 // Envoi de la réaction (Like/Dislike) au serveur
-function react(event, drinkId, isLike) {
+function react(event, drinkSlug, isLike) {
     event.preventDefault(); // Empêche les comportements par défaut (comme le double clic sur mobile)
     event.stopPropagation(); // Évite que le pointerdown global ou d'autres clics soient déclenchés
     
     hideAllReactions();
     
-    fetch(`/drink/${drinkId}/react/`, {
+    fetch(`/drink/${drinkSlug}/react/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ function react(event, drinkId, isLike) {
     .then(data => {
         if (data.success) {
             // Met à jour le Score Global
-            const scoreSpan = document.getElementById('score-val-' + drinkId);
+            const scoreSpan = document.getElementById('score-val-' + drinkSlug);
             scoreSpan.innerText = data.score > 0 ? '+' + data.score : data.score;
             
             scoreSpan.classList.remove('text-success', 'text-error', 'text-gray-300', 'opacity-50');
@@ -94,12 +94,12 @@ function react(event, drinkId, isLike) {
             }
 
             // Met à jour les petits compteurs en bas à droite
-            document.getElementById('likes-count-' + drinkId).innerText = data.likes;
-            document.getElementById('dislikes-count-' + drinkId).innerText = data.dislikes;
+            document.getElementById('likes-count-' + drinkSlug).innerText = data.likes;
+            document.getElementById('dislikes-count-' + drinkSlug).innerText = data.dislikes;
 
             // Met à jour les couleurs des petits pouces en bas à droite
-            const thumbUp = document.getElementById('thumb-up-' + drinkId);
-            const thumbDown = document.getElementById('thumb-down-' + drinkId);
+            const thumbUp = document.getElementById('thumb-up-' + drinkSlug);
+            const thumbDown = document.getElementById('thumb-down-' + drinkSlug);
             
             thumbUp.classList.remove('text-success');
             thumbDown.classList.remove('text-error');
@@ -115,7 +115,7 @@ function react(event, drinkId, isLike) {
             // ---------------------------------------------------------
             
             // Mettre à jour la valeur data-score de la carte
-            const card = document.getElementById('drink-card-' + drinkId);
+            const card = document.getElementById('drink-card-' + drinkSlug);
             if (card) {
                 card.dataset.score = data.score;
             }

@@ -47,20 +47,20 @@
 <div id="spots-data-container" class="hidden">
     {% for spot in user_spots %}
     <div class="spot-data-item"
-    data-id="{{ spot.id }}"
+    data-slug="{{ spot.slug }}"
     data-title="{{ spot.title|escapejs }}"
     data-desc="{{ spot.description|escapejs }}"
     data-date-val="{{ spot.date|date:'Y-m-d' }}"
     data-lat="{{ spot.latitude|stringformat:'f' }}"
     data-lng="{{ spot.longitude|stringformat:'f' }}"
     data-is-owner="{% if spot.user == request.user %}true{% else %}false{% endif %}"
-    data-drink-ids="{% for d in spot.drinks.all %}{% if d.drinker_id == request.user %}{{ d.id }},{% endif %}{% endfor %}"
-    data-other-beer-ids="{% for d in spot.drinks.all %}{% if d.drinker_id != request.user %}{{ d.beer_id.id }},{% endif %}{% endfor %}"
-    data-friend-ids="{% for f in spot.friends.all %}{{ f.id }},{% endfor %}">
+    data-drink-slugs="{% for d in spot.drinks.all %}{% if d.drinker_id == request.user %}{{ d.slug }},{% endif %}{% endfor %}"
+    data-other-beer-slugs="{% for d in spot.drinks.all %}{% if d.drinker_id != request.user %}{{ d.beer_id.slug }},{% endif %}{% endfor %}"
+    data-friend-usernames="{% for f in spot.friends.all %}{{ f.username }},{% endfor %}">
     
     <div class="popup-template">
         <div class="text-sm font-montserrat relative pr-5 min-w-40">
-            <button onclick="openEditModal({{ spot.id }})" class="absolute top-0 right-0 text-gray-500 hover:text-primary z-50 p-1" title="Modifier">
+            <button onclick="openEditModal('{{ spot.slug }}')" class="absolute top-0 right-0 text-gray-500 hover:text-primary z-50 p-1" title="Modifier">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             </button>
             
@@ -92,11 +92,11 @@
 </div>
 <div id="places-data-container" class="hidden">
     {% for bar in bars %}
-    <div class="place-data-item" data-type="bar" data-url="{% url 'bar_detail' bar.id %}" data-lat="{{ bar.latitude|stringformat:'f' }}" data-lng="{{ bar.longitude|stringformat:'f' }}" data-name="{{ bar.name|escapejs }}"></div>
+    <div class="place-data-item" data-type="bar" data-url="{% url 'bar_detail' bar.slug %}" data-lat="{{ bar.latitude|stringformat:'f' }}" data-lng="{{ bar.longitude|stringformat:'f' }}" data-name="{{ bar.name|escapejs }}"></div>
     {% endfor %}
     
     {% for brewery in breweries %}
-    <div class="place-data-item" data-type="brewery" data-url="{% url 'brewery_detail' brewery.id %}" data-lat="{{ brewery.latitude|stringformat:'f' }}" data-lng="{{ brewery.longitude|stringformat:'f' }}" data-name="{{ brewery.name|escapejs }}"></div>
+    <div class="place-data-item" data-type="brewery" data-url="{% url 'brewery_detail' brewery.slug %}" data-lat="{{ brewery.latitude|stringformat:'f' }}" data-lng="{{ brewery.longitude|stringformat:'f' }}" data-name="{{ brewery.name|escapejs }}"></div>
     {% endfor %}
 </div>
 
@@ -110,7 +110,7 @@
         
         <form method="post" class="flex flex-col gap-3">
             {% csrf_token %}
-            <input type="hidden" name="spot_id" id="spot-id">
+            <input type="hidden" name="spot_slug" id="spot-slug">
             
             <div class="form-control w-full">
                 <label class="label py-1"><span class="label-text text-xs font-bold">Nom du lieu *</span></label>
@@ -154,9 +154,9 @@
                 <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box flex flex-col">
                     {% for drink in user_drinks %}
                     <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors drink-item" 
-                    data-drink-id="{{ drink.id }}" 
+                    data-drink-slug="{{ drink.slug }}" 
                     data-is-deleted="{% if drink.beer_id.is_deleted %}true{% else %}false{% endif %}">
-                    <input type="checkbox" name="drinks" value="{{ drink.id }}" data-beer-id="{{ drink.beer_id.id }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
+                    <input type="checkbox" name="drinks" value="{{ drink.slug }}" data-beer-slug="{{ drink.beer_id.slug }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
                     <span class="label-text text-xs font-semibold">
                         {{ drink.beer_id.name }} 
                         {% if drink.note is not null %}
@@ -181,7 +181,7 @@
             <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box">
                 {% for follow in followers %}
                 <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors">
-                    <input type="checkbox" name="friends" value="{{ follow.follower.id }}" class="checkbox checkbox-sm checkbox-secondary friend-checkbox" />
+                    <input type="checkbox" name="friends" value="{{ follow.follower.username }}" class="checkbox checkbox-sm checkbox-secondary friend-checkbox" />
                     <span class="label-text text-xs font-semibold">{{ follow.follower.username }}</span>
                 </label>
                 {% empty %}

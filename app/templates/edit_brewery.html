@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-{% url 'brewery_detail' brewery.id as brewery_detail_url %}
+{% url 'brewery_detail' brewery.slug as brewery_detail_url %}
 {% include "partials/page_header.html" with title="Modifier la brasserie" subtitle=brewery.name back_url=brewery_detail_url %}
 
 <div class="card bg-white/90 backdrop-blur-md border border-white/50 mt-10 relative z-10 max-w-2xl mx-auto mb-10 shadow-sm">
@@ -41,7 +41,7 @@
             </div>
             
             <div class="flex gap-3 mt-4">
-                <a href="{% url 'brewery_detail' brewery.id %}" class="btn btn-ghost flex-1">Annuler</a>
+                <a href="{% url 'brewery_detail' brewery.slug %}" class="btn btn-ghost flex-1">Annuler</a>
                 <button type="submit" class="btn btn-primary text-white flex-1 shadow-md">Enregistrer</button>
             </div>
         </form>

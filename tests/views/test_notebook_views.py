@@ -29,9 +29,9 @@ class TestNotebookPages:
     def test_detail_shows_only_the_notebook_drinks(self, auth_client, user):
         inside, outside = f.make_drink(user, f.make_beer(style="Stout, IPA")), f.make_drink(user)
         notebook = f.make_notebook(user, drinks=[inside])
-        context = auth_client.get(reverse("notebook_detail", args=[notebook.id])).context
+        context = auth_client.get(reverse("notebook_detail", args=[notebook.slug])).context
         assert list(context["my_drinks"]) == [inside]
-        assert context["notebook_drink_ids"] == [inside.id]
+        assert context["notebook_drink_slugs"] == [inside.slug]
         assert context["styles"] == ["IPA", "Stout"]
 
     def test_all_drinks_view_paginates_to_ten(self, auth_client, user):
@@ -42,7 +42,7 @@ class TestNotebookPages:
     @pytest.mark.parametrize("name, method", [("notebook_detail", "get"), ("edit_custom_notebook", "post"), ("delete_custom_notebook", "post")])
     def test_other_users_notebooks_are_404(self, auth_client, other_user, name, method):
         notebook = f.make_notebook(other_user)
-        assert getattr(auth_client, method)(reverse(name, args=[notebook.id]), {"title": "Pirate"}).status_code == 404
+        assert getattr(auth_client, method)(reverse(name, args=[notebook.slug]), {"title": "Pirate"}).status_code == 404
         assert CustomNotebook.objects.get(pk=notebook.pk).title != "Pirate"
 
 
@@ -51,7 +51,7 @@ class TestCreateNotebook:
 
     def test_creates_with_own_drinks_only(self, auth_client, user, other_user):
         mine, foreign = f.make_drink(user), f.make_drink(other_user)
-        assert_redirects(auth_client.post(self.URL, {"title": "Favoris", "drinks": [mine.id, foreign.id]}), reverse("notebook"))
+        assert_redirects(auth_client.post(self.URL, {"title": "Favoris", "drinks": [mine.slug, foreign.slug]}), reverse("notebook"))
         assert list(CustomNotebook.objects.get(user=user).drinks.all()) == [mine]
 
     def test_title_is_required(self, auth_client):
@@ -83,9 +83,9 @@ class TestCreateNotebook:
         auth_client.post(self.URL, {"title": "x" * 150})
         assert user.custom_notebooks.get().title == "x" * 150
 
-    def test_non_numeric_drink_ids_are_ignored(self, auth_client, user):
+    def test_unknown_drink_slugs_are_ignored(self, auth_client, user):
         drink = f.make_drink(user)
-        auth_client.post(self.URL, {"title": "Mixte", "drinks": [drink.id, "abc", "-1"]})
+        auth_client.post(self.URL, {"title": "Mixte", "drinks": [drink.slug, "abc", "-1"]})
         assert list(user.custom_notebooks.get().drinks.all()) == [drink]
 
 
@@ -94,7 +94,7 @@ class TestEditAndDeleteNotebook:
         old, new, foreign = f.make_drink(user), f.make_drink(user), f.make_drink(other_user)
         notebook = f.make_notebook(user, drinks=[old])
 
-        auth_client.post(reverse("edit_custom_notebook", args=[notebook.id]), {"title": "Renommé", "drinks": [new.id, foreign.id]})
+        auth_client.post(reverse("edit_custom_notebook", args=[notebook.slug]), {"title": "Renommé", "drinks": [new.slug, foreign.slug]})
 
         notebook.refresh_from_db()
         assert notebook.title == "Renommé"
@@ -102,27 +102,27 @@ class TestEditAndDeleteNotebook:
 
     def test_edit_without_title_changes_nothing(self, auth_client, user):
         notebook = f.make_notebook(user, title="Garde", drinks=[f.make_drink(user)])
-        auth_client.post(reverse("edit_custom_notebook", args=[notebook.id]), {"title": ""})
+        auth_client.post(reverse("edit_custom_notebook", args=[notebook.slug]), {"title": ""})
         notebook.refresh_from_db()
         assert (notebook.title, notebook.drinks.count()) == ("Garde", 1)
 
     def test_too_long_title_on_edit_changes_nothing_and_explains(self, auth_client, user):
         notebook = f.make_notebook(user, title="Garde", drinks=[f.make_drink(user)])
-        response = auth_client.post(reverse("edit_custom_notebook", args=[notebook.id]), {"title": "x" * 151, "drinks": []})
-        assert_redirects(response, reverse("notebook_detail", args=[notebook.id]))
+        response = auth_client.post(reverse("edit_custom_notebook", args=[notebook.slug]), {"title": "x" * 151, "drinks": []})
+        assert_redirects(response, reverse("notebook_detail", args=[notebook.slug]))
         notebook.refresh_from_db()
         assert (notebook.title, notebook.drinks.count()) == ("Garde", 1)
         assert any(m.startswith("Le carnet n'a pas pu être modifié : Titre :") for m in messages_of(response))
 
-    def test_non_numeric_drink_ids_on_edit_are_ignored(self, auth_client, user):
+    def test_unknown_drink_slugs_on_edit_are_ignored(self, auth_client, user):
         drink = f.make_drink(user)
         notebook = f.make_notebook(user)
-        auth_client.post(reverse("edit_custom_notebook", args=[notebook.id]), {"title": "Ok", "drinks": [drink.id, "abc"]})
+        auth_client.post(reverse("edit_custom_notebook", args=[notebook.slug]), {"title": "Ok", "drinks": [drink.slug, "abc"]})
         assert list(notebook.drinks.all()) == [drink]
 
     def test_delete_keeps_the_drinks(self, auth_client, user):
         drink = f.make_drink(user)
         notebook = f.make_notebook(user, drinks=[drink])
-        auth_client.post(reverse("delete_custom_notebook", args=[notebook.id]))
+        auth_client.post(reverse("delete_custom_notebook", args=[notebook.slug]))
         assert not CustomNotebook.objects.exists()
         assert type(drink).objects.filter(pk=drink.pk).exists()

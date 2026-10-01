@@ -57,7 +57,8 @@ class TestBroadcastPayload:
         messages = sent_messages(supabase)
         assert [m["topic"] for m in messages] == [get_secure_channel_name(user.id), get_secure_channel_name(other_user.id)]
         assert messages[0]["event"] == "new_notification"
-        assert messages[0]["payload"]["read_url"] == f"/notifications/read/{notifications[0].id}/"
+        assert messages[0]["payload"]["read_url"] == f"/notifications/read/{notifications[0].slug}/"
+        assert messages[0]["payload"]["slug"] == notifications[0].slug and "id" not in messages[0]["payload"]
         assert "bobby" in messages[0]["payload"]["message"]
 
     def test_request_is_authenticated_and_time_boxed(self, supabase, user):
@@ -116,6 +117,12 @@ class TestFirebasePush:
         message = firebase.call_args.args[0]
         assert message.token == "device-token"
         assert "<" not in message.notification.body and "bobby" in message.notification.body
+
+    def test_push_carries_the_relative_read_url_for_deep_linking(self, supabase, firebase, other_user):
+        recipient = f.make_user(fcm_token="device-token")
+        notification = f.make_notification(recipient, sender=other_user)
+        realtime_service.broadcast_notifications([notification])
+        assert firebase.call_args.args[0].data == {"read_url": f"/notifications/read/{notification.slug}/"}
 
     def test_no_push_without_token(self, supabase, firebase, user):
         realtime_service.broadcast_notifications([f.make_notification(user)])

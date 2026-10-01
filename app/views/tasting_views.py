@@ -4,13 +4,13 @@ from django.contrib import messages
 
 from ..forms import DrinkForm
 from ..models import Beer, Drinks, Notification
-from .utils import check_and_notify_achievements
+from .utils import check_and_notify_achievements, posted_notebooks
 from ..services.realtime_service import broadcast_notifications
 
 @login_required(login_url='login')
-def rate_beer_view(request, beer_id):
+def rate_beer_view(request, beer_slug):
     """Traite la notation depuis n'importe quelle page"""
-    beer = get_object_or_404(Beer, id=beer_id)
+    beer = get_object_or_404(Beer, slug=beer_slug)
     
     previous_url = request.META.get('HTTP_REFERER', 'index')
     
@@ -26,10 +26,7 @@ def rate_beer_view(request, beer_id):
             drink.beer_id = beer
             drink.save()
             
-            notebook_ids = request.POST.getlist('notebooks')
-            if notebook_ids:
-                notebooks = request.user.custom_notebooks.filter(id__in=notebook_ids)
-                drink.notebooks.add(*notebooks)
+            drink.notebooks.add(*posted_notebooks(request))
             
             # Si la biere est notée, alors il faut l'enlever de la wishlist
             if beer in request.user.wishlist_beers.all():
@@ -53,9 +50,9 @@ def rate_beer_view(request, beer_id):
     return redirect(previous_url)
 
 @login_required(login_url='login')
-def modify_rate_beer_view(request, drink_id):
+def modify_rate_beer_view(request, drink_slug):
     """Permet de modifier une note depuis la page de détail d'une bière"""
-    drink = get_object_or_404(Drinks, id=drink_id, drinker_id=request.user)
+    drink = get_object_or_404(Drinks, slug=drink_slug, drinker_id=request.user)
     beer = drink.beer_id
     
     if request.method == 'POST':
@@ -64,15 +61,12 @@ def modify_rate_beer_view(request, drink_id):
             form.save()
             
             # Mise à jour des carnets
-            notebook_ids = request.POST.getlist('notebooks')
             # Retire la dégustation de tous les carnets de l'utilisateur
             user_notebooks = request.user.custom_notebooks.all()
             drink.notebooks.remove(*user_notebooks)
             
             # Ré-ajoute aux carnets cochés 
-            if notebook_ids:
-                notebooks_to_add = request.user.custom_notebooks.filter(id__in=notebook_ids)
-                drink.notebooks.add(*notebooks_to_add)
+            drink.notebooks.add(*posted_notebooks(request))
             
             check_and_notify_achievements(request.user)
             
@@ -83,9 +77,9 @@ def modify_rate_beer_view(request, drink_id):
     return redirect('beer_detail', beer_slug=beer.slug)
 
 @login_required(login_url='login')
-def delete_drink_view(request, drink_id):
+def delete_drink_view(request, drink_slug):
     """Permet de supprimer sa propre note."""
-    drink = get_object_or_404(Drinks, id=drink_id, drinker_id=request.user)
+    drink = get_object_or_404(Drinks, slug=drink_slug, drinker_id=request.user)
     
     if request.method == 'POST':
         user = request.user

@@ -139,7 +139,7 @@ class TestReactions:
         return f.make_drink(other_user, beer)
 
     def react(self, client, drink, **payload):
-        return post_json(client, reverse("toggle_reaction", args=[drink.id]), payload)
+        return post_json(client, reverse("toggle_reaction", args=[drink.slug]), payload)
 
     def test_like_creates_reaction_and_notifies_author(self, auth_client, drink):
         body = self.react(auth_client, drink, is_like=True).json()
@@ -172,21 +172,21 @@ class TestReactions:
 
     @pytest.mark.parametrize("raw", ["not json", '{"is_like": null}', "{}"])
     def test_invalid_payload_is_rejected(self, auth_client, drink, raw):
-        response = post_json(auth_client, reverse("toggle_reaction", args=[drink.id]), raw=raw)
+        response = post_json(auth_client, reverse("toggle_reaction", args=[drink.slug]), raw=raw)
         assert response.status_code == 400
         assert not DrinkReaction.objects.exists()
 
     def test_unknown_review_is_rejected(self, auth_client):
-        response = post_json(auth_client, reverse("toggle_reaction", args=[999999]), {"is_like": True})
+        response = post_json(auth_client, reverse("toggle_reaction", args=["unknown-slug"]), {"is_like": True})
         assert response.status_code in (400, 404)
 
 
 class TestTopBeers:
-    def update(self, client, slot, beer_id=""):
-        return client.post(reverse("update_top_beer", args=[slot]), {"beer_id": beer_id})
+    def update(self, client, slot, beer_slug=""):
+        return client.post(reverse("update_top_beer", args=[slot]), {"beer_slug": beer_slug})
 
     def test_set_and_clear_a_slot(self, auth_client, user, beer):
-        self.update(auth_client, 2, beer.id)
+        self.update(auth_client, 2, beer.slug)
         user.refresh_from_db()
         assert user.top_beer_2 == beer
         self.update(auth_client, 2)
@@ -195,19 +195,19 @@ class TestTopBeers:
 
     @pytest.mark.parametrize("slot", [0, 4, 99])
     def test_out_of_range_slot_is_refused(self, auth_client, user, beer, slot):
-        self.update(auth_client, slot, beer.id)
+        self.update(auth_client, slot, beer.slug)
         user.refresh_from_db()
         assert (user.top_beer_1, user.top_beer_2, user.top_beer_3) == (None, None, None)
 
     def test_same_beer_cannot_fill_two_slots(self, auth_client, user, beer):
-        self.update(auth_client, 1, beer.id)
-        response = self.update(auth_client, 3, beer.id)
+        self.update(auth_client, 1, beer.slug)
+        response = self.update(auth_client, 3, beer.slug)
         user.refresh_from_db()
         assert user.top_beer_3 is None
         assert "déjà dans votre Top 3" in messages_of(response)[-1]
 
     def test_unknown_beer_is_404(self, auth_client):
-        assert self.update(auth_client, 1, 999999).status_code == 404
+        assert self.update(auth_client, 1, "unknown-slug").status_code == 404
 
     def test_swap(self, auth_client, user, beer):
         user.top_beer_1 = beer
@@ -226,7 +226,7 @@ class TestTopBeers:
 
 class TestWishlist:
     def toggle(self, client, beer):
-        return client.post(reverse("toggle_wishlist", args=[beer.id])).json()
+        return client.post(reverse("toggle_wishlist", args=[beer.slug])).json()
 
     def test_toggle_adds_then_removes(self, auth_client, user, beer):
         assert self.toggle(auth_client, beer) == {"success": True, "is_in_wishlist": True}
@@ -239,7 +239,7 @@ class TestWishlist:
         assert list(Notification.objects.values_list("notif_type", "recipient__username")) == [("wishlist_added", "bobby")]
 
     def test_unknown_beer_is_404(self, auth_client):
-        assert auth_client.post(reverse("toggle_wishlist", args=[999999])).status_code == 404
+        assert auth_client.post(reverse("toggle_wishlist", args=["unknown-slug"])).status_code == 404
 
     def test_wishlist_page_lists_only_wishlisted_beers(self, auth_client, user, beer):
         f.make_beer(name="Pas voulue")

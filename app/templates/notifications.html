@@ -12,7 +12,7 @@
         class="flex items-center justify-between p-3 bg-white rounded-xl shadow-sm border border-base-200 transition-all {% if notif.is_read %}opacity-60 bg-gray-50{% endif %}">
 
         <!-- Le lien cliquable marque comme lu et redirige -->
-        <a href="{% url 'read_notification' notif.id %}"
+        <a href="{% url 'read_notification' notif.slug %}"
             class="flex items-center gap-3 flex-1 hover:opacity-80 transition-opacity">
 
             <div class="avatar shrink-0">
@@ -49,7 +49,7 @@
 
         <div class="flex flex-col items-end gap-1 shrink-0 pl-3">
             <span class="text-[10px] text-gray-400 font-medium whitespace-nowrap">{{ notif.time_ago }}</span>
-            <form action="{% url 'delete_notification' notif.id %}" method="POST" class="m-0 p-0 h-full">
+            <form action="{% url 'delete_notification' notif.slug %}" method="POST" class="m-0 p-0 h-full">
                 {% csrf_token %}
                 <button type="submit"
                     class="btn btn-ghost btn-xs text-gray-400 hover:text-error hover:bg-error/10 px-1 min-h-0 h-6"

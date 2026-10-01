@@ -3,7 +3,7 @@
     
     {% if is_editable %}
     <!-- Mode modifiable (Mon propre carnet) -->
-    <button onclick="modalEditDrink{{drink.id}}.showModal()" class="shrink-0 flex flex-col items-center gap-1 hover:scale-110 transition-transform z-10 relative">
+    <button onclick="document.getElementById('modalEditDrink-{{ drink.slug }}').showModal()" class="shrink-0 flex flex-col items-center gap-1 hover:scale-110 transition-transform z-10 relative">
         {% if drink.note is not null %}
         <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-sm bg-base-100 shadow-sm
         {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">

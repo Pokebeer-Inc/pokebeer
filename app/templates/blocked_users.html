@@ -8,10 +8,10 @@
     {% for entry in blocked_list %}
     <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-base-200">
         <span class="font-bold text-sm">{{ entry.blocked.username }}</span>
-        <button onclick="document.getElementById('modal_unblock_{{entry.id}}').showModal()" class="btn btn-xs btn-outline btn-success">Débloquer</button>
+        <button onclick="document.getElementById('modal_unblock_{{ entry.blocked.username }}').showModal()" class="btn btn-xs btn-outline btn-success">Débloquer</button>
     </div>
 
-    <dialog id="modal_unblock_{{entry.id}}" class="modal">
+    <dialog id="modal_unblock_{{ entry.blocked.username }}" class="modal">
         <div class="modal-box text-center">
             <h3 class="font-bold text-lg">Débloquer {{ entry.blocked.username }} ?</h3>
             <p class="py-4 text-xs text-gray-500">Vous pourrez à nouveau voir ses contenus mutuellement.</p>

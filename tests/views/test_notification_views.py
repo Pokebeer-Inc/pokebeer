@@ -23,19 +23,19 @@ class TestReadNotification:
         ("spot_invite", (), lambda t: reverse("map")),
         ("report_updated", ("report",), lambda t: reverse("my_reports")),
         ("feedback_replied", (), lambda t: reverse("account")),
-        ("manager_added", ("brewery",), lambda t: reverse("brewery_detail", args=[t["brewery"].id])),
+        ("manager_added", ("brewery",), lambda t: reverse("brewery_detail", args=[t["brewery"].slug])),
         ("beer_shared", (), lambda t: reverse("notifications")),
         ("manager_removed", (), lambda t: reverse("notifications")),
     ])
     def test_marks_read_and_redirects_to_the_target(self, auth_client, user, targets, notif_type, links, expected):
         notification = f.make_notification(user, notif_type, **{link: targets[link] for link in links})
-        assert_redirects(auth_client.get(reverse("read_notification", args=[notification.id])), expected(targets))
+        assert_redirects(auth_client.get(reverse("read_notification", args=[notification.slug])), expected(targets))
         notification.refresh_from_db()
         assert notification.is_read
 
     def test_cannot_read_someone_else_notification(self, other_client, user):
         notification = f.make_notification(user)
-        assert other_client.get(reverse("read_notification", args=[notification.id])).status_code == 404
+        assert other_client.get(reverse("read_notification", args=[notification.slug])).status_code == 404
         notification.refresh_from_db()
         assert not notification.is_read
 
@@ -48,12 +48,12 @@ class TestNotificationList:
 
     def test_delete_own(self, auth_client, user):
         notification = f.make_notification(user)
-        assert_redirects(auth_client.post(reverse("delete_notification", args=[notification.id])), reverse("notifications"))
+        assert_redirects(auth_client.post(reverse("delete_notification", args=[notification.slug])), reverse("notifications"))
         assert not Notification.objects.exists()
 
     def test_cannot_delete_someone_else_notification(self, other_client, user):
         notification = f.make_notification(user)
-        assert other_client.post(reverse("delete_notification", args=[notification.id])).status_code == 404
+        assert other_client.post(reverse("delete_notification", args=[notification.slug])).status_code == 404
         assert Notification.objects.filter(pk=notification.pk).exists()
 
 
@@ -68,7 +68,8 @@ class TestUnreadApi:
         body = auth_client.get(self.URL).json()
 
         assert body["unread_count"] == 5
-        assert [n["id"] for n in body["notifications"]] == [n.id for n in reversed(created)][:5]
+        assert [n["slug"] for n in body["notifications"]] == [n.slug for n in reversed(created)][:5]
+        assert all("id" not in n for n in body["notifications"])
         assert "bobby" in body["notifications"][0]["message"]
 
     @pytest.mark.parametrize("notif_type, toast", [

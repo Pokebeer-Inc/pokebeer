@@ -3,9 +3,9 @@ from django.contrib.auth.decorators import login_required
 
 from ..models import Bar
 @login_required(login_url='login')
-def bar_detail_view(request, bar_id):
+def bar_detail_view(request, bar_slug):
     """Affiche les détails d'un bar"""
-    bar = get_object_or_404(Bar, id=bar_id)
+    bar = get_object_or_404(Bar, slug=bar_slug)
 
     context = {
         'bar': bar,

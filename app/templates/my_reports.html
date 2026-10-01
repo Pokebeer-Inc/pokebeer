@@ -38,7 +38,7 @@
                         {% endif %}
 
                     {% elif report.reported_brewery %}
-                        <a href="{% url 'brewery_detail' report.reported_brewery.id %}" class="font-semibold text-primary hover:underline">Brasserie "{{ report.reported_brewery.name }}"</a>
+                        <a href="{% url 'brewery_detail' report.reported_brewery.slug %}" class="font-semibold text-primary hover:underline">Brasserie "{{ report.reported_brewery.name }}"</a>
                     {% endif %}
                 </div>
             </div>

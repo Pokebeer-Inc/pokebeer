@@ -46,7 +46,7 @@ class TestAdminAccess:
 
 class TestVerifyBar:
     def url(self, bar):
-        return reverse("admin:bar_verify", args=[bar.id])
+        return reverse("admin:bar_verify", args=[bar.slug])
 
     def test_get_is_not_allowed(self, client_for, superuser):
         bar = f.make_bar()
@@ -59,12 +59,12 @@ class TestVerifyBar:
 
     def test_superuser_verifies_the_bar(self, client_for, superuser):
         bar = f.make_bar()
-        assert client_for(superuser).post(self.url(bar)).json() == {"success": True, "bar_id": bar.id, "is_verified": True}
+        assert client_for(superuser).post(self.url(bar)).json() == {"success": True, "bar_slug": bar.slug, "is_verified": True}
         bar.refresh_from_db()
         assert (bar.is_verified, bar.verified_by, bar.verified_at is not None) == (True, superuser, True)
 
     def test_unknown_bar_is_404(self, client_for, superuser):
-        assert client_for(superuser).post(reverse("admin:bar_verify", args=[999999])).status_code == 404
+        assert client_for(superuser).post(reverse("admin:bar_verify", args=["unknown-slug"])).status_code == 404
 
 
 class TestReportAdmin:
@@ -170,6 +170,6 @@ class TestDashboard:
         context = dashboard_callback(admin_request(superuser), {})
 
         assert (context["kpi_beers"], context["kpi_brewery"], context["kpi_report"]) == (1, 1, 1)
-        assert [bar["id"] for bar in context["bars"]] == [located.id]
-        assert context["bars"][0]["verify_url"] == reverse("admin:bar_verify", args=[located.id])
+        assert [bar["slug"] for bar in context["bars"]] == [located.slug]
+        assert context["bars"][0]["verify_url"] == reverse("admin:bar_verify", args=[located.slug])
         assert context["beer_count_by_style"] == [{"style": "IPA", "nb_bieres": 1}]

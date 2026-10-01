@@ -7,12 +7,12 @@ from django.test import RequestFactory
 from app.context_processors import supabase_config
 from app.services.security import get_secure_channel_name
 
-CHANNEL_PATTERN = re.compile(r"^room_(\d+)_[0-9a-f]{16}$")
+CHANNEL_PATTERN = re.compile(r"^room_[0-9a-f]{16}$")
 
 
 class TestSecureChannelName:
-    def test_format_embeds_user_id_and_16_hex_chars(self):
-        assert CHANNEL_PATTERN.match(get_secure_channel_name(42)).group(1) == "42"
+    def test_format_is_16_hex_chars_without_user_id(self):
+        assert CHANNEL_PATTERN.match(get_secure_channel_name(42))
 
     def test_is_deterministic(self):
         assert get_secure_channel_name(7) == get_secure_channel_name("7")

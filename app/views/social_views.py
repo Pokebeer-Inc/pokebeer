@@ -213,13 +213,13 @@ def remove_follower(request, username):
 
 @require_POST
 @login_required(login_url='login')
-def toggle_reaction_view(request, drink_id):
+def toggle_reaction_view(request, drink_slug):
     """API pour liker/disliker un avis."""
     try:
         data = json.loads(request.body)
         is_like = data.get('is_like')
         
-        drink = get_object_or_404(Drinks, id=drink_id)
+        drink = get_object_or_404(Drinks, slug=drink_slug)
         if drink.drinker_id == request.user:
             return JsonResponse({'success': False, 'error': "Vous ne pouvez pas réagir à votre propre avis."}, status=400)
             
@@ -285,11 +285,11 @@ def update_top_beer(request, slot):
         messages.error(request, "Emplacement invalide.")
         return redirect('account')
 
-    beer_id = request.POST.get('beer_id')
+    beer_slug = request.POST.get('beer_slug')
     user = request.user
 
-    if beer_id:
-        beer = get_object_or_404(Beer, id=beer_id)
+    if beer_slug:
+        beer = get_object_or_404(Beer, slug=beer_slug)
         
         if (slot != 1 and user.top_beer_1_id == beer.id) or \
            (slot != 2 and user.top_beer_2_id == beer.id) or \
@@ -302,7 +302,7 @@ def update_top_beer(request, slot):
         elif slot == 3: user.top_beer_3 = beer
         messages.success(request, f"Bière ajoutée à votre Top {slot} !")
     else:
-        # Si aucun ID n'est fourni, on vide l'emplacement
+        # Si aucun slug n'est fourni, on vide l'emplacement
         if slot == 1: user.top_beer_1 = None
         elif slot == 2: user.top_beer_2 = None
         elif slot == 3: user.top_beer_3 = None
@@ -349,9 +349,9 @@ def swap_top_beers(request):
 
 @require_POST
 @login_required(login_url='login')
-def toggle_wishlist(request, beer_id):
+def toggle_wishlist(request, beer_slug):
     """API pour ajouter/retirer une bière de la wishlist."""
-    beer = get_object_or_404(Beer, id=beer_id)
+    beer = get_object_or_404(Beer, slug=beer_slug)
     user = request.user
     
     if beer in user.wishlist_beers.all():

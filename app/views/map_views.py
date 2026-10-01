@@ -6,17 +6,17 @@ from django.utils import timezone
 
 from ..models import BeerUser, Drinks, BeerSpot, UserFollow, Notification, Bar, Brewery
 from ..forms import BeerSpotForm, error_summary
-from .utils import digit_ids, get_excluded_users, check_and_notify_achievements
+from .utils import get_excluded_users, check_and_notify_achievements
 from ..services.realtime_service import broadcast_notifications
 
-def _participant_drinks(spot, drink_ids):
+def _participant_drinks(spot, drink_slugs):
     """Restreint les dégustations à celles du créateur du lieu et de ses amis invités."""
     participants = Q(drinker_id=spot.user) | Q(drinker_id__in=spot.friends.all())
-    return Drinks.objects.filter(participants, id__in=drink_ids)
+    return Drinks.objects.filter(participants, slug__in=drink_slugs)
 
-def _invitable_friends(friend_ids):
-    """Ne garde que les identifiants de comptes actifs parmi les amis invités."""
-    return list(BeerUser.objects.filter(id__in=digit_ids(friend_ids), is_active=True).values_list('id', flat=True))
+def _invitable_friends(usernames):
+    """Ne garde que les comptes actifs parmi les amis invités (désignés par leur pseudo) et renvoie leurs clés internes."""
+    return list(BeerUser.objects.filter(username__in=usernames, is_active=True).values_list('id', flat=True))
 
 @login_required(login_url='login')
 def map_view(request):
@@ -32,18 +32,18 @@ def map_view(request):
             messages.error(request, "Le point n'a pas pu être enregistré : " + " ; ".join(error_summary(form)))
             return redirect('map')
 
-        spot_id = form.cleaned_data['spot_id'] # S'il y a un ID, c'est une modification
+        spot_slug = form.cleaned_data['spot_slug'] # S'il y a un slug, c'est une modification
         title = form.cleaned_data['title']
         description = form.cleaned_data['description']
         date_spot = form.cleaned_data['date'] or timezone.now().date()
         lat = form.cleaned_data['lat']
         lng = form.cleaned_data['lng']
-        drink_ids = digit_ids(request.POST.getlist('drinks'))
+        drink_slugs = request.POST.getlist('drinks')
         friend_ids = _invitable_friends(request.POST.getlist('friends'))
         
-        if spot_id:
+        if spot_slug:
             # --- MODE MODIFICATION ---
-            spot = get_object_or_404(BeerSpot, id=spot_id)
+            spot = get_object_or_404(BeerSpot, slug=spot_slug)
             
             # Vérification des droits : Créateur OU Ami associé
             if request.user == spot.user or request.user in spot.friends.all():
@@ -56,11 +56,11 @@ def map_view(request):
                 
                 user_current_drinks = spot.drinks.filter(drinker_id=request.user)
                 spot.drinks.remove(*user_current_drinks)
-                if drink_ids:
+                if drink_slugs:
                     # On identifie les bières déjà ajoutées par les autres sur ce point
                     beers_from_others = spot.drinks.exclude(drinker_id=request.user).values_list('beer_id', flat=True)
                     # On ne garde que les dégustations dont la bière n'est pas déjà présente
-                    valid_drinks = _participant_drinks(spot, drink_ids).exclude(beer_id__in=beers_from_others)
+                    valid_drinks = _participant_drinks(spot, drink_slugs).exclude(beer_id__in=beers_from_others)
                     spot.drinks.add(*valid_drinks)
                     
                 # Seul le créateur original peut gérer qui a accès au point
@@ -117,8 +117,8 @@ def map_view(request):
                 ]
                 created_invites = Notification.objects.bulk_create(notifications_invites)
                 broadcast_notifications(created_invites)
-            if drink_ids:
-                spot.drinks.set(_participant_drinks(spot, drink_ids))
+            if drink_slugs:
+                spot.drinks.set(_participant_drinks(spot, drink_slugs))
                 
             messages.success(request, "Point ajouté avec succès !")
                 
@@ -144,9 +144,9 @@ def map_view(request):
     return render(request, 'map.html', context)
 
 @login_required(login_url='login')
-def delete_spot_view(request, spot_id):
+def delete_spot_view(request, spot_slug):
     """Permet au propriétaire de supprimer son spot sur la carte."""
-    spot = get_object_or_404(BeerSpot, id=spot_id, user=request.user)
+    spot = get_object_or_404(BeerSpot, slug=spot_slug, user=request.user)
     if request.method == 'POST':
         spot.delete()
         messages.success(request, "Lieu supprimé de la carte.")

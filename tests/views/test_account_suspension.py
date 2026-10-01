@@ -73,12 +73,12 @@ class TestSpotInvitations:
     def create_spot(self, client, friends):
         return client.post(reverse("map"), {"title": "Apéro", "lat": "48.85", "lng": "2.35", "friends": friends})
 
-    def test_suspended_and_unknown_ids_are_ignored(self, auth_client, other_user, suspended):
-        self.create_spot(auth_client, [other_user.pk, suspended.pk, 999999, "abc"])
+    def test_suspended_and_unknown_usernames_are_ignored(self, auth_client, other_user, suspended):
+        self.create_spot(auth_client, [other_user.username, suspended.username, "nobody"])
         assert list(BeerSpot.objects.get().friends.all()) == [other_user]
 
     def test_suspended_friend_receives_no_invitation(self, auth_client, suspended):
-        self.create_spot(auth_client, [suspended.pk])
+        self.create_spot(auth_client, [suspended.username])
         assert not suspended.notifications.exists()
 
 
@@ -89,11 +89,11 @@ class TestBreweryManagers:
 
     def test_not_proposed_in_manager_search(self, auth_client, managed_brewery, suspended):
         f.make_user(username="banana")
-        response = auth_client.get(reverse("api_search_users_for_manager", args=[managed_brewery.pk]), {"q": "ban"})
+        response = auth_client.get(reverse("api_search_users_for_manager", args=[managed_brewery.slug]), {"q": "ban"})
         assert [u["username"] for u in response.json()["users"]] == ["banana"]
 
     def test_cannot_be_added_as_manager(self, auth_client, managed_brewery, suspended):
-        response = auth_client.post(reverse("add_brewery_manager", args=[managed_brewery.pk]), {"user_id": suspended.pk})
+        response = auth_client.post(reverse("add_brewery_manager", args=[managed_brewery.slug]), {"username": suspended.username})
         assert response.status_code == 404
         assert not managed_brewery.managers.filter(pk=suspended.pk).exists()
 

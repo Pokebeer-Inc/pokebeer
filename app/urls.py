@@ -10,11 +10,13 @@ urlpatterns = [
     path('map/', views.map_view, name='map'),
     path('trophees/', views.achievements_view, name='achievements'),
     path('carnet/', views.notebook_view, name='notebook'),
+    # Les routes fixes précèdent carnet/<slug>/ : sinon le slug les capturerait
     path('carnet/create/', views.create_custom_notebook, name='create_custom_notebook'),
     path('carnet/all/', views.notebook_detail_view, name='notebook_all'),
-    path('carnet/<int:notebook_id>/', views.notebook_detail_view, name='notebook_detail'),
-    path('carnet/<int:notebook_id>/delete/', views.delete_custom_notebook, name='delete_custom_notebook'),
-    path('carnet/<int:notebook_id>/edit/', views.edit_custom_notebook, name='edit_custom_notebook'),
+    path('carnet/wishlist/', views.wishlist_view, name='wishlist_view'),
+    path('carnet/<slug:notebook_slug>/', views.notebook_detail_view, name='notebook_detail'),
+    path('carnet/<slug:notebook_slug>/delete/', views.delete_custom_notebook, name='delete_custom_notebook'),
+    path('carnet/<slug:notebook_slug>/edit/', views.edit_custom_notebook, name='edit_custom_notebook'),
 
     # ==========================================
     # Authentification & Compte Utilisateur
@@ -33,8 +35,8 @@ urlpatterns = [
     # Notifications
     # ==========================================
     path('notifications/', views.notifications_view, name='notifications'),
-    path('notifications/read/<int:notif_id>/', views.read_notification, name='read_notification'),
-    path('notifications/delete/<int:notif_id>/', views.delete_notification, name='delete_notification'),
+    path('notifications/read/<slug:notif_slug>/', views.read_notification, name='read_notification'),
+    path('notifications/delete/<slug:notif_slug>/', views.delete_notification, name='delete_notification'),
 
     # ==========================================
     # Profils Publics & Social
@@ -59,26 +61,25 @@ urlpatterns = [
     path('add-beer/', views.add_beer_view, name='add_beer'),
     path('edit-beer/<slug:beer_slug>/', views.edit_beer_view, name='edit_beer'),
     path('delete-beer/<slug:beer_slug>/', views.delete_beer_view, name='delete_beer'),
-    path('beer/<int:beer_id>/wishlist/', views.toggle_wishlist, name='toggle_wishlist'),
-    path('carnet/wishlist/', views.wishlist_view, name='wishlist_view'),
+    path('beer/<slug:beer_slug>/wishlist/', views.toggle_wishlist, name='toggle_wishlist'),
     
     # ==========================================
     # Gestion des Brasseries & Bars
     # ==========================================
-    path('brewery/<int:brewery_id>/', views.brewery_detail_view, name='brewery_detail'),
-    path('bar/<int:bar_id>/', views.bar_detail_view, name='bar_detail'),
-    path('brewery/<int:brewery_id>/edit/', views.edit_brewery_view, name='edit_brewery'),
-    path('brewery/<int:brewery_id>/add-manager/', views.add_brewery_manager, name='add_brewery_manager'),
-    path('brewery/<int:brewery_id>/remove-manager/<int:user_id>/', views.remove_brewery_manager, name='remove_brewery_manager'),
+    path('brewery/<slug:brewery_slug>/', views.brewery_detail_view, name='brewery_detail'),
+    path('bar/<slug:bar_slug>/', views.bar_detail_view, name='bar_detail'),
+    path('brewery/<slug:brewery_slug>/edit/', views.edit_brewery_view, name='edit_brewery'),
+    path('brewery/<slug:brewery_slug>/add-manager/', views.add_brewery_manager, name='add_brewery_manager'),
+    path('brewery/<slug:brewery_slug>/remove-manager/<str:username>/', views.remove_brewery_manager, name='remove_brewery_manager'),
 
     # ==========================================
     # Dégustations (Avis) & Lieux (Spots)
     # ==========================================
-    path('rate-beer/<int:beer_id>/', views.rate_beer_view, name='rate_beer'),
-    path('modify-rate-beer/<int:drink_id>/', views.modify_rate_beer_view, name='modify_rate_beer'),
-    path('delete-drink/<int:drink_id>/', views.delete_drink_view, name='delete_drink'),
-    path('delete-spot/<int:spot_id>/', views.delete_spot_view, name='delete_spot'),
-    path('drink/<int:drink_id>/react/', views.toggle_reaction_view, name='toggle_reaction'),
+    path('rate-beer/<slug:beer_slug>/', views.rate_beer_view, name='rate_beer'),
+    path('modify-rate-beer/<slug:drink_slug>/', views.modify_rate_beer_view, name='modify_rate_beer'),
+    path('delete-drink/<slug:drink_slug>/', views.delete_drink_view, name='delete_drink'),
+    path('delete-spot/<slug:spot_slug>/', views.delete_spot_view, name='delete_spot'),
+    path('drink/<slug:drink_slug>/react/', views.toggle_reaction_view, name='toggle_reaction'),
 
     # ==========================================
     # API (Recherche, IA, etc.)
@@ -89,7 +90,7 @@ urlpatterns = [
     path('api/search-beer/', views.search_beer, name='search_beer'),
     path('api/notifications/unread/', views.api_unread_notifications, name='api_unread_notifications'),
     path('api/load-more/<str:item_type>/', views.load_more_generic, name='load_more_generic'),
-    path('api/brewery/<int:brewery_id>/search-users/', views.api_search_users_for_manager, name='api_search_users_for_manager'),
+    path('api/brewery/<slug:brewery_slug>/search-users/', views.api_search_users_for_manager, name='api_search_users_for_manager'),
     path('api/update-fcm-token/', views.update_fcm_token, name="api_update_fcm_token")
 
 ]

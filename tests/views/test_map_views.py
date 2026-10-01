@@ -37,7 +37,7 @@ class TestMapPage:
 class TestCreateSpot:
     def test_creates_spot_with_drinks_and_invites_friends(self, auth_client, user, other_user):
         drink = f.make_drink(user)
-        assert_redirects(auth_client.post(URL, spot_data(drinks=[drink.id], friends=[other_user.id])), URL)
+        assert_redirects(auth_client.post(URL, spot_data(drinks=[drink.slug], friends=[other_user.username])), URL)
 
         spot = BeerSpot.objects.get()
         assert (spot.user, spot.latitude, spot.longitude) == (user, 45.76, 4.83)
@@ -60,7 +60,7 @@ class TestCreateSpot:
         ({"lat": "90.0001"}, "Latitude"), ({"lat": "-91"}, "Latitude"),
         ({"lng": "180.5"}, "Longitude"), ({"lng": "-181"}, "Longitude"),
         ({"date": "pas-une-date"}, "Date"), ({"date": "2026-02-30"}, "Date"),
-        ({"title": "x" * 151}, "Titre"), ({"spot_id": "abc"}, "Lieu"), ({"spot_id": "-3"}, "Lieu"),
+        ({"title": "x" * 151}, "Titre"), ({"spot_slug": "pas un slug!"}, "Lieu"), ({"spot_slug": "x" * 151}, "Lieu"),
     ])
     def test_invalid_values_are_refused_with_an_explanation(self, auth_client, overrides, label):
         response = auth_client.post(URL, spot_data(**overrides))
@@ -72,19 +72,19 @@ class TestCreateSpot:
         auth_client.post(URL, spot_data(date=""))
         assert BeerSpot.objects.get().date == timezone.localdate()
 
-    def test_non_numeric_drink_ids_are_ignored(self, auth_client, user):
+    def test_unknown_drink_slugs_are_ignored(self, auth_client, user):
         drink = f.make_drink(user)
-        assert_redirects(auth_client.post(URL, spot_data(drinks=[drink.id, "abc", "1.5"])), URL)
+        assert_redirects(auth_client.post(URL, spot_data(drinks=[drink.slug, "abc", "1.5"])), URL)
         assert list(BeerSpot.objects.get().drinks.all()) == [drink]
 
     def test_tastings_of_people_outside_the_spot_are_ignored(self, auth_client, user, other_user):
         own = f.make_drink(user)
-        auth_client.post(URL, spot_data(drinks=[own.id, f.make_drink(other_user).id]))
+        auth_client.post(URL, spot_data(drinks=[own.slug, f.make_drink(other_user).slug]))
         assert list(BeerSpot.objects.get().drinks.all()) == [own]
 
     def test_creator_can_attach_an_invited_friend_tasting(self, auth_client, other_user):
         friend_drink = f.make_drink(other_user)
-        auth_client.post(URL, spot_data(drinks=[friend_drink.id], friends=[other_user.id]))
+        auth_client.post(URL, spot_data(drinks=[friend_drink.slug], friends=[other_user.username]))
         assert list(BeerSpot.objects.get().drinks.all()) == [friend_drink]
 
 
@@ -93,7 +93,7 @@ class TestEditSpot:
         old_friend = f.make_user()
         spot = f.make_spot(user, friends=[old_friend])
 
-        auth_client.post(URL, spot_data(spot_id=spot.id, title="Renommé", friends=[old_friend.id, other_user.id]))
+        auth_client.post(URL, spot_data(spot_slug=spot.slug, title="Renommé", friends=[old_friend.username, other_user.username]))
 
         spot.refresh_from_db()
         assert spot.title == "Renommé"
@@ -103,7 +103,7 @@ class TestEditSpot:
 
     def test_friend_can_edit_but_not_change_invitees(self, other_client, user, other_user):
         spot = f.make_spot(user, friends=[other_user])
-        other_client.post(URL, spot_data(spot_id=spot.id, title="Par un ami", friends=[]))
+        other_client.post(URL, spot_data(spot_slug=spot.slug, title="Par un ami", friends=[]))
         spot.refresh_from_db()
         assert spot.title == "Par un ami"
         assert list(spot.friends.all()) == [other_user]
@@ -112,33 +112,33 @@ class TestEditSpot:
     def test_friend_adds_his_tastings_next_to_the_creator_ones(self, other_client, user, other_user):
         creator_drink, friend_drink = f.make_drink(user), f.make_drink(other_user)
         spot = f.make_spot(user, friends=[other_user], drinks=[creator_drink])
-        other_client.post(URL, spot_data(spot_id=spot.id, drinks=[friend_drink.id]))
+        other_client.post(URL, spot_data(spot_slug=spot.slug, drinks=[friend_drink.slug]))
         assert set(spot.drinks.all()) == {creator_drink, friend_drink}
 
     def test_friend_cannot_attach_a_stranger_tasting(self, other_client, user, other_user):
         spot = f.make_spot(user, friends=[other_user])
-        other_client.post(URL, spot_data(spot_id=spot.id, drinks=[f.make_drink(f.make_user()).id]))
+        other_client.post(URL, spot_data(spot_slug=spot.slug, drinks=[f.make_drink(f.make_user()).slug]))
         assert not spot.drinks.exists()
 
     def test_beer_already_shared_by_someone_else_is_not_duplicated(self, other_client, user, other_user, beer):
         creator_drink = f.make_drink(user, beer)
         spot = f.make_spot(user, friends=[other_user], drinks=[creator_drink])
-        other_client.post(URL, spot_data(spot_id=spot.id, drinks=[f.make_drink(other_user, beer).id]))
+        other_client.post(URL, spot_data(spot_slug=spot.slug, drinks=[f.make_drink(other_user, beer).slug]))
         assert list(spot.drinks.all()) == [creator_drink]
 
     def test_stranger_cannot_edit(self, other_client, user):
         spot = f.make_spot(user, title="Intact")
-        other_client.post(URL, spot_data(spot_id=spot.id, title="Piraté"))
+        other_client.post(URL, spot_data(spot_slug=spot.slug, title="Piraté"))
         spot.refresh_from_db()
         assert spot.title == "Intact"
 
     def test_unknown_spot_is_404(self, auth_client):
-        assert auth_client.post(URL, spot_data(spot_id=999999)).status_code == 404
+        assert auth_client.post(URL, spot_data(spot_slug="unknown-slug")).status_code == 404
 
     @pytest.mark.parametrize("overrides", [{"lat": "abc"}, {"lng": "200"}, {"date": "demain"}])
     def test_invalid_edit_leaves_the_spot_untouched(self, auth_client, user, overrides):
         spot = f.make_spot(user, title="Intact")
-        assert_redirects(auth_client.post(URL, spot_data(spot_id=spot.id, title="Modifié", **overrides)), URL)
+        assert_redirects(auth_client.post(URL, spot_data(spot_slug=spot.slug, title="Modifié", **overrides)), URL)
         spot.refresh_from_db()
         assert (spot.title, spot.latitude, spot.longitude) == ("Intact", 48.85, 2.35)
 
@@ -146,12 +146,12 @@ class TestEditSpot:
 class TestDeleteSpot:
     def test_owner_deletes_with_post_only(self, auth_client, user):
         spot = f.make_spot(user)
-        auth_client.get(reverse("delete_spot", args=[spot.id]))
+        auth_client.get(reverse("delete_spot", args=[spot.slug]))
         assert BeerSpot.objects.exists()
-        auth_client.post(reverse("delete_spot", args=[spot.id]))
+        auth_client.post(reverse("delete_spot", args=[spot.slug]))
         assert not BeerSpot.objects.exists()
 
     def test_friend_cannot_delete(self, other_client, user, other_user):
         spot = f.make_spot(user, friends=[other_user])
-        assert other_client.post(reverse("delete_spot", args=[spot.id])).status_code == 404
+        assert other_client.post(reverse("delete_spot", args=[spot.slug])).status_code == 404
         assert BeerSpot.objects.exists()
