@@ -1,0 +1,61 @@
+name: Migrate production database
+
+# Vercel ne lance jamais `migrate` : sans ce workflow, une migration non appliquée
+# fait planter toutes les pages (colonne manquante).
+on:
+  workflow_run:
+    workflows: ["Django CI"]
+    types: [completed]
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    # Uniquement si les tests ont réussi sur un push (jamais sur une pull request)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+
+    steps:
+    - name: Checkout the tested commit
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+        cache-dependency-path: requirements.txt
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Check that the secret is configured
+      env:
+        PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      run: |
+        if [ -z "$PRODUCTION_DATABASE_URL" ]; then
+          echo "::error::Secret PRODUCTION_DATABASE_URL manquant (Settings > Secrets and variables > Actions)."
+          exit 1
+        fi
+
+    - name: Apply migrations
+      env:
+        DEBUG: 'False'
+        DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY || 'migration-only-not-used-at-runtime' }}
+      run: python manage.py migrate --noinput
