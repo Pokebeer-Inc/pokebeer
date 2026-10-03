@@ -15,12 +15,31 @@
     <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">{{ page.description }}</p>
   </div>
 
-  <!-- Navigation entre les pages -->
-  <div class="mb-4 flex flex-wrap gap-2 text-sm">
-    {% for p in pages %}
-    <a href="{% url 'admin_analytics' p.key %}" class="rounded-default px-3 py-1.5 {% if p.key == page.key %}bg-primary-600 text-white{% else %}bg-white dark:bg-base-800{% endif %}">{{ p.title }}</a>
-    {% endfor %}
+  {% include "admin/analytics/_nav.html" with custom_active=page.is_custom %}
+
+  {% if custom_view %}
+  <!-- Vue personnalisée : vues de l'administrateur et actions -->
+  <div class="analytics-custom-bar">
+    <nav class="analytics-view-switcher" aria-label="Mes vues">
+      {% for v in custom_views %}<a href="{% url 'admin_analytics_view' v.pk %}" class="{% if v.pk == custom_view.pk %}is-active{% endif %}">{{ v.name }}</a>{% endfor %}
+    </nav>
+    <div class="analytics-custom-actions">
+      <a href="{% url 'admin_analytics_tile_new' custom_view.pk %}" class="analytics-button analytics-button--primary">＋ Ajouter une tuile</a>
+      <details class="analytics-rename">
+        <summary class="analytics-button">Renommer</summary>
+        <form method="post" action="{% url 'admin_analytics_view_rename' custom_view.pk %}">
+          {% csrf_token %}
+          <input type="text" name="name" value="{{ custom_view.name }}" maxlength="80" required>
+          <button class="analytics-button analytics-button--primary">Enregistrer</button>
+        </form>
+      </details>
+      <form method="post" action="{% url 'admin_analytics_view_delete' custom_view.pk %}" onsubmit="return confirm('Supprimer cette vue et toutes ses tuiles ?');">
+        {% csrf_token %}
+        <button class="analytics-button analytics-button--danger">Supprimer la vue</button>
+      </form>
+    </div>
   </div>
+  {% endif %}
 
   <!-- Filtres : GET uniquement, valeurs validées côté serveur -->
   {% if page.period or pickers %}
@@ -69,6 +88,13 @@
        data-layout-url="{% url 'admin_analytics_layout' page.key %}" data-csrf="{{ csrf_token }}">
     {% for tile in tiles %}{% include "admin/analytics/_tile.html" with block=tile.block hidden=tile.hidden %}{% endfor %}
   </div>
+
+  {% if custom_view and not tiles %}
+  <div class="analytics-empty-state">
+    <p>Cette vue n'a pas encore de tuile.</p>
+    <a href="{% url 'admin_analytics_tile_new' custom_view.pk %}" class="analytics-button analytics-button--primary">＋ Ajouter une tuile</a>
+  </div>
+  {% endif %}
 
   <!-- Tuiles masquées -->
   <details class="analytics-hidden-panel mt-6" id="analytics-hidden-panel" hidden>

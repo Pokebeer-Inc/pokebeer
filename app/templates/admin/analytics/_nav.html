@@ -1,0 +1,7 @@
+{% comment %}Navigation entre les pages d'analytics. Paramètres : page (page courante, facultatif), custom_active.{% endcomment %}
+<div class="mb-4 flex flex-wrap gap-2 text-sm">
+  {% for p in pages %}
+  <a href="{% url 'admin_analytics' p.key %}" class="rounded-default px-3 py-1.5 {% if p.key == page.key %}bg-primary-600 text-white{% else %}bg-white dark:bg-base-800{% endif %}">{{ p.title }}</a>
+  {% endfor %}
+  <a href="{% url 'admin_analytics_custom' %}" class="rounded-default px-3 py-1.5 {% if custom_active %}bg-primary-600 text-white{% else %}bg-white dark:bg-base-800{% endif %}">Custom</a>
+</div>

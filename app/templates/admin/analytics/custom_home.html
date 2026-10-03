@@ -1,0 +1,46 @@
+{% extends 'admin/base.html' %}
+{% load i18n static %}
+
+{% block title %}Custom | Analytics | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block branding %}{% include "unfold/helpers/site_branding.html" %}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/admin_analytics.css' %}">
+
+<div class="px-4 py-6 lg:px-8">
+  <div class="mb-4">
+    <h1 class="text-2xl font-semibold">Analytics · Custom</h1>
+    <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+      Composez vos propres vues : choisissez des données, un regroupement, des mesures et un type de graphique. Les filtres de période s'appliquent à toutes vos tuiles, comme sur les autres pages.
+    </p>
+  </div>
+
+  {% include "admin/analytics/_nav.html" with custom_active=True %}
+
+  <div class="analytics-custom-home">
+    <section class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+      <h2 class="text-lg font-semibold">Mes vues ({{ custom_views|length }}/{{ max_views }})</h2>
+      <ul class="analytics-view-list">
+        {% for v in custom_views %}
+        <li><a href="{% url 'admin_analytics_view' v.pk %}">{{ v.name }}</a><span>{{ v.tiles.count }} tuile(s)</span></li>
+        {% empty %}
+        <li class="analytics-empty">Aucune vue pour l'instant : créez la première.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+      <h2 class="text-lg font-semibold">Nouvelle vue</h2>
+      <form method="post" action="{% url 'admin_analytics_view_create' %}" class="analytics-form">
+        {% csrf_token %}
+        <label>
+          <span>{{ form.name.label }}</span>
+          <input type="text" name="name" value="{{ form.name.value|default:'' }}" maxlength="80" required placeholder="Ex : Suivi IPA, Pour la brasserie X…">
+        </label>
+        {% for error in form.name.errors %}<p class="analytics-form-error">{{ error }}</p>{% endfor %}
+        <button class="analytics-button analytics-button--primary">Créer la vue</button>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

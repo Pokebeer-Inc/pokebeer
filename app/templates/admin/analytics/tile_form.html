@@ -1,0 +1,86 @@
+{% extends 'admin/base.html' %}
+{% load i18n static %}
+
+{% block title %}{{ title }} | Analytics | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block branding %}{% include "unfold/helpers/site_branding.html" %}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/admin_analytics.css' %}">
+
+<div class="px-4 py-6 lg:px-8">
+  <div class="mb-4">
+    <h1 class="text-2xl font-semibold">{{ title }}</h1>
+    <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+      Vue : <a href="{% url 'admin_analytics_view' custom_view.pk %}" class="text-primary-600">{{ custom_view.name }}</a>
+    </p>
+  </div>
+
+  <form method="post" class="analytics-form analytics-builder rounded-default bg-white p-6 shadow-xs dark:bg-base-800" id="tile-builder">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="analytics-form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+    <label>
+      <span>1. {{ form.title.label }}</span>
+      <input type="text" name="title" value="{{ form.title.value|default:'' }}" maxlength="100" required placeholder="Ex : Styles les plus bus">
+    </label>
+    {% for error in form.title.errors %}<p class="analytics-form-error">{{ error }}</p>{% endfor %}
+
+    <label>
+      <span>2. {{ form.dataset.label }}</span>
+      <select name="dataset" id="id_dataset" data-initial="{{ form.dataset.value|default:'' }}">
+        {% for value, label in form.fields.dataset.choices %}<option value="{{ value }}" {% if form.dataset.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+
+    <label>
+      <span>3. Type de graphique</span>
+      <select name="chart" id="id_chart" data-initial="{{ form.chart.value|default:'' }}">
+        {% for value, label in chart_types.items %}<option value="{{ value }}" {% if form.chart.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    {% for error in form.chart.errors %}<p class="analytics-form-error">{{ error }}</p>{% endfor %}
+
+    <label id="field-dimension">
+      <span>4. {{ form.dimension.label }}</span>
+      <select name="dimension" id="id_dimension" data-initial="{{ form.dimension.value|default:'' }}">
+        {% for value, label in form.fields.dimension.choices %}<option value="{{ value }}" {% if form.dimension.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    {% for error in form.dimension.errors %}<p class="analytics-form-error">{{ error }}</p>{% endfor %}
+
+    <fieldset id="field-measures">
+      <legend>5. {{ form.measures.label }} (jusqu'à 4)</legend>
+      <div id="measures-box">
+        {% for value, label in form.fields.measures.choices %}
+        <label class="analytics-check"><input type="checkbox" name="measures" value="{{ value }}" {% if value in form.measures.value %}checked{% endif %}> <span>{{ label }}</span></label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    {% for error in form.measures.errors %}<p class="analytics-form-error">{{ error }}</p>{% endfor %}
+
+    <div class="analytics-form-row" id="field-options">
+      <label id="field-limit">
+        <span>{{ form.limit.label }}</span>
+        <input type="number" name="limit" min="1" max="25" value="{{ form.limit.value|default:10 }}">
+      </label>
+      <label id="field-sort">
+        <span>{{ form.sort.label }}</span>
+        <select name="sort">{% for value, label in form.fields.sort.choices %}<option value="{{ value }}" {% if form.sort.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      </label>
+      <label class="analytics-check" id="field-trend">
+        <input type="checkbox" name="trend" {% if form.trend.value %}checked{% endif %}> <span>{{ form.trend.label }}</span>
+      </label>
+    </div>
+
+    <p id="builder-hint" class="analytics-note"></p>
+
+    <div class="analytics-custom-actions">
+      <button class="analytics-button analytics-button--primary">{% if tile %}Enregistrer{% else %}Ajouter la tuile{% endif %}</button>
+      <a href="{% url 'admin_analytics_view' custom_view.pk %}" class="analytics-button">Annuler</a>
+    </div>
+  </form>
+</div>
+
+{{ catalog|json_script:"builder-catalog" }}
+<script src="{% static 'script/admin_analytics_builder.js' %}"></script>
+{% endblock %}

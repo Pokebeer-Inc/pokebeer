@@ -12,6 +12,7 @@ import logging
 
 from ..models import Bar, Brewery
 from ..services.analytics import export, layout
+from ..services.analytics.custom import service as custom_service
 from ..services.analytics.periods import GRANULARITIES, MONTH_CHOICES, Period
 from ..services.analytics.registry import PAGES, PAGES_BY_KEY
 
@@ -37,7 +38,11 @@ def analytics_page(request, key):
     page = PAGES_BY_KEY.get(key)
     if page is None:
         raise Http404
+    return render_page(request, page)
 
+
+def render_page(request, page, extra_context=None):
+    """Affiche une page d'analytics (prédéfinie ou personnalisée) : filtres, tuiles, disposition mémorisée, exports."""
     period = Period.from_params(request.GET)
     params = {name: request.GET.get(name, '')[:150] for name in PICKERS}
     blocks = page.build(period, params)
@@ -67,6 +72,7 @@ def analytics_page(request, key):
         'notes': notes,
         'tiles': tiles,
         'has_map': any(block.block_type == 'map' for block in blocks),
+        **(extra_context or {}),
     }
     return TemplateResponse(request, 'admin/analytics/page.html', context)
 
@@ -96,8 +102,8 @@ MAX_LAYOUT_BODY = 8_192
 def analytics_layout(request, key):
     """Mémorise la disposition de l'utilisateur connecté pour cette page (jamais celle d'un autre : aucun identifiant de membre accepté)."""
     _check_staff(request)
-    if key not in PAGES_BY_KEY:
-        raise Http404
+    if key not in PAGES_BY_KEY and not custom_service.owned_layout_view(request.user, key):
+        raise Http404  # page inconnue, ou vue personnalisée d'un autre administrateur : on ne distingue pas
     if len(request.body) > MAX_LAYOUT_BODY:
         return JsonResponse({'ok': False, 'error': 'Requête trop volumineuse'}, status=413)
     try:
@@ -109,11 +115,3 @@ def analytics_layout(request, key):
         return JsonResponse({'ok': False, 'error': 'Disposition invalide'}, status=400)
     layout.save(request.user, key, order, hidden)
     return JsonResponse({'ok': True})
-
-
-# `admin_view` impose la connexion à l'admin (et la redirige vers sa page de login) ; GET uniquement : aucune écriture.
-urlpatterns = [
-    path('', admin.site.admin_view(require_GET(analytics_index)), name='admin_analytics_index'),
-    path('<slug:key>/layout/', admin.site.admin_view(require_POST(analytics_layout)), name='admin_analytics_layout'),
-    path('<slug:key>/', admin.site.admin_view(require_GET(analytics_page)), name='admin_analytics'),
-]

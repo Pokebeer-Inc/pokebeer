@@ -6,6 +6,12 @@
     <h2 class="analytics-tile-title">{{ block.title }}</h2>
     <span class="analytics-tile-actions">
       {% if block.id in exportable_ids %}<a href="?{{ query }}{% if query %}&{% endif %}export={{ block.id }}" class="analytics-export" title="Exporter ce bloc avec les filtres actuels">CSV ↓</a>{% endif %}
+      {% if custom_view and block.tile_pk %}
+      <a href="{% url 'admin_analytics_tile_edit' custom_view.pk block.tile_pk %}" class="analytics-action" title="Modifier cette tuile" aria-label="Modifier {{ block.title }}">✎</a>
+      <form method="post" action="{% url 'admin_analytics_tile_delete' custom_view.pk block.tile_pk %}" class="analytics-inline-form" onsubmit="return confirm('Supprimer définitivement cette tuile ?');">
+        {% csrf_token %}<button type="submit" class="analytics-action" title="Supprimer cette tuile" aria-label="Supprimer {{ block.title }}">🗑</button>
+      </form>
+      {% endif %}
       <button type="button" class="analytics-action" data-action="top" title="Placer en haut de la page" aria-label="Placer {{ block.title }} en haut">⬆</button>
       <button type="button" class="analytics-action" data-action="hide" title="Masquer cette tuile" aria-label="Masquer {{ block.title }}">✕</button>
     </span>

@@ -57,7 +57,7 @@ class TestAccess:
 
     def test_sidebar_entries_are_staff_only(self, settings):
         group = next(g for g in settings.UNFOLD["SIDEBAR"]["navigation"] if g["title"] == "Analytics")
-        assert len(group["items"]) == len(PAGES)
+        assert len(group["items"]) == len(PAGES) + 1  # + « Custom »
         non_staff = type("R", (), {"user": type("U", (), {"is_staff": False})()})()
         assert not any(item["permission"](non_staff) for item in group["items"])
 

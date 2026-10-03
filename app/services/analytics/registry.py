@@ -14,6 +14,7 @@ class AnalyticsPage:
     granularity: bool = False   # la page propose le choix semaine/mois
     period: bool = True         # la page dépend de la fenêtre temporelle
     pickers: tuple = ()          # sélecteurs d'entité proposés : 'brewery', 'bar'
+    is_custom: bool = False      # vue personnalisée (voir services/analytics/custom)
 
 
 PAGES = (

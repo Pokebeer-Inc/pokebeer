@@ -363,6 +363,9 @@ UNFOLD = {
                         ("Bars", "local_bar", "bars"),
                         ("Trophées", "emoji_events", "trophies"),
                     )
+                ] + [
+                    {"title": _("Custom"), "icon": "dashboard_customize", "link": reverse_lazy("admin_analytics_custom"),
+                     "permission": lambda request: request.user.is_staff},
                 ],
             },
             {
