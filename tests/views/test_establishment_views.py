@@ -32,7 +32,7 @@ class TestDetailPages:
     def test_numeric_primary_key_does_not_resolve(self, auth_client, brewery):
         assert auth_client.get(reverse("brewery_detail", args=[str(brewery.pk)])).status_code == 404
 
-    @pytest.mark.parametrize("name", ["brewery_detail", "bar_detail", "edit_brewery"])
+    @pytest.mark.parametrize("name", ["brewery_detail", "bar_detail", "edit_brewery", "edit_bar"])
     def test_unknown_establishment_is_404(self, auth_client, name):
         assert auth_client.get(reverse(name, args=["unknown-slug"])).status_code == 404
 
@@ -121,3 +121,73 @@ class TestManagerSearchApi:
         for _ in range(11):
             f.make_user(username=f.unique("brewer_"))
         assert len(self.search(auth_client, managed_brewery, "brewer_").json()["users"]) == 10
+
+
+class TestBarManagement:
+    """Un bar offre les mêmes fonctions de gestion qu'une brasserie."""
+
+    @pytest.fixture
+    def managed_bar(self, user):
+        return f.make_bar(name="Le Comptoir", managers=[user])
+
+    def test_manager_sees_the_team(self, auth_client, user, managed_bar):
+        context = auth_client.get(reverse("bar_detail", args=[managed_bar.slug])).context
+        assert context["is_manager"] and list(context["current_managers"]) == [user]
+
+    def test_visitor_does_not_see_the_team(self, auth_client):
+        bar = f.make_bar(name="Le Zinc")
+        context = auth_client.get(reverse("bar_detail", args=[bar.slug])).context
+        assert not context["is_manager"] and not context["current_managers"]
+
+    def test_non_manager_cannot_edit(self, auth_client):
+        bar = f.make_bar(name="Le Zinc")
+        response = auth_client.post(reverse("edit_bar", args=[bar.slug]), {"name": "Piraté", "description": "x"})
+        assert_redirects(response, reverse("bar_detail", args=[bar.slug]))
+        bar.refresh_from_db()
+        assert bar.name == "Le Zinc"
+
+    def test_manager_edits_and_other_managers_are_notified(self, auth_client, managed_bar, other_user, geocoder):
+        managed_bar.managers.add(other_user)
+        response = auth_client.post(
+            reverse("edit_bar", args=[managed_bar.slug]),
+            {"name": "Nouveau nom", "description": "Nouvelle description", "address": "Rennes"},
+        )
+        managed_bar.refresh_from_db()
+        assert_redirects(response, reverse("bar_detail", args=[managed_bar.slug]))
+        assert (managed_bar.name, managed_bar.latitude) == ("Nouveau nom", 48.8566)
+        notification = Notification.objects.get()
+        assert (notification.recipient, notification.notif_type, notification.bar) == (other_user, "place_updated", managed_bar)
+
+    def test_invalid_data_is_refused(self, auth_client, managed_bar):
+        response = auth_client.post(reverse("edit_bar", args=[managed_bar.slug]), {"name": "", "website": "not a url"})
+        assert response.status_code == 200
+        managed_bar.refresh_from_db()
+        assert managed_bar.name == "Le Comptoir"
+
+    def test_manager_adds_then_removes_a_collaborator(self, auth_client, managed_bar, other_user):
+        auth_client.post(reverse("add_bar_manager", args=[managed_bar.slug]), {"username": other_user.username})
+        assert managed_bar.managers.filter(pk=other_user.pk).exists()
+        assert BeerUser.objects.get(pk=other_user.pk).is_bartender
+        assert Notification.objects.get(notif_type="manager_added").bar == managed_bar
+
+        auth_client.post(reverse("remove_bar_manager", args=[managed_bar.slug, other_user.username]))
+        assert not BeerUser.objects.get(pk=other_user.pk).is_bartender
+        assert Notification.objects.get(notif_type="manager_removed").text_content == "Le Comptoir"
+
+    def test_non_manager_cannot_add_or_remove(self, other_client, user, other_user):
+        bar = f.make_bar(name="Le Zinc", managers=[user])
+        other_client.post(reverse("add_bar_manager", args=[bar.slug]), {"username": other_user.username})
+        other_client.post(reverse("remove_bar_manager", args=[bar.slug, user.username]))
+        assert list(bar.managers.all()) == [user]
+
+    def test_manager_cannot_remove_himself(self, auth_client, user, managed_bar):
+        auth_client.post(reverse("remove_bar_manager", args=[managed_bar.slug, user.username]))
+        assert managed_bar.managers.filter(pk=user.pk).exists()
+
+    def test_search_is_reserved_to_managers(self, auth_client, managed_bar, other_user):
+        url = reverse("api_search_users_for_bar_manager", args=[managed_bar.slug])
+        users = auth_client.get(url, {"q": "bob"}).json()["users"]
+        assert [u["username"] for u in users] == ["bobby"]
+        stranger = f.make_bar(name="Le Zinc")
+        forbidden = auth_client.get(reverse("api_search_users_for_bar_manager", args=[stranger.slug]), {"q": "bob"})
+        assert forbidden.status_code == 403

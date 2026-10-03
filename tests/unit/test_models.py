@@ -45,6 +45,50 @@ class TestBeerEmbedding:
         assert all(keyword in received[0] for keyword in ("Rousse", "Mont", "Amber", "Caramel"))
 
 
+class TestBeerEmbeddingRefresh:
+    @pytest.fixture
+    def embed_calls(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: calls.append(text) or [0.5] * 3072)
+        return calls
+
+    @pytest.fixture
+    def embedded_beer(self, embed_calls):
+        beer = f.make_beer(name="Rousse", style="Amber")
+        embed_calls.clear()
+        return type(beer).objects.get(pk=beer.pk)
+
+    def save(self, beer, django_capture_on_commit_callbacks, **changes):
+        for field, value in changes.items():
+            setattr(beer, field, value)
+        with django_capture_on_commit_callbacks(execute=True):
+            beer.save()
+
+    @pytest.mark.parametrize("changes", [{"is_deleted": True}, {"degree": 7}, {"bitterness": 40}])
+    def test_unrelated_changes_do_not_call_gemini(self, embedded_beer, embed_calls, django_capture_on_commit_callbacks, changes):
+        self.save(embedded_beer, django_capture_on_commit_callbacks, **changes)
+        assert embed_calls == []
+
+    @pytest.mark.parametrize("changes", [{"name": "Brune"}, {"style": "Stout"}, {"description": "Café"}])
+    def test_profile_changes_recompute_the_vector(self, embedded_beer, embed_calls, django_capture_on_commit_callbacks, changes):
+        self.save(embedded_beer, django_capture_on_commit_callbacks, **changes)
+        assert len(embed_calls) == 1
+
+    def test_beer_without_vector_is_retried_on_next_save(self, embed_calls, monkeypatch, django_capture_on_commit_callbacks):
+        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: None)
+        beer = f.make_beer()
+        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: embed_calls.append(text) or [0.5] * 3072)
+        self.save(beer, django_capture_on_commit_callbacks, degree=6)
+        assert len(embed_calls) == 1
+
+    def test_no_network_call_while_the_transaction_is_open(self, embed_calls, django_capture_on_commit_callbacks):
+        with django_capture_on_commit_callbacks(execute=False) as callbacks:
+            beer = Beer.objects.create(name="Blonde", brewery_id=f.make_brewery(), degree=5)
+        assert embed_calls == [] and len(callbacks) == 1
+        callbacks[0]()
+        assert len(embed_calls) == 1
+
+
 class TestFieldLimits:
     @pytest.mark.parametrize("note, valid", [(None, True), (0, True), (10, True), (-1, False), (11, False)])
     def test_drink_note_is_bounded_between_0_and_10(self, user, beer, note, valid):
@@ -162,16 +206,23 @@ class TestNotificationPreferences:
         "spot_invite": "notif_network",
         "spot_updated": "notif_network",
         "beer_updated": "notif_network",
+        "manager_added": "notif_establishment",
+        "manager_removed": "notif_establishment",
+        "place_updated": "notif_establishment",
+        "beer_added_to_brewery": "notif_establishment",
+        "beer_updated_by_manager": "notif_establishment",
+        "beer_deleted_by_manager": "notif_establishment",
     }
-    SYSTEM_TYPES = ["report_updated", "feedback_replied"]
+    SYSTEM_TYPES = ["report_updated", "feedback_replied", "content_removed"]
 
     @pytest.mark.parametrize("notif_type, preference", PREFERENCE_BY_TYPE.items())
     def test_disabled_category_blocks_only_its_notifications(self, notif_type, preference):
         recipient = f.make_user(**{preference: False})
         assert f.make_notification(recipient, notif_type).pk is None
-        assert f.make_notification(recipient, "manager_added").pk is not None
+        untouched = next(t for t, p in self.PREFERENCE_BY_TYPE.items() if p != preference)
+        assert f.make_notification(recipient, untouched).pk is not None
 
-    @pytest.mark.parametrize("notif_type", [*PREFERENCE_BY_TYPE, "manager_added"])
+    @pytest.mark.parametrize("notif_type", PREFERENCE_BY_TYPE)
     def test_global_switch_blocks_every_user_notification(self, notif_type):
         recipient = f.make_user(notif_global=False)
         f.make_notification(recipient, notif_type)
@@ -263,6 +314,23 @@ class TestGeocoding:
         brewery = f.make_brewery(address="Paris")
         assert Brewery.objects.filter(pk=brewery.pk).exists()
         assert brewery.latitude is None
+
+    @pytest.mark.parametrize("failure", [
+        {"side_effect": ConnectionError("down")},
+        {"return_value": type("Response", (), {"status_code": 503})()},
+    ], ids=["network-error", "http-error"])
+    def test_failure_after_an_address_change_drops_the_old_coordinates(self, geocoder, failure):
+        bar = f.make_bar(address="Paris")
+        assert bar.latitude is not None
+        geocoder.configure_mock(**failure)
+        bar.address = "Lyon"
+        bar.save()
+        bar.refresh_from_db()
+        assert (bar.latitude, bar.longitude) == (None, None)
+
+    def test_geocoding_timeout_is_short(self, geocoder):
+        f.make_bar(address="Paris")
+        assert geocoder.call_args.kwargs["timeout"] <= 2
 
 
 class TestStringRepresentations:

@@ -10,6 +10,7 @@ from itertools import count
 
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
 from PIL import Image
 
 from app.models import (
@@ -52,7 +53,9 @@ def make_bar(name=None, managers=(), **fields):
 
 def make_beer(name=None, brewery=None, **fields):
     fields.setdefault("degree", Decimal("5.0"))
-    return Beer.objects.create(name=name or unique("Biere "), brewery_id=brewery or make_brewery(), **fields)
+    # L'embedding est calculé après validation de la transaction : on exécute ces callbacks comme en production
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        return Beer.objects.create(name=name or unique("Biere "), brewery_id=brewery or make_brewery(), **fields)
 
 
 def make_drink(drinker, beer=None, note=7, **fields):

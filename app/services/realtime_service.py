@@ -4,6 +4,7 @@ from firebase_admin import credentials, messaging
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.urls import reverse
+from app.services import notification_types
 from app.services.security import get_secure_channel_name
 from django.utils.html import strip_tags
 
@@ -18,7 +19,7 @@ if not firebase_admin._apps and getattr(settings, 'FIREBASE_CREDENTIALS_PATH', N
 def _achievements_by_name(recipient, cache):
     """Trophées d'un destinataire indexés par nom, calculés une seule fois par destinataire."""
     # Import local pour éviter les imports circulaires
-    from app.views.utils import get_user_achievements
+    from app.services.achievements import get_user_achievements
 
     if recipient.pk not in cache:
         achievements, _level = get_user_achievements(recipient)
@@ -66,15 +67,11 @@ def broadcast_notifications(notifications_list):
         if not supabase_enabled:
             continue
         
-        toast_type = 'info'
+        toast_type = notification_types.get(notif.notif_type).toast
         tier_slug = None
         icon_html = None
         
-        if notif.notif_type == 'report_updated': 
-            toast_type = 'warning'
-        elif notif.notif_type in ['beer_added', 'spot_invite', 'feedback_replied']: 
-            toast_type = 'success'
-        elif notif.notif_type == 'achievement':
+        if notif.notif_type == 'achievement':
             ach_data = _achievements_by_name(notif.recipient, achievements_cache).get(notif.achievement_name)
             if ach_data:
                 tier_slug = ach_data['tier_slug']

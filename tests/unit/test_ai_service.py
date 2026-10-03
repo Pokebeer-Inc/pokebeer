@@ -30,6 +30,11 @@ class TestGetEmbedding:
         assert ai.get_embedding("IPA") == unit_vector(0)
         assert gemini.models.embed_content.call_args.kwargs["contents"] == "IPA"
 
+    def test_embedding_call_has_a_short_timeout(self, gemini):
+        ai.get_embedding("IPA")
+        config = gemini.models.embed_content.call_args.kwargs["config"]
+        assert config.http_options.timeout == ai.EMBEDDING_TIMEOUT_MS <= 5000
+
     def test_missing_api_key_skips_the_call(self, settings, gemini):
         settings.GEMINI_API_KEY = None
         assert ai.get_embedding("IPA") is None

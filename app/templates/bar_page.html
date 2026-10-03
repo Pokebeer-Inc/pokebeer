@@ -2,12 +2,10 @@
 {% load static %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'style/modal.css' %}">
 
-{% include "partials/place_header.html" with place=bar %}
+{% include "partials/place_header.html" with place=bar place_type="bar" is_manager=is_manager %}
 
-<!-- Section spécifique aux bars à venir -->
-<div class="px-2">
-    <!-- Contenu futur du bar -->
-</div>
+{% include "partials/place_modals.html" with place=bar place_type="bar" %}
 
 {% endblock %}

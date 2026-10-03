@@ -40,8 +40,7 @@
                 <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-box w-56 right-0 border border-base-200">
                     {% if is_manager %}
                         <li>
-                            <!-- Géré dynamiquement pour réutiliser sur Bar plus tard -->
-                            <a href="{% if place_type == 'brewery' %}{% url 'edit_brewery' place.slug %}{% endif %}" class="font-semibold text-primary">
+                            <a href="{% if place_type == 'bar' %}{% url 'edit_bar' place.slug %}{% else %}{% url 'edit_brewery' place.slug %}{% endif %}" class="font-semibold text-primary">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                 Modifier la page
                             </a>
@@ -130,7 +129,7 @@
     </div>
 </div>
 
-{% if brewery.latitude and brewery.longitude %}
+{% if place.latitude and place.longitude %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="{% static 'script/mini_map.js' %}"></script>
 {% endif %}

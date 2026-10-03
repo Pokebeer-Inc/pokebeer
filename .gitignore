@@ -11,3 +11,4 @@ media/
 .coverage
 htmlcov/
 *firebase-adminsdk*.json
+CLAUDE.md

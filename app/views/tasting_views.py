@@ -3,9 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
 from ..forms import DrinkForm
-from ..models import Beer, Drinks, Notification
+from ..models import Beer, Drinks
 from .utils import check_and_notify_achievements, posted_notebooks
-from ..services.realtime_service import broadcast_notifications
+from ..services.drinks import delete_drink
+from ..services.notifications import notify
 
 @login_required(login_url='login')
 def rate_beer_view(request, beer_slug):
@@ -35,12 +36,7 @@ def rate_beer_view(request, beer_slug):
             # Trouve tous les autres utilisateurs qui ont noté cette bière
             other_drinkers = Drinks.objects.filter(beer_id=beer).exclude(drinker_id=request.user).values_list('drinker_id', flat=True).distinct()
             
-            notifications = [
-                Notification(recipient_id=d_id, sender=request.user, notif_type='beer_shared', beer=beer)
-                for d_id in other_drinkers
-            ]
-            created_notifs = Notification.objects.bulk_create(notifications)
-            broadcast_notifications(created_notifs)
+            notify('beer_shared', other_drinkers, sender=request.user, beer=beer)
             
             messages.success(request, f"Votre avis sur {beer.name} a été enregistré !")
         else:
@@ -82,26 +78,7 @@ def delete_drink_view(request, drink_slug):
     drink = get_object_or_404(Drinks, slug=drink_slug, drinker_id=request.user)
     
     if request.method == 'POST':
-        user = request.user
-        beer_to_remove = drink.beer_id
-        
-        # Nettoyage du Top 3 (On retire la bière si elle y figure)
-        top_updated = False
-        if user.top_beer_1 == beer_to_remove:
-            user.top_beer_1 = None
-            top_updated = True
-        if user.top_beer_2 == beer_to_remove:
-            user.top_beer_2 = None
-            top_updated = True
-        if user.top_beer_3 == beer_to_remove:
-            user.top_beer_3 = None
-            top_updated = True
-            
-        if top_updated:
-            user.save()
-
-        # Suppression de la note de dégustation
-        drink.delete()
+        delete_drink(drink)
         
         check_and_notify_achievements(request.user)
         

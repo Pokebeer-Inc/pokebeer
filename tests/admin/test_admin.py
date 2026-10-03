@@ -14,16 +14,6 @@ from tests.helpers import messages_of
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture
-def superuser(db):
-    return f.make_user(username="root", is_superuser=True, groups=("Staff",))
-
-
-@pytest.fixture
-def staff(db):
-    return f.make_user(username="moderator", groups=("Staff",))
-
-
 def admin_request(user):
     request = RequestFactory().post("/admin/")
     request.user = user

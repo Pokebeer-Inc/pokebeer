@@ -272,10 +272,22 @@ UNFOLD = {
                         "link": reverse_lazy("admin:index"),
                         "permission": lambda request: request.user.is_superuser,
                     },
+                ],
+            },
+            {
+                "title": _("Membres"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
                     {
                         "title": _("Users"),
                         "icon": "people",
                         "link": reverse_lazy("admin:app_beeruser_changelist"),
+                    },
+                    {
+                        "title": _("Rôles"),
+                        "icon": "admin_panel_settings",
+                        "link": reverse_lazy("admin:app_beeruser_roles"),
                     },
                 ],
             },
@@ -284,6 +296,13 @@ UNFOLD = {
                 "separator": True,
                 "collapsible": True,
                 "items": [
+                    {
+                        "title": _("Contenus à valider"),
+                        "icon": "fact_check",
+                        "link": reverse_lazy("admin:app_moderationentry_changelist"),
+                        "badge": "app.admin.moderation.pending_count",
+                        "permission": lambda request: request.user.is_staff,
+                    },
                     {
                         "title": _("Feedback"),
                         "icon": "comment", 
@@ -299,7 +318,7 @@ UNFOLD = {
                 ],
             },
             {
-                "title": _("Eléments"),
+                "title": _("Contenu"),
                 "separator": True,
                 "collapsible": True,
                 "items": [

@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils import timezone
 from django.contrib.auth.models import UserManager
@@ -7,11 +7,15 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.functions import Lower
 from .fields import PublicSlugField
 from .validators import username_validator
+from .services import notification_policy, notification_types
 from pgvector.django import VectorField
 import requests
 from django.db.models.signals import post_save, m2m_changed
 from django.dispatch import receiver
 from django.contrib.auth.models import Group
+
+# Le géocodage est synchrone dans la requête web : timeout court (connexion + lecture)
+GEOCODING_TIMEOUT = 2
 
 class GeocodableMixin(models.Model):
     """
@@ -40,19 +44,20 @@ class GeocodableMixin(models.Model):
         }
 
         try:
-            response = requests.get(url, params=params, headers=headers, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                if data:
-                    self.latitude = float(data[0]['lat'])
-                    self.longitude = float(data[0]['lon'])
-                else:
-                    # L'adresse n'a pas été trouvée par l'API
-                    self.latitude = None
-                    self.longitude = None
+            response = requests.get(url, params=params, headers=headers, timeout=GEOCODING_TIMEOUT)
+            data = response.json() if response.status_code == 200 else None
+            if data:
+                self.latitude = float(data[0]['lat'])
+                self.longitude = float(data[0]['lon'])
+                return
+            if response.status_code != 200:
+                print(f"Erreur de géocodage : HTTP {response.status_code}")
         except Exception as e:
             # En cas de coupure réseau ou erreur API, on ne fait pas crasher l'enregistrement
             print(f"Erreur de géocodage : {e}")
+        # Adresse introuvable ou service indisponible : mieux vaut pas de carte que les coordonnées de l'ancienne adresse
+        self.latitude = None
+        self.longitude = None
 
     def save(self, *args, **kwargs):
         # On vérifie si c'est une modification d'un objet existant
@@ -100,6 +105,7 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     notif_social = models.BooleanField(default=True, verbose_name="Interactions (Likes, Wishlists)")
     notif_network = models.BooleanField(default=True, verbose_name="Réseau (Ajouts de bières, Lieux)")
     notif_achievements = models.BooleanField(default=True, verbose_name="Trophées et récompenses")
+    notif_establishment = models.BooleanField(default=True, verbose_name="Établissements (Équipe, mises à jour)")
     show_establishments = models.BooleanField(default=True, verbose_name="Afficher mes établissements publiquement")
     fcm_token = models.TextField(blank=True, null=True, verbose_name="Token Firebase Android")
     is_active = models.BooleanField(default=True, verbose_name="Compte actif", help_text="Décocher pour suspendre le compte : connexion refusée et profil masqué.")
@@ -305,13 +311,39 @@ class Beer(models.Model):
         """Texte décrivant la bière, vectorisé pour la recherche sémantique du chat IA."""
         return f"Bière {self.name} de la brasserie {self.brewery_id.name}. Style: {self.style or 'inconnu'}. Profil: {self.description}"
 
-    def save(self, *args, **kwargs):
-        from .services.ai import get_embedding 
+    # Champs dont dépend `embedding_text` : leur changement rend le vecteur obsolète
+    EMBEDDING_SOURCES = ('name', 'style', 'description', 'brewery_id_id')
+
+    def _embedding_sources(self):
+        return tuple(self.__dict__.get(field) for field in self.EMBEDDING_SOURCES)
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        beer = super().from_db(db, field_names, values)
+        beer._embedded_sources = beer._embedding_sources()
+        return beer
+
+    def _needs_embedding(self):
+        """Vecteur absent ou obsolète ; jamais pour une bière retirée du catalogue (absente du chat IA)."""
+        if self.is_deleted:
+            return False
+        return self.embedding is None or self._embedding_sources() != getattr(self, '_embedded_sources', None)
+
+    def _refresh_embedding(self):
+        from .services.ai import get_embedding
         vector = get_embedding(self.embedding_text)
         if vector:
             self.embedding = vector
-            
+            Beer.objects.filter(pk=self.pk).update(embedding=vector)
+
+    def save(self, *args, **kwargs):
+        needs_embedding = self._needs_embedding()
         super().save(*args, **kwargs)
+        if needs_embedding:
+            self._embedded_sources = self._embedding_sources()
+            # Après la validation de la transaction en cours : jamais d'appel réseau pendant qu'elle est ouverte.
+            # En cas d'échec Gemini, le vecteur reste absent : `embed_beers` ou le prochain save le rattrape.
+            transaction.on_commit(self._refresh_embedding)
 
 class Drinks(models.Model):
     date = models.DateField(default=date.today, verbose_name="Date")
@@ -423,8 +455,7 @@ class UserBlock(models.Model):
 class NotificationManager(models.Manager):
     def bulk_create(self, objs, **kwargs):
         """Intercepte les bulk_create pour retirer les notifications refusées."""
-        # On filtre la liste avec notre nouvelle méthode is_allowed()
-        valid_objs = [obj for obj in objs if obj.is_allowed()]
+        valid_objs = notification_policy.filter_allowed(objs)
         
         # Si après filtrage la liste est vide, on arrête tout
         if not valid_objs:
@@ -437,19 +468,7 @@ class Notification(models.Model):
     objects = NotificationManager()
     slug = PublicSlugField()
     
-    NOTIFICATION_TYPES = [
-        ('follow', 'Nouvel abonné'),
-        ('beer_shared', 'Bière goûtée en commun'),
-        ('beer_added', 'Nouvelle bière d\'un abonnement'),
-        ('achievement', 'Nouveau trophée'),
-        ('spot_invite', 'Invitation à un lieu'),
-        ('spot_updated', 'Lieu mis à jour'),
-        ('beer_updated', 'Bière mise à jour'),
-        ('drink_liked', 'Avis aimé'),
-        ('report_updated', 'Signalement mis à jour'),
-        ('wishlist_added', 'Bière ajoutée à la liste de souhaits'),
-        ('feedback_replied', 'Réponse à votre feedback'),
-    ]
+    NOTIFICATION_TYPES = notification_types.CHOICES
 
     recipient = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='notifications')
     sender = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_notifications')
@@ -471,6 +490,11 @@ class Notification(models.Model):
         ordering = ['-created_at']
 
     @property
+    def place(self):
+        """Établissement concerné (brasserie ou bar)."""
+        return self.brewery or self.bar
+
+    @property
     def time_ago(self):
         now = timezone.now()
         diff = now - self.created_at
@@ -489,32 +513,13 @@ class Notification(models.Model):
         return "à l'instant"
     
     def is_allowed(self):
-        """Vérifie si l'utilisateur accepte ce type de notification."""
-        user = self.recipient
-        
-        # Les messages système sont toujours autorisés
-        if self.notif_type in ['report_updated', 'feedback_replied']:
-            return True
-            
-        if not user.notif_global:
-            return False
-        if self.notif_type == 'follow' and not user.notif_follow:
-            return False
-        if self.notif_type in ['drink_liked', 'wishlist_added'] and not user.notif_social:
-            return False
-        if self.notif_type == 'achievement' and not user.notif_achievements:
-            return False
-        if self.notif_type in ['beer_added', 'beer_shared', 'spot_invite', 'spot_updated', 'beer_updated'] and not user.notif_network:
-            return False
-            
-        return True
-    
+        """Politique d'envoi : type connu, destinataire actif, préférences, blocages (voir notification_policy)."""
+        return bool(notification_policy.filter_allowed([self]))
+
     def save(self, *args, **kwargs):
         # On intercepte uniquement les nouvelles notifications (sans ID)
-        if not self.pk: 
-            if not self.is_allowed():
-                return # On annule silencieusement
-                
+        if not self.pk and not self.is_allowed():
+            return  # On annule silencieusement
         super().save(*args, **kwargs)
 
 class UserAchievementState(models.Model):
@@ -564,6 +569,53 @@ class CustomNotebook(models.Model):
     def __str__(self):
         return f"{self.title} - {self.user.username}"
     
+class ModerationEntryQuerySet(models.QuerySet):
+    def pending(self):
+        return self.filter(reviewed_at__isnull=True)
+
+    def for_object(self, kind, object_id):
+        return self.filter(kind=kind, object_id=object_id)
+
+
+class ModerationEntry(models.Model):
+    """Trace d'un contenu public créé ou modifié, à relire par l'équipe. N'empêche jamais la publication."""
+
+    class Kind(models.TextChoices):
+        BEER = 'beer', 'Bière'
+        COMMENT = 'comment', 'Commentaire'
+        BREWERY = 'brewery', 'Brasserie'
+        BAR = 'bar', 'Bar'
+        USER = 'user', 'Membre'
+
+    class Action(models.TextChoices):
+        CREATED = 'created', 'Création'
+        MODIFIED = 'modified', 'Modification'
+
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    action = models.CharField(max_length=10, choices=Action.choices)
+    object_id = models.PositiveBigIntegerField(verbose_name="Identifiant de l'objet")
+    label = models.CharField(max_length=255, verbose_name="Libellé")
+    context = models.CharField(max_length=255, blank=True, verbose_name="Contexte")
+    # [{"field", "label", "image", "old", "new"}] : valeurs au moment de l'enregistrement
+    changes = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='+', verbose_name="Validé par")
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="Validé le")
+
+    objects = ModerationEntryQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Contenu à valider"
+        verbose_name_plural = "Contenus à valider"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['reviewed_at', 'kind', 'action'], name='moderation_queue_idx'),
+            models.Index(fields=['kind', 'object_id'], name='moderation_object_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.get_kind_display()} - {self.label}"
+
 # ==========================================
 # Attibution des rôles
 # ==========================================

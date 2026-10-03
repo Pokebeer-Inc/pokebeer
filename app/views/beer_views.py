@@ -7,7 +7,7 @@ from django.db.models import Count, Q, F
 from ..forms import BeerForm, DrinkForm, clear_invalid_fields, error_summary
 from ..models import Beer, Drinks, Notification, UserFollow, DrinkReaction
 from .utils import get_excluded_users, check_and_notify_achievements, posted_notebooks
-from ..services.realtime_service import broadcast_notifications
+from ..services.notifications import notify
 
 def _save_new_beer(user, beer_form, drink_form):
     """Enregistre la bière et sa première note ensemble. Renvoie False si le nom a été pris entre-temps."""
@@ -47,22 +47,11 @@ def add_beer_view(request):
             # Trouve tous mes abonnés
             followers = UserFollow.objects.filter(followed=request.user).values_list('follower_id', flat=True)
             # Création en masse
-            notifications = [
-                Notification(recipient_id=f_id, sender=request.user, notif_type='beer_added', beer=new_beer)
-                for f_id in followers
-            ]
-            created_notifs = Notification.objects.bulk_create(notifications)
-            broadcast_notifications(created_notifs)
+            notify('beer_added', followers, sender=request.user, beer=new_beer)
             
             if new_beer.brewery_id:
-                managers = new_beer.brewery_id.managers.exclude(id=request.user.id) # Exclut si le créateur EST le manager
-                if managers.exists():
-                    manager_notifs = [
-                        Notification(recipient=m, sender=request.user, notif_type='beer_added_to_brewery', beer=new_beer)
-                        for m in managers
-                    ]
-                    created_manager_notifs = Notification.objects.bulk_create(manager_notifs)
-                    broadcast_notifications(created_manager_notifs)
+                # Le créateur n'est pas notifié s'il est lui-même manager (la politique d'envoi écarte l'auto-notification)
+                notify('beer_added_to_brewery', new_beer.brewery_id.managers.all(), sender=request.user, beer=new_beer)
             
             check_and_notify_achievements(request.user)
             
@@ -176,21 +165,10 @@ def edit_beer_view(request, beer_slug):
             
             drinkers = Drinks.objects.filter(beer_id=beer).exclude(drinker_id=request.user).values_list('drinker_id', flat=True).distinct()
             
-            notifications = [
-                Notification(recipient_id=d_id, sender=request.user, notif_type='beer_updated', beer=beer)
-                for d_id in drinkers
-            ]
-            created_notifs = Notification.objects.bulk_create(notifications)
-            broadcast_notifications(created_notifs)
+            notify('beer_updated', drinkers, sender=request.user, beer=beer)
             
             if is_manager and not is_creator and beer.added_by:
-                notif_creator = Notification.objects.create(
-                    recipient=beer.added_by,
-                    sender=request.user,
-                    notif_type='beer_updated_by_manager',
-                    beer=beer
-                )
-                broadcast_notifications([notif_creator])
+                notify('beer_updated_by_manager', [beer.added_by], sender=request.user, beer=beer)
                 
             messages.success(request, "Les informations de la bière ont été mises à jour.")
             return redirect('beer_detail', beer_slug=beer.slug)
@@ -223,13 +201,8 @@ def delete_beer_view(request, beer_slug):
             check_and_notify_achievements(beer.added_by)
         
         if is_manager and not is_creator and beer.added_by:
-            notif_creator = Notification.objects.create(
-                recipient=beer.added_by,
-                sender=request.user,
-                notif_type='beer_deleted_by_manager',
-                text_content=beer.name  # On utilise le texte libre car la bière est désormais cachée
-            )
-            broadcast_notifications([notif_creator])
+            # On utilise le texte libre car la bière est désormais cachée
+            notify('beer_deleted_by_manager', [beer.added_by], sender=request.user, text_content=beer.name)
         
         messages.success(request, "Bière retirée du catalogue. Vos notes personnelles sont conservées.")
         return redirect('index')
