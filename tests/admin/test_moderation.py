@@ -3,6 +3,7 @@ from django.contrib.admin.models import DELETION, LogEntry
 from django.urls import reverse
 
 from app.models import Bar, Beer, BeerUser, Brewery, Drinks, ModerationEntry, Notification
+from app.services.verification import certify
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -73,6 +74,39 @@ class TestValidate:
         bar.save()
         client_for(superuser).post(validate_url(entries("bar", "modified").get(object_id=bar.pk)))
         assert not Bar.objects.get(pk=bar.pk).is_verified
+
+
+class TestBeerCertification:
+    def test_superuser_validating_a_new_beer_certifies_it(self, client_for, superuser):
+        beer = f.make_beer()
+        client_for(superuser).post(validate_url(entries("beer", "created").get(object_id=beer.pk)))
+        beer.refresh_from_db()
+        assert (beer.is_verified, beer.verified_by) == (True, superuser) and beer.verified_at
+
+    def test_staff_can_review_a_new_beer_without_certifying_it(self, client_for, staff):
+        beer = f.make_beer()
+        entry = entries("beer", "created").get(object_id=beer.pk)
+        client_for(staff).post(validate_url(entry))
+        assert not Beer.objects.get(pk=beer.pk).is_verified
+        assert ModerationEntry.objects.get(pk=entry.pk).reviewed_at is not None
+
+    def test_validating_a_beer_modification_does_not_certify(self, client_for, superuser):
+        beer = f.make_beer(description="a")
+        beer.description = "b"
+        beer.save()
+        client_for(superuser).post(validate_url(entries("beer", "modified").get(object_id=beer.pk)))
+        assert not Beer.objects.get(pk=beer.pk).is_verified
+
+    def test_certifying_does_not_log_a_new_moderation_entry_nor_call_gemini(self, client_for, superuser, monkeypatch):
+        beer = f.make_beer()
+        calls = []
+        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: calls.append(text))
+        client_for(superuser).post(validate_url(entries("beer", "created").get(object_id=beer.pk)))
+        assert calls == [] and not entries("beer", "modified").exists()
+
+    def test_only_verifiable_objects_can_be_certified(self, superuser):
+        with pytest.raises(TypeError):
+            certify(superuser, superuser)
 
 
 class TestRemove:

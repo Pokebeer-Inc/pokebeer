@@ -21,7 +21,10 @@
 
     <div class="px-4 pt-2 pb-4 border-b border-base-200">
         <div class="flex justify-between items-start">
-            <h1 class="text-3xl font-castoro font-bold leading-tight">{{ beer.name }}</h1>
+            <h1 class="text-3xl font-castoro font-bold leading-tight flex items-center gap-2">
+                {{ beer.name }}
+                {% if beer.is_verified %}{% include "partials/verified_badge.html" with label="Vérifiée" %}{% endif %}
+            </h1>
             
             <div class="dropdown dropdown-end">
                 <div tabindex="0" role="button" class="btn btn-sm btn-ghost btn-circle text-gray-500 mt-1">

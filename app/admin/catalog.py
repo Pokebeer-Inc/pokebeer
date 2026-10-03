@@ -6,7 +6,7 @@ from django.urls import path
 from unfold.admin import ModelAdmin
 
 from ..models import Beer, Drinks, Brewery, Bar
-from ..services.verification import certify_establishment
+from ..services.verification import certify
 
 
 admin.site.register(Beer)
@@ -58,7 +58,7 @@ class BarAdmin(ModelAdmin):
             slug=bar_slug,
         )
 
-        certify_establishment(bar, request.user)
+        certify(bar, request.user)
 
         return JsonResponse(
             {

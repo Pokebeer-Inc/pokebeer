@@ -112,7 +112,7 @@ class ModerationEntryAdmin(ModelAdmin):
                 "url": content.url(target) if target else "",
                 "authors": [a.username for a in content.authors(target)] if target else [],
                 "can_validate": content.can_validate(entry, request.user),
-                "certifies": content.certifiable and entry.action == Action.CREATED,
+                "certifies": content.certifies(entry, request.user),
                 "can_remove": target is not None and content.can_remove_by(entry, request.user),
                 "remove_label": content.remove_label,
                 "cascade_warning": content.cascade_warning(target) if target else "",

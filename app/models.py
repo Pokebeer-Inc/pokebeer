@@ -202,7 +202,16 @@ class UserFollow(models.Model):
     class Meta:
         unique_together = ('follower', 'followed')
 
-class Brewery(GeocodableMixin):
+class VerifiableMixin(models.Model):
+    """Coche « vérifié » posée par un admin (voir services/verification.py) ; jamais modifiable par un formulaire public."""
+    is_verified = models.BooleanField(default=False, verbose_name="Vérifié")
+    verified_by = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_%(class)s_set', verbose_name="Vérifié par")
+    verified_at = models.DateTimeField(null=True, blank=True, verbose_name="Date de vérification")
+
+    class Meta:
+        abstract = True
+
+class Brewery(GeocodableMixin, VerifiableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
     slug = PublicSlugField(source='name')
     description = models.TextField(verbose_name="Description")
@@ -226,11 +235,6 @@ class Brewery(GeocodableMixin):
     created_at = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Date de création")
     updated_at = models.DateTimeField(auto_now=True, null=True, verbose_name="Dernière modification")
     
-    # Vérification
-    is_verified = models.BooleanField(default=False, verbose_name="Brasserie vérifiée")
-    verified_by = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_breweries', verbose_name="Vérifiée par")
-    verified_at = models.DateTimeField(null=True, blank=True, verbose_name="Date de vérification")
-
     class Meta:
         verbose_name = "Brasserie"
         ordering = ['name']
@@ -238,7 +242,7 @@ class Brewery(GeocodableMixin):
     def __str__(self):
         return self.name
     
-class Bar(GeocodableMixin):
+class Bar(GeocodableMixin, VerifiableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
     slug = PublicSlugField(source='name')
     description = models.TextField(blank=True, null=True, verbose_name="Description")
@@ -263,11 +267,6 @@ class Bar(GeocodableMixin):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Dernière modification")
     
-    # Vérification
-    is_verified = models.BooleanField(default=False, verbose_name="Bar vérifié")
-    verified_by = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_bars', verbose_name="Vérifié par")
-    verified_at = models.DateTimeField(null=True, blank=True, verbose_name="Date de vérification")
-
     class Meta:
         verbose_name = "Bar"
         verbose_name_plural = "Bars"
@@ -276,7 +275,7 @@ class Bar(GeocodableMixin):
     def __str__(self):
         return self.name
 
-class Beer(models.Model):
+class Beer(VerifiableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
     image = models.ImageField(upload_to='beers/', blank=True, null=True, verbose_name="Image")
     description = models.TextField(blank=True, null=True, verbose_name="Description officielle")
@@ -337,7 +336,9 @@ class Beer(models.Model):
             Beer.objects.filter(pk=self.pk).update(embedding=vector)
 
     def save(self, *args, **kwargs):
-        needs_embedding = self._needs_embedding()
+        update_fields = kwargs.get('update_fields')
+        touches_profile = update_fields is None or bool(set(self.EMBEDDING_SOURCES) & set(update_fields))
+        needs_embedding = touches_profile and self._needs_embedding()
         super().save(*args, **kwargs)
         if needs_embedding:
             self._embedded_sources = self._embedding_sources()

@@ -24,7 +24,8 @@ class ModeratedContent:
     model = None
     noun = "contenu"                  # « Votre {noun} a été retiré… »
     fields = ()
-    certifiable = False               # la validation d'une création pose la coche « vérifié »
+    certifiable = False               # la validation d'une création par un admin pose la coche « vérifié »
+    staff_reviews_creation = False    # si certifiable : le staff peut quand même marquer la création comme vue (sans certifier)
     superuser_only = False            # actions réservées aux superusers (impact fort)
     remove_label = "Supprimer"
 
@@ -57,8 +58,14 @@ class ModeratedContent:
     def _staff_allowed(self, user):
         return user.is_superuser or (user.is_active and user.is_staff and not self.superuser_only)
 
+    def certifies(self, entry, user):
+        """Valider cette entrée pose-t-il la coche « vérifié » ? Réservé aux superusers."""
+        return self.certifiable and entry.action == ModerationEntry.Action.CREATED and user.is_superuser
+
     def can_validate(self, entry, user):
-        needs_superuser = self.certifiable and entry.action == ModerationEntry.Action.CREATED
+        needs_superuser = (
+            self.certifiable and not self.staff_reviews_creation and entry.action == ModerationEntry.Action.CREATED
+        )
         return user.is_superuser if needs_superuser else user.is_active and user.is_staff
 
     def can_remove_by(self, entry, user):
@@ -73,6 +80,8 @@ class BeerContent(ModeratedContent):
     kind = Kind.BEER
     model = Beer
     noun = "bière"
+    certifiable = True
+    staff_reviews_creation = True
     fields = (
         FieldSpec('name', 'Nom'), FieldSpec('description', 'Description'),
         FieldSpec('style', 'Style'), FieldSpec('image', 'Image', is_image=True),

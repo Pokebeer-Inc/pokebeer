@@ -217,3 +217,21 @@ class TestDeleteBeer:
         auth_client.post(self.url(beer))
         notification = Notification.objects.get(notif_type="beer_deleted_by_manager")
         assert (notification.recipient.username, notification.text_content) == ("bobby", "Test IPA")
+
+
+class TestVerifiedBadge:
+    def page(self, client, beer):
+        return client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+
+    def test_badge_is_shown_only_on_verified_beers(self, auth_client, beer):
+        assert 'aria-label="Vérifiée"' not in self.page(auth_client, beer)
+        beer.is_verified = True
+        beer.save()
+        assert 'aria-label="Vérifiée"' in self.page(auth_client, beer)
+
+    def test_members_cannot_set_the_verified_flag_through_the_forms(self, auth_client, user, beer):
+        beer.added_by = user
+        beer.save()
+        auth_client.post(reverse("edit_beer", args=[beer.slug]), {**edit_data(beer), "is_verified": "on", "verified_by": user.pk})
+        beer.refresh_from_db()
+        assert (beer.is_verified, beer.verified_by) == (False, None)
