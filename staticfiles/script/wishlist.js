@@ -1,4 +1,4 @@
-function toggleWishlist(event, beerId) {
+function toggleWishlist(event, beerSlug) {
     event.preventDefault();
     event.stopPropagation(); // Évite de cliquer sur la carte en arrière-plan
     
@@ -7,7 +7,7 @@ function toggleWishlist(event, beerId) {
                       document.querySelector('[name=csrfmiddlewaretoken]').value : 
                       (window.CSRF_TOKEN || '');
     
-    fetch(`/beer/${beerId}/wishlist/`, {
+    fetch(`/beer/${beerSlug}/wishlist/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': csrfToken,
@@ -18,7 +18,7 @@ function toggleWishlist(event, beerId) {
     .then(data => {
         if(data.success) {
             // Met à jour toutes les icônes de cette bière sur la page
-            const icons = document.querySelectorAll(`#wishlist-icon-${beerId}`);
+            const icons = document.querySelectorAll(`#wishlist-icon-${beerSlug}`);
             icons.forEach(icon => {
                 if(data.is_in_wishlist) {
                     icon.setAttribute('fill', 'currentColor');
