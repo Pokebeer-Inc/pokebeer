@@ -52,6 +52,7 @@ urlpatterns = [
     path('submit-report/', views.submit_report, name='submit_report'),
     path('block-user/<str:username>/', views.block_user, name='block_user'),
     path('unblock-user/<str:username>/', views.unblock_user, name='unblock_user'),
+    path('account/avatar/', views.update_profile_picture, name='update_profile_picture'),
     path('blocked-users/', views.blocked_users_list, name='blocked_users'),
 
     # ==========================================

@@ -238,6 +238,26 @@ STORAGES = {
     },
 }
 
+# Photos de profil : bucket Supabase dédié (public en lecture)
+AWS_PROFILE_PICTURES_BUCKET = os.getenv('AWS_PROFILE_PICTURES_BUCKET')
+if DEBUG:
+    STORAGES["profile_pictures"] = {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {"location": os.path.join(MEDIA_ROOT, 'profile_pictures'), "base_url": f"{MEDIA_URL}profile_pictures/"},
+    }
+else:
+    STORAGES["profile_pictures"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": AWS_PROFILE_PICTURES_BUCKET,
+            "custom_domain": f"{supabase_domain}/storage/v1/object/public/{AWS_PROFILE_PICTURES_BUCKET}",
+            "file_overwrite": False,
+            "querystring_auth": False,
+            # Le nom du fichier change à chaque envoi : le cache peut être définitif
+            "object_parameters": {"CacheControl": "public, max-age=31536000, immutable"},
+        },
+    }
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 CHAT_DAILY_LIMIT = 10
 CHAT_MESSAGE_MAX_LENGTH = 5000

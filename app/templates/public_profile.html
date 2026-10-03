@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load avatars %}
 {% load static %}
 
 {% block content %}
@@ -40,11 +39,7 @@
     
     <div class="avatar mb-2">
         <div class="w-20 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-            {% if profile_user.socialaccount_set.all %}
-            <img class="object-cover w-full h-full" src="{{ profile_user.socialaccount_set.first.extra_data.picture }}" alt="Avatar">
-            {% else %}
-            <img class="object-cover w-full h-full" src="{{ profile_user.username|initials_avatar }}" alt="Avatar">
-            {% endif %}
+                            <img class="object-cover w-full h-full" src="{{ profile_user.avatar_url }}" alt="Avatar">
         </div>
     </div>
     <h2 class="text-xl font-bold font-castoro break-words max-w-full text-center px-4">{{ profile_user.username }}</h2>
@@ -241,11 +236,7 @@
                 <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
-                            {% if f.follower.socialaccount_set.all %}
-                            <img class="object-cover w-full h-full" src="{{ f.follower.socialaccount_set.first.extra_data.picture }}" />
-                            {% else %}
-                            <img class="object-cover w-full h-full" src="{{ f.follower.username|initials_avatar }}" />
-                            {% endif %}
+                            <img class="object-cover w-full h-full" src="{{ f.follower.avatar_url }}" />
                         </div>
                     </div>
                     <span class="font-bold text-sm">{{ f.follower.username }}</span>
@@ -269,11 +260,7 @@
                 <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
-                            {% if f.followed.socialaccount_set.all %}
-                            <img class="object-cover w-full h-full" src="{{ f.followed.socialaccount_set.first.extra_data.picture }}" />
-                            {% else %}
-                            <img class="object-cover w-full h-full" src="{{ f.followed.username|initials_avatar }}" />
-                            {% endif %}
+                            <img class="object-cover w-full h-full" src="{{ f.followed.avatar_url }}" />
                         </div>
                     </div>
                     <span class="font-bold text-sm">{{ f.followed.username }}</span>

@@ -6,6 +6,7 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.core.exceptions import ValidationError
 from .services import notification_types
+from .services.profile_pictures import process_profile_picture
 from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
 from django.utils import timezone
 from django.utils.text import slugify
@@ -135,6 +136,17 @@ class UserUpdateForm(UniqueUsernameMixin, forms.ModelForm):
         if BeerUser.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("Cet email est déjà utilisé par un autre membre.")
         return email
+
+class ProfilePictureForm(forms.ModelForm):
+    """Seul champ modifiable : la photo ; le fichier est validé et ré-encodé avant d'être stocké."""
+    avatar = forms.ImageField(required=True, label="Photo de profil", widget=forms.FileInput(attrs={'accept': ', '.join(['image/jpeg', 'image/png', 'image/webp'])}))
+
+    class Meta:
+        model = BeerUser
+        fields = ['avatar']
+
+    def clean_avatar(self):
+        return process_profile_picture(self.cleaned_data['avatar'])
 
 class ProSettingsForm(forms.ModelForm):
     show_establishments = forms.BooleanField(

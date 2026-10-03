@@ -1,4 +1,3 @@
-{% load avatars %}
 {% load static %}
 <!-- Modale de Signalement -->
 {% if not is_manager %}
@@ -64,11 +63,7 @@
                         <div class="flex items-center gap-3">
                             <div class="avatar">
                                 <div class="w-8 h-8 rounded-full border border-base-300 overflow-hidden shadow-inner">
-                                    {% if m.socialaccount_set.all %}
-                                        <img src="{{ m.socialaccount_set.first.extra_data.picture }}" class="object-cover" />
-                                    {% else %}
-                                        <img src="{{ m.username|initials_avatar }}" class="object-cover" />
-                                    {% endif %}
+                            <img src="{{ m.avatar_url }}" class="object-cover" />
                                 </div>
                             </div>
                             <a href="{% url 'public_profile' m.username %}" class="text-sm font-semibold hover:text-primary transition-colors">

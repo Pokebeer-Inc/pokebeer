@@ -114,7 +114,7 @@ class ModerationEntryAdmin(ModelAdmin):
                 "can_validate": content.can_validate(entry, request.user),
                 "certifies": content.certifies(entry, request.user),
                 "can_remove": target is not None and content.can_remove_by(entry, request.user),
-                "remove_label": content.remove_label,
+                "remove_label": content.remove_label_for(entry),
                 "cascade_warning": content.cascade_warning(target) if target else "",
             })
         return cards

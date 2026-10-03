@@ -4,8 +4,10 @@ from unittest import mock
 import pytest
 from allauth.socialaccount.models import SocialApp
 from django.contrib.sites.models import Site
+from django.core.files.storage import InMemoryStorage
 from django.test import Client
 
+from app.models import BeerUser
 from tests import factories
 
 
@@ -21,6 +23,8 @@ def isolated_services(settings, monkeypatch):
     settings.SUPABASE_ANON_KEY = None
     settings.SUPABASE_SERVICE_ROLE_KEY = None
     settings.STORAGES = {**settings.STORAGES, "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"}}
+    # Le champ garde le stockage résolu à l'import : on le remplace par un stockage mémoire (jamais le vrai bucket)
+    monkeypatch.setattr(BeerUser._meta.get_field("avatar"), "storage", InMemoryStorage())
     monkeypatch.setattr("app.services.ai.config_client", _network_disabled)
     monkeypatch.setattr("app.views.api_views.config_client", _network_disabled)
     monkeypatch.setattr("app.services.realtime_service.requests.post", mock.Mock(side_effect=_network_disabled))

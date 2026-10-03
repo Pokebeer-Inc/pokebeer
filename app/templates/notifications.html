@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load avatars %}
 
 {% block content %}
 
@@ -32,13 +31,8 @@
                 <!-- Design classique pour les avatars utilisateurs -->
                 <div
                     class="w-10 h-10 rounded-full border border-base-300 flex items-center justify-center bg-white shadow-sm overflow-hidden text-primary">
-                    {% if notif.sender.socialaccount_set.all %}
-                    <img class="object-cover w-full h-full"
-                        src="{{ notif.sender.socialaccount_set.first.extra_data.picture }}" />
-                    {% else %}
-                    <img class="object-cover w-full h-full"
-                        src="{{ notif.sender.username|initials_avatar }}" />
-                    {% endif %}
+                            <img class="object-cover w-full h-full"
+                        src="{{ notif.sender.avatar_url }}" />
                 </div>
                 {% endif %}
             </div>

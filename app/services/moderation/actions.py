@@ -53,8 +53,8 @@ def validate_entry(entry_id, user):
     return entry
 
 
-def removal_message(content, reason_code, note):
-    message = f"Votre {content.noun} a été retiré par l'équipe de modération. Motif : {REMOVAL_REASONS[reason_code]}."
+def removal_message(content, entry, reason_code, note):
+    message = f"Votre {content.noun_for(entry)} a été retiré par l'équipe de modération. Motif : {REMOVAL_REASONS[reason_code]}."
     if note:
         message += f" {note}"
     return message[:NOTIFICATION_MAX_LENGTH]
@@ -80,15 +80,15 @@ def remove_content(entry_id, user, reason_code, note=""):
         recipients = content.authors(target)
         LogEntry.objects.log_actions(
             user.pk, [target], DELETION, single_object=True,
-            change_message=f"Modération : {content.remove_label} ({REMOVAL_REASONS[reason_code]})",
+            change_message=f"Modération : {content.remove_label_for(entry)} ({REMOVAL_REASONS[reason_code]})",
         )
-        content.remove(target)
+        content.remove(target, entry)
         # Hors suppression en base (soft-delete, bio effacée), les entrées de cet objet n'ont plus rien à relire
         ModerationEntry.objects.pending().for_object(entry.kind, entry.object_id).update(
             reviewed_by=user, reviewed_at=timezone.now(),
         )
 
-        text = removal_message(content, reason_code, note)
+        text = removal_message(content, entry, reason_code, note)
         notifications = create_notifications(
             'content_removed', [r for r in recipients if r.pk != user.pk], text_content=text)
         transaction.on_commit(lambda: broadcast_notifications(notifications))

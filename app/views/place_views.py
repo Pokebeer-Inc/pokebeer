@@ -7,7 +7,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from ..forms import BarEditForm, BreweryEditForm
 from ..models import Bar, BeerUser, Brewery
-from ..services.avatars import initials_avatar_url
 from ..services.notifications import notify
 
 
@@ -109,18 +108,11 @@ def search_users_for_manager(request, kind, slug):
 
     # On exclut ceux qui sont DÉJÀ managers
     existing_managers = place.managers.values_list('id', flat=True)
-    users = BeerUser.objects.filter(username__icontains=query, is_active=True).exclude(id__in=existing_managers)[:10]
-
-    data = []
-    for u in users:
-        # Avatar par défaut, remplacé par celui du compte Google s'il existe
-        avatar_url = initials_avatar_url(u.username)
-        social_account = u.socialaccount_set.first()
-        if social_account and social_account.extra_data.get('picture'):
-            avatar_url = social_account.extra_data.get('picture')
-        data.append({'username': u.username, 'avatar_url': avatar_url})
-
-    return JsonResponse({'users': data})
+    users = (
+        BeerUser.objects.filter(username__icontains=query, is_active=True)
+        .exclude(id__in=existing_managers).prefetch_related('socialaccount_set')[:10]
+    )
+    return JsonResponse({'users': [{'username': u.username, 'avatar_url': u.avatar_url} for u in users]})
 
 
 def place_context(place, user):

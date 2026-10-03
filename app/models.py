@@ -8,9 +8,11 @@ from django.db.models.functions import Lower
 from .fields import PublicSlugField
 from .validators import username_validator
 from .services import notification_policy, notification_types
+from .services.avatars import initials_avatar_url
+from .services.profile_pictures import delete_stored_picture, profile_picture_path, profile_pictures_storage
 from pgvector.django import VectorField
 import requests
-from django.db.models.signals import post_save, m2m_changed
+from django.db.models.signals import post_delete, post_save, m2m_changed
 from django.dispatch import receiver
 from django.contrib.auth.models import Group
 
@@ -96,6 +98,8 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(default=timezone.now)
     username = models.CharField(max_length=150, blank=False, unique=True, validators=[username_validator])
     bio = models.TextField(verbose_name="Biographie", blank=True, null=True)
+    avatar = models.ImageField(upload_to=profile_picture_path, storage=profile_pictures_storage, blank=True, null=True, verbose_name="Photo de profil")
+    avatar_updated_at = models.DateTimeField(null=True, blank=True, editable=False)
     wishlist_beers = models.ManyToManyField('Beer', blank=True, related_name='wishlisted_by', verbose_name="Wishlist")
     top_beer_1 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     top_beer_2 = models.ForeignKey('Beer', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -123,6 +127,17 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
             models.UniqueConstraint(Lower('username'), name='unique_username_ci', violation_error_message="Ce pseudo est déjà utilisé."),
         ]
         
+    @property
+    def avatar_url(self):
+        """Photo envoyée par le membre, sinon photo du compte Google, sinon initiale générée localement."""
+        if self.avatar:
+            return self.avatar.url
+        for account in self.socialaccount_set.all():  # .all() : profite du prefetch_related quand il existe
+            picture = account.extra_data.get('picture')
+            if isinstance(picture, str) and picture.startswith('https://'):
+                return picture
+        return initials_avatar_url(self.username)
+
     @property
     def has_unread_notifications(self):
         """Vérifie si l'utilisateur a au moins une notification non lue"""
@@ -631,6 +646,14 @@ def assign_default_role(sender, instance, created, **kwargs):
         # get_or_create évite que le code plante si le groupe venait à être supprimé
         grp_contrib, _ = Group.objects.get_or_create(name='Contributeur')
         instance.groups.add(grp_contrib)
+
+@receiver(post_delete, sender=BeerUser)
+def delete_profile_picture_with_account(sender, instance, **kwargs):
+    """La photo d'un compte supprimé ne doit pas rester dans le bucket."""
+    if instance.avatar:
+        name = instance.avatar.name
+        transaction.on_commit(lambda: delete_stored_picture(name))
+
 
 @receiver(m2m_changed, sender=Brewery.managers.through)
 def update_brewer_role(sender, instance, action, pk_set, **kwargs):

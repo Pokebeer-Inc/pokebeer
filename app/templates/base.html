@@ -1,4 +1,3 @@
-{% load avatars %}
 {% load static tailwind_tags %}
 {% load static %}
 <!DOCTYPE html>
@@ -100,11 +99,7 @@
                     {% endif %}
                     <div class="avatar">
                         <div class="w-7 h-7 rounded-full ring-2 {% if request.resolver_match.url_name == 'account' %}ring-primary{% else %}ring-transparent{% endif %} transition-all">
-                            {% if user.socialaccount_set.all %}
-                            <img class="object-cover" src="{{ user.socialaccount_set.first.extra_data.picture }}" alt="Profil" />
-                            {% else %}
-                            <img class="object-cover" src="{{ user.username|initials_avatar }}" alt="Profil" />
-                            {% endif %}
+                            <img class="object-cover" src="{{ user.avatar_url }}" alt="Profil" />
                         </div>
                     </div>
                 </div>

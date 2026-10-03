@@ -1,11 +1,13 @@
 """Types de contenus modérés. Ajouter un type = ajouter une classe et l'enregistrer dans CONTENT_TYPES (ouvert/fermé)."""
 from dataclasses import dataclass
 
+from django.db import transaction
 from django.urls import reverse
 
 from app.models import Bar, Beer, BeerUser, Brewery, Drinks, ModerationEntry, Notification
 from app.services.achievements import check_and_notify_achievements
 from app.services.drinks import delete_drink
+from app.services.profile_pictures import delete_stored_picture
 
 Kind = ModerationEntry.Kind
 
@@ -51,8 +53,15 @@ class ModeratedContent:
     def cascade_warning(self, obj):
         return ""
 
-    def remove(self, obj):
+    def remove(self, obj, entry):
         raise NotImplementedError
+
+    # Libellés propres à l'entrée (un même type peut retirer des éléments différents)
+    def remove_label_for(self, entry):
+        return self.remove_label
+
+    def noun_for(self, entry):
+        return self.noun
 
     # --- droits : source unique pour l'interface et les actions POST ---
     def _staff_allowed(self, user):
@@ -99,7 +108,7 @@ class BeerContent(ModeratedContent):
     def is_public(self, obj):
         return not obj.is_deleted
 
-    def remove(self, obj):
+    def remove(self, obj, entry):
         # Même règle que le retrait par le créateur : soft-delete, les notes des membres sont conservées
         Beer.objects.filter(pk=obj.pk).update(is_deleted=True)
         Notification.objects.filter(beer=obj).delete()
@@ -125,8 +134,7 @@ class CommentContent(ModeratedContent):
     def authors(self, obj):
         return [obj.drinker_id]
 
-    def remove(self, obj):
-
+    def remove(self, obj, entry):
         drinker = obj.drinker_id
         delete_drink(obj)
         check_and_notify_achievements(drinker)
@@ -147,7 +155,7 @@ class EstablishmentContent(ModeratedContent):
     def authors(self, obj):
         return list(obj.managers.all())
 
-    def remove(self, obj):
+    def remove(self, obj, entry):
         obj.delete()
 
 
@@ -180,13 +188,16 @@ class BarContent(EstablishmentContent):
 
 
 class UserContent(ModeratedContent):
-    """Infos de profil : on efface la bio ; le pseudo se traite depuis la fiche utilisateur (suspension)."""
+    """Infos de profil : on efface la bio ou la photo signalée ; le pseudo se traite depuis la fiche utilisateur (suspension)."""
 
     kind = Kind.USER
     model = BeerUser
     noun = "bio"
-    fields = (FieldSpec('username', 'Pseudo'), FieldSpec('bio', 'Bio'))
+    fields = (FieldSpec('username', 'Pseudo'), FieldSpec('bio', 'Bio'), FieldSpec('avatar', 'Photo de profil', is_image=True))
     remove_label = "Effacer la bio"
+
+    # Champ modifiable par le membre -> (libellé de l'action, nom employé dans la notification)
+    REMOVABLE = {'bio': ("la bio", "bio"), 'avatar': ("la photo", "photo de profil")}
 
     def url(self, obj):
         return reverse('public_profile', args=[obj.username])
@@ -197,12 +208,29 @@ class UserContent(ModeratedContent):
     def is_public(self, obj):
         return obj.is_active
 
-    def can_remove(self, entry):
-        return any(change['field'] == 'bio' and change['new'] for change in entry.changes)
+    def _flagged(self, entry):
+        """Champs retirables effectivement renseignés par cette modification."""
+        return [c['field'] for c in entry.changes if c['field'] in self.REMOVABLE and c['new']]
 
-    def remove(self, obj):
+    def can_remove(self, entry):
+        return bool(self._flagged(entry))
+
+    def remove_label_for(self, entry):
+        return "Effacer " + " et ".join(self.REMOVABLE[f][0] for f in self._flagged(entry))
+
+    def noun_for(self, entry):
+        return " et ".join(self.REMOVABLE[f][1] for f in self._flagged(entry))
+
+    def remove(self, obj, entry):
+        flagged = self._flagged(entry)
+        previous_picture = obj.avatar.name if 'avatar' in flagged and obj.avatar else None
         # update() : pas de signal, l'effacement ne génère pas une nouvelle entrée à relire
-        BeerUser.objects.filter(pk=obj.pk).update(bio='')
+        updates = {'bio': ''} if 'bio' in flagged else {}
+        if 'avatar' in flagged:
+            updates['avatar'] = None
+        BeerUser.objects.filter(pk=obj.pk).update(**updates)
+        # Le fichier n'est supprimé qu'une fois la modération validée en base
+        transaction.on_commit(lambda: delete_stored_picture(previous_picture))
 
 
 CONTENT_TYPES = {content.kind: content for content in (
