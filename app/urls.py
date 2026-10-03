@@ -71,6 +71,9 @@ urlpatterns = [
     path('brewery/<slug:brewery_slug>/edit/', views.edit_brewery_view, name='edit_brewery'),
     path('brewery/<slug:brewery_slug>/add-manager/', views.add_brewery_manager, name='add_brewery_manager'),
     path('brewery/<slug:brewery_slug>/remove-manager/<str:username>/', views.remove_brewery_manager, name='remove_brewery_manager'),
+    path('bar/<slug:bar_slug>/edit/', views.edit_bar_view, name='edit_bar'),
+    path('bar/<slug:bar_slug>/add-manager/', views.add_bar_manager, name='add_bar_manager'),
+    path('bar/<slug:bar_slug>/remove-manager/<str:username>/', views.remove_bar_manager, name='remove_bar_manager'),
 
     # ==========================================
     # Dégustations (Avis) & Lieux (Spots)
@@ -91,6 +94,7 @@ urlpatterns = [
     path('api/notifications/unread/', views.api_unread_notifications, name='api_unread_notifications'),
     path('api/load-more/<str:item_type>/', views.load_more_generic, name='load_more_generic'),
     path('api/brewery/<slug:brewery_slug>/search-users/', views.api_search_users_for_manager, name='api_search_users_for_manager'),
+    path('api/bar/<slug:bar_slug>/search-users/', views.api_search_users_for_bar_manager, name='api_search_users_for_bar_manager'),
     path('api/update-fcm-token/', views.update_fcm_token, name="api_update_fcm_token")
 
 ]

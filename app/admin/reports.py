@@ -4,9 +4,8 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import display
 
 from ..models import Report
-from ..models import Notification
 from ..forms import ReportAdminForm
-from ..services.realtime_service import broadcast_notifications
+from ..services.notifications import notify
 
 
 class ReportTargetFilter(admin.SimpleListFilter):
@@ -212,11 +211,4 @@ class ReportAdmin(ModelAdmin):
         ):
             return
 
-        notif = Notification.objects.create(
-            recipient=obj.reporter,
-            sender=None,
-            notif_type="report_updated",
-            report=obj,
-        )
-
-        broadcast_notifications([notif])
+        notify("report_updated", [obj.reporter], report=obj)

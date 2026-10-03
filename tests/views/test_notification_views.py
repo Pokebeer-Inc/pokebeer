@@ -107,3 +107,12 @@ class TestFcmToken:
     def test_invalid_payload_is_rejected(self, auth_client, user, payload, raw):
         assert post_json(auth_client, self.URL, payload, raw=raw).status_code == 400
         assert BeerUser.objects.get(pk=user.pk).fcm_token is None
+
+
+class TestFcmTokenOwnership:
+    def test_token_moves_to_the_account_using_the_device(self, auth_client, user, other_user):
+        BeerUser.objects.filter(pk=other_user.pk).update(fcm_token="device-token")
+        auth_client.post(reverse("api_update_fcm_token"), data={"token": "device-token"}, content_type="application/json")
+        other_user.refresh_from_db()
+        user.refresh_from_db()
+        assert (user.fcm_token, other_user.fcm_token) == ("device-token", None)

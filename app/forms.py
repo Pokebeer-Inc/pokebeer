@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib.auth import password_validation
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.core.exceptions import ValidationError
+from .services import notification_types
 from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
 from django.utils import timezone
 from django.utils.text import slugify
@@ -213,21 +214,33 @@ class BreweryProForm(forms.ModelForm):
                 'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip()
             })
             
+PLACE_EDIT_FIELDS = ['name', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
+
+def _place_edit_widgets():
+    input_class = 'input input-bordered w-full bg-white'
+    return {
+        'name': forms.TextInput(attrs={'class': input_class}),
+        'address': forms.TextInput(attrs={'class': input_class}),
+        'phone': forms.TextInput(attrs={'class': input_class}),
+        'email': forms.EmailInput(attrs={'class': input_class}),
+        'website': forms.URLInput(attrs={'class': input_class}),
+        'instagram': forms.URLInput(attrs={'class': input_class}),
+        'facebook': forms.URLInput(attrs={'class': input_class}),
+        'description': forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 4}),
+        'image': forms.ClearableFileInput(attrs={'class': 'file-input file-input-bordered file-input-primary w-full bg-white text-gray-700 mt-2'}),
+    }
+
 class BreweryEditForm(forms.ModelForm):
     class Meta:
         model = Brewery
-        fields = ['name', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
-        widgets = {
-            'name': forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}),
-            'address': forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}),
-            'phone': forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}),
-            'email': forms.EmailInput(attrs={'class': 'input input-bordered w-full bg-white'}),
-            'website': forms.URLInput(attrs={'class': 'input input-bordered w-full bg-white'}),
-            'instagram': forms.URLInput(attrs={'class': 'input input-bordered w-full bg-white'}),
-            'facebook': forms.URLInput(attrs={'class': 'input input-bordered w-full bg-white'}),
-            'description': forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 4}),
-            'image': forms.ClearableFileInput(attrs={'class': 'file-input file-input-bordered file-input-primary w-full bg-white text-gray-700 mt-2'}),
-}
+        fields = PLACE_EDIT_FIELDS
+        widgets = _place_edit_widgets()
+
+class BarEditForm(forms.ModelForm):
+    class Meta:
+        model = Bar
+        fields = PLACE_EDIT_FIELDS
+        widgets = _place_edit_widgets()
 
 class BeerForm(forms.ModelForm):
     brewery_name = forms.CharField(
@@ -398,13 +411,10 @@ class FeedbackForm(forms.ModelForm):
 class NotificationPreferenceForm(forms.ModelForm):
     class Meta:
         model = BeerUser
-        fields = ['notif_global', 'notif_follow', 'notif_social', 'notif_network', 'notif_achievements']
+        fields = ['notif_global', *notification_types.CATEGORY_FIELDS]
         widgets = {
             'notif_global': forms.CheckboxInput(attrs={'class': 'toggle toggle-primary'}),
-            'notif_follow': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
-            'notif_social': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
-            'notif_network': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
-            'notif_achievements': forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
+            **{field: forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}) for field in notification_types.CATEGORY_FIELDS},
         }
 
 

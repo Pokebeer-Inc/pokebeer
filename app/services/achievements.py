@@ -3,7 +3,7 @@ from django.db.models import Max
 from django.urls import reverse
 
 from ..models import Beer, Drinks, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction, Brewery
-from .realtime_service import broadcast_notifications
+from .notifications import send_notifications
 
 TIER_NAMES = ["Bloqué", "Bronze", "Argent", "Or", "Platine"]
 TIER_SLUGS = ["locked", "bronze", "silver", "gold", "platinum"]
@@ -178,7 +178,5 @@ def check_and_notify_achievements(user):
     if states_to_update:
         UserAchievementState.objects.bulk_update(states_to_update, ['tier_level'])
     if notifications_to_create:
-        created_notifs = Notification.objects.bulk_create(notifications_to_create)
-        
         # On pousse les trophées dans le WebSocket
-        broadcast_notifications(created_notifs)
+        send_notifications(Notification.objects.bulk_create(notifications_to_create))

@@ -47,6 +47,9 @@ PROTECTED_ROUTES = [
     ("brewery_detail", {"brewery_slug": "some-slug"}, GET),
     ("bar_detail", {"bar_slug": "some-slug"}, GET),
     ("edit_brewery", {"brewery_slug": "some-slug"}, GET),
+    ("edit_bar", {"bar_slug": "some-slug"}, GET),
+    ("add_bar_manager", {"bar_slug": "some-slug"}, POST),
+    ("remove_bar_manager", {"bar_slug": "some-bar", "username": "someone"}, POST),
     ("add_brewery_manager", {"brewery_slug": "some-slug"}, POST),
     ("remove_brewery_manager", {"brewery_slug": "some-brewery", "username": "someone"}, POST),
     ("rate_beer", {"beer_slug": "some-slug"}, POST),
@@ -60,6 +63,7 @@ PROTECTED_ROUTES = [
     ("api_unread_notifications", {}, GET),
     ("load_more_generic", {"item_type": "unrated_beers"}, GET),
     ("api_search_users_for_manager", {"brewery_slug": "some-slug"}, GET),
+    ("api_search_users_for_bar_manager", {"bar_slug": "some-slug"}, GET),
     ("api_update_fcm_token", {}, POST),
 ]
 

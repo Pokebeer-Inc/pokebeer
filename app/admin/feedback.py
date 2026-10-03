@@ -3,9 +3,9 @@ from django.contrib import admin
 from unfold.admin import ModelAdmin
 from unfold.decorators import display
 
-from ..models import Notification, Feedback
+from ..models import Feedback
 from ..forms import FeedbackAdminForm
-from ..services.realtime_service import broadcast_notifications
+from ..services.notifications import notify
 
 
 @admin.register(Feedback)
@@ -102,11 +102,4 @@ class FeedbackAdmin(ModelAdmin):
             obj.save()
 
             # On génère la notification et on l'envoie via WebSockets
-            notif = Notification.objects.create(
-                recipient=obj.user,
-                sender=None,
-                notif_type="feedback_replied",
-                feedback=obj,
-            )
-
-            broadcast_notifications([notif])
+            notify("feedback_replied", [obj.user], feedback=obj)

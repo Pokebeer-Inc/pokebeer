@@ -4,10 +4,10 @@ from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
 
-from ..models import BeerUser, Drinks, BeerSpot, UserFollow, Notification, Bar, Brewery
+from ..models import BeerUser, Drinks, BeerSpot, UserFollow, Bar, Brewery
 from ..forms import BeerSpotForm, error_summary
 from .utils import get_excluded_users, check_and_notify_achievements
-from ..services.realtime_service import broadcast_notifications
+from ..services.notifications import notify
 
 def _participant_drinks(spot, drink_slugs):
     """Restreint les dégustations à celles du créateur du lieu et de ses amis invités."""
@@ -69,12 +69,7 @@ def map_view(request):
                     spot.friends.set(friend_ids)
                     # Notifier uniquement les NOUVEAUX amis ajoutés sur ce point
                     new_friends = [f for f in spot.friends.values_list('id', flat=True) if f not in old_friends]
-                    notifications_invites = [
-                        Notification(recipient_id=f_id, sender=request.user, notif_type='spot_invite', spot=spot)
-                        for f_id in new_friends
-                    ]
-                    created_invites = Notification.objects.bulk_create(notifications_invites)
-                    broadcast_notifications(created_invites)
+                    notify('spot_invite', new_friends, sender=request.user, spot=spot)
                         
                 # Identifier tous les utilisateurs concernés (le créateur + les amis du spot)
                 users_to_notify = set(spot.friends.values_list('id', flat=True))
@@ -89,12 +84,7 @@ def map_view(request):
                         users_to_notify.discard(nf_id)
                         
                 # Envoyer les notifications
-                notifications_updates = [
-                    Notification(recipient_id=u_id, sender=request.user, notif_type='spot_updated', spot=spot)
-                    for u_id in users_to_notify
-                ]
-                created_updates = Notification.objects.bulk_create(notifications_updates)
-                broadcast_notifications(created_updates)
+                notify('spot_updated', users_to_notify, sender=request.user, spot=spot)
                     
                 messages.success(request, "Point modifié avec succès !")
             else:
@@ -111,12 +101,7 @@ def map_view(request):
             )
             if friend_ids:
                 spot.friends.set(friend_ids)
-                notifications_invites = [
-                    Notification(recipient_id=f_id, sender=request.user, notif_type='spot_invite', spot=spot)
-                    for f_id in friend_ids
-                ]
-                created_invites = Notification.objects.bulk_create(notifications_invites)
-                broadcast_notifications(created_invites)
+                notify('spot_invite', friend_ids, sender=request.user, spot=spot)
             if drink_slugs:
                 spot.drinks.set(_participant_drinks(spot, drink_slugs))
                 

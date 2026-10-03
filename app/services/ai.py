@@ -5,23 +5,25 @@ from pgvector.django import CosineDistance
 from ..models import Beer
 
 CONTEXT_SIZE = 10
+# Appelé depuis des requêtes web (Beer.save) : on abandonne vite plutôt que de bloquer la fonction serverless
+EMBEDDING_TIMEOUT_MS = 3000
 
 # Initialisation du client avec la clé définie dans settings.py
 def config_client():
     return genai.Client(api_key=settings.GEMINI_API_KEY)
 
 def get_embedding(text):
-    """Transforme un texte en vecteur mathématique (768 dimensions) avec Gemini."""
+    """Transforme un texte en vecteur mathématique (3072 dimensions, comme `Beer.embedding`) avec Gemini."""
     if not settings.GEMINI_API_KEY:
         print("ERREUR : La clé GEMINI_API_KEY est introuvable.")
         return None
         
     try:
         client = config_client()
-        # text-embedding-004 est le modèle optimal pour les vecteurs
         response = client.models.embed_content(
             model='gemini-embedding-001',
-            contents=text
+            contents=text,
+            config=types.EmbedContentConfig(http_options=types.HttpOptions(timeout=EMBEDDING_TIMEOUT_MS)),
         )
         return response.embeddings[0].values
         

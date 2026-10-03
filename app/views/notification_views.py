@@ -6,14 +6,15 @@ from django.http import JsonResponse
 from django.urls import reverse
 import json
 
-from ..models import Notification
+from ..models import BeerUser, Notification
+from ..services import notification_types
 from .utils import get_user_achievements
 
 FCM_TOKEN_MAX_LENGTH = 4096
 
 @login_required(login_url='login')
 def notifications_view(request):
-    notifications = Notification.objects.filter(recipient=request.user).select_related('sender', 'beer', 'spot')
+    notifications = Notification.objects.filter(recipient=request.user).select_related('sender', 'beer', 'brewery', 'bar', 'spot', 'report', 'feedback')
     
     achievements_data, _ = get_user_achievements(request.user)
     achievements_dict = {ach['name']: ach for ach in achievements_data}
@@ -29,7 +30,7 @@ def api_unread_notifications(request):
     notifications = Notification.objects.filter(
         recipient=request.user, 
         is_read=False
-    ).select_related('sender', 'beer', 'spot', 'report').order_by('-created_at')[:5]
+    ).select_related('sender', 'beer', 'brewery', 'bar', 'spot', 'report', 'feedback').order_by('-created_at')[:5]
     
     achievements_data, _ = get_user_achievements(request.user)
     achievements_dict = {ach['name']: ach for ach in achievements_data}
@@ -38,21 +39,13 @@ def api_unread_notifications(request):
     for notif in notifications:
         icon_html = None
         tier_slug = None
-        toast_type = 'info'
+        toast_type = notification_types.get(notif.notif_type).toast
         
         if notif.notif_type == 'achievement' and notif.achievement_name in achievements_dict:
             ach_data = achievements_dict[notif.achievement_name]
             tier_slug = ach_data['tier_slug']
             icon_html = render_to_string('partials/achievement_icon.html', {'slug': ach_data['slug']}, request=request).strip()
-        elif notif.notif_type == 'report_updated':
-            toast_type = 'warning'
-        elif notif.notif_type in ['beer_added', 'spot_invite', 'feedback_replied']:
-            toast_type = 'success'
-        elif notif.notif_type in ['manager_added', 'place_updated', 'beer_added_to_brewery', 'beer_updated_by_manager', 'beer_deleted_by_manager']:
-            toast_type = 'info'
-        elif notif.notif_type == 'manager_removed':
-            toast_type = 'error'
-            
+
         data.append({
             'slug': notif.slug,
             'notif_type': notif.notif_type,
@@ -73,21 +66,7 @@ def read_notification(request, notif_slug):
     notif.is_read = True
     notif.save()
     
-    if notif.notif_type == 'follow' and notif.sender:
-        return redirect('public_profile', username=notif.sender.username)
-    elif notif.notif_type in ['beer_shared', 'beer_added', 'beer_updated', 'drink_liked', 'wishlist_added', 'beer_added_to_brewery', 'beer_updated_by_manager'] and notif.beer:
-        return redirect('beer_detail', beer_slug=notif.beer.slug)
-    elif notif.notif_type == 'achievement':
-        return redirect('achievements')
-    elif notif.notif_type in ['spot_invite', 'spot_updated']:
-        return redirect('map')
-    elif notif.notif_type == 'report_updated':
-        return redirect('my_reports')
-    elif notif.notif_type == 'feedback_replied':
-        return redirect('account')
-    elif notif.notif_type in ['manager_added', 'place_updated'] and notif.brewery:
-        return redirect('brewery_detail', brewery_slug=notif.brewery.slug)
-    return redirect('notifications')
+    return redirect(notification_types.get(notif.notif_type).url_for(notif))
 
 @require_POST
 @login_required(login_url='login')
@@ -113,6 +92,10 @@ def update_fcm_token(request):
     # Firebase ne garantit pas de longueur maximale (~160 caractères aujourd'hui) : on ne refuse que l'absurde
     if len(token) > FCM_TOKEN_MAX_LENGTH:
         return JsonResponse({'status': 'error', 'message': 'Token trop long'}, status=400)
+
+    # Un appareil n'appartient qu'à un compte : sans cela, après un changement de compte sur le même téléphone,
+    # les notifications privées de l'ancien compte seraient encore poussées vers cet appareil
+    BeerUser.objects.filter(fcm_token=token).exclude(pk=request.user.pk).update(fcm_token=None)
 
     # On assigne le nouveau token
     request.user.fcm_token = token

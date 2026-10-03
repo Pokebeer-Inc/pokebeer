@@ -3,7 +3,8 @@ from django.contrib.admin.models import DELETION, LogEntry
 from django.db import transaction
 from django.utils import timezone
 
-from app.models import ModerationEntry, Notification
+from app.models import ModerationEntry
+from app.services.notifications import create_notifications
 from app.services.realtime_service import broadcast_notifications
 from app.services.verification import certify_establishment
 
@@ -88,9 +89,7 @@ def remove_content(entry_id, user, reason_code, note=""):
         )
 
         text = removal_message(content, reason_code, note)
-        notifications = [
-            Notification.objects.create(recipient=recipient, notif_type='content_removed', text_content=text)
-            for recipient in recipients if recipient.pk != user.pk
-        ]
+        notifications = create_notifications(
+            'content_removed', [r for r in recipients if r.pk != user.pk], text_content=text)
         transaction.on_commit(lambda: broadcast_notifications(notifications))
     return entry
