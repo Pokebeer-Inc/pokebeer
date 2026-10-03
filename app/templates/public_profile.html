@@ -274,42 +274,7 @@
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
 
-<dialog id="modal_report_user" class="modal z-[99999]">
-    <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_report_user.close()">✕</button>
-        <h3 class="font-bold text-lg text-error mb-4">Signaler ce profil</h3>
-        
-        <form method="post" action="{% url 'submit_report' %}">
-            {% csrf_token %}
-            <input type="hidden" name="item_type" value="user">
-            <input type="hidden" name="item_ref" value="{{ profile_user.username }}">
-            
-            <div class="form-control w-full mb-3">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Date</span></label>
-                <input type="text" value="{% now 'd/m/Y' %}" class="input input-sm input-bordered w-full bg-base-200 text-gray-500 cursor-not-allowed" readonly>
-            </div>
-            
-            <div class="form-control w-full mb-3">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Raison du signalement</span></label>
-                <select name="reason" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;" required>
-                    <option value="" disabled selected>Choisissez une raison...</option>
-                    <option value="spam">Spam ou publicité</option>
-                    <option value="offensive">Contenu offensant / haineux</option>
-                    <option value="fake">Fausse information / Faux profil</option>
-                    <option value="other">Autre raison</option>
-                </select>
-            </div>
-            
-            <div class="form-control w-full mb-4">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Description détaillée</span></label>
-                <textarea name="description" class="textarea textarea-bordered h-24" placeholder="Veuillez expliquer pourquoi vous signalez ce membre..." minlength="10" maxlength="1000" data-char-counter required></textarea>
-            </div>
-            
-            <button type="submit" class="btn btn-error w-full text-white">Envoyer le signalement</button>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-</dialog>
+{% include "partials/report_user_modal.html" with modal_id="modal_report_user" username=profile_user.username %}
 
 <dialog id="modal_block_user" class="modal z-[99999]">
     <div class="modal-box text-center">

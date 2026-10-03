@@ -125,7 +125,7 @@ class TestBlocking:
     def test_block_removes_mutual_follows(self, auth_client, user, other_user):
         f.follow(user, other_user)
         f.follow(other_user, user)
-        assert_redirects(auth_client.post(reverse("block_user", args=[other_user.username])), reverse("index"))
+        assert_redirects(auth_client.post(reverse("block_user", args=[other_user.username])), f'{reverse("blocked_users")}?just_blocked={other_user.username}')
         assert UserBlock.objects.filter(blocker=user, blocked=other_user).exists()
         assert not UserFollow.objects.exists()
 

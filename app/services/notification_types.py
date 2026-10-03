@@ -77,6 +77,7 @@ _TYPES = (
     NotificationType('report_updated', 'Signalement mis à jour', toast='warning', target=_page('my_reports')),
     NotificationType('feedback_replied', 'Réponse à votre feedback', toast='success', target=_page('account')),
     NotificationType('content_removed', 'Contenu retiré par la modération'),
+    NotificationType('block_follow_up', 'Un problème avec un membre bloqué ?', target=_page('blocked_users')),
 )
 
 REGISTRY = {t.key: t for t in _TYPES}

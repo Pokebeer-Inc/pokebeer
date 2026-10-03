@@ -460,6 +460,8 @@ class UserBlock(models.Model):
     blocker = models.ForeignKey(BeerUser, on_delete=models.CASCADE, related_name='blocking')
     blocked = models.ForeignKey(BeerUser, on_delete=models.CASCADE, related_name='blocked_by')
     created_at = models.DateTimeField(auto_now_add=True)
+    # Date à laquelle on a invité le bloqueur à signaler le membre s'il a rencontré un problème (une seule fois)
+    report_invited_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         unique_together = ('blocker', 'blocked')

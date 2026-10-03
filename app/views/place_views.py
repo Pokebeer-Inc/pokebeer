@@ -1,39 +1,11 @@
 """Logique commune aux établissements (brasseries et bars) : édition et gestion de l'équipe."""
-from dataclasses import dataclass
-
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from ..forms import BarEditForm, BreweryEditForm
-from ..models import Bar, BeerUser, Brewery
+from ..models import BeerUser
 from ..services.notifications import notify
-
-
-@dataclass(frozen=True)
-class PlaceKind:
-    """Ce qui diffère entre une brasserie et un bar ; tout le reste est partagé."""
-    key: str  # 'brewery' | 'bar' : nom du champ FK de Notification et préfixe des URLs
-    model: type
-    edit_form: type
-    noun: str  # « la brasserie » / « le bar »
-
-    @property
-    def detail_url(self):
-        return f'{self.key}_detail'
-
-    def detail_kwargs(self, place):
-        return {f'{self.key}_slug': place.slug}
-
-    def redirect_to_detail(self, place):
-        return redirect(self.detail_url, **self.detail_kwargs(place))
-
-    def get(self, slug):
-        return get_object_or_404(self.model, slug=slug)
-
-
-BREWERY = PlaceKind('brewery', Brewery, BreweryEditForm, 'la brasserie')
-BAR = PlaceKind('bar', Bar, BarEditForm, 'le bar')
+from ..services.places import BAR, BREWERY, PlaceKind  # noqa: F401  (réexportés pour les vues bar/brasserie)
 
 
 def is_manager(place, user):

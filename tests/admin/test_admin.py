@@ -35,29 +35,6 @@ class TestAdminAccess:
         assert response.status_code == 302 and "/admin/login/" in response.url
 
 
-class TestVerifyBar:
-    def url(self, bar):
-        return reverse("admin:bar_verify", args=[bar.slug])
-
-    def test_get_is_not_allowed(self, client_for, superuser):
-        bar = f.make_bar()
-        assert client_for(superuser).get(self.url(bar)).status_code == 405
-
-    def test_staff_without_superuser_rights_is_forbidden(self, client_for, staff):
-        bar = f.make_bar()
-        assert client_for(staff).post(self.url(bar)).status_code == 403
-        assert not Bar.objects.get(pk=bar.pk).is_verified
-
-    def test_superuser_verifies_the_bar(self, client_for, superuser):
-        bar = f.make_bar()
-        assert client_for(superuser).post(self.url(bar)).json() == {"success": True, "bar_slug": bar.slug, "is_verified": True}
-        bar.refresh_from_db()
-        assert (bar.is_verified, bar.verified_by, bar.verified_at is not None) == (True, superuser, True)
-
-    def test_unknown_bar_is_404(self, client_for, superuser):
-        assert client_for(superuser).post(reverse("admin:bar_verify", args=["unknown-slug"])).status_code == 404
-
-
 class TestReportAdmin:
     @pytest.mark.parametrize("changed, notified", [(["status"], True), (["admin_response"], True), ([], False)])
     def test_reporter_is_notified_only_when_the_decision_changes(self, superuser, user, changed, notified):
@@ -153,16 +130,13 @@ class TestAccountSuspension:
 
 
 class TestDashboard:
-    def test_kpis_and_geolocated_bars(self, superuser, beer, geocoder):
-        located = f.make_bar(address="Paris")
-        f.make_bar(address=None)
+    def test_kpis(self, superuser, beer):
         f.make_report(superuser)
 
         context = dashboard_callback(admin_request(superuser), {})
 
         assert (context["kpi_beers"], context["kpi_brewery"], context["kpi_report"]) == (1, 1, 1)
-        assert [bar["slug"] for bar in context["bars"]] == [located.slug]
-        assert context["bars"][0]["verify_url"] == reverse("admin:bar_verify", args=[located.slug])
+        assert "bars" not in context
         assert context["beer_count_by_style"] == [{"style": "IPA", "nb_bieres": 1}]
 
     def test_deleted_beers_are_not_in_the_style_chart(self, superuser, beer):
@@ -211,15 +185,3 @@ class TestMapFixes:
     def test_osm_tiles_receive_a_referer(self, settings):
         # same-origin (défaut Django) prive OpenStreetMap du Referer : tuiles refusées en 403 en production
         assert settings.SECURE_REFERRER_POLICY == "strict-origin-when-cross-origin"
-
-    def test_leaflet_css_integrity_matches_the_other_pages(self):
-        from pathlib import Path
-        templates = Path("app/templates")
-        hashes = {
-            line.split('integrity="')[1].split('"')[0]
-            for path in templates.rglob("*.html") for line in path.read_text().splitlines()
-            if "leaflet.css" in line and 'integrity="' in line
-        } | {"sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="}
-        admin_template = (templates / "admin/bar_moderation.html").read_text()
-        assert "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" in admin_template
-        assert len(hashes) == 1

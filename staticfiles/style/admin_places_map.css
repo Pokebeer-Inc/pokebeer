@@ -1,0 +1,36 @@
+/* Marqueurs de la carte admin : forme = type (rond : bar, carré : brasserie), couleur = statut */
+.place-marker {
+    width: 20px;
+    height: 20px;
+    border: 3px solid #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .5);
+    box-sizing: border-box;
+}
+.place-marker--bar { border-radius: 50%; }
+.place-marker--brewery { border-radius: 3px; }
+.place-marker--verified { background: #16a34a; }
+.place-marker--pending { background: #f97316; }
+
+.places-legend { display: inline-block; width: 12px; height: 12px; background: #6b7280; }
+.places-legend--bar { border-radius: 50%; }
+.places-legend--brewery { border-radius: 2px; }
+.places-legend--verified { border-radius: 50%; background: #16a34a; }
+.places-legend--pending { border-radius: 50%; background: #f97316; }
+
+/* Carte + fiche : deux colonnes sur grand écran, empilées sinon */
+.places-layout { display: grid; grid-template-columns: 1fr; }
+.places-map { height: 600px; width: 100%; }
+.places-details { height: 600px; overflow-y: auto; border-top-width: 1px; }
+@media (min-width: 1024px) {
+    .places-layout { grid-template-columns: 2fr 1fr; }
+    .places-details { border-top-width: 0; border-left-width: 1px; }
+}
+
+.place-status { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+.place-status--verified { background: #dcfce7; color: #166534; }
+.place-status--pending { background: #ffedd5; color: #9a3412; }
+
+.place-public-link {
+    display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 6px;
+    background: #16a34a; color: #fff; font-size: 14px; font-weight: 500;
+}

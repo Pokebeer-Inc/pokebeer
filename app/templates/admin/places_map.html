@@ -1,0 +1,79 @@
+{% load static %}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="{% static 'style/admin_places_map.css' %}">
+
+<div class="mb-6 rounded-default bg-white shadow-xs dark:bg-base-800" id="places-map-section">
+
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-200 px-6 py-5 dark:border-base-700">
+        <div>
+            <h2 class="text-lg font-semibold">Carte des établissements</h2>
+            <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+                <span id="places-count">0</span> établissement(s) affiché(s) sur {{ places|length }} géolocalisé(s)
+            </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4 text-sm">
+            <span class="flex items-center gap-2"><span class="places-legend places-legend--bar"></span> Bar</span>
+            <span class="flex items-center gap-2"><span class="places-legend places-legend--brewery"></span> Brasserie</span>
+            <span class="flex items-center gap-2"><span class="places-legend places-legend--verified"></span> Vérifié</span>
+            <span class="flex items-center gap-2"><span class="places-legend places-legend--pending"></span> À vérifier</span>
+        </div>
+    </div>
+
+    <!-- Filtres : ne concernent que cette carte -->
+    <div class="grid grid-cols-1 gap-3 border-b border-base-200 px-6 py-4 text-sm dark:border-base-700 sm:grid-cols-2 lg:grid-cols-4">
+        <label>
+            <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Recherche (nom ou adresse)</span>
+            <input type="search" id="places-search" maxlength="100" placeholder="Ex : Lyon" class="w-full rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+        </label>
+        <fieldset>
+            <legend class="mb-1 text-font-subtle-light dark:text-font-subtle-dark">Type</legend>
+            <label class="mr-4 inline-flex items-center gap-2"><input type="checkbox" class="places-type" value="brewery" checked> Brasseries</label>
+            <label class="inline-flex items-center gap-2"><input type="checkbox" class="places-type" value="bar" checked> Bars</label>
+        </fieldset>
+        <label>
+            <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Statut</span>
+            <select id="places-status" class="w-full rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+                <option value="all">Tous</option>
+                <option value="pending">À vérifier</option>
+                <option value="verified">Vérifiés</option>
+            </select>
+        </label>
+        <label>
+            <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Gérants</span>
+            <select id="places-managers" class="w-full rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+                <option value="all">Tous</option>
+                <option value="with">Avec gérant</option>
+                <option value="without">Sans gérant</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="places-layout">
+        <div id="places-map" class="places-map"></div>
+
+        <!-- Détails de l'établissement sélectionné : rempli par admin_places_map.js (textContent uniquement) -->
+        <aside id="place-details" class="places-details border-base-200 p-6 dark:border-base-700" aria-live="polite">
+            <p id="place-details-empty" class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
+                Cliquez sur un établissement de la carte pour voir sa fiche.
+            </p>
+            <div id="place-details-content" class="hidden">
+                <p id="place-type" class="text-xs font-semibold uppercase tracking-wide text-font-subtle-light dark:text-font-subtle-dark"></p>
+                <h3 id="place-name" class="mt-1 text-xl font-semibold"></h3>
+                <p id="place-status" class="place-status mt-2"></p>
+                <p id="place-description" class="mt-4 whitespace-pre-line text-sm"></p>
+                <dl class="mt-4 space-y-2 text-sm" id="place-fields"></dl>
+                <a id="place-public-link" target="_blank" rel="noopener noreferrer"
+                   class="place-public-link mt-6">
+                    Voir la page publique ↗
+                </a>
+            </div>
+        </aside>
+    </div>
+</div>
+
+{{ places|json_script:"places-data" }}
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="{% static 'script/admin_places_map.js' %}"></script>
