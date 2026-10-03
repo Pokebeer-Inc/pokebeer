@@ -51,7 +51,7 @@
         </a>
     </div>
     
-    <div class="relative mb-2">
+    <div class="avatar-wrapper mb-2">
         <div class="avatar">
             <div class="w-20 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
                 <img class="object-cover w-full h-full" src="{{ user.avatar_url }}" alt="Avatar">
@@ -61,13 +61,14 @@
         <!-- Changer la photo : l'envoi part dès que le fichier est choisi (voir avatar_upload.js) -->
         <form method="post" action="{% url 'update_profile_picture' %}" enctype="multipart/form-data" id="avatar-form">
             {% csrf_token %}
-            <label for="avatar-input" class="btn btn-xs btn-circle btn-primary absolute -bottom-1 -right-1 shadow-md cursor-pointer" title="Changer ma photo de profil">
+            <label for="avatar-input" class="avatar-edit btn btn-xs btn-circle btn-primary" title="Changer ma photo de profil">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                 <span class="sr-only">Changer ma photo de profil</span>
             </label>
             <input type="file" name="avatar" id="avatar-input" class="hidden" accept="image/jpeg,image/png,image/webp" data-max-bytes="2097152" data-too-large="L'image est trop lourde (maximum 2 Mo).">
         </form>
     </div>
+    <link rel="stylesheet" href="{% static 'style/avatar_edit.css' %}">
     <script src="{% static 'script/avatar_upload.js' %}"></script>
     <h2 class="text-xl font-bold font-castoro">{{ user.username }}</h2>
     <p class="text-xs text-gray-500 italic mt-1 text-center">

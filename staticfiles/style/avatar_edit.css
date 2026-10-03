@@ -1,0 +1,10 @@
+/* Stylo de changement de photo : positionnement indépendant du build Tailwind (les utilités négatives n'y sont pas toujours) */
+.avatar-wrapper { position: relative; display: inline-block; }
+.avatar-edit {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    z-index: 1;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+}
