@@ -21,9 +21,9 @@ def admin_request(user):
     return request
 
 
-def save_through_admin(model, obj, user, changed, change=True):
+def save_through_admin(model, obj, user, changed, change=True, cleaned=None):
     model_admin = admin.site._registry[model]
-    model_admin.save_model(admin_request(user), obj, SimpleNamespace(changed_data=changed), change)
+    model_admin.save_model(admin_request(user), obj, SimpleNamespace(changed_data=changed, cleaned_data=cleaned or {}), change)
 
 
 class TestAdminAccess:
@@ -64,18 +64,30 @@ class TestReportAdmin:
 
 
 class TestFeedbackAdmin:
-    def test_reply_marks_as_replied_and_notifies(self, superuser, user):
+    def test_reply_adds_a_team_message_marks_as_replied_and_notifies(self, superuser, user):
         feedback = f.make_feedback(user)
-        feedback.admin_reply = "Merci !"
-        save_through_admin(Feedback, feedback, superuser, ["admin_reply"])
+        save_through_admin(Feedback, feedback, superuser, ["reply"], cleaned={"reply": "Merci !"})
         assert Feedback.objects.get(pk=feedback.pk).status == "replied"
+        message = feedback.messages.get()
+        assert (message.author_kind, message.body, message.author) == ("team", "Merci !", superuser)
         assert Notification.objects.get().notif_type == "feedback_replied"
 
-    @pytest.mark.parametrize("reply, changed", [("", ["admin_reply"]), ("Merci", [])])
-    def test_no_notification_without_a_new_reply(self, superuser, user, reply, changed):
-        feedback = f.make_feedback(user, admin_reply=reply)
-        save_through_admin(Feedback, feedback, superuser, changed)
-        assert not Notification.objects.exists()
+    @pytest.mark.parametrize("reply", ["", None])
+    def test_no_notification_without_a_reply(self, superuser, user, reply):
+        feedback = f.make_feedback(user)
+        save_through_admin(Feedback, feedback, superuser, [], cleaned={"reply": reply})
+        assert not Notification.objects.exists() and not feedback.messages.exists()
+
+    def test_a_reply_never_overwrites_earlier_messages(self, superuser, user):
+        feedback = f.make_feedback(user)
+        save_through_admin(Feedback, feedback, superuser, ["reply"], cleaned={"reply": "Première"})
+        save_through_admin(Feedback, feedback, superuser, ["reply"], cleaned={"reply": "Seconde"})
+        assert [m.body for m in feedback.messages.all()] == ["Première", "Seconde"]
+
+    def test_creating_an_entry_through_the_admin_sends_nothing(self, superuser, user):
+        feedback = f.make_feedback(user)
+        save_through_admin(Feedback, feedback, superuser, [], change=False, cleaned={"reply": "x"})
+        assert not feedback.messages.exists()
 
 
 class TestAccountSuspension:

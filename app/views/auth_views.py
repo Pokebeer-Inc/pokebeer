@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from ..forms import UserRegisterForm, UserLoginForm, ProUserForm, BarProForm, BreweryProForm
+from ..models import BeerUser
 
 def register_view(request):
     """Handles user registration."""
@@ -55,6 +56,8 @@ def login_view(request):
 
 @login_required(login_url='login')
 def logout_view(request):
+    # L'appareil ne doit plus recevoir les notifications de ce compte une fois déconnecté
+    BeerUser.objects.filter(pk=request.user.pk).update(fcm_token=None)
     logout(request)
     messages.info(request, "Vous avez été déconnecté.")
     return redirect('login')

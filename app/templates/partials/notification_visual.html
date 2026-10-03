@@ -1,0 +1,27 @@
+{% comment %}Vignette d'une notification : médaille de trophée, avatar/image, ou icône du type. Jamais d'image cassée : l'icône est
+toujours dessous et l'image, si elle échoue à charger, est retirée. Paramètre : notif.{% endcomment %}
+<div class="avatar shrink-0">
+  {% if notif.visual == 'trophy' %}
+  <div class="w-10 h-10 rounded-full shadow-sm border flex items-center justify-center overflow-hidden
+      {% if notif.ach_data.tier_slug == 'bronze' %}bg-gradient-to-br from-[#CD7F32] to-[#8C5722] border-[#CD7F32]/50 text-white shine-effect
+      {% elif notif.ach_data.tier_slug == 'silver' %}bg-gradient-to-br from-[#F8F8F8] to-[#C0C0C0] border-[#C0C0C0]/50 text-gray-900 shine-effect
+      {% elif notif.ach_data.tier_slug == 'gold' %}bg-gradient-to-br from-[#FFF080] to-[#FFD700] border-[#FFD700]/50 text-gray-900 shine-effect
+      {% elif notif.ach_data.tier_slug == 'platinum' %}bg-gradient-to-br from-[#FFFFFF] to-[#E5E4E2] border-[#E5E4E2]/50 text-gray-900 shine-effect
+      {% else %}bg-primary/20 border-primary/40 text-primary{% endif %}">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+      {% if notif.ach_data %}{% include "partials/achievement_icon.html" with slug=notif.ach_data.slug %}{% else %}<path stroke-linecap="round" stroke-linejoin="round" d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3z"/>{% endif %}
+    </svg>
+  </div>
+  {% else %}
+  <div class="relative w-10 h-10 rounded-full border border-base-300 flex items-center justify-center bg-white shadow-sm overflow-hidden text-primary">
+    <!-- Icône par défaut (équipe, ou expéditeur sans image) : visible tant que l'image n'est pas chargée, ou si elle échoue -->
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      {% if notif.visual == 'system' %}<path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+      {% else %}<path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>{% endif %}
+    </svg>
+    {% with image=notif.image_url %}
+    {% if image %}<img data-notification-image class="absolute inset-0 object-cover w-full h-full bg-white" src="{{ image }}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">{% endif %}
+    {% endwith %}
+  </div>
+  {% endif %}
+</div>

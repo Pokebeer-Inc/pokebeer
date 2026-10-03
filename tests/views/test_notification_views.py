@@ -12,7 +12,7 @@ pytestmark = pytest.mark.django_db
 class TestReadNotification:
     @pytest.fixture
     def targets(self, other_user, beer, brewery, user):
-        return {"sender": other_user, "beer": beer, "brewery": brewery, "report": f.make_report(user)}
+        return {"sender": other_user, "beer": beer, "brewery": brewery, "report": f.make_report(user), "feedback": f.make_feedback(user)}
 
     @pytest.mark.parametrize("notif_type, links, expected", [
         ("follow", ("sender",), lambda t: reverse("public_profile", args=[t["sender"].username])),
@@ -22,7 +22,8 @@ class TestReadNotification:
         ("achievement", (), lambda t: reverse("achievements")),
         ("spot_invite", (), lambda t: reverse("map")),
         ("report_updated", ("report",), lambda t: reverse("my_reports")),
-        ("feedback_replied", (), lambda t: reverse("account")),
+        ("feedback_replied", ("feedback",), lambda t: reverse("feedback_thread", args=[t["feedback"].slug])),
+        ("feedback_replied", (), lambda t: reverse("notifications")),
         ("manager_added", ("brewery",), lambda t: reverse("brewery_detail", args=[t["brewery"].slug])),
         ("beer_shared", (), lambda t: reverse("notifications")),
         ("manager_removed", (), lambda t: reverse("notifications")),
@@ -67,7 +68,7 @@ class TestUnreadApi:
 
         body = auth_client.get(self.URL).json()
 
-        assert body["unread_count"] == 5
+        assert body["unread_count"] == 6  # le total réel, pas seulement les cinq renvoyés
         assert [n["slug"] for n in body["notifications"]] == [n.slug for n in reversed(created)][:5]
         assert all("id" not in n for n in body["notifications"])
         assert "bobby" in body["notifications"][0]["message"]

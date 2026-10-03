@@ -8,6 +8,7 @@ from .tasting_views import *
 from .api_views import *
 from .utils import *
 from .notification_views import *
+from .feedback_views import *
 from .notebook_views import *
 from .search_views import *
 from .map_views import *

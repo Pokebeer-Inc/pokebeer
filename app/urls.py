@@ -37,6 +37,11 @@ urlpatterns = [
     path('notifications/', views.notifications_view, name='notifications'),
     path('notifications/read/<slug:notif_slug>/', views.read_notification, name='read_notification'),
     path('notifications/delete/<slug:notif_slug>/', views.delete_notification, name='delete_notification'),
+    path('notifications/read-all/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
+
+    # Échanges avec l'équipe
+    path('messages/', views.team_messages_view, name='team_messages'),
+    path('messages/<slug:feedback_slug>/', views.feedback_thread_view, name='feedback_thread'),
 
     # ==========================================
     # Profils Publics & Social
@@ -93,6 +98,7 @@ urlpatterns = [
     path('api/search-brewery/', views.search_brewery, name='search_brewery'),
     path('api/search-beer/', views.search_beer, name='search_beer'),
     path('api/notifications/unread/', views.api_unread_notifications, name='api_unread_notifications'),
+    path('api/notifications/seen/', views.api_seen_notifications, name='api_seen_notifications'),
     path('api/load-more/<str:item_type>/', views.load_more_generic, name='load_more_generic'),
     path('api/brewery/<slug:brewery_slug>/search-users/', views.api_search_users_for_manager, name='api_search_users_for_manager'),
     path('api/bar/<slug:bar_slug>/search-users/', views.api_search_users_for_bar_manager, name='api_search_users_for_bar_manager'),

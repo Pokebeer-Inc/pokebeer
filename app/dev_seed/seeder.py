@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from app.models import (
     Bar, Beer, BeerSpot, BeerUser, Brewery, CustomNotebook, DrinkReaction, Drinks,
-    Feedback, Notification, Report, UserBlock, UserFollow,
+    Feedback, FeedbackMessage, Notification, Report, UserBlock, UserFollow,
 )
 
 from . import data
@@ -226,8 +226,9 @@ class DevDatabaseSeeder:
         first, second, third = self.members[:3]
         feedbacks = self._bulk(Feedback, [
             Feedback(user=first, message="Pourrait-on filtrer les bières par degré d'alcool ?"),
-            Feedback(user=second, message="Super appli, bravo !", admin_reply="Merci beaucoup !", status="replied"),
+            Feedback(user=second, message="Super appli, bravo !", status="replied"),
         ])
+        self._bulk(FeedbackMessage, [FeedbackMessage(feedback=feedbacks[1], author_kind="team", body="Merci beaucoup !")])
         self._bulk(Notification, [Notification(recipient=second, notif_type="feedback_replied", feedback=feedbacks[1])])
         self._bulk(Report, [
             Report(reporter=third, reported_beer=self.beers[0], reason="fake", description="Le degré indiqué semble faux."),

@@ -166,35 +166,59 @@
         }
     });
 
-    let seenNotificationIds = new Set(JSON.parse(sessionStorage.getItem('toast_seen_notifs') || '[]'));
+    // --- Notifications en temps réel ---
+    // Le serveur est la source de vérité : /api/notifications/unread/ ne renvoie qu'une seule fois chaque alerte (elle est
+    // marquée « montrée » en base), et les pop-ups reçus en direct sont acquittés via /api/notifications/seen/.
+    // Aucun état n'est gardé dans le navigateur : un autre onglet ou un redémarrage de l'application ne rejoue rien.
+    const shownInThisPage = new Set(); // évite seulement un doublon entre le direct et le rattrapage de cette même page
 
-    // Fonction pour récupérer les ratés au chargement
+    function getCookie(name) {
+        const match = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+        return match ? decodeURIComponent(match.split('=')[1]) : null;
+    }
+
+    function updateBellDots(unreadCount) {
+        document.querySelectorAll('[data-notification-dot]').forEach(dot => dot.classList.toggle('hidden', !unreadCount));
+    }
+
+    function showNotificationToast(notif) {
+        if (!notif || shownInThisPage.has(notif.slug)) return;
+        shownInThisPage.add(notif.slug);
+        showToast({
+            message: notif.message,
+            type: notif.toastType || 'info',
+            tierSlug: notif.tier_slug,
+            icon: notif.icon,
+            url: notif.read_url,
+            isHtml: true,
+            duration: 6000
+        });
+    }
+
+    // Rattrape ce qui est arrivé hors ligne ou pendant un changement de page
     function fetchMissedNotifications() {
         fetch('/api/notifications/unread/', {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
         })
         .then(res => res.ok ? res.json() : null)
         .then(data => {
-            if (!data || !data.notifications) return;
-            let hasNew = false;
-            data.notifications.forEach(notif => {
-                if (!seenNotificationIds.has(notif.slug)) {
-                    seenNotificationIds.add(notif.slug);
-                    hasNew = true;
-                    showToast({
-                        message: notif.message,
-                        type: notif.toastType || 'info',
-                        tierSlug: notif.tier_slug,
-                        icon: notif.icon,
-                        url: notif.read_url,
-                        isHtml: true,
-                        duration: 6000
-                    });
-                }
-            });
-            if (hasNew) {
-                sessionStorage.setItem('toast_seen_notifs', JSON.stringify([...seenNotificationIds]));
-            }
+            if (!data) return;
+            (data.notifications || []).forEach(showNotificationToast);
+            updateBellDots(data.unread_count);
+        }).catch(() => {});
+    }
+
+    // Accusé de réception d'un pop-up affiché en direct
+    function acknowledge(slug) {
+        const csrfToken = getCookie('csrftoken');
+        if (!csrfToken) return;
+        fetch('/api/notifications/seen/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            credentials: 'same-origin',
+            body: JSON.stringify({ slugs: [slug] }),
+            keepalive: true
         }).catch(() => {});
     }
 
@@ -203,45 +227,19 @@
         const supabaseUrl = document.querySelector('meta[name="supabase-url"]')?.content;
         const supabaseKey = document.querySelector('meta[name="supabase-anon-key"]')?.content;
         const secureChannel = document.querySelector('meta[name="ws-channel"]')?.content;
-        
-        if (!supabaseUrl || !supabaseKey || !secureChannel) return;
-        
-        // Initialisation propre du client Supabase
+
+        if (!supabaseUrl || !supabaseKey || !secureChannel || !window.supabase) return;
+
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // On s'abonne au canal crypté, en gardant la configuration d'accusé de réception (ack: false)
-        const channel = supabase.channel(secureChannel, {
-            config: {
-                broadcast: { ack: false }
-            }
-        });
+        // Canal privé du membre, sans accusé de réception Supabase (ack: false)
+        const channel = supabase.channel(secureChannel, { config: { broadcast: { ack: false } } });
 
-        // Ecoute des événements "broadcast"
         channel.on('broadcast', { event: 'new_notification' }, (event) => {
             const notif = event.payload;
-
-            // Affichage du toast
-            showToast({
-                message: notif.message,
-                type: notif.toastType || 'info',
-                tierSlug: notif.tier_slug,
-                icon: notif.icon,
-                url: notif.read_url,
-                isHtml: true,
-                duration: 6000
-            });
-            
-            // Mise à jour visuelle des cloches de notification
-            const indicators = document.querySelectorAll('.indicator-item');
-            indicators.forEach(ind => ind.classList.remove('hidden'));
-
-            // Si la page recharge à cause d'une soumission de formulaire, ce timer est détruit.
-            // La notification ne sera donc pas marquée comme "vue" et apparaîtra sur la page suivante !
-            setTimeout(() => {
-                seenNotificationIds.add(notif.slug);
-                sessionStorage.setItem('toast_seen_notifs', JSON.stringify([...seenNotificationIds]));
-            }, 2500);
-
+            showNotificationToast(notif);
+            updateBellDots(1);
+            acknowledge(notif.slug);
         }).subscribe();
     }
 })();

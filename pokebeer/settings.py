@@ -258,6 +258,8 @@ else:
         },
     }
 
+# Canal des notifications push Android : créé par l'application (NotificationChannels.kt) ; les deux doivent rester identiques
+FCM_ANDROID_CHANNEL_ID = "pokebeer_channel"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 CHAT_DAILY_LIMIT = 10
 CHAT_MESSAGE_MAX_LENGTH = 5000

@@ -6,6 +6,7 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.core.exceptions import ValidationError
 from .services import notification_types
+from .services.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
 from .services.profile_pictures import process_profile_picture
 from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
 from django.utils import timezone
@@ -401,25 +402,24 @@ class DrinkForm(forms.ModelForm):
                 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;'
             })
             
-class FeedbackForm(forms.ModelForm):
-    class Meta:
-        model = Feedback
-        fields = ['message']
-        labels = {
-            'message': "Votre suggestion, remarque ou bug"
-        }
-        widgets = {
-            'message': forms.Textarea(attrs={'rows': 4})
-        }
+class FeedbackForm(forms.Form):
+    """Premier message d'un échange avec l'équipe."""
+    message = forms.CharField(
+        max_length=MAX_FEEDBACK_LENGTH, label="Votre suggestion, remarque ou bug",
+        widget=forms.Textarea(attrs={
+            'rows': 4, 'maxlength': MAX_FEEDBACK_LENGTH, 'class': 'form-control',
+            'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;',
+        }),
+    )
 
-    def __init__(self, *args, **kwargs):
-        super(FeedbackForm, self).__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.update({
-                'class': 'form-control',
-                'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;'
-            })
-            
+
+class FeedbackReplyForm(forms.Form):
+    """Message du membre dans un échange existant."""
+    body = forms.CharField(
+        max_length=MAX_FEEDBACK_LENGTH, label="Votre message",
+        widget=forms.Textarea(attrs={'rows': 3, 'maxlength': MAX_FEEDBACK_LENGTH, 'placeholder': "Répondre à l'équipe…"}),
+    )
+
 class NotificationPreferenceForm(forms.ModelForm):
     class Meta:
         model = BeerUser
@@ -489,13 +489,13 @@ class ReportAdminForm(forms.ModelForm):
         
 
 class FeedbackAdminForm(forms.ModelForm):
+    """Côté équipe : le statut et un champ « réponse » (qui ajoute un message à l'échange, il n'écrase rien)."""
+    reply = forms.CharField(
+        required=False, max_length=MAX_FEEDBACK_LENGTH, label="Répondre au membre",
+        widget=forms.Textarea(attrs={'rows': 4}), help_text="Envoyée au membre, qui est notifié.",
+    )
+
     class Meta:
         model = Feedback
-        fields = (
-            "status",
-            "admin_reply",
-        )
+        fields = ("status",)
 
-        widgets = {
-            "admin_response": WysiwygWidget,
-        }

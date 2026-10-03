@@ -19,10 +19,10 @@
 {% elif notif.notif_type == 'wishlist_added' %}
     <span class="font-bold">{{ notif.sender.username }}</span> a ajouté <span class="font-bold">{{ notif.beer.name }}</span> à sa liste de souhaits.
 {% elif notif.notif_type == 'feedback_replied' %}
-    L'équipe a répondu à votre message :<br>
+    L'équipe a répondu à votre message{% with reply=notif.feedback.last_team_message %}{% if reply %} :<br>
     <div class="mt-1 p-2 bg-base-200 rounded-lg text-xs italic border-l-2 border-primary text-gray-700">
-        "{{ notif.feedback.admin_reply }}"
-    </div>
+        "{{ reply.body|truncatechars:140 }}"
+    </div>{% else %}.{% endif %}{% endwith %}
 {% elif notif.notif_type == 'manager_added' %}
     <span class="font-bold">{{ notif.sender.username }}</span> vous a nommé(e) dans l'équipe de : <span class="font-bold">{{ notif.place.name }}</span>.
 {% elif notif.notif_type == 'manager_removed' %}

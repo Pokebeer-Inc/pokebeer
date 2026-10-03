@@ -13,6 +13,7 @@ from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, NotificationPrefere
 from .utils import get_user_achievements, check_and_notify_achievements
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
+from ..services.feedback import FeedbackError, open_thread
 from ..services.notifications import notify
 
 @login_required(login_url='login')
@@ -59,11 +60,13 @@ def account_view(request):
         elif 'btn_feedback' in request.POST:
             feedback_form = FeedbackForm(request.POST)
             if feedback_form.is_valid():
-                feedback = feedback_form.save(commit=False)
-                feedback.user = user
-                feedback.save()
-                messages.success(request, "Merci ! Votre message a bien été envoyé à l'équipe.")
-                return redirect('account')
+                try:
+                    thread = open_thread(user, feedback_form.cleaned_data['message'])
+                except FeedbackError as error:
+                    messages.error(request, str(error))
+                else:
+                    messages.success(request, "Merci ! Votre message a bien été envoyé à l'équipe.")
+                    return redirect('feedback_thread', feedback_slug=thread.slug)
             else:
                 messages.error(request, "Erreur dans l'envoi de votre feedback.")
         
@@ -98,6 +101,7 @@ def account_view(request):
         'feedback_form': feedback_form,
         'notif_form': notif_form,
         'pro_settings_form': pro_settings_form,
+        'feedback_threads_count': user.feedbacks.count(),
         'my_drinks': my_drinks,
         'followers': followers,
         'following': following,

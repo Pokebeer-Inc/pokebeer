@@ -122,7 +122,35 @@ class TestFirebasePush:
         recipient = f.make_user(fcm_token="device-token")
         notification = f.make_notification(recipient, sender=other_user)
         realtime_service.broadcast_notifications([notification])
-        assert firebase.call_args.args[0].data == {"read_url": f"/notifications/read/{notification.slug}/"}
+        assert firebase.call_args.args[0].data == {"read_url": f"/notifications/read/{notification.slug}/", "notif_slug": notification.slug}
+
+    def test_push_uses_the_app_channel_and_replaces_duplicates(self, supabase, firebase, other_user, settings):
+        recipient = f.make_user(fcm_token="device-token")
+        notification = f.make_notification(recipient, sender=other_user)
+        realtime_service.broadcast_notifications([notification])
+        android = firebase.call_args.args[0].android
+        assert (android.notification.channel_id, android.notification.tag, android.collapse_key) == (settings.FCM_ANDROID_CHANNEL_ID, notification.slug, notification.slug)
+
+    def test_a_delivered_push_is_not_toasted_again_on_the_next_page(self, supabase, firebase, other_user):
+        recipient = f.make_user(fcm_token="device-token")
+        notification = f.make_notification(recipient, sender=other_user)
+        realtime_service.broadcast_notifications([notification])
+        notification.refresh_from_db()
+        assert notification.toasted_at is not None
+
+    def test_a_failed_push_stays_available_as_a_toast(self, supabase, firebase, other_user):
+        firebase.side_effect = RuntimeError("fcm down")
+        notification = f.make_notification(f.make_user(fcm_token="t"), sender=other_user)
+        realtime_service.broadcast_notifications([notification])
+        notification.refresh_from_db()
+        assert notification.toasted_at is None
+
+    def test_a_stale_token_is_forgotten(self, supabase, firebase, other_user):
+        firebase.side_effect = realtime_service.messaging.UnregisteredError("gone")
+        recipient = f.make_user(fcm_token="dead-token")
+        realtime_service.broadcast_notifications([f.make_notification(recipient, sender=other_user)])
+        recipient.refresh_from_db()
+        assert recipient.fcm_token is None
 
     def test_no_push_without_token(self, supabase, firebase, user):
         realtime_service.broadcast_notifications([f.make_notification(user)])
