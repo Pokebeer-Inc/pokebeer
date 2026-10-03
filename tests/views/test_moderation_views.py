@@ -49,7 +49,7 @@ class TestSubmitReport:
     def test_my_reports_lists_only_mine(self, auth_client, user, other_user):
         mine = f.make_report(user)
         f.make_report(other_user)
-        assert list(auth_client.get(reverse("my_reports")).context["reports"]) == [mine]
+        assert [row["report"] for row in auth_client.get(reverse("my_reports")).context["reports"]] == [mine]
 
     @pytest.mark.parametrize("overrides, label", [
         ({"description": ""}, "Description"),

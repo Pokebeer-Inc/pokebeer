@@ -1,93 +1,46 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'style/thread_ui.css' %}">
 
 {% url 'account' as account_url %}
 {% include "partials/page_header.html" with title="Signalements" back_url=account_url %}
 
-<div class="flex flex-col gap-4">
-    {% for report in reports %}
-    <div class="card bg-white shadow-sm border border-base-200 p-4">
-        
-        <div class="flex justify-between items-start border-b border-base-200 pb-2 mb-2">
-            <div>
-                <span class="text-[10px] text-gray-500 uppercase tracking-widest">{{ report.created_at|date:"d M Y" }}</span>
-                <h3 class="font-bold text-sm text-error flex items-center gap-1 mt-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    {{ report.get_reason_display }}
-                </h3>
-                
-                <!-- Affichage de la cible signalée -->
-                <div class="mt-1 text-[11px] flex items-center gap-1">
-                    <span class="text-gray-500">Cible :</span>
-                    {% if report.reported_beer %}
-                        {% if not report.reported_beer.is_deleted %}
-                            <a href="{% url 'beer_detail' report.reported_beer.slug %}" class="font-semibold text-primary hover:underline">Bière "{{ report.reported_beer.name }}"</a>
-                        {% else %}
-                            <span class="italic text-gray-400">Bière "{{ report.reported_beer.name }}" (Supprimée)</span>
-                        {% endif %}
-                        
-                    {% elif report.reported_user %}
-                        <a href="{% url 'public_profile' report.reported_user.username %}" class="font-semibold text-primary hover:underline">Profil de {{ report.reported_user.username }}</a>
-                        
-                    {% elif report.reported_drink %}
-                        {% if not report.reported_drink.beer_id.is_deleted %}
-                            <a href="{% url 'beer_detail' report.reported_drink.beer_id.slug %}" class="font-semibold text-primary hover:underline">Avis sur "{{ report.reported_drink.beer_id.name }}"</a>
-                        {% else %}
-                            <span class="italic text-gray-400">Avis sur "{{ report.reported_drink.beer_id.name }}" (Bière supprimée)</span>
-                        {% endif %}
+<div class="thread-list">
+    {% for row in reports %}
+    {% with report=row.report %}
+    <section class="thread-card">
+        <div class="thread-card-head">
+            <span class="thread-meta">{{ report.created_at|date:"d/m/Y" }}</span>
+            <span class="thread-status {% if report.status == 'resolved' %}thread-status--done{% elif report.status == 'review' %}thread-status--review{% else %}thread-status--waiting{% endif %}">
+                {% if report.status == 'resolved' %}Traité{% elif report.status == 'review' %}En examen{% else %}Envoyé{% endif %}
+            </span>
+        </div>
 
-                    {% elif report.reported_brewery %}
-                        <a href="{% url 'brewery_detail' report.reported_brewery.slug %}" class="font-semibold text-primary hover:underline">Brasserie "{{ report.reported_brewery.name }}"</a>
-                    {% endif %}
-                </div>
-            </div>
-            
-            {% if report.status == 'pending' %}
-                <span class="badge badge-outline badge-neutral badge-sm whitespace-nowrap">Envoyé</span>
-            {% elif report.status == 'review' %}
-                <span class="badge badge-warning badge-sm whitespace-nowrap">En examen</span>
-            {% elif report.status == 'resolved' %}
-                <span class="badge badge-success text-white badge-sm whitespace-nowrap">Traité</span>
+        <h3 class="thread-title thread-title--alert">{{ report.get_reason_display }}</h3>
+
+        <!-- Cible signalée -->
+        <p class="thread-sub">Cible :
+            {% if report.reported_beer %}
+                {% if not report.reported_beer.is_deleted %}<a href="{% url 'beer_detail' report.reported_beer.slug %}">Bière « {{ report.reported_beer.name }} »</a>
+                {% else %}<em>Bière « {{ report.reported_beer.name }} » (supprimée)</em>{% endif %}
+            {% elif report.reported_user %}
+                <a href="{% url 'public_profile' report.reported_user.username %}">Profil de {{ report.reported_user.username }}</a>
+            {% elif report.reported_drink %}
+                {% if not report.reported_drink.beer_id.is_deleted %}<a href="{% url 'beer_detail' report.reported_drink.beer_id.slug %}">Avis sur « {{ report.reported_drink.beer_id.name }} »</a>
+                {% else %}<em>Avis sur « {{ report.reported_drink.beer_id.name }} » (bière supprimée)</em>{% endif %}
+            {% elif report.reported_brewery %}
+                <a href="{% url 'brewery_detail' report.reported_brewery.slug %}">Brasserie « {{ report.reported_brewery.name }} »</a>
             {% endif %}
-        </div>
+        </p>
 
-        <!-- Message de l'utilisateur (le signalement) -->
-        <div class="chat chat-end mb-2">
-            <div class="chat-header text-[10px] text-gray-400 mb-1">Vous</div>
-            <div class="chat-bubble bg-base-200 text-gray-800 text-xs shadow-sm py-2 min-h-0">
-                {{ report.description }}
-            </div>
-        </div>
-        
-        <!-- Réponse de l'admin (s'il y en a une, ou message par défaut si résolu) -->
-        {% if report.admin_response %}
-        <div class="chat chat-start">
-            <div class="chat-header text-[10px] text-gray-400 flex items-center gap-1 mb-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                L'équipe
-            </div>
-            <div class="chat-bubble bg-base-300 text-gray-800 text-xs shadow-sm py-2 min-h-0">
-                {{ report.admin_response }}
-            </div>
-        </div>
-        {% elif report.status == 'resolved' %}
-        <div class="chat chat-start">
-            <div class="chat-header text-[10px] text-gray-400 flex items-center gap-1 mb-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                L'équipe
-            </div>
-            <div class="chat-bubble bg-base-300 text-gray-800 text-xs shadow-sm py-2 min-h-0">
-                Votre signalement a été pris en compte et des actions ont été menées.
-            </div>
-        </div>
-        {% endif %}
-        
-    </div>
+        <!-- Même présentation que les échanges avec l'équipe, en lecture seule -->
+        {% include "partials/chat_thread.html" with entries=row.entries first_label="votre signalement" %}
+    </section>
+    {% endwith %}
     {% empty %}
-    <div class="text-center p-8 bg-white border border-base-200 rounded-xl shadow-sm text-gray-500 italic text-sm">
-        Vous n'avez fait aucun signalement.
-    </div>
+    <div class="thread-empty">Vous n'avez fait aucun signalement.</div>
     {% endfor %}
 </div>
 {% endblock %}

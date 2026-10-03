@@ -1,10 +1,10 @@
+import json
 import logging
 
 import requests
 import firebase_admin
 from firebase_admin import credentials, messaging
 from django.conf import settings
-from django.db.models import Q
 from django.utils import timezone
 from django.utils.html import strip_tags
 
@@ -15,13 +15,24 @@ logger = logging.getLogger(__name__)
 
 PUSH_BODY_MAX_LENGTH = 180
 
-# Initialisation de Firebase
-if not firebase_admin._apps and getattr(settings, 'FIREBASE_CREDENTIALS_PATH', None):
+def init_firebase():
+    """Active le push Android si FIREBASE_CREDENTIALS_JSON est défini ; le dit clairement dans les journaux sinon."""
+    if firebase_admin._apps:
+        return True
+    raw_json = settings.FIREBASE_CREDENTIALS_JSON
+    if not raw_json:
+        if not settings.DEBUG:
+            logger.warning("Push Android désactivé : FIREBASE_CREDENTIALS_JSON n'est pas défini.")
+        return False
     try:
-        cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-        firebase_admin.initialize_app(cred)
-    except Exception as e:
-        logger.warning("Impossible d'initialiser Firebase (%s)", e)
+        firebase_admin.initialize_app(credentials.Certificate(json.loads(raw_json)))
+        return True
+    except Exception as e:  # JSON invalide ou identifiants refusés : jamais bloquant pour le site
+        logger.error("Impossible d'initialiser Firebase : %s", type(e).__name__)  # jamais le contenu : c'est un secret
+        return False
+
+
+init_firebase()
 
 
 def _build_push(notif, text, read_url):

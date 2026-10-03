@@ -2,29 +2,19 @@
 {% load static %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'style/team_chat.css' %}">
+<link rel="stylesheet" href="{% static 'style/thread_ui.css' %}">
 
 {% url 'team_messages' as threads_url %}
 {% include "partials/page_header.html" with title="Échange avec l'équipe" back_url=threads_url %}
 
 <div class="flex justify-center mb-3">
-    <span class="badge {% if feedback.status == 'pending' %}badge-warning{% else %}badge-success{% endif %} badge-sm">
+    <span class="thread-status {% if feedback.status == 'pending' %}thread-status--waiting{% else %}thread-status--done{% endif %}">
         {% if feedback.status == 'pending' %}En attente de réponse de l'équipe{% else %}L'équipe a répondu{% endif %}
     </span>
 </div>
 
 <!-- Toute la conversation, du premier message à la dernière réponse -->
-<ol class="team-chat" aria-label="Conversation avec l'équipe">
-    {% for entry in entries %}
-    <li class="team-chat-row {% if entry.is_team %}is-team{% else %}is-member{% endif %}">
-        <div class="team-chat-bubble">
-            <p class="team-chat-author">{% if entry.is_team %}Équipe Pokebeer{% else %}Vous{% endif %}{% if forloop.first %} · votre premier message{% endif %}</p>
-            <p class="team-chat-body">{{ entry.body|linebreaksbr }}</p>
-            <time class="team-chat-time" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"d/m/Y H:i" }}</time>
-        </div>
-    </li>
-    {% endfor %}
-</ol>
+{% include "partials/chat_thread.html" with first_label="votre premier message" %}
 
 <form method="post" class="flex flex-col gap-2 mt-4 mb-6" id="reply">
     {% csrf_token %}

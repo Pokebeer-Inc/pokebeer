@@ -167,3 +167,37 @@ class TestFirebasePush:
         firebase.side_effect = RuntimeError("fcm down")
         realtime_service.broadcast_notifications([f.make_notification(f.make_user(fcm_token="t"))])
         supabase.assert_called_once()
+
+
+class TestFirebaseInitialisation:
+    SERVICE_ACCOUNT = {"type": "service_account", "project_id": "p", "private_key_id": "k", "private_key": "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+                       "client_email": "x@p.iam.gserviceaccount.com", "client_id": "1", "token_uri": "https://oauth2.googleapis.com/token"}
+
+    @pytest.fixture(autouse=True)
+    def no_apps(self, monkeypatch):
+        monkeypatch.setattr(realtime_service.firebase_admin, "_apps", {})
+
+    def test_json_credentials_initialise_firebase(self, settings, monkeypatch):
+        import json
+        settings.FIREBASE_CREDENTIALS_JSON = json.dumps(self.SERVICE_ACCOUNT)
+        certificate = mock.Mock()
+        monkeypatch.setattr(realtime_service.credentials, "Certificate", certificate)
+        init = mock.Mock()
+        monkeypatch.setattr(realtime_service.firebase_admin, "initialize_app", init)
+        assert realtime_service.init_firebase() is True
+        certificate.assert_called_once_with(self.SERVICE_ACCOUNT)
+        init.assert_called_once()
+
+    def test_there_is_no_file_based_configuration_any_more(self, settings):
+        assert not hasattr(settings, "FIREBASE_CREDENTIALS_PATH") and not hasattr(settings, "FIREBASE_CREDENTIALS_FILENAME")
+
+    def test_missing_credentials_disable_push_and_say_so_in_production(self, settings, caplog):
+        settings.FIREBASE_CREDENTIALS_JSON = None
+        settings.DEBUG = False
+        assert realtime_service.init_firebase() is False
+        assert "Push Android désactivé" in caplog.text
+
+    def test_invalid_json_never_breaks_the_site_nor_leaks_the_secret(self, settings, caplog):
+        settings.FIREBASE_CREDENTIALS_JSON = '{"private_key": "TOP-SECRET" this is not json'
+        assert realtime_service.init_firebase() is False
+        assert "TOP-SECRET" not in caplog.text and "Impossible d'initialiser Firebase" in caplog.text

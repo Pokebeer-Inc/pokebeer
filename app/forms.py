@@ -7,12 +7,13 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.core.exceptions import ValidationError
 from .services import notification_types
 from .services.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
+from .services.threads import plain_text
 from .services.profile_pictures import process_profile_picture
 from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
 from django.utils import timezone
 from django.utils.text import slugify
 
-from unfold.contrib.forms.widgets import ArrayWidget, WysiwygWidget
+from unfold.contrib.forms.widgets import ArrayWidget
 
 INVALID_FIELD_STYLE = "border: 2px solid #ef4444;"
 
@@ -484,9 +485,13 @@ class ReportAdminForm(forms.ModelForm):
         )
 
         widgets = {
-            "admin_response": WysiwygWidget,
+            "admin_response": forms.Textarea(attrs={"rows": 5}),
         }
-        
+        labels = {"admin_response": "Réponse au membre (texte brut)"}
+
+    def clean_admin_response(self):
+        return plain_text(self.cleaned_data.get("admin_response"))
+
 
 class FeedbackAdminForm(forms.ModelForm):
     """Côté équipe : le statut et un champ « réponse » (qui ajoute un message à l'échange, il n'écrase rien)."""

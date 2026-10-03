@@ -1,22 +1,38 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block content %}
+<link rel="stylesheet" href="{% static 'style/thread_ui.css' %}">
 
 {% url 'account' as account_url %}
 {% include "partials/page_header.html" with title="Comptes bloqués" back_url=account_url %}
 
 {% if just_blocked %}
-<div class="alert bg-white border border-warning/40 mb-3 flex flex-col items-start gap-2 text-sm">
-    <p><span class="font-bold">{{ just_blocked }}</span> est bloqué. Il ne peut plus interagir avec vous et ne sera pas prévenu.</p>
-    <p class="text-xs text-gray-500">Un comportement problématique ? Dites-le-nous : notre équipe examinera la situation.</p>
-    <button type="button" class="btn btn-xs btn-warning" onclick="document.getElementById('modal_report_{{ just_blocked }}').showModal()">Signaler à l'équipe</button>
+<div class="thread-list" style="padding-bottom:0">
+    <div class="thread-card thread-card--notice">
+        <p class="thread-title">{{ just_blocked }} est bloqué</p>
+        <p class="thread-sub">Il ne peut plus interagir avec vous et ne sera pas prévenu. Un comportement problématique ? Dites-le-nous : notre équipe examinera la situation.</p>
+        <div class="thread-card-actions">
+            <button type="button" class="btn btn-xs btn-warning" onclick="document.getElementById('modal_report_{{ just_blocked }}').showModal()">Signaler à l'équipe</button>
+        </div>
+    </div>
 </div>
 {% endif %}
 
-<div class="flex flex-col gap-2">
+<div class="thread-list">
     {% for entry in blocked_list %}
-    <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-base-200">
-        <span class="font-bold text-sm">{{ entry.blocked.username }}</span>
-        <div class="flex gap-2">
+    <div class="thread-card">
+        <div class="thread-row">
+            <div class="thread-person">
+                <img class="thread-avatar" src="{{ entry.blocked.avatar_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+                <div style="min-width:0">
+                    <p class="thread-title">{{ entry.blocked.username }}</p>
+                    <p class="thread-meta">Bloqué le {{ entry.created_at|date:"d/m/Y" }}</p>
+                </div>
+            </div>
+            <span class="thread-status thread-status--waiting">Bloqué</span>
+        </div>
+        <div class="thread-card-actions">
             <button onclick="document.getElementById('modal_report_{{ entry.blocked.username }}').showModal()" class="btn btn-xs btn-outline btn-warning">Signaler</button>
             <button onclick="document.getElementById('modal_unblock_{{ entry.blocked.username }}').showModal()" class="btn btn-xs btn-outline btn-success">Débloquer</button>
         </div>
@@ -41,7 +57,7 @@
         <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
     </dialog>
     {% empty %}
-    <p class="text-center text-sm text-gray-400 italic py-10">Aucun utilisateur bloqué.</p>
+    <div class="thread-empty">Aucun utilisateur bloqué.</div>
     {% endfor %}
 </div>
 {% endblock %}

@@ -1,0 +1,13 @@
+{% comment %}Conversation en bulles (membre à droite, équipe à gauche), partagée par les échanges et les signalements.
+Paramètres : entries (objets avec is_team, body, created_at facultatif), first_label (libellé de la première bulle, facultatif).{% endcomment %}
+<ol class="team-chat" aria-label="Conversation avec l'équipe">
+    {% for entry in entries %}
+    <li class="team-chat-row {% if entry.is_team %}is-team{% else %}is-member{% endif %}">
+        <div class="team-chat-bubble">
+            <p class="team-chat-author">{% if entry.is_team %}Équipe Pokebeer{% else %}Vous{% endif %}{% if forloop.first and first_label %} · {{ first_label }}{% endif %}</p>
+            <p class="team-chat-body">{{ entry.body|linebreaksbr }}</p>
+            {% if entry.created_at %}<time class="team-chat-time" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"d/m/Y H:i" }}</time>{% endif %}
+        </div>
+    </li>
+    {% endfor %}
+</ol>

@@ -9,12 +9,14 @@ from django.views.decorators.http import require_POST
 from ..forms import ReportForm, error_summary
 from ..models import BeerUser, UserFollow, Report, UserBlock
 from ..services.blocks import invite_blockers_to_report
+from ..services.threads import report_entries
 
 @login_required(login_url='login')
 def my_reports_view(request):
     """Affiche la liste des signalements faits par l'utilisateur."""
-    reports = Report.objects.filter(reporter=request.user)
-    return render(request, 'my_reports.html', {'reports': reports})
+    reports = (Report.objects.filter(reporter=request.user)
+               .select_related('reported_beer', 'reported_user', 'reported_drink__beer_id', 'reported_brewery'))
+    return render(request, 'my_reports.html', {'reports': [{'report': r, 'entries': report_entries(r)} for r in reports]})
 
 @require_POST
 @login_required(login_url='login')
@@ -70,7 +72,7 @@ def unblock_user(request, username):
 
 @login_required
 def blocked_users_list(request):
-    blocked_list = UserBlock.objects.filter(blocker=request.user).select_related('blocked')
+    blocked_list = UserBlock.objects.filter(blocker=request.user).select_related('blocked').prefetch_related('blocked__socialaccount_set')
     # Le paramètre n'est qu'un indice d'affichage : il n'est pris en compte que pour un membre réellement bloqué par l'utilisateur
     just_blocked = request.GET.get('just_blocked')
     just_blocked = next((b.blocked.username for b in blocked_list if b.blocked.username == just_blocked), None)

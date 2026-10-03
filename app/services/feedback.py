@@ -3,14 +3,12 @@
 Règles communes au site et à l'admin : taille bornée, quota quotidien côté membre, état du fil (« en attente » = l'équipe doit
 répondre, « répondu » = c'est au tour du membre), notification du membre à chaque réponse de l'équipe.
 """
-from dataclasses import dataclass
-from datetime import datetime
-
 from django.db import transaction
 from django.utils import timezone
 
 from ..models import Feedback, FeedbackMessage
 from .notifications import notify
+from .threads import Entry
 
 MAX_BODY_LENGTH = 2000
 DAILY_MEMBER_LIMIT = 10  # messages d'un membre par jour, tous fils confondus
@@ -20,18 +18,6 @@ Author = FeedbackMessage.Author
 
 class FeedbackError(ValueError):
     """Refus explicable au membre (quota, message vide ou trop long)."""
-
-
-@dataclass(frozen=True)
-class Entry:
-    """Une ligne de la conversation, qu'il s'agisse du premier message ou d'un message suivant."""
-    author_kind: str
-    body: str
-    created_at: datetime
-
-    @property
-    def is_team(self):
-        return self.author_kind == Author.TEAM
 
 
 def clean_body(value):

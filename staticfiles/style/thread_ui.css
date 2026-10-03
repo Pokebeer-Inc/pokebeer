@@ -1,0 +1,40 @@
+/* Design commun des pages d'échange : messages avec l'équipe, signalements, comptes bloqués.
+   Indépendant du build Tailwind : mêmes cartes, mêmes bulles, mêmes pastilles de statut partout. */
+
+/* Carte */
+.thread-list { display: flex; flex-direction: column; gap: 10px; padding: 4px; }
+.thread-card { display: block; padding: 12px 14px; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
+a.thread-card:hover { border-color: rgba(250, 204, 21, .8); }
+.thread-card--notice { border-color: rgba(250, 204, 21, .6); background: #fffbeb; }
+.thread-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.thread-meta { font-size: 11px; color: #9ca3af; }
+.thread-title { font-size: 13px; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 6px; }
+.thread-title--alert { color: #dc2626; }
+.thread-sub { font-size: 12px; color: #6b7280; margin-top: 2px; overflow-wrap: anywhere; }
+.thread-sub a { color: #b45309; font-weight: 600; }
+.thread-card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.thread-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.thread-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.thread-avatar { width: 40px; height: 40px; border-radius: 9999px; object-fit: cover; border: 1px solid #e5e7eb; flex-shrink: 0; }
+.thread-empty { text-align: center; padding: 32px 16px; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; color: #6b7280; font-size: 14px; font-style: italic; box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
+.thread-empty a { font-style: normal; }
+
+/* Pastille de statut */
+.thread-status { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.thread-status--waiting { background: #fef3c7; color: #92400e; }
+.thread-status--review { background: #dbeafe; color: #1e40af; }
+.thread-status--done { background: #dcfce7; color: #166534; }
+
+/* Conversation */
+.team-chat { display: flex; flex-direction: column; gap: 10px; padding: 4px; list-style: none; margin: 0; }
+.thread-card .team-chat { padding: 0; margin-top: 8px; }
+.team-chat-row { display: flex; }
+.team-chat-row.is-member { justify-content: flex-end; }
+.team-chat-row.is-team { justify-content: flex-start; }
+.team-chat-bubble { max-width: 82%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); overflow-wrap: anywhere; }
+.is-member .team-chat-bubble { background: #facc15; color: #1f2937; border-bottom-right-radius: 4px; }
+.is-team .team-chat-bubble { background: #fff; color: #1f2937; border: 1px solid #e5e7eb; border-bottom-left-radius: 4px; }
+.team-chat-author { font-size: 11px; font-weight: 700; opacity: .7; margin-bottom: 2px; }
+.team-chat-body { margin: 0; }
+.team-chat-time { display: block; margin-top: 4px; font-size: 10px; opacity: .55; text-align: right; }
+#reply textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
