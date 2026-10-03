@@ -6,10 +6,13 @@ from unfold.decorators import display
 from ..models import Feedback
 from ..forms import FeedbackAdminForm
 from ..services.notifications import notify
+from .pending import PendingKpiMixin, pending_feedback_count
 
 
 @admin.register(Feedback)
-class FeedbackAdmin(ModelAdmin):
+class FeedbackAdmin(PendingKpiMixin, ModelAdmin):
+    pending_label = "feedback en attente de réponse"
+    pending_counter = staticmethod(pending_feedback_count)
 
     class Media:
         js = (

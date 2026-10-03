@@ -11,6 +11,7 @@ def dashboard_callback(request, context):
 
     beer_count_by_style = (
         Beer.objects
+        .filter(is_deleted=False)
         .exclude(style__isnull=True)
         .exclude(style="")
         .values("style")

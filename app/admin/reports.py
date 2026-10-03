@@ -6,6 +6,7 @@ from unfold.decorators import display
 from ..models import Report
 from ..forms import ReportAdminForm
 from ..services.notifications import notify
+from .pending import PendingKpiMixin, pending_report_count
 
 
 class ReportTargetFilter(admin.SimpleListFilter):
@@ -49,7 +50,9 @@ class ReportTargetFilter(admin.SimpleListFilter):
 
 
 @admin.register(Report)
-class ReportAdmin(ModelAdmin):
+class ReportAdmin(PendingKpiMixin, ModelAdmin):
+    pending_label = "signalements à traiter"
+    pending_counter = staticmethod(pending_report_count)
 
     class Media:
         js = (

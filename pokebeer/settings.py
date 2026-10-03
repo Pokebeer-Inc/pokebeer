@@ -176,6 +176,8 @@ if DEBUG:
 
 AUTH_USER_MODEL = "app.BeerUser"
 
+# Django envoie « same-origin » par défaut : OpenStreetMap reçoit alors des tuiles sans Referer et répond 403
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
@@ -307,12 +309,14 @@ UNFOLD = {
                         "title": _("Feedback"),
                         "icon": "comment", 
                         "link": reverse_lazy("admin:app_feedback_changelist"),
+                        "badge": "app.admin.pending.pending_feedback_count",
                         "permission": lambda request: request.user.is_superuser,
                     },
                     {
                         "title": _("Signalement"),
                         "icon": "gavel", 
                         "link": reverse_lazy("admin:app_report_changelist"),
+                        "badge": "app.admin.pending.pending_report_count",
                         "permission": lambda request: request.user.is_superuser,
                     },                              
                 ],

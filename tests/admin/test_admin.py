@@ -7,6 +7,7 @@ from django.test import RequestFactory
 from django.urls import reverse
 
 from app.admin import dashboard_callback
+from app.admin.pending import pending_feedback_count, pending_report_count
 from app.models import Bar, BeerUser, Feedback, Notification, Report
 from tests import factories as f
 from tests.helpers import messages_of
@@ -163,3 +164,62 @@ class TestDashboard:
         assert [bar["slug"] for bar in context["bars"]] == [located.slug]
         assert context["bars"][0]["verify_url"] == reverse("admin:bar_verify", args=[located.slug])
         assert context["beer_count_by_style"] == [{"style": "IPA", "nb_bieres": 1}]
+
+    def test_deleted_beers_are_not_in_the_style_chart(self, superuser, beer):
+        f.make_beer(style="Stout", is_deleted=True)
+        context = dashboard_callback(admin_request(superuser), {})
+        assert [row["style"] for row in context["beer_count_by_style"]] == ["IPA"]
+
+    @pytest.mark.parametrize("kpi, url_name", [
+        ("Utilisateurs", "admin:app_beeruser_changelist"), ("Bières", "admin:app_beer_changelist"),
+        ("Brasseries", "admin:app_brewery_changelist"), ("Signalements", "admin:app_report_changelist"),
+    ])
+    def test_first_row_kpis_link_to_their_list(self, client_for, superuser, kpi, url_name):
+        html = client_for(superuser).get(reverse("admin:index")).content.decode()
+        card = html[html.index(f'<a href="{reverse(url_name)}" class="block'):]
+        assert kpi in card[:400]
+
+
+class TestPendingCounters:
+    def test_feedback_counts_only_unanswered(self, user):
+        Feedback.objects.create(user=user, message="a")
+        Feedback.objects.create(user=user, message="b", status="replied")
+        assert pending_feedback_count() == 1
+
+    def test_reports_exclude_resolved_ones(self, user):
+        f.make_report(user, status="pending")
+        f.make_report(user, status="review")
+        f.make_report(user, status="resolved")
+        assert pending_report_count() == 2
+
+    @pytest.mark.parametrize("url_name, expected", [("admin:app_feedback_changelist", "1"), ("admin:app_report_changelist", "1")])
+    def test_changelist_shows_the_pending_kpi(self, client_for, superuser, user, url_name, expected):
+        Feedback.objects.create(user=user, message="a")
+        Feedback.objects.create(user=user, message="b", status="replied")
+        f.make_report(user)
+        f.make_report(user, status="resolved")
+        response = client_for(superuser).get(reverse(url_name))
+        assert response.context["pending_count"] == int(expected)
+
+    def test_sidebar_badges_are_configured(self, settings):
+        badges = {item["title"]: item.get("badge") for group in settings.UNFOLD["SIDEBAR"]["navigation"] for item in group["items"]}
+        assert badges["Feedback"] == "app.admin.pending.pending_feedback_count"
+        assert badges["Signalement"] == "app.admin.pending.pending_report_count"
+
+
+class TestMapFixes:
+    def test_osm_tiles_receive_a_referer(self, settings):
+        # same-origin (défaut Django) prive OpenStreetMap du Referer : tuiles refusées en 403 en production
+        assert settings.SECURE_REFERRER_POLICY == "strict-origin-when-cross-origin"
+
+    def test_leaflet_css_integrity_matches_the_other_pages(self):
+        from pathlib import Path
+        templates = Path("app/templates")
+        hashes = {
+            line.split('integrity="')[1].split('"')[0]
+            for path in templates.rglob("*.html") for line in path.read_text().splitlines()
+            if "leaflet.css" in line and 'integrity="' in line
+        } | {"sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="}
+        admin_template = (templates / "admin/bar_moderation.html").read_text()
+        assert "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" in admin_template
+        assert len(hashes) == 1
