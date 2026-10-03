@@ -18,7 +18,7 @@ if not firebase_admin._apps and getattr(settings, 'FIREBASE_CREDENTIALS_PATH', N
 def _achievements_by_name(recipient, cache):
     """Trophées d'un destinataire indexés par nom, calculés une seule fois par destinataire."""
     # Import local pour éviter les imports circulaires
-    from app.views.utils import get_user_achievements
+    from app.services.achievements import get_user_achievements
 
     if recipient.pk not in cache:
         achievements, _level = get_user_achievements(recipient)

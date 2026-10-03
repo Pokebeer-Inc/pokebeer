@@ -80,6 +80,21 @@
 
 </div>
 
+<!-- Rôles -->
+<div class="mb-6 rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Rôles</h2>
+        <a class="text-sm text-primary-600" href="{% url 'admin:app_beeruser_roles' %}">Gérer →</a>
+    </div>
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <div><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Contributeurs</p><p class="text-2xl font-semibold">{{ kpi_roles.contributor }}</p></div>
+        <div><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Brasseurs</p><p class="text-2xl font-semibold">{{ kpi_roles.brewer }}</p></div>
+        <div><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Bartenders</p><p class="text-2xl font-semibold">{{ kpi_roles.bartender }}</p></div>
+        <div><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Staff</p><p class="text-2xl font-semibold">{{ kpi_roles.staff }}</p></div>
+        <div><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Admins</p><p class="text-2xl font-semibold">{{ kpi_roles.admin }}</p></div>
+    </div>
+</div>
+
 <div class="pb-5">
     {% include "admin/bar_moderation.html" %}
 </div>

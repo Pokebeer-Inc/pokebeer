@@ -35,4 +35,6 @@
     L'équipe officielle de la brasserie a mis à jour votre fiche pour la bière : <span class="font-bold">{{ notif.beer.name }}</span>.
 {% elif notif.notif_type == 'beer_deleted_by_manager' %}
     L'équipe officielle a retiré votre fiche pour la bière <span class="font-bold">{{ notif.text_content }}</span> du catalogue public. Vous conversez tout de même votre avis.
+{% elif notif.notif_type == 'content_removed' %}
+    {{ notif.text_content }}
 {% endif %}
