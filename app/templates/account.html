@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load avatars %}
 {% load static %}
 
 {% block content %}
@@ -56,7 +57,7 @@
             {% if user.socialaccount_set.all %}
             <img class="object-cover w-full h-full" src="{{ user.socialaccount_set.first.extra_data.picture }}" alt="Avatar">
             {% else %}
-            <img class="object-cover w-full h-full" src="https://ui-avatars.com/api/?name={{ user.username }}&background=E5A022&color=fff" alt="Avatar">
+            <img class="object-cover w-full h-full" src="{{ user.username|initials_avatar }}" alt="Avatar">
             {% endif %}
         </div>
     </div>
@@ -368,7 +369,7 @@
                             {% if f.follower.socialaccount_set.all %}
                             <img class="object-cover w-full h-full" src="{{ f.follower.socialaccount_set.first.extra_data.picture }}" />
                             {% else %}
-                            <img class="object-cover w-full h-full" src="https://ui-avatars.com/api/?name={{ f.follower.username }}&background=E5A022&color=fff&bold=true" />
+                            <img class="object-cover w-full h-full" src="{{ f.follower.username|initials_avatar }}" />
                             {% endif %}
                         </div>
                     </div>
@@ -401,7 +402,7 @@
                             {% if f.followed.socialaccount_set.all %}
                             <img class="object-cover w-full h-full" src="{{ f.followed.socialaccount_set.first.extra_data.picture }}" />
                             {% else %}
-                            <img class="object-cover w-full h-full" src="https://ui-avatars.com/api/?name={{ f.followed.username }}&background=E5A022&color=fff&bold=true" />
+                            <img class="object-cover w-full h-full" src="{{ f.followed.username|initials_avatar }}" />
                             {% endif %}
                         </div>
                     </div>

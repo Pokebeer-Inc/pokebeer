@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from ..forms import BarEditForm, BreweryEditForm
 from ..models import Bar, BeerUser, Brewery
+from ..services.avatars import initials_avatar_url
 from ..services.notifications import notify
 
 
@@ -113,7 +114,7 @@ def search_users_for_manager(request, kind, slug):
     data = []
     for u in users:
         # Avatar par défaut, remplacé par celui du compte Google s'il existe
-        avatar_url = f"https://ui-avatars.com/api/?name={u.username}&background=E5A022&color=fff&bold=true"
+        avatar_url = initials_avatar_url(u.username)
         social_account = u.socialaccount_set.first()
         if social_account and social_account.extra_data.get('picture'):
             avatar_url = social_account.extra_data.get('picture')

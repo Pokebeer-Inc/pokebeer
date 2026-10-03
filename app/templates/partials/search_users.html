@@ -1,3 +1,4 @@
+{% load avatars %}
 {% for u in users %}
 <div class="card bg-white shadow-sm border border-base-200 overflow-hidden hover:border-primary/50 transition-all">
     {% if u.latest_beers_list %}
@@ -27,7 +28,7 @@
                 {% if u.socialaccount_set.all %}
                     <img src="{{ u.socialaccount_set.first.extra_data.picture }}" class="object-cover" />
                 {% else %}
-                    <img src="https://ui-avatars.com/api/?name={{ u.username }}&background=E5A022&color=fff&bold=true" class="object-cover" />
+                    <img src="{{ u.username|initials_avatar }}" class="object-cover" />
                 {% endif %}
             </div>
         </div>

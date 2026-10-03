@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load avatars %}
 
 {% block content %}
 
@@ -36,7 +37,7 @@
                         src="{{ notif.sender.socialaccount_set.first.extra_data.picture }}" />
                     {% else %}
                     <img class="object-cover w-full h-full"
-                        src="https://ui-avatars.com/api/?name={{ notif.sender.username }}&background=E5A022&color=fff&bold=true" />
+                        src="{{ notif.sender.username|initials_avatar }}" />
                     {% endif %}
                 </div>
                 {% endif %}

@@ -1,3 +1,4 @@
+{% load avatars %}
 {% load static tailwind_tags %}
 {% load static %}
 <!DOCTYPE html>
@@ -102,7 +103,7 @@
                             {% if user.socialaccount_set.all %}
                             <img class="object-cover" src="{{ user.socialaccount_set.first.extra_data.picture }}" alt="Profil" />
                             {% else %}
-                            <img class="object-cover" src="https://ui-avatars.com/api/?name={{ user.username }}&background=E5A022&color=fff" alt="Profil" />
+                            <img class="object-cover" src="{{ user.username|initials_avatar }}" alt="Profil" />
                             {% endif %}
                         </div>
                     </div>

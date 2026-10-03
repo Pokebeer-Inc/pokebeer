@@ -115,7 +115,7 @@ class TestManagerSearchApi:
         users = self.search(auth_client, managed_brewery, "bob").json()["users"]
         assert [u["username"] for u in users] == ["bobby"]
         assert "id" not in users[0]
-        assert users[0]["avatar_url"].startswith("https://ui-avatars.com/")
+        assert users[0]["avatar_url"].startswith("data:image/svg+xml,")
 
     def test_results_are_capped_at_ten(self, auth_client, managed_brewery):
         for _ in range(11):
