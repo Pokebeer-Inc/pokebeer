@@ -1,0 +1,34 @@
+/* Layout dédié : le CSS précompilé d'Unfold ne contient pas toutes les utilités Tailwind */
+/* Grille unique de tuiles : les KPI occupent 1 colonne, graphiques/cartes/tableaux 2 ; `dense` comble les trous */
+.analytics-grid { display: grid; grid-template-columns: 1fr; gap: 20px; grid-auto-flow: dense; }
+@media (min-width: 768px) { .analytics-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1280px) { .analytics-grid { grid-template-columns: repeat(4, 1fr); } }
+.analytics-tile { padding: 16px 20px; min-width: 0; }
+.analytics-tile[hidden] { display: none; }
+.analytics-tile--chart, .analytics-tile--map, .analytics-tile--table { padding: 20px 24px; }
+@media (min-width: 768px) {
+    .analytics-tile--chart, .analytics-tile--map, .analytics-tile--table { grid-column: span 2; }
+}
+.analytics-tile.is-dragging { opacity: .4; }
+.analytics-tile-head { display: flex; align-items: center; gap: 8px; }
+.analytics-tile-title { flex: 1; font-size: 15px; font-weight: 600; min-width: 0; }
+.analytics-tile-actions { display: inline-flex; align-items: center; gap: 4px; }
+.analytics-handle { cursor: grab; opacity: .45; user-select: none; }
+.analytics-handle:active { cursor: grabbing; }
+.analytics-action { border: 0; background: transparent; cursor: pointer; padding: 2px 6px; border-radius: 6px; opacity: .55; }
+.analytics-action:hover, .analytics-action:focus-visible { opacity: 1; background: rgba(128, 128, 128, .15); }
+.analytics-layout-bar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 12px; }
+.analytics-link-button { background: transparent; border: 0; cursor: pointer; text-decoration: underline; opacity: .7; }
+.analytics-hidden-panel { border-radius: 8px; border: 1px solid rgba(128, 128, 128, .3); padding: 12px 16px; }
+.analytics-hidden-panel summary { cursor: pointer; font-weight: 600; }
+.analytics-hidden-panel ul { margin-top: 10px; display: grid; gap: 6px; }
+.analytics-hidden-panel li { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; }
+.analytics-note { grid-column: 1 / -1; font-size: 13px; font-style: italic; opacity: .75; }
+.analytics-map { height: 460px; width: 100%; border-radius: 8px; overflow: hidden; }
+.analytics-up { color: #16a34a; }
+.analytics-down { color: #dc2626; }
+.analytics-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.analytics-table th { text-align: left; font-weight: 600; padding: 8px; border-bottom: 1px solid rgba(128, 128, 128, .3); }
+.analytics-table td { padding: 8px; border-bottom: 1px solid rgba(128, 128, 128, .15); }
+.analytics-empty { text-align: center; font-style: italic; opacity: .6; }
+.analytics-export { font-size: 12px; font-weight: 600; white-space: nowrap; color: #2563eb; }

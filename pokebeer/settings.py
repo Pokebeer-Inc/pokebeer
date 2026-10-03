@@ -348,6 +348,24 @@ UNFOLD = {
                 ],
             },
             {
+                "title": _("Analytics"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {"title": _(title), "icon": icon, "link": reverse_lazy("admin_analytics", args=[key]),
+                     "permission": lambda request: request.user.is_staff}
+                    for title, icon, key in (
+                        ("Tendances", "trending_up", "trends"),
+                        ("Goûts", "sports_bar", "tastes"),
+                        ("Habitudes", "schedule", "habits"),
+                        ("Géographie", "public", "geography"),
+                        ("Établissements", "storefront", "places"),
+                        ("Bars", "local_bar", "bars"),
+                        ("Trophées", "emoji_events", "trophies"),
+                    )
+                ],
+            },
+            {
                 "title": _("Contenu"),
                 "separator": True,
                 "collapsible": True,

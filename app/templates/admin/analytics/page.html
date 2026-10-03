@@ -1,0 +1,83 @@
+{% extends 'admin/base.html' %}
+{% load i18n static %}
+
+{% block title %}{{ title }} | Analytics | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block branding %}{% include "unfold/helpers/site_branding.html" %}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/admin_analytics.css' %}">
+{% if has_map %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">{% endif %}
+
+<div class="px-4 py-6 lg:px-8">
+
+  <div class="mb-4">
+    <h1 class="text-2xl font-semibold">Analytics · {{ page.title }}</h1>
+    <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">{{ page.description }}</p>
+  </div>
+
+  <!-- Navigation entre les pages -->
+  <div class="mb-4 flex flex-wrap gap-2 text-sm">
+    {% for p in pages %}
+    <a href="{% url 'admin_analytics' p.key %}" class="rounded-default px-3 py-1.5 {% if p.key == page.key %}bg-primary-600 text-white{% else %}bg-white dark:bg-base-800{% endif %}">{{ p.title }}</a>
+    {% endfor %}
+  </div>
+
+  <!-- Filtres : GET uniquement, valeurs validées côté serveur -->
+  {% if page.period or pickers %}
+  <form method="get" class="mb-6 flex flex-wrap items-end gap-3 rounded-default bg-white p-4 text-sm shadow-xs dark:bg-base-800">
+    {% if page.period %}
+    <label>
+      <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Période</span>
+      <select name="months" class="rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+        {% for m in month_choices %}<option value="{{ m }}" {% if m == period.months %}selected{% endif %}>{{ m }} derniers mois</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    {% if page.granularity %}
+    <label>
+      <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Intervalle</span>
+      <select name="granularity" class="rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+        {% for key, label in granularities %}<option value="{{ key }}" {% if key == period.granularity %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    {% for picker in pickers %}
+    <label>
+      <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">{{ picker.label }}</span>
+      <select name="{{ picker.param }}" class="rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+        <option value="">— Aucun —</option>
+        {% for option in picker.options %}<option value="{{ option.slug }}" {% if option.slug == picker.selected %}selected{% endif %}>{{ option.name }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endfor %}
+    <button class="rounded-default bg-primary-600 px-4 py-2 font-medium text-white">Appliquer</button>
+    {% if exportable_ids %}
+    <a href="?{{ query }}{% if query %}&{% endif %}export=all" class="rounded-default border border-base-200 px-4 py-2 font-medium dark:border-base-700">Tout exporter (ZIP)</a>
+    {% endif %}
+  </form>
+  {% endif %}
+
+  {% for note in notes %}<p class="analytics-note">{{ note.text }}</p>{% endfor %}
+
+  <p class="analytics-layout-bar">
+    <span id="analytics-save-status" role="status" aria-live="polite"></span>
+    <button type="button" id="analytics-reset" class="analytics-link-button">Réinitialiser la disposition</button>
+  </p>
+
+  <!-- Tuiles : déplaçables et masquables ; la disposition est mémorisée par membre (voir layout.py) -->
+  <div class="analytics-grid" id="analytics-grid"
+       data-layout-url="{% url 'admin_analytics_layout' page.key %}" data-csrf="{{ csrf_token }}">
+    {% for tile in tiles %}{% include "admin/analytics/_tile.html" with block=tile.block hidden=tile.hidden %}{% endfor %}
+  </div>
+
+  <!-- Tuiles masquées -->
+  <details class="analytics-hidden-panel mt-6" id="analytics-hidden-panel" hidden>
+    <summary>Tuiles masquées (<span id="analytics-hidden-count">0</span>)</summary>
+    <ul id="analytics-hidden-list"></ul>
+  </details>
+</div>
+
+{% if has_map %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>{% endif %}
+<script src="{% static 'script/apexcharts.min.js' %}"></script>
+<script src="{% static 'script/admin_analytics.js' %}"></script>
+{% endblock %}

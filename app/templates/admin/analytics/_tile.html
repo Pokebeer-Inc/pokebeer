@@ -1,0 +1,43 @@
+{% comment %}Une tuile (KPI, graphique, carte ou tableau). Paramètres : block, hidden.{% endcomment %}
+<article class="analytics-tile analytics-tile--{{ block.block_type }} rounded-default bg-white shadow-xs dark:bg-base-800"
+         data-tile-id="{{ block.id }}" data-tile-title="{{ block.title }}" {% if hidden %}hidden{% endif %}>
+  <header class="analytics-tile-head">
+    <span class="analytics-handle" title="Glisser pour déplacer" aria-hidden="true">⠿</span>
+    <h2 class="analytics-tile-title">{{ block.title }}</h2>
+    <span class="analytics-tile-actions">
+      {% if block.id in exportable_ids %}<a href="?{{ query }}{% if query %}&{% endif %}export={{ block.id }}" class="analytics-export" title="Exporter ce bloc avec les filtres actuels">CSV ↓</a>{% endif %}
+      <button type="button" class="analytics-action" data-action="top" title="Placer en haut de la page" aria-label="Placer {{ block.title }} en haut">⬆</button>
+      <button type="button" class="analytics-action" data-action="hide" title="Masquer cette tuile" aria-label="Masquer {{ block.title }}">✕</button>
+    </span>
+  </header>
+
+  {% if block.block_type == 'kpi' %}
+    <p class="mt-2 text-3xl font-semibold">{{ block.value }}</p>
+    {% if block.delta is not None %}
+    <p class="mt-1 text-sm {% if block.delta >= 0 %}analytics-up{% else %}analytics-down{% endif %}">{% if block.delta >= 0 %}▲{% else %}▼{% endif %} {{ block.delta }} %</p>
+    {% endif %}
+    {% if block.hint %}<p class="mt-1 text-xs text-font-subtle-light dark:text-font-subtle-dark">{{ block.hint }}</p>{% endif %}
+
+  {% elif block.block_type == 'chart' %}
+    {% if block.subtitle %}<p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">{{ block.subtitle }}</p>{% endif %}
+    {{ block.spec|json_script:block.id }}
+    <div class="analytics-chart mt-4" data-spec-id="{{ block.id }}"></div>
+
+  {% elif block.block_type == 'map' %}
+    {% if block.subtitle %}<p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">{{ block.subtitle }}</p>{% endif %}
+    {{ block.spec|json_script:block.id }}
+    <div class="analytics-map mt-4" data-spec-id="{{ block.id }}"></div>
+
+  {% elif block.block_type == 'table' %}
+    {% if block.subtitle %}<p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">{{ block.subtitle }}</p>{% endif %}
+    <div class="mt-4 overflow-x-auto">
+      <table class="analytics-table">
+        <thead><tr>{% for column in block.columns %}<th>{{ column }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in block.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+          {% empty %}<tr><td colspan="{{ block.columns|length }}" class="analytics-empty">Pas encore assez de données.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</article>

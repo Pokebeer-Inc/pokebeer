@@ -34,7 +34,7 @@ class Command(BaseCommand):
             raise CommandError("La base contient déjà des utilisateurs. Relancez avec --reset pour la réinitialiser.")
 
         # Lu depuis l'environnement plutôt qu'en argument pour ne pas finir dans l'historique du shell
-        password = os.environ.get(PASSWORD_ENV) or secrets.token_urlsafe(12)
+        password = os.environ.get(PASSWORD_ENV)
         counts = DevDatabaseSeeder(password, seed).run()
 
         for model_name, count in sorted(counts.items()):

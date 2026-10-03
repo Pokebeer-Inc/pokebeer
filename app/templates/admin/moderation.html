@@ -86,7 +86,7 @@
             <form method="post" action="{% url 'admin:app_moderationentry_validate' entry.pk %}">
               {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
               <button class="rounded-default bg-green-600 px-4 py-2 text-sm font-medium text-white">
-                {% if card.certifies %}✔ Validé &amp; certifié{% else %}✔ Validé{% endif %}
+                {% if card.certifies %}Valider &amp; certifier{% else %}Valider{% endif %}
               </button>
             </form>
             {% else %}
