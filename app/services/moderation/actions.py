@@ -6,7 +6,7 @@ from django.utils import timezone
 from app.models import ModerationEntry
 from app.services.notifications import create_notifications
 from app.services.realtime_service import broadcast_notifications
-from app.services.verification import certify_establishment
+from app.services.verification import certify
 
 from .content import CONTENT_TYPES
 
@@ -38,18 +38,18 @@ def _locked_entry(entry_id):
 
 
 def validate_entry(entry_id, user):
-    """Marque l'entrée comme vue. Pour la création d'un bar/d'une brasserie, pose aussi la coche « vérifié »."""
+    """Marque l'entrée comme vue. Si le contenu est certifiable, la validation d'une création par un admin pose la coche « vérifié »."""
     with transaction.atomic():
         entry, content = _locked_entry(entry_id)
         if not content.can_validate(entry, user):
-            raise ModerationError("Seuls les admins peuvent valider la création d'un bar ou d'une brasserie.")
+            raise ModerationError("Seuls les admins peuvent valider la création de ce type de contenu.")
         entry.reviewed_by, entry.reviewed_at = user, timezone.now()
         entry.save(update_fields=['reviewed_by', 'reviewed_at'])
 
-        if content.certifiable and entry.action == ModerationEntry.Action.CREATED:
+        if content.certifies(entry, user):
             target = content.model.objects.select_for_update().filter(pk=entry.object_id).first()
             if target and not target.is_verified:
-                certify_establishment(target, user)
+                certify(target, user)
     return entry
 
 

@@ -1,0 +1,8 @@
+<div class="mb-6 rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
+        {{ pending_label|capfirst }}
+    </p>
+    <p class="mt-2 text-3xl font-semibold {% if pending_count %}text-primary-600{% endif %}">
+        {{ pending_count }}
+    </p>
+</div>

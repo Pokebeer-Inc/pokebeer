@@ -35,7 +35,7 @@
 <!-- Statistiques -->
 <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
-    <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <a href="{% url 'admin:app_beeruser_changelist' %}" class="block rounded-default bg-white p-6 shadow-xs transition hover:shadow-md hover:ring-1 hover:ring-primary-600 dark:bg-base-800">
         <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
             Utilisateurs
         </p>
@@ -43,10 +43,9 @@
         <p class="mt-2 text-3xl font-semibold">
             {{ kpi_users }}
         </p>
-    </div>
+    </a>
 
-
-    <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <a href="{% url 'admin:app_beer_changelist' %}" class="block rounded-default bg-white p-6 shadow-xs transition hover:shadow-md hover:ring-1 hover:ring-primary-600 dark:bg-base-800">
         <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
             Bières
         </p>
@@ -54,10 +53,9 @@
         <p class="mt-2 text-3xl font-semibold">
             {{ kpi_beers }}
         </p>
-    </div>
+    </a>
 
-
-    <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <a href="{% url 'admin:app_brewery_changelist' %}" class="block rounded-default bg-white p-6 shadow-xs transition hover:shadow-md hover:ring-1 hover:ring-primary-600 dark:bg-base-800">
         <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
             Brasseries
         </p>
@@ -65,10 +63,9 @@
         <p class="mt-2 text-3xl font-semibold">
             {{ kpi_brewery }}
         </p>
-    </div>
+    </a>
 
-
-    <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <a href="{% url 'admin:app_report_changelist' %}" class="block rounded-default bg-white p-6 shadow-xs transition hover:shadow-md hover:ring-1 hover:ring-primary-600 dark:bg-base-800">
         <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">
             Signalements
         </p>
@@ -76,7 +73,7 @@
         <p class="mt-2 text-3xl font-semibold">
             {{ kpi_report }}
         </p>
-    </div>
+    </a>
 
 </div>
 
@@ -104,7 +101,7 @@
 <!-- Bières par style -->
 <div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
 
-    <div class="mb-6">
+    <div class="mb-4">
         <h2 class="text-lg font-semibold">
             Bières par style
         </h2>
@@ -112,6 +109,34 @@
         <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
             Répartition des bières selon leur style
         </p>
+    </div>
+
+    <!-- Filtres : ne concernent que ce graphique -->
+    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" id="beerStyleFilters">
+        <label class="text-sm">
+            <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Recherche</span>
+            <input type="search" id="styleSearch" placeholder="Ex : IPA" class="w-full rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+        </label>
+        <label class="text-sm">
+            <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Styles affichés</span>
+            <select id="styleLimit" class="w-full rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+                <option value="10">Top 10</option>
+                <option value="15" selected>Top 15</option>
+                <option value="30">Top 30</option>
+                <option value="0">Tous</option>
+            </select>
+        </label>
+        <label class="text-sm">
+            <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Minimum de bières</span>
+            <input type="number" id="styleMin" min="1" value="1" class="w-full rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+        </label>
+        <label class="text-sm">
+            <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Styles composés</span>
+            <select id="styleSplit" class="w-full rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+                <option value="split" selected>Séparer (« IPA, Hazy » compte pour IPA et Hazy)</option>
+                <option value="raw">Garder les combinaisons telles quelles</option>
+            </select>
+        </label>
     </div>
 
     <div id="beerStyleChart"></div>
