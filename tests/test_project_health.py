@@ -1,7 +1,9 @@
 """Garde-fous globaux : configuration Django, migrations et routage."""
 from io import StringIO
+from pathlib import Path
 
 import pytest
+from django.conf import settings
 from django.core.management import call_command
 from django.urls import URLPattern, get_resolver, reverse
 
@@ -15,6 +17,21 @@ def test_system_checks_pass():
 @pytest.mark.django_db
 def test_models_and_migrations_are_in_sync():
     call_command("makemigrations", "--check", "--dry-run", stdout=StringIO())
+
+
+def test_collected_static_files_are_up_to_date():
+    """Vercel ne lance pas collectstatic : staticfiles/ (versionné) doit refléter les sources, sinon la prod sert d'anciens scripts."""
+    stale = []
+    for source_dir in map(Path, settings.STATICFILES_DIRS):
+        for source in source_dir.rglob("*"):
+            relative = source.relative_to(source_dir)
+            # css/dist est le build Tailwind, régénéré par la CI : sa sortie varie d'une machine à l'autre
+            if not source.is_file() or source.name.startswith(".") or "dist" in relative.parts:
+                continue
+            collected = Path(settings.STATIC_ROOT) / relative
+            if not collected.is_file() or collected.read_bytes() != source.read_bytes():
+                stale.append(str(relative))
+    assert not stale, f"staticfiles/ obsolète pour {sorted(stale)} : lancez `docker compose exec web python manage.py collectstatic --noinput` et commitez le résultat."
 
 
 def test_every_app_route_is_named():

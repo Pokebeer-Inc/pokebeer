@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 bars.push({
 
-                    id: item.dataset.id,
+                    slug: item.dataset.slug,
 
                     name: item.dataset.name,
 
@@ -109,7 +109,8 @@ document.addEventListener("DOMContentLoaded", function () {
     L.tileLayer(
         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         {
-            maxZoom: 19
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap"
         }
     ).addTo(map);
 
@@ -169,7 +170,7 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
 
-        markers[bar.id] = marker;
+        markers[bar.slug] = marker;
 
     });
 
@@ -418,7 +419,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                 <button
                                     type="button"
                                     class="bar-verify-button"
-                                    onclick="verifyBar('${bar.id}')"
+                                    onclick="verifyBar('${bar.slug}')"
                                 >
 
                                     <span>✓</span>
@@ -476,11 +477,11 @@ document.addEventListener("DOMContentLoaded", function () {
      * ============================================================
      */
 
-    window.verifyBar = function (id) {
+    window.verifyBar = function (slug) {
 
         const bar = bars.find(
             function (bar) {
-                return bar.id === id;
+                return bar.slug === slug;
             }
         );
 
@@ -488,7 +489,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!bar) {
             console.error(
                 "Bar introuvable :",
-                id
+                slug
             );
 
             return;
@@ -536,7 +537,7 @@ document.addEventListener("DOMContentLoaded", function () {
          */
 
         const button = document.querySelector(
-            `.bar-verify-button[onclick="verifyBar('${id}')"]`
+            `.bar-verify-button[onclick="verifyBar('${slug}')"]`
         );
 
 
@@ -611,7 +612,7 @@ document.addEventListener("DOMContentLoaded", function () {
              * ====================================================
              */
 
-            const marker = markers[bar.id];
+            const marker = markers[bar.slug];
 
 
             if (marker) {
