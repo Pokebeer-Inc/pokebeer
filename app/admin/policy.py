@@ -1,5 +1,6 @@
-"""Annonce d'une modification de la politique de confidentialité à tous les membres (réservée aux superusers)."""
+"""Annonce d'une modification de la politique de confidentialité à tous les membres (réservée aux superusers) : formulaire en tête de la liste des annonces."""
 from django import forms
+from django.conf import settings
 from django.contrib import admin, messages
 from django.shortcuts import redirect
 from django.urls import path, reverse
@@ -19,8 +20,9 @@ class PolicyNoticeForm(forms.Form):
 
 @admin.register(PolicyNotice)
 class PolicyNoticeAdmin(ModelAdmin):
-    """Historique en lecture seule ; la publication se fait depuis le tableau de bord (une seule action POST)."""
+    """Historique en lecture seule ; la publication se fait par le formulaire en tête de la liste (une seule action POST)."""
 
+    list_before_template = "admin/policy_notice_form.html"
     list_display = ("created_at", "summary", "notified_count", "email_display", "created_by")
     ordering = ("-created_at",)
 
@@ -37,6 +39,9 @@ class PolicyNoticeAdmin(ModelAdmin):
         if not obj.notify_by_email:
             return "Non demandés"
         return f"{obj.emails_sent} envoyés" + ("" if obj.email_done else " (en cours)")
+
+    def changelist_view(self, request, extra_context=None):
+        return super().changelist_view(request, {**(extra_context or {}), "policy_url": settings.PRIVACY_POLICY_URL})
 
     def get_urls(self):
         return [path("publish/", self.admin_site.admin_view(require_POST(self.publish_view)), name="app_policynotice_publish"), *super().get_urls()]
@@ -55,4 +60,4 @@ class PolicyNoticeAdmin(ModelAdmin):
             else:
                 suffix = " Les e-mails partiront par lots chaque jour." if notice.notify_by_email else ""
                 messages.success(request, f"{notice.notified_count} membre(s) notifié(s).{suffix}")
-        return redirect(reverse("admin:index"))
+        return redirect(reverse("admin:app_policynotice_changelist"))

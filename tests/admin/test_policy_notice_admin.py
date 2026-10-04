@@ -1,4 +1,4 @@
-"""Tableau de bord : bouton d'annonce de la politique de confidentialité, réservé aux superusers."""
+"""Annonce de la politique de confidentialité : formulaire en tête de la liste des annonces, réservé aux superusers."""
 import pytest
 from django.urls import reverse
 
@@ -14,11 +14,27 @@ def publish(client, **data):
     return client.post(reverse(PUBLISH), {"summary": "ajout des e-mails de service", **data})
 
 
-def test_dashboard_shows_the_form_and_the_history(client_for, superuser, user):
-    page = client_for(superuser).get(reverse("admin:index")).content.decode()
-    assert "Notifier tous les membres" in page and reverse(PUBLISH) in page
-    publish(client_for(superuser))
-    assert "ajout des e-mails de service" in client_for(superuser).get(reverse("admin:index")).content.decode()
+LIST = "admin:app_policynotice_changelist"
+
+
+def test_the_form_sits_above_the_list_of_announcements(client_for, superuser, user):
+    publish(client_for(superuser), summary="RESUME-UNIQUE-XYZ")
+    page = client_for(superuser).get(reverse(LIST)).content.decode()
+    assert "Notifier tous les membres" in page and reverse(PUBLISH) in page and "csrfmiddlewaretoken" in page
+    assert page.index("Notifier tous les membres") < page.index("RESUME-UNIQUE-XYZ")  # le formulaire précède la liste
+
+
+def test_the_form_links_to_the_configured_policy(client_for, superuser, settings):
+    settings.PRIVACY_POLICY_URL = "https://policy.example/doc"
+    assert 'href="https://policy.example/doc"' in client_for(superuser).get(reverse(LIST)).content.decode()
+
+
+def test_the_dashboard_no_longer_carries_the_form(client_for, superuser):
+    assert "Notifier tous les membres" not in client_for(superuser).get(reverse("admin:index")).content.decode()
+
+
+def test_publishing_returns_to_the_list(client_for, superuser, user):
+    assert publish(client_for(superuser)).url == reverse(LIST)
 
 
 def test_superuser_notifies_everyone(client_for, superuser, user, other_user):

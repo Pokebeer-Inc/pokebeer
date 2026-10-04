@@ -2,9 +2,7 @@
 
 from django.db.models import Count
 
-from django.conf import settings
-
-from ..models import BeerUser, Beer, Brewery, PolicyNotice, Report
+from ..models import BeerUser, Beer, Brewery, Report
 from ..services.places_map import places_for_map
 from ..services import inactivity
 from ..services.roles import role_counts
@@ -38,10 +36,6 @@ def dashboard_callback(request, context):
         "places": places_for_map(),
 
         "inactivity": inactivity.dashboard_stats(),
-
-        "policy_notices": list(PolicyNotice.objects.select_related("created_by")[:5]),
-
-        "policy_url": settings.PRIVACY_POLICY_URL,
 
     })
 
