@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from app.services import inactivity
+from app.services import inactivity, policy_notice
 
 
 class Command(BaseCommand):
@@ -14,4 +14,5 @@ class Command(BaseCommand):
             self.stdout.write(f"À prévenir : {inactivity.to_warn().count()} — à supprimer : {inactivity.due_for_deletion().count()}")
             return
         warned, deleted = inactivity.purge_inactive_accounts()
-        self.stdout.write(self.style.SUCCESS(f"{warned} compte(s) prévenu(s), {deleted} compte(s) supprimé(s)."))
+        emails = policy_notice.send_pending_emails()
+        self.stdout.write(self.style.SUCCESS(f"{warned} compte(s) prévenu(s), {deleted} compte(s) supprimé(s), {emails} e-mail(s) d'annonce envoyé(s)."))

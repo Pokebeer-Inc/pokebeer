@@ -1,0 +1,9 @@
+{% autoescape off %}Bonjour {{ user.username }},
+
+Notre politique de confidentialité a été mise à jour : {{ summary }}.
+
+Vous pouvez la lire ici : {{ policy_url }}
+
+Aucune action n'est nécessaire de votre part. Si vous avez des questions ou souhaitez exercer vos droits, écrivez-nous à {{ support_email }}.
+
+L'équipe Pokebeer{% endautoescape %}

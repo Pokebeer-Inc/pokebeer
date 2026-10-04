@@ -30,6 +30,7 @@ urlpatterns = [
     path('password-reset/sent/', views.PasswordResetDoneView.as_view(), name='password_reset_done'),
     path('password-reset/<uidb64>/<token>/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('password-reset/complete/', views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    path('confidentialite/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
     path('delete-account/', views.delete_account_view, name='delete_account'),
     path('cron/purge-inactive-accounts/', views.purge_inactive_accounts_cron, name='cron_purge_inactive_accounts'),
     # Les pages de connexion et d'inscription d'allauth contourneraient nos protections : on les renvoie vers les nôtres

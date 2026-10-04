@@ -148,7 +148,7 @@ class TestCronEndpoint:
         settings.CRON_SECRET = "s3cret"
         idle(user, LONG_AGO, warned_days_ago=31)
         response = client.get(reverse(self.url), headers={"Authorization": "Bearer s3cret"})
-        assert response.json() == {"warned": 0, "deleted": 1}
+        assert response.json() == {"warned": 0, "deleted": 1, "policy_emails": 0}
 
     def test_get_only(self, client, settings):
         settings.CRON_SECRET = "s3cret"

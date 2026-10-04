@@ -1,0 +1,7 @@
+{% extends "emails/_layout.html" %}
+{% block content %}
+<p>Bonjour {{ user.username }},</p>
+<p>Notre politique de confidentialité a été mise à jour : <strong>{{ summary }}</strong>.</p>
+<p style="margin:24px 0;"><a href="{{ policy_url }}" style="background:#facc15;color:#1c1917;font-weight:bold;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;">Lire la politique</a></p>
+<p style="font-size:13px;color:#57534e;">Aucune action n'est nécessaire de votre part. Pour toute question ou pour exercer vos droits, écrivez-nous à {{ support_email }}.</p>
+{% endblock %}
