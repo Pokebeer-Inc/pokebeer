@@ -1,0 +1,21 @@
+<div class="mb-6 rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <div class="mb-4">
+        <h2 class="text-lg font-semibold">Politique de confidentialité</h2>
+        <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+            Après avoir modifié <a class="text-primary-600" href="{{ policy_url }}" target="_blank" rel="noopener">le document</a>, prévenez tous les membres actifs : ils reçoivent une notification qui l'ouvre.
+        </p>
+    </div>
+    <form method="post" action="{% url 'admin:app_policynotice_publish' %}" class="grid grid-cols-1 gap-3 lg:grid-cols-3"
+          onsubmit="return confirm('Envoyer cette annonce à tous les membres actifs ?');">
+        {% csrf_token %}
+        <label class="text-sm lg:col-span-2">
+            <span class="mb-1 block text-font-subtle-light dark:text-font-subtle-dark">Ce qui a changé (une phrase, 200 caractères)</span>
+            <input type="text" name="summary" maxlength="200" required placeholder="Ex : ajout des e-mails de service et de la suppression des comptes inactifs" class="w-full rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+        </label>
+        <div class="flex flex-col justify-end gap-2 text-sm">
+            <label class="flex items-center gap-2"><input type="checkbox" name="notify_by_email"> Prévenir aussi par e-mail (par lots quotidiens)</label>
+            <button type="submit" class="rounded-default bg-primary-600 px-4 py-2 font-semibold text-white">Notifier tous les membres</button>
+        </div>
+    </form>
+</div>
+

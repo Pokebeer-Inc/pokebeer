@@ -231,6 +231,8 @@ SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', EMAIL_HOST_USER)
 DEFAULT_FROM_EMAIL = f'Pokebeer <{EMAIL_HOST_USER}>'
 # Les liens des e-mails partent de cette adresse fixe, jamais de l'en-tête Host de la requête (empoisonnement de lien)
 PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', 'http://localhost:8000' if DEBUG else 'https://pokebeer.vercel.app').rstrip('/')
+# Politique de confidentialité en vigueur : cible de la notification « politique mise à jour » (document hébergé hors du site)
+PRIVACY_POLICY_URL = os.getenv('PRIVACY_POLICY_URL', 'https://docs.google.com/document/u/1/d/e/2PACX-1vRUotydGSIazgqfyVaB-I-IdDaPGuWBv3zmNgEOHBYL7qn1eYfsZcd1i5dAU_MnRFs2TOLW8YcDLmV3/pub')
 # Validité d'un lien de réinitialisation (secondes) ; le lien ne sert qu'une fois (il dépend de l'ancien mot de passe)
 PASSWORD_RESET_TIMEOUT = 3600
 # Durée minimale d'une demande de réinitialisation : le temps de réponse ne révèle pas si l'adresse a un compte
@@ -364,6 +366,12 @@ UNFOLD = {
                         "title": _("Rôles"),
                         "icon": "admin_panel_settings",
                         "link": reverse_lazy("admin:app_beeruser_roles"),
+                    },
+                    {
+                        "title": _("Annonces de politique"),
+                        "icon": "policy",
+                        "link": reverse_lazy("admin:app_policynotice_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
                     },
                     {
                         "title": _("Comptes supprimés"),

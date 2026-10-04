@@ -579,6 +579,24 @@ class UserBlock(models.Model):
     def __str__(self):
         return f"{self.blocker.username} a bloqué {self.blocked.username}"
 
+class PolicyNotice(models.Model):
+    """Annonce d'une modification de la politique de confidentialité à tous les membres (notification, e-mail en option)."""
+    summary = models.CharField(max_length=200, verbose_name="Ce qui a changé")
+    created_at = models.DateTimeField(default=timezone.now)
+    created_by = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='+', verbose_name="Publiée par")
+    notified_count = models.PositiveIntegerField(default=0, verbose_name="Membres notifiés")
+    notify_by_email = models.BooleanField(default=False, verbose_name="Aussi par e-mail")
+    # L'e-mail part par lots quotidiens (quota du compte Gmail) : le curseur est le dernier membre déjà traité
+    email_cursor = models.PositiveBigIntegerField(default=0, editable=False)
+    emails_sent = models.PositiveIntegerField(default=0, verbose_name="E-mails envoyés")
+    email_done = models.BooleanField(default=False, editable=False)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Annonce de la politique de confidentialité"
+        verbose_name_plural = "Annonces de la politique de confidentialité"
+
+
 class ThrottleHit(models.Model):
     """Tentative comptabilisée par la limitation de débit. La clé (IP, pseudo…) n'est conservée que hachée."""
     scope = models.CharField(max_length=40)

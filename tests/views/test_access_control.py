@@ -95,6 +95,9 @@ POST_ONLY_ROUTES = [
 ]
 
 
+PUBLIC_REDIRECTS = [("privacy_policy", {})]
+
+
 def route_id(route):
     return route[0]
 
@@ -107,6 +110,13 @@ def test_anonymous_visitor_is_sent_to_login(client, name, kwargs, method):
 @pytest.mark.parametrize("name, kwargs", PUBLIC_ROUTES, ids=[route_id(r) for r in PUBLIC_ROUTES])
 def test_public_routes_are_reachable_anonymously(client, google_app, name, kwargs):
     assert client.get(reverse(name, kwargs=kwargs)).status_code == 200
+
+
+@pytest.mark.parametrize("name, kwargs", PUBLIC_REDIRECTS, ids=[route_id(r) for r in PUBLIC_REDIRECTS])
+def test_privacy_policy_is_public_and_redirects_to_the_configured_document(client, settings, name, kwargs):
+    settings.PRIVACY_POLICY_URL = "https://policy.example/doc"
+    response = client.get(reverse(name, kwargs=kwargs))
+    assert response.status_code == 302 and response.url == "https://policy.example/doc"
 
 
 @pytest.mark.parametrize("name, kwargs", POST_ONLY_ROUTES, ids=[route_id(r) for r in POST_ONLY_ROUTES])

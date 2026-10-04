@@ -16,3 +16,4 @@ from .bar_views import *
 from .brewery_views import *
 from .cron_views import *
 from .password_reset_views import *
+from .privacy_views import *
