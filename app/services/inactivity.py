@@ -1,7 +1,7 @@
 """RGPD : suppression des comptes inactifs.
 
 Un compte est inactif quand `last_activity_at` dépasse INACTIVE_ACCOUNT_MONTHS. Le membre est d'abord prévenu par
-notification, puis supprimé une fois le délai de grâce écoulé : jamais de suppression sans préavis, même si la tâche
+notification et par e-mail, puis supprimé une fois le délai de grâce écoulé : jamais de suppression sans préavis, même si la tâche
 planifiée a manqué des jours. Les comptes suspendus (modération), le staff et les superusers ne sont jamais supprimés.
 """
 import calendar
@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.formats import date_format
 
 from ..models import STAFF_GROUP, AccountDeletion, BeerUser, Notification
+from . import inactivity_mail
 from .notifications import notify
 
 logger = logging.getLogger(__name__)
@@ -85,14 +86,25 @@ def due_for_deletion(now=None):
 
 
 def warn_users(now=None):
-    """Prévient chaque compte concerné par notification (application et push) ; renvoie le nombre de membres prévenus."""
+    """Prévient chaque compte concerné par notification (application, push) et par e-mail ; renvoie le nombre de membres prévenus.
+
+    Un membre n'est marqué « prévenu » que si l'un des deux canaux a abouti : sinon il sera repris à la prochaine exécution,
+    et il ne peut donc pas être supprimé sans avoir reçu le moindre avertissement. Quand le plafond d'e-mails du jour est
+    atteint, les membres restants sont traités le lendemain.
+    """
     now = now or timezone.now()
     warned = 0
     for user in to_warn(now).iterator():
-        deadline = max(deletion_date(user), now + warning_period())
-        notify(NOTIFICATION, [user], text_content=date_format(deadline, 'j F Y'))
-        BeerUser.objects.filter(pk=user.pk).update(inactivity_warned_at=now)
-        warned += 1
+        if not inactivity_mail.capacity_left():
+            break
+        deadline = date_format(max(deletion_date(user), now + warning_period()), 'j F Y')
+        emailed = inactivity_mail.send_warning(user, deadline)
+        notified = bool(notify(NOTIFICATION, [user], text_content=deadline))
+        if emailed or notified:
+            BeerUser.objects.filter(pk=user.pk).update(inactivity_warned_at=now)
+            warned += 1
+        else:
+            logger.error("Aucun canal n'a pu prévenir le compte %s de sa suppression pour inactivité", user.pk)
     return warned
 
 
@@ -114,6 +126,8 @@ def purge_inactive_accounts(now=None):
         try:
             delete_account(user, AccountDeletion.Reason.INACTIVITY)
             deleted += 1
+            # L'instance garde ses valeurs après la suppression : c'est la dernière fois que l'adresse sert
+            inactivity_mail.send_deletion_notice(user.email, user.username)
         except Exception:  # un compte en échec ne bloque pas les autres
             logger.exception("Suppression du compte %s impossible", user.pk)
     return warn_users(now), deleted
@@ -132,6 +146,7 @@ def dashboard_stats(now=None):
     return {
         'months': settings.INACTIVE_ACCOUNT_MONTHS,
         'warning_days': settings.INACTIVE_ACCOUNT_WARNING_DAYS,
+        'email_enabled': not settings.EMAIL_BACKEND.endswith('console.EmailBackend'),
         'to_warn': to_warn(now).count(),
         'unwarned_overdue': unwarned_overdue,
         'awaiting_deletion': awaiting,

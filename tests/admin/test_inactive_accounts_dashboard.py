@@ -38,3 +38,11 @@ class TestDashboard:
         response = client.get(reverse("admin:app_beeruser_changelist"), {"inactivity": "due"})
         assert response.status_code == 200 and user.username in response.content.decode()
         assert client.get(reverse("admin:app_accountdeletion_changelist")).status_code == 200
+
+
+def test_dashboard_warns_when_mail_is_not_configured(client_for, superuser, settings):
+    settings.EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    page = client_for(superuser).get(reverse("admin:index")).content.decode()
+    assert "L'envoi d'e-mails n'est pas configuré" in page
+    settings.EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    assert "L'envoi d'e-mails n'est pas configuré" not in client_for(superuser).get(reverse("admin:index")).content.decode()

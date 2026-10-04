@@ -61,3 +61,6 @@ PASSWORD_RESET_BY_IP = Rule('reset-ip', 5, timedelta(hours=1))
 PASSWORD_RESET_BY_EMAIL = Rule('reset-email', 3, timedelta(hours=1))
 PASSWORD_RESET_GLOBAL = Rule('reset-global', 300, timedelta(days=1))
 PASSWORD_RESET_CONFIRM_BY_IP = Rule('reset-confirm-ip', 10, timedelta(hours=1))
+
+# E-mails de la suppression des comptes inactifs : plafond quotidien, pour laisser du quota Gmail aux mots de passe oubliés
+INACTIVITY_EMAIL_GLOBAL = Rule('inactivity-email', 100, timedelta(days=1))

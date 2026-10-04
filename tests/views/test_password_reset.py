@@ -230,12 +230,14 @@ def test_mail_settings_use_gmail_over_tls_and_never_the_account_password():
     import os
 
     import pokebeer.settings as module
-    with mock.patch.dict(os.environ, {"EMAIL_HOST_PASSWORD": "app-password-123"}), mock.patch("pokebeer.database.get_databases", return_value={}):
+    # Le fichier .env du poste (qui peut contenir un vrai mot de passe d'application) ne doit jamais influencer ce test
+    no_dotenv = mock.patch("dotenv.load_dotenv", return_value=False)
+    with no_dotenv, mock.patch.dict(os.environ, {"EMAIL_HOST_PASSWORD": "app-password-123"}), mock.patch("pokebeer.database.get_databases", return_value={}):
         configured = importlib.reload(module)
         assert configured.EMAIL_BACKEND.endswith("smtp.EmailBackend")
         assert (configured.EMAIL_HOST, configured.EMAIL_PORT, configured.EMAIL_USE_TLS) == ("smtp.gmail.com", 587, True)
         assert configured.DEFAULT_FROM_EMAIL.endswith("<pokebeer.assistance@gmail.com>")
     env = {k: v for k, v in os.environ.items() if k != "EMAIL_HOST_PASSWORD"}
-    with mock.patch.dict(os.environ, env, clear=True), mock.patch("pokebeer.database.get_databases", return_value={}):
+    with no_dotenv, mock.patch.dict(os.environ, env, clear=True), mock.patch("pokebeer.database.get_databases", return_value={}):
         assert importlib.reload(module).EMAIL_BACKEND.endswith("console.EmailBackend")
     importlib.reload(module)

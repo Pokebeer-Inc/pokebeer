@@ -1,0 +1,6 @@
+{% extends "emails/_layout.html" %}
+{% block content %}
+<p>Bonjour {{ username }},</p>
+<p>Votre compte Pokebeer a été supprimé après {{ months }} mois sans visite, avec toutes vos données personnelles. Les bières que vous aviez ajoutées au catalogue sont conservées, sans aucun lien avec vous.</p>
+<p>Nous ne conservons pas votre adresse e-mail : c'est notre dernier message. Vous pouvez à tout moment <a href="{{ base_url }}">créer un nouveau compte</a>.</p>
+{% endblock %}

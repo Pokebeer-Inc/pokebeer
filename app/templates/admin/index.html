@@ -95,6 +95,11 @@
 
 
 <!-- Comptes inactifs (RGPD) -->
+{% if not inactivity.email_enabled %}
+<div class="mb-4 rounded-default border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
+    L'envoi d'e-mails n'est pas configuré (<code>EMAIL_HOST_PASSWORD</code> absent) : les avertissements d'inactivité ne partent que par notification, et les mots de passe oubliés ne peuvent pas être réinitialisés.
+</div>
+{% endif %}
 {% if inactivity.unwarned_overdue %}
 <div class="mb-4 rounded-default border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
     <strong>{{ inactivity.unwarned_overdue }} compte(s)</strong> ont dépassé {{ inactivity.months }} mois d'inactivité sans avoir été prévenus : la tâche quotidienne <code>purge_inactive_accounts</code> ne semble pas s'exécuter (vérifiez le cron et <code>CRON_SECRET</code>).

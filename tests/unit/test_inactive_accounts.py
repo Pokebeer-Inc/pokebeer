@@ -171,3 +171,94 @@ def test_month_arithmetic_clamps_to_month_end():
     from datetime import datetime, timezone as tz
     assert inactivity._months_before(datetime(2026, 3, 31, tzinfo=tz.utc), 1).day == 28
     assert inactivity._months_before(datetime(2026, 10, 4, tzinfo=tz.utc), 24).year == 2024
+
+
+class TestInactivityEmails:
+    """Avertissement et confirmation par e-mail, en plus de la notification dans l'application."""
+
+    def warned_user(self, member, **kwargs):
+        return idle(member, IN_WARNING_WINDOW, **kwargs)
+
+    def test_warning_goes_by_email_and_by_notification(self, user):
+        from django.core import mail
+        self.warned_user(user)
+        assert inactivity.purge_inactive_accounts() == (1, 0)
+        (message,) = mail.outbox
+        assert message.to == [user.email] and "supprimé pour inactivité" in message.subject
+        assert Notification.objects.filter(recipient=user, notif_type="inactivity_warning").exists()
+        deadline = Notification.objects.get(recipient=user).text_content
+        assert deadline in message.body and user.username in message.body
+        assert any(deadline in content for content, _ in message.alternatives)
+        assert "https://pokebeer.test/login/" in message.body
+
+    def test_the_member_is_warned_only_once(self, user):
+        from django.core import mail
+        self.warned_user(user)
+        inactivity.purge_inactive_accounts()
+        inactivity.purge_inactive_accounts()
+        assert len(mail.outbox) == 1
+
+    def test_a_mail_failure_does_not_prevent_the_in_app_warning(self, user):
+        from unittest import mock
+        self.warned_user(user)
+        with mock.patch("django.core.mail.message.EmailMultiAlternatives.send", side_effect=OSError("SMTP down")):
+            assert inactivity.purge_inactive_accounts() == (1, 0)
+        user.refresh_from_db()
+        assert user.inactivity_warned_at is not None and Notification.objects.filter(recipient=user).exists()
+
+    def test_a_member_nobody_could_reach_is_retried_and_never_deleted(self, user, monkeypatch):
+        from unittest import mock
+        self.warned_user(user)
+        monkeypatch.setattr(inactivity, "notify", lambda *args, **kwargs: [])
+        with mock.patch("django.core.mail.message.EmailMultiAlternatives.send", side_effect=OSError("SMTP down")):
+            assert inactivity.purge_inactive_accounts() == (0, 0)
+        user.refresh_from_db()
+        assert user.inactivity_warned_at is None
+        assert exists(user)  # jamais supprimé sans préavis
+        monkeypatch.undo()
+        assert inactivity.purge_inactive_accounts() == (1, 0)  # repris à la prochaine exécution
+
+    def test_the_daily_ceiling_defers_the_remaining_members_to_the_next_run(self, monkeypatch):
+        from datetime import timedelta as delta
+        from django.core import mail
+        from app.services import inactivity_mail
+        from app.services.throttle import Rule
+        monkeypatch.setattr(inactivity_mail, "INACTIVITY_EMAIL_GLOBAL", Rule("inactivity-email", 2, delta(days=1)))
+        members = [self.warned_user(f.make_user()) for _ in range(4)]
+        assert inactivity.purge_inactive_accounts() == (2, 0)
+        assert len(mail.outbox) == 2
+        assert sum(BeerUser.objects.get(pk=m.pk).inactivity_warned_at is not None for m in members) == 2
+        # le lendemain, le plafond est reparti
+        from app.models import ThrottleHit
+        ThrottleHit.objects.update(created_at=timezone.now() - delta(days=2))
+        assert inactivity.purge_inactive_accounts() == (2, 0)
+        assert len(mail.outbox) == 4
+
+    def test_a_deletion_notice_is_sent_once_the_account_is_gone(self, user):
+        from django.core import mail
+        email, username = user.email, user.username
+        idle(user, LONG_AGO, warned_days_ago=31)
+        assert inactivity.purge_inactive_accounts() == (0, 1)
+        (message,) = mail.outbox
+        assert message.to == [email] and "supprimé" in message.subject and username in message.body
+        assert not BeerUser.objects.filter(email=email).exists()
+
+    def test_protected_accounts_receive_nothing(self):
+        from django.core import mail
+        for member in (f.make_user(is_superuser=True), f.make_user(groups=("Staff",)), f.make_user(is_active=False)):
+            idle(member, LONG_AGO, warned_days_ago=60)
+        inactivity.purge_inactive_accounts()
+        assert mail.outbox == []
+
+    def test_a_failed_deletion_sends_no_notice(self, user, monkeypatch):
+        from django.core import mail
+        idle(user, LONG_AGO, warned_days_ago=31)
+        monkeypatch.setattr(BeerUser, "delete", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+        assert inactivity.purge_inactive_accounts() == (0, 0)
+        assert mail.outbox == []
+
+    def test_dashboard_tells_when_mail_is_not_configured(self, settings):
+        settings.EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+        assert inactivity.dashboard_stats()["email_enabled"] is False
+        settings.EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+        assert inactivity.dashboard_stats()["email_enabled"] is True
