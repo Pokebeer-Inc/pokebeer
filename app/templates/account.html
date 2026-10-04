@@ -341,6 +341,18 @@
         <button type="submit" name="btn_notifs" class="hidden">Enregistrer mes préférences</button>
     </form>
     
+    <!-- Confidentialité : visible uniquement dans l'application Android (le pont natif gère le choix) -->
+    <section id="privacy-settings" class="hidden flex flex-col gap-3 mt-4" aria-labelledby="privacy-title">
+        <h3 id="privacy-title" class="text-sm font-bold border-b border-primary pb-1">Confidentialité</h3>
+        <label class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm cursor-pointer">
+            <span class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">Mesure d'audience (Firebase Analytics)</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Statistiques d'usage de l'application, avec votre accord. Refuser n'a aucune incidence sur votre accès à Pokebeer. Désactiver efface l'identifiant d'instance de l'appareil.</span>
+            </span>
+            <input type="checkbox" id="analytics-consent" class="toggle toggle-primary toggle-sm">
+        </label>
+    </section>
+
     <div class="divider my-4 before:bg-error/30 after:bg-error/30 text-error font-bold text-xs uppercase">Zone de danger</div>
     
     <div class="flex flex-col gap-2 bg-error/10 p-3 rounded-box border border-error/30">
@@ -362,6 +374,7 @@
 <script src="{% static 'script/tab_bar.js' %}"></script>
 <script src="{% static 'script/drag_drop.js' %}"></script>
 <script src="{% static 'script/notif_preferences.js' %}"></script>
+<script src="{% static 'script/analytics_consent.js' %}"></script>
 <script src="{% static 'script/auto_checkbox.js' %}"></script>
 {% endblock %}
 
