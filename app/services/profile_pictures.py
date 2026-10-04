@@ -11,14 +11,14 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import storages
 from django.utils.functional import LazyObject
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageOps
+
+from .images import open_image
 
 logger = logging.getLogger(__name__)
 
 STORAGE_ALIAS = 'profile_pictures'
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024
-MAX_SOURCE_PIXELS = 25_000_000  # protège contre les « bombes de décompression »
-ALLOWED_FORMATS = {'JPEG', 'PNG', 'WEBP'}
 OUTPUT_SIZE = 512
 COOLDOWN_SECONDS = 60
 
@@ -41,19 +41,11 @@ def profile_picture_path(instance, filename):
 
 def process_profile_picture(upload):
     """Valide l'envoi et renvoie une image WebP carrée prête à être stockée (ValidationError sinon)."""
-    if upload.size > MAX_UPLOAD_BYTES:
-        raise ValidationError(f"L'image est trop lourde (maximum {MAX_UPLOAD_BYTES // (1024 * 1024)} Mo).", code='too_large')
+    image = open_image(upload, MAX_UPLOAD_BYTES)
     try:
-        image = Image.open(upload)
-        if image.format not in ALLOWED_FORMATS:
-            raise ValidationError("Format non pris en charge : utilisez une image JPEG, PNG ou WebP.", code='bad_format')
-        if image.width * image.height > MAX_SOURCE_PIXELS:
-            raise ValidationError("Les dimensions de l'image sont trop grandes.", code='too_many_pixels')
         image = ImageOps.exif_transpose(image)  # applique l'orientation avant de supprimer les métadonnées
         image = ImageOps.fit(image.convert('RGB'), (OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
-    except ValidationError:
-        raise
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+    except (OSError, ValueError, Image.DecompressionBombError):
         raise ValidationError("Ce fichier n'est pas une image valide.", code='invalid_image') from None
 
     buffer = BytesIO()

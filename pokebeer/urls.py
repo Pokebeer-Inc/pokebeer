@@ -20,8 +20,8 @@ from django.conf.urls.static import static
 from django.conf import settings
 
 urlpatterns = [
-    path('admin/analytics/', include('app.admin.analytics_urls')),
-    path('admin/', admin.site.urls),
+    path(f'{settings.ADMIN_URL}analytics/', include('app.admin.analytics_urls')),
+    path(settings.ADMIN_URL, admin.site.urls),
     path('', include("app.urls"))
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

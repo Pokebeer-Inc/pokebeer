@@ -3,13 +3,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
 from urllib.parse import quote
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from ..forms import ReportForm, error_summary
 from ..models import BeerUser, UserFollow, Report, UserBlock
 from ..services.blocks import invite_blockers_to_report
 from ..services.threads import report_entries
+from .utils import previous_page
 
 @login_required(login_url='login')
 def my_reports_view(request):
@@ -24,10 +24,7 @@ def submit_report(request):
     """Reçoit et enregistre un signalement depuis n'importe quelle modale."""
     form = ReportForm(request.POST, reporter=request.user)
 
-    # On ne revient que sur une page de ce site : le Referer est une donnée fournie par le client
-    referer = request.META.get('HTTP_REFERER')
-    if not url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
-        referer = reverse('index')
+    referer = previous_page(request)
 
     if not form.is_valid():
         messages.error(request, "Votre signalement n'a pas pu être envoyé : " + " ; ".join(error_summary(form)))

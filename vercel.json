@@ -10,5 +10,11 @@
       "src": "/(.*)",
       "dest": "api/index.py"
     }
+  ],
+  "crons": [
+    {
+      "path": "/cron/purge-inactive-accounts/",
+      "schedule": "0 3 * * *"
+    }
   ]
 }

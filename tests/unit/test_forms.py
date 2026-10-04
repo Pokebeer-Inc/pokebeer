@@ -171,7 +171,7 @@ class TestUserForms:
 @pytest.mark.parametrize("form_class", [BarProForm, BreweryProForm])
 class TestProForms:
     def data(self, **overrides):
-        return {"name": "Etablissement", "siret": "12345678901234", "description": "Desc", **overrides}
+        return {"name": "Etablissement", "siret": "73282932000074", "description": "Desc", **overrides}
 
     def test_valid_establishment(self, form_class):
         assert form_class(data=self.data()).is_valid()

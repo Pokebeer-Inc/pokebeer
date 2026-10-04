@@ -98,7 +98,7 @@ class TestRegisterPro:
     def data(self, **overrides):
         return {
             "user-username": "patron", "user-email": "patron@example.test", "user-password": f.PASSWORD,
-            "pro-name": "Chez Patron", "pro-siret": "12345678901234", "pro-description": "Un lieu",
+            "pro-name": "Chez Patron", "pro-siret": "73282932000074", "pro-description": "Un lieu",
             **overrides,
         }
 
@@ -110,7 +110,7 @@ class TestRegisterPro:
         assert_redirects(client.post(reverse("register_pro", args=[pro_type]), self.data()), reverse("login"))
 
         manager = BeerUser.objects.get(username="patron")
-        establishment = model.objects.get(siret="12345678901234")
+        establishment = model.objects.get(siret="73282932000074")
         assert manager.check_password(f.PASSWORD)
         assert list(establishment.managers.all()) == [manager]
         assert getattr(manager, role)
@@ -131,8 +131,19 @@ class TestRegisterPro:
         assert not Brewery.objects.exists()
         assert BeerUser.objects.count() == 1
 
+    def test_invalid_siret_creates_nothing(self, client):
+        response = client.post(reverse("register_pro", args=["bar"]), self.data(**{"pro-siret": "12345678901234"}))
+        assert response.status_code == 200 and not BeerUser.objects.filter(username="patron").exists()
+
+    def test_database_errors_are_not_shown_to_the_visitor(self, client, monkeypatch):
+        def boom(*args, **kwargs):
+            raise RuntimeError("secret internal detail")
+        monkeypatch.setattr("app.models.Bar.save", boom)
+        response = client.post(reverse("register_pro", args=["bar"]), self.data())
+        assert "secret internal detail" not in response.content.decode() + "".join(messages_of(response))
+
     def test_duplicate_siret_creates_nothing(self, client):
-        f.make_brewery(siret="12345678901234")
+        f.make_brewery(siret="73282932000074")
         client.post(reverse("register_pro", args=["brewery"]), self.data())
         assert not BeerUser.objects.filter(username="patron").exists()
 

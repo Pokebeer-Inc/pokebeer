@@ -1,4 +1,5 @@
 from django.urls import path, include
+from django.views.generic import RedirectView
 from . import views
 
 urlpatterns = [
@@ -25,7 +26,19 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
     path('account/', views.account_view, name='account'),
+    path('password-reset/', views.PasswordResetRequestView.as_view(), name='password_reset'),
+    path('password-reset/sent/', views.PasswordResetDoneView.as_view(), name='password_reset_done'),
+    path('password-reset/<uidb64>/<token>/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('password-reset/complete/', views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
     path('delete-account/', views.delete_account_view, name='delete_account'),
+    path('cron/purge-inactive-accounts/', views.purge_inactive_accounts_cron, name='cron_purge_inactive_accounts'),
+    # Les pages de connexion et d'inscription d'allauth contourneraient nos protections : on les renvoie vers les nôtres
+    path('accounts/login/', RedirectView.as_view(pattern_name='login', query_string=True), name='allauth_login_redirect'),
+    path('accounts/signup/', RedirectView.as_view(pattern_name='register', query_string=True), name='allauth_signup_redirect'),
+    # Réinitialisation et mot de passe d'allauth : remplacés par notre parcours (limité en débit, sans fuite d'information)
+    path('accounts/password/reset/', RedirectView.as_view(pattern_name='password_reset'), name='allauth_reset_redirect'),
+    path('accounts/password/change/', RedirectView.as_view(pattern_name='account'), name='allauth_password_change_redirect'),
+    path('accounts/password/set/', RedirectView.as_view(pattern_name='account'), name='allauth_password_set_redirect'),
     path('accounts/', include('allauth.urls')),
     path('update-top-beer/<int:slot>/', views.update_top_beer, name='update_top_beer'),
     path('swap-top-beers/', views.swap_top_beers, name='swap_top_beers'),

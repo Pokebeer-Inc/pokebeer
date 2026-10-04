@@ -1,0 +1,10 @@
+{% autoescape off %}Bonjour {{ user.username }},
+
+Vous n'avez pas utilisé Pokebeer depuis près de {{ months }} mois. Conformément à notre politique de confidentialité, un compte inactif est supprimé : le vôtre le sera le {{ deadline }}, avec toutes vos données (dégustations, profil, lieux, carnets…).
+
+Pour le conserver, il suffit d'ouvrir l'application ou le site : {{ base_url }}/login/
+Votre prochaine visite annule la suppression.
+
+Si vous ne souhaitez plus utiliser Pokebeer, vous n'avez rien à faire. Une question ? Écrivez-nous à {{ support_email }}.
+
+L'équipe Pokebeer{% endautoescape %}

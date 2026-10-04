@@ -1,0 +1,7 @@
+{% extends "password_reset/_layout.html" %}
+{% block heading %}Vérifiez votre messagerie{% endblock %}
+{% block body %}
+<p class="text-sm text-gray-700">Si un compte correspond à cette adresse, un e-mail vient de vous être envoyé. Le lien qu'il contient est valable une heure et ne peut servir qu'une fois.</p>
+<p class="text-sm text-gray-600">Rien reçu au bout de quelques minutes ? Regardez dans vos courriers indésirables, puis réessayez avec l'adresse utilisée à l'inscription.</p>
+<p class="text-center mt-6 text-sm text-gray-600"><a href="{% url 'login' %}" class="text-primary hover:underline font-bold">Retour à la connexion</a></p>
+{% endblock %}

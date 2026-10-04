@@ -1,10 +1,3 @@
-// Les pseudos et URLs d'avatar viennent d'autres membres : ils sont échappés avant d'entrer dans le HTML
-function escapeHtml(value) {
-    const element = document.createElement('div');
-    element.textContent = value;
-    return element.innerHTML.replace(/"/g, '&quot;');
-}
-
 let searchTimeout;
     
 function searchUsersForCollab() {

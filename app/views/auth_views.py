@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -8,7 +10,12 @@ from django.utils.http import url_has_allowed_host_and_scheme
 
 from ..forms import UserRegisterForm, UserLoginForm, ProUserForm, BarProForm, BreweryProForm
 from ..models import BeerUser
+from ..services.throttle import PRO_SIGNUP_BY_IP, SIGNUP_BY_IP
+from .utils import limit_posts
 
+logger = logging.getLogger(__name__)
+
+@limit_posts(SIGNUP_BY_IP)
 def register_view(request):
     """Handles user registration."""
     if request.user.is_authenticated:
@@ -44,6 +51,8 @@ def login_view(request):
                 next_url = 'index'
             messages.info(request, f"Ravi de vous revoir, {user.username} !")
             return redirect(next_url)
+        elif form.has_error(NON_FIELD_ERRORS, 'throttled'):
+            messages.error(request, form.throttled_message)
         elif form.has_error(NON_FIELD_ERRORS, 'inactive'):
             messages.error(request, form.error_messages['inactive'])
         else:
@@ -62,6 +71,7 @@ def logout_view(request):
     messages.info(request, "Vous avez été déconnecté.")
     return redirect('login')
 
+@limit_posts(PRO_SIGNUP_BY_IP)
 def register_pro_view(request, pro_type):
     # Sécurité : n'accepte que ces deux types
     if pro_type not in ['bar', 'brewery']:
@@ -100,8 +110,9 @@ def register_pro_view(request, pro_type):
                 messages.success(request, f"L'établissement {pro_instance.name} a été créé ! Connectez-vous.")
                 return redirect('login')
                 
-            except Exception as e:
-                messages.error(request, f"Erreur lors de la création : {e}")
+            except Exception:
+                logger.exception("Création d'un établissement impossible")
+                messages.error(request, "Erreur lors de la création. Réessayez plus tard.")
         else:
             messages.error(request, "Veuillez corriger les erreurs dans le formulaire.")
     else:

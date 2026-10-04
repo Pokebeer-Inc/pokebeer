@@ -6,7 +6,7 @@ from datetime import date
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.functions import Lower
 from .fields import PublicSlugField
-from .validators import username_validator
+from .validators import plain_text_validator, username_validator
 from .services import notification_policy, notification_types
 from .services.avatars import initials_avatar_url
 from .services.profile_pictures import delete_stored_picture, profile_picture_path, profile_pictures_storage
@@ -113,6 +113,9 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     show_establishments = models.BooleanField(default=True, verbose_name="Afficher mes établissements publiquement")
     fcm_token = models.TextField(blank=True, null=True, verbose_name="Token Firebase Android")
     is_active = models.BooleanField(default=True, verbose_name="Compte actif", help_text="Décocher pour suspendre le compte : connexion refusée et profil masqué.")
+    # Dernière visite (RGPD : suppression des comptes inactifs). `last_login` ne suffit pas : les sessions durent un an.
+    last_activity_at = models.DateTimeField(default=timezone.now, db_index=True, verbose_name="Dernière activité")
+    inactivity_warned_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="Prévenu de la suppression le")
 
     USERNAME_FIELD = "username"
     EMAIL_FIELD = "email"
@@ -227,7 +230,7 @@ class VerifiableMixin(models.Model):
         abstract = True
 
 class Brewery(GeocodableMixin, VerifiableMixin):
-    name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
+    name = models.CharField(max_length=150, blank=False, verbose_name="Nom", validators=[plain_text_validator])
     slug = PublicSlugField(source='name')
     description = models.TextField(verbose_name="Description")
     image = models.ImageField(upload_to='breweries/', blank=True, null=True, verbose_name="Image")
@@ -258,7 +261,7 @@ class Brewery(GeocodableMixin, VerifiableMixin):
         return self.name
     
 class Bar(GeocodableMixin, VerifiableMixin):
-    name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
+    name = models.CharField(max_length=150, blank=False, verbose_name="Nom", validators=[plain_text_validator])
     slug = PublicSlugField(source='name')
     description = models.TextField(blank=True, null=True, verbose_name="Description")
     image = models.ImageField(upload_to='bars/', blank=True, null=True, verbose_name="Image")
@@ -291,7 +294,7 @@ class Bar(GeocodableMixin, VerifiableMixin):
         return self.name
 
 class Beer(VerifiableMixin):
-    name = models.CharField(max_length=150, blank=False, verbose_name="Nom")
+    name = models.CharField(max_length=150, blank=False, verbose_name="Nom", validators=[plain_text_validator])
     image = models.ImageField(upload_to='beers/', blank=True, null=True, verbose_name="Image")
     description = models.TextField(blank=True, null=True, verbose_name="Description officielle")
     bitterness = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(500)], verbose_name="IBU")
@@ -576,6 +579,35 @@ class UserBlock(models.Model):
     def __str__(self):
         return f"{self.blocker.username} a bloqué {self.blocked.username}"
 
+class ThrottleHit(models.Model):
+    """Tentative comptabilisée par la limitation de débit. La clé (IP, pseudo…) n'est conservée que hachée."""
+    scope = models.CharField(max_length=40)
+    key_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [models.Index(fields=['scope', 'key_hash', 'created_at'], name='throttle_lookup_idx')]
+
+
+class AccountDeletion(models.Model):
+    """Journal des comptes supprimés. Volontairement sans donnée personnelle (ni pseudo, ni e-mail) : RGPD, minimisation."""
+
+    class Reason(models.TextChoices):
+        INACTIVITY = 'inactivity', "Inactivité"
+        SELF = 'self', "Demande du membre"
+
+    user_id = models.PositiveBigIntegerField(verbose_name="Identifiant du compte")
+    reason = models.CharField(max_length=20, choices=Reason.choices)
+    last_activity_at = models.DateTimeField(verbose_name="Dernière activité")
+    was_warned = models.BooleanField(default=False, verbose_name="Prévenu avant suppression")
+    deleted_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-deleted_at']
+        verbose_name = "Compte supprimé"
+        verbose_name_plural = "Comptes supprimés"
+
+
 class NotificationManager(models.Manager):
     def bulk_create(self, objs, **kwargs):
         """Intercepte les bulk_create pour retirer les notifications refusées."""
@@ -678,14 +710,15 @@ class DrinkReaction(models.Model):
         verbose_name = "Réaction"
         
 class ChatUsage(models.Model):
-    """Nombre de messages envoyés au zythologue IA par un utilisateur sur une journée."""
+    """Nombre d'appels à l'IA (chat, lecture d'étiquette) d'un utilisateur sur une journée, par usage."""
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='chat_usages')
     day = models.DateField()
+    scope = models.CharField(max_length=20, default='chat')
     count = models.PositiveIntegerField(default=0)
 
     class Meta:
-        unique_together = ('user', 'day')
-        verbose_name = "Utilisation du chat IA"
+        unique_together = ('user', 'day', 'scope')
+        verbose_name = "Utilisation de l'IA"
 
     def __str__(self):
         return f"{self.user.username} - {self.day} ({self.count})"

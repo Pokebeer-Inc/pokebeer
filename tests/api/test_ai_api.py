@@ -144,5 +144,42 @@ class TestAnalyzeLabel:
         label_client.models.generate_content.return_value = SimpleNamespace(text="Je ne sais pas")
         assert self.upload(auth_client).status_code == 500
 
+    def test_declared_type_is_never_trusted(self, auth_client, label_client):
+        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        upload = f.make_image_upload()
+        upload.content_type = "application/x-evil"
+        auth_client.post(LABEL_URL, {"image": upload})
+        assert label_client.models.generate_content.call_args.kwargs["contents"][1].inline_data.mime_type == "image/png"
+
+    @pytest.mark.parametrize("payload", [b"<svg onload=alert(1)>", b"GIF89a....", b"not an image", b""])
+    def test_non_images_are_refused_before_the_ai_is_called(self, auth_client, label_client, payload):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        response = auth_client.post(LABEL_URL, {"image": SimpleUploadedFile("x.png", payload, content_type="image/png")})
+        assert response.status_code == 400
+        label_client.models.generate_content.assert_not_called()
+
+    def test_oversized_images_are_refused(self, auth_client, label_client, settings):
+        settings.LABEL_MAX_UPLOAD_BYTES = 10
+        assert self.upload(auth_client).status_code == 400
+        label_client.models.generate_content.assert_not_called()
+
+    def test_daily_quota_is_enforced_and_separate_from_chat(self, auth_client, label_client, settings, zythologue):
+        settings.LABEL_DAILY_LIMIT = 2
+        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        assert [self.upload(auth_client).status_code for _ in range(3)] == [200, 200, 429]
+        assert post_json(auth_client, CHAT_URL, {"message": "Salut"}).status_code == 200
+
+    def test_invalid_images_do_not_use_the_quota(self, auth_client, label_client, settings):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        settings.LABEL_DAILY_LIMIT = 1
+        auth_client.post(LABEL_URL, {"image": SimpleUploadedFile("x.png", b"junk", content_type="image/png")})
+        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        assert self.upload(auth_client).status_code == 200
+
+    def test_internal_error_details_are_not_leaked(self, auth_client, label_client):
+        label_client.models.generate_content.side_effect = RuntimeError("api key=SECRET-123 rejected")
+        response = self.upload(auth_client)
+        assert response.status_code == 500 and "SECRET-123" not in response.content.decode()
+
     def test_ai_outage_is_a_server_error(self, auth_client):
         assert "error" in self.upload(auth_client).json()

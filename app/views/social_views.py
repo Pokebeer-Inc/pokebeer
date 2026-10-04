@@ -8,12 +8,14 @@ from django.contrib.auth import logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 import json
 
-from ..models import BeerUser, UserFollow, Beer, Drinks, UserBlock, DrinkReaction
+from ..models import AccountDeletion, BeerUser, UserFollow, Beer, Drinks, UserBlock, DrinkReaction
 from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, NotificationPreferenceForm, ProSettingsForm
-from .utils import get_user_achievements, check_and_notify_achievements
+from .utils import get_user_achievements, check_and_notify_achievements, previous_page
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
 from ..services.feedback import FeedbackError, open_thread
+from ..services import password_reset
+from ..services.inactivity import delete_account
 from ..services.notifications import notify
 
 @login_required(login_url='login')
@@ -51,6 +53,7 @@ def account_view(request):
             if password_form.is_valid():
                 user = password_form.save()
                 update_session_auth_hash(request, user)
+                password_reset.notify_password_changed(user)
                 messages.success(request, "Votre mot de passe a été changé avec succès !")
                 return redirect('account')
             else:
@@ -119,8 +122,8 @@ def delete_account_view(request):
         user = request.user
         # 1. On déconnecte l'utilisateur pour invalider sa session
         logout(request)
-        # 2. On supprime l'utilisateur (Django gère les CASCADE et les SET_NULL automatiquement)
-        user.delete()
+        # 2. On supprime l'utilisateur (Django gère les CASCADE et les SET_NULL automatiquement) et on en garde la trace
+        delete_account(user, AccountDeletion.Reason.SELF)
         
         messages.success(request, "Votre compte et toutes vos données personnelles ont été supprimés. Au revoir !")
         return redirect('index')
@@ -198,7 +201,7 @@ def follow_user(request, username):
             messages.success(request, f"Vous suivez maintenant {username} !")
             
     check_and_notify_achievements(request.user)
-    return redirect(request.META.get('HTTP_REFERER', 'index'))
+    return redirect(previous_page(request))
 
 @login_required(login_url='login')
 def remove_follower(request, username):
@@ -212,7 +215,7 @@ def remove_follower(request, username):
         follow_record.delete()
         messages.info(request, f"{username} a été retiré de vos abonnés.")
         
-    return redirect(request.META.get('HTTP_REFERER', 'account'))
+    return redirect(previous_page(request, 'account'))
 
 @require_POST
 @login_required(login_url='login')

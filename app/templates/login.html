@@ -27,6 +27,10 @@
                 Se Connecter
             </button>
         </form>
+
+        <p class="text-center mt-4 text-sm">
+            <a href="{% url 'password_reset' %}" class="text-primary hover:underline">Mot de passe oublié ?</a>
+        </p>
         
         <p class="text-center mt-6 text-sm text-gray-600">
             Pas encore de compte ? <a href="{% url 'register' %}" class="text-primary hover:underline font-bold">S'inscrire</a>

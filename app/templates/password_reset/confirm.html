@@ -1,0 +1,11 @@
+{% extends "password_reset/_layout.html" %}
+{% block heading %}{% if validlink %}Nouveau mot de passe{% else %}Lien invalide{% endif %}{% endblock %}
+{% block body %}
+{% if validlink %}
+<p class="text-sm text-gray-600 mb-2">Choisissez un mot de passe que vous n'utilisez nulle part ailleurs.</p>
+{% include "password_reset/_form.html" with submit_label="Enregistrer le mot de passe" %}
+{% else %}
+<p class="text-sm text-gray-700">Ce lien n'est plus valable : il a expiré, il a déjà servi, ou il est incomplet.</p>
+<a href="{% url 'password_reset' %}" class="btn btn-primary w-full mt-4 text-white">Demander un nouveau lien</a>
+{% endif %}
+{% endblock %}

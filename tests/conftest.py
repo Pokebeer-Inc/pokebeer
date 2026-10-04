@@ -36,6 +36,10 @@ def fast_settings(settings):
     settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
     # Chaque Client de test recharge les middlewares : sans autorefresh, WhiteNoise rescanne tout STATIC_ROOT.
     settings.WHITENOISE_AUTOREFRESH = True
+    # Le client de test parle en HTTP : la redirection HTTPS (production) le renverrait en boucle
+    settings.SECURE_SSL_REDIRECT = False
+    settings.PASSWORD_RESET_MIN_SECONDS = 0  # la temporisation anti-énumération n'a pas à ralentir la suite
+    settings.PUBLIC_BASE_URL = 'https://pokebeer.test'
 
 
 @pytest.fixture(autouse=True)

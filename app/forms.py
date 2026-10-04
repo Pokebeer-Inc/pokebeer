@@ -3,12 +3,14 @@ from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib.auth import password_validation
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, SetPasswordForm
 from django.core.exceptions import ValidationError
+from .auth_forms import ThrottledLoginMixin
 from .services import notification_types
 from .services.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
 from .services.threads import plain_text
 from .services.profile_pictures import process_profile_picture
+from .validators import plain_text_validator, validate_siret
 from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
 from django.utils import timezone
 from django.utils.text import slugify
@@ -80,7 +82,7 @@ class UserRegisterForm(UniqueUsernameMixin, UserCreationForm):
                 'class': 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
             })
 
-class UserLoginForm(AuthenticationForm):
+class SuspensionNoticeLoginForm(AuthenticationForm):
     error_messages = {
         **AuthenticationForm.error_messages,
         'inactive': "Ce compte a été suspendu par la modération.",
@@ -97,8 +99,12 @@ class UserLoginForm(AuthenticationForm):
                 raise ValidationError(self.error_messages['inactive'], code='inactive')
         return super().clean()
 
+
+class UserLoginForm(ThrottledLoginMixin, SuspensionNoticeLoginForm):
+    """Le blocage anti brute-force passe avant toute vérification du mot de passe."""
+
     def __init__(self, *args, **kwargs):
-        super(UserLoginForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         
         # On définit explicitement les labels
         self.fields['username'].label = "Pseudo"
@@ -193,7 +199,7 @@ class ProUserForm(UniqueUsernameMixin, forms.ModelForm):
 PRO_FIELDS = ['name', 'siret', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
 
 class BarProForm(forms.ModelForm):
-    siret = forms.CharField(max_length=14, min_length=14, required=True, label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
+    siret = forms.CharField(max_length=14, min_length=14, required=True, validators=[validate_siret], label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
     
     class Meta:
         model = Bar
@@ -211,7 +217,7 @@ class BarProForm(forms.ModelForm):
             })
 
 class BreweryProForm(forms.ModelForm):
-    siret = forms.CharField(max_length=14, min_length=14, required=True, label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
+    siret = forms.CharField(max_length=14, min_length=14, required=True, validators=[validate_siret], label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
     
     class Meta:
         model = Brewery
@@ -258,7 +264,7 @@ class BarEditForm(forms.ModelForm):
 
 class BeerForm(forms.ModelForm):
     brewery_name = forms.CharField(
-        label='Brasserie',
+        label='Brasserie', max_length=150, validators=[plain_text_validator],
         help_text="Tapez le nom. Si elle n'existe pas, elle sera créée.",
         widget=forms.TextInput(attrs={'autocomplete': 'off'})
     )
@@ -504,3 +510,28 @@ class FeedbackAdminForm(forms.ModelForm):
         model = Feedback
         fields = ("status",)
 
+
+
+FIELD_CLASS = 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
+
+
+class StyledFieldsMixin:
+    """Applique le style des champs de saisie du site à tous les champs du formulaire."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs['class'] = FIELD_CLASS
+
+
+class PasswordResetRequestForm(StyledFieldsMixin, forms.Form):
+    email = forms.EmailField(label="Adresse e-mail du compte", max_length=254, widget=forms.EmailInput(attrs={'autocomplete': 'email'}))
+
+
+class NewPasswordForm(StyledFieldsMixin, SetPasswordForm):
+    """Nouveau mot de passe (règles de robustesse du site) saisi après le clic sur le lien reçu par e-mail."""
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, *args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs['autocomplete'] = 'new-password'

@@ -1,0 +1,13 @@
+<form method="post" class="flex flex-col gap-4">
+    {% csrf_token %}
+    {% for field in form %}
+        <div class="form-control w-full">
+            <label class="label" for="{{ field.id_for_label }}"><span class="label-text font-bold">{{ field.label }}</span></label>
+            {{ field }}
+            {% for error in field.errors %}
+                <label class="label"><span class="label-text-alt text-error">{{ error }}</span></label>
+            {% endfor %}
+        </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary w-full mt-4 text-white">{{ submit_label }}</button>
+</form>

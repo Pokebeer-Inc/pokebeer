@@ -1,0 +1,8 @@
+{% extends "emails/_layout.html" %}
+{% block content %}
+<p>Bonjour {{ user.username }},</p>
+<p>Vous n'avez pas utilisé Pokebeer depuis près de {{ months }} mois. Conformément à notre politique de confidentialité, un compte inactif est supprimé : le vôtre le sera le <strong>{{ deadline }}</strong>, avec toutes vos données (dégustations, profil, lieux, carnets…).</p>
+<p>Pour le conserver, il suffit d'ouvrir l'application ou le site. Votre prochaine visite annule la suppression.</p>
+<p style="margin:24px 0;"><a href="{{ base_url }}/login/" style="background:#facc15;color:#1c1917;font-weight:bold;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;">Garder mon compte</a></p>
+<p style="font-size:13px;color:#57534e;">Si vous ne souhaitez plus utiliser Pokebeer, vous n'avez rien à faire.</p>
+{% endblock %}

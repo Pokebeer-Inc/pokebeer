@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/beer_bubbles.html" %}
+
+<div class="card bg-white/90 backdrop-blur-md border border-white/50 mt-10 relative z-10">
+    <div class="card-body">
+        <h2 class="card-title text-2xl justify-center font-castoro mb-4">{% block heading %}{% endblock %}</h2>
+        {% block body %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

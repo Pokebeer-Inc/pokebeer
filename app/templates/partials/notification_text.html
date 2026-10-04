@@ -37,6 +37,8 @@
     L'équipe officielle a retiré votre fiche pour la bière <span class="font-bold">{{ notif.text_content }}</span> du catalogue public. Vous conversez tout de même votre avis.
 {% elif notif.notif_type == 'block_follow_up' %}
     Vous avez bloqué <span class="font-bold">{{ notif.text_content }}</span>. Si ce membre vous a posé un problème, vous pouvez le signaler à l'équipe : cela nous aide à protéger la communauté.
+{% elif notif.notif_type == 'inactivity_warning' %}
+    Votre compte est inactif depuis longtemps : sans visite de votre part, il sera supprimé le <span class="font-bold">{{ notif.text_content }}</span> avec toutes vos données.
 {% elif notif.notif_type == 'content_removed' %}
     {{ notif.text_content }}
 {% endif %}
