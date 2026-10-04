@@ -11,6 +11,9 @@ CDN_SCRIPTS = ('https://cdn.jsdelivr.net', 'https://unpkg.com')
 GOOGLE_FONTS = 'https://fonts.googleapis.com'
 FONT_FILES = 'https://fonts.gstatic.com'
 GEOCODERS = ('https://nominatim.openstreetmap.org', 'https://ipapi.co')
+# Le bouton « Continuer avec Google » envoie un formulaire (POST) que le serveur redirige vers Google : `form-action` s'applique
+# aussi à cette redirection, sans quoi le navigateur la bloque et la page reste figée.
+OAUTH_FORM_TARGETS = ('https://accounts.google.com',)
 
 
 def _realtime_origins(supabase_url):
@@ -31,7 +34,7 @@ def build_policy(supabase_url=None, admin=False):
         'connect-src': [SELF, *_realtime_origins(supabase_url), *GEOCODERS],
         'object-src': ["'none'"],
         'base-uri': [SELF],
-        'form-action': [SELF],
+        'form-action': [SELF, *OAUTH_FORM_TARGETS],
         'frame-ancestors': [SELF],
     }
     return '; '.join(f"{name} {' '.join(sources)}" for name, sources in directives.items())
