@@ -3,8 +3,25 @@ from django.contrib import admin, messages
 from unfold.admin import ModelAdmin
 from unfold.decorators import display
 
-from ..models import BeerUser
+from ..models import AccountDeletion, BeerUser
+from ..services import inactivity
 from .roles import RoleManagementMixin
+
+
+class InactivityFilter(admin.SimpleListFilter):
+    title = "Inactivité (RGPD)"
+    parameter_name = "inactivity"
+
+    def lookups(self, request, model_admin):
+        return (("to_warn", "À prévenir"), ("warned", "Prévenus"), ("due", "À supprimer"))
+
+    def queryset(self, request, queryset):
+        pks = {
+            "to_warn": inactivity.to_warn,
+            "warned": lambda: inactivity.candidates().filter(inactivity_warned_at__isnull=False),
+            "due": inactivity.due_for_deletion,
+        }.get(self.value())
+        return queryset.filter(pk__in=pks().values("pk")) if pks else queryset
 
 
 @admin.register(BeerUser)
@@ -15,11 +32,13 @@ class BeerUserAdmin(RoleManagementMixin, ModelAdmin):
         "email",
         "roles_display",
         "created_at",
+        "last_activity_at",
         "active_display",
     )
 
     list_filter = (
         "is_active",
+        InactivityFilter,
         "groups",
         "created_at",
     )
@@ -75,3 +94,20 @@ class BeerUserAdmin(RoleManagementMixin, ModelAdmin):
         skipped = queryset.count() - len(allowed)
         if skipped:
             self.message_user(request, f"{skipped} compte(s) ignoré(s) : votre propre compte ou un superuser.", messages.WARNING)
+
+
+@admin.register(AccountDeletion)
+class AccountDeletionAdmin(ModelAdmin):
+    """Journal en lecture seule des comptes supprimés (aucune donnée personnelle conservée)."""
+
+    list_display = ("user_id", "reason", "last_activity_at", "was_warned", "deleted_at")
+    list_filter = ("reason", "was_warned", "deleted_at")
+    ordering = ("-deleted_at",)
+
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_superuser
+
+    has_view_permission = lambda self, request, obj=None: self.has_module_permission(request)
+    has_add_permission = lambda self, request: False
+    has_change_permission = lambda self, request, obj=None: False
+    has_delete_permission = lambda self, request, obj=None: False

@@ -8,12 +8,13 @@ from django.contrib.auth import logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 import json
 
-from ..models import BeerUser, UserFollow, Beer, Drinks, UserBlock, DrinkReaction
+from ..models import AccountDeletion, BeerUser, UserFollow, Beer, Drinks, UserBlock, DrinkReaction
 from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, NotificationPreferenceForm, ProSettingsForm
 from .utils import get_user_achievements, check_and_notify_achievements
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
 from ..services.feedback import FeedbackError, open_thread
+from ..services.inactivity import delete_account
 from ..services.notifications import notify
 
 @login_required(login_url='login')
@@ -119,8 +120,8 @@ def delete_account_view(request):
         user = request.user
         # 1. On déconnecte l'utilisateur pour invalider sa session
         logout(request)
-        # 2. On supprime l'utilisateur (Django gère les CASCADE et les SET_NULL automatiquement)
-        user.delete()
+        # 2. On supprime l'utilisateur (Django gère les CASCADE et les SET_NULL automatiquement) et on en garde la trace
+        delete_account(user, AccountDeletion.Reason.SELF)
         
         messages.success(request, "Votre compte et toutes vos données personnelles ont été supprimés. Au revoir !")
         return redirect('index')

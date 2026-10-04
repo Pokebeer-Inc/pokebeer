@@ -94,6 +94,64 @@
 
 
 
+<!-- Comptes inactifs (RGPD) -->
+{% if inactivity.unwarned_overdue %}
+<div class="mb-4 rounded-default border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+    <strong>{{ inactivity.unwarned_overdue }} compte(s)</strong> ont dépassé {{ inactivity.months }} mois d'inactivité sans avoir été prévenus : la tâche quotidienne <code>purge_inactive_accounts</code> ne semble pas s'exécuter (vérifiez le cron et <code>CRON_SECRET</code>).
+</div>
+{% endif %}
+{% if inactivity.awaiting_deletion %}
+<div class="mb-4 rounded-default border border-orange-300 bg-orange-50 p-4 text-sm text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200">
+    <strong>{{ inactivity.awaiting_deletion }} compte(s)</strong> seront supprimés au prochain passage de la tâche quotidienne.
+</div>
+{% endif %}
+{% if inactivity.to_warn %}
+<div class="mb-4 rounded-default border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
+    <strong>{{ inactivity.to_warn }} compte(s)</strong> entrent dans les {{ inactivity.warning_days }} jours précédant leur suppression et recevront une notification au prochain passage.
+</div>
+{% endif %}
+
+<div class="mb-6 rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <div class="mb-4">
+        <h2 class="text-lg font-semibold">Comptes inactifs (RGPD)</h2>
+        <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+            Suppression automatique après {{ inactivity.months }} mois sans visite, avec un préavis de {{ inactivity.warning_days }} jours par notification. Staff, superusers et comptes suspendus sont exclus.
+        </p>
+    </div>
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <a href="{% url 'admin:app_beeruser_changelist' %}?inactivity=to_warn"><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">À prévenir</p><p class="text-2xl font-semibold">{{ inactivity.to_warn }}</p></a>
+        <a href="{% url 'admin:app_beeruser_changelist' %}?inactivity=warned"><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Prévenus</p><p class="text-2xl font-semibold">{{ inactivity.warned }}</p></a>
+        <a href="{% url 'admin:app_beeruser_changelist' %}?inactivity=due"><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">À supprimer</p><p class="text-2xl font-semibold">{{ inactivity.awaiting_deletion }}</p></a>
+        <div><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Supprimés (30 j)</p><p class="text-2xl font-semibold">{{ inactivity.deleted_30d }}</p></div>
+        <a href="{% url 'admin:app_accountdeletion_changelist' %}"><p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Supprimés (total)</p><p class="text-2xl font-semibold">{{ inactivity.deleted_total }}</p><p class="text-xs text-font-subtle-light dark:text-font-subtle-dark">dont {{ inactivity.deleted_inactivity }} pour inactivité</p></a>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div>
+            <h3 class="mb-2 text-sm font-semibold">Prochaines suppressions</h3>
+            {% for item in inactivity.upcoming %}
+            <p class="flex justify-between border-t border-base-200 py-2 text-sm dark:border-base-700">
+                <a class="text-primary-600" href="{% url 'admin:app_beeruser_change' item.user.pk %}">{{ item.user.username }}</a>
+                <span class="text-font-subtle-light dark:text-font-subtle-dark">inactif depuis le {{ item.user.last_activity_at|date:"d/m/Y" }} · suppression le {{ item.date|date:"d/m/Y" }}</span>
+            </p>
+            {% empty %}
+            <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Aucun compte prévenu.</p>
+            {% endfor %}
+        </div>
+        <div>
+            <h3 class="mb-2 text-sm font-semibold">Dernières suppressions</h3>
+            {% for deletion in inactivity.recent_deletions %}
+            <p class="flex justify-between border-t border-base-200 py-2 text-sm dark:border-base-700">
+                <span>Compte n°{{ deletion.user_id }} · {{ deletion.get_reason_display }}</span>
+                <span class="text-font-subtle-light dark:text-font-subtle-dark">{{ deletion.deleted_at|date:"d/m/Y" }}</span>
+            </p>
+            {% empty %}
+            <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Aucune suppression.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
 {% include "admin/places_map.html" %}
 
 <!-- Bières par style -->

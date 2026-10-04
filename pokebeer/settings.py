@@ -86,7 +86,8 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'allauth.account.middleware.AccountMiddleware'
+    'allauth.account.middleware.AccountMiddleware',
+    'app.middleware.ActivityMiddleware',
     #'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -185,6 +186,12 @@ USE_X_FORWARDED_PORT = True
 CSRF_COOKIE_HTTPONLY = False  # DOIT être False pour que le JS puisse lire le cookie via document.cookie
 SESSION_COOKIE_AGE = 31536000
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# RGPD : un compte sans aucune visite depuis ce délai est supprimé, après un avertissement par notification.
+INACTIVE_ACCOUNT_MONTHS = 24
+INACTIVE_ACCOUNT_WARNING_DAYS = 30
+# Secret de la tâche planifiée Vercel (envoyé en `Authorization: Bearer`) ; sans lui, l'endpoint est fermé.
+CRON_SECRET = os.getenv('CRON_SECRET')
 
 # Autoriser l'affichage dans l'Iframe de Hugging Face
 X_FRAME_OPTIONS = 'SAMEORIGIN'
@@ -312,6 +319,12 @@ UNFOLD = {
                         "title": _("Rôles"),
                         "icon": "admin_panel_settings",
                         "link": reverse_lazy("admin:app_beeruser_roles"),
+                    },
+                    {
+                        "title": _("Comptes supprimés"),
+                        "icon": "person_remove",
+                        "link": reverse_lazy("admin:app_accountdeletion_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
                     },
                 ],
             },

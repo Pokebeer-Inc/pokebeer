@@ -113,6 +113,9 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     show_establishments = models.BooleanField(default=True, verbose_name="Afficher mes établissements publiquement")
     fcm_token = models.TextField(blank=True, null=True, verbose_name="Token Firebase Android")
     is_active = models.BooleanField(default=True, verbose_name="Compte actif", help_text="Décocher pour suspendre le compte : connexion refusée et profil masqué.")
+    # Dernière visite (RGPD : suppression des comptes inactifs). `last_login` ne suffit pas : les sessions durent un an.
+    last_activity_at = models.DateTimeField(default=timezone.now, db_index=True, verbose_name="Dernière activité")
+    inactivity_warned_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="Prévenu de la suppression le")
 
     USERNAME_FIELD = "username"
     EMAIL_FIELD = "email"
@@ -575,6 +578,25 @@ class UserBlock(models.Model):
 
     def __str__(self):
         return f"{self.blocker.username} a bloqué {self.blocked.username}"
+
+class AccountDeletion(models.Model):
+    """Journal des comptes supprimés. Volontairement sans donnée personnelle (ni pseudo, ni e-mail) : RGPD, minimisation."""
+
+    class Reason(models.TextChoices):
+        INACTIVITY = 'inactivity', "Inactivité"
+        SELF = 'self', "Demande du membre"
+
+    user_id = models.PositiveBigIntegerField(verbose_name="Identifiant du compte")
+    reason = models.CharField(max_length=20, choices=Reason.choices)
+    last_activity_at = models.DateTimeField(verbose_name="Dernière activité")
+    was_warned = models.BooleanField(default=False, verbose_name="Prévenu avant suppression")
+    deleted_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-deleted_at']
+        verbose_name = "Compte supprimé"
+        verbose_name_plural = "Comptes supprimés"
+
 
 class NotificationManager(models.Manager):
     def bulk_create(self, objs, **kwargs):

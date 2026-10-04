@@ -14,3 +14,4 @@ from .search_views import *
 from .map_views import *
 from .bar_views import *
 from .brewery_views import *
+from .cron_views import *

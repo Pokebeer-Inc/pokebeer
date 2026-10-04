@@ -4,6 +4,7 @@ from django.db.models import Count
 
 from ..models import BeerUser, Beer, Brewery, Report
 from ..services.places_map import places_for_map
+from ..services import inactivity
 from ..services.roles import role_counts
 
 
@@ -33,6 +34,8 @@ def dashboard_callback(request, context):
         "kpi_report": Report.objects.count(),
 
         "places": places_for_map(),
+
+        "inactivity": inactivity.dashboard_stats(),
 
     })
 

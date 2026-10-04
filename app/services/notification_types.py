@@ -108,6 +108,7 @@ _TYPES = (
     NotificationType('report_updated', 'Signalement mis à jour', toast='warning', target=_page('my_reports'), visual=SYSTEM),
     NotificationType('feedback_replied', 'Réponse à votre feedback', toast='success', target=_feedback_thread, visual=SYSTEM),
     NotificationType('content_removed', 'Contenu retiré par la modération', visual=SYSTEM),
+    NotificationType('inactivity_warning', 'Compte bientôt supprimé pour inactivité', toast='warning', target=_page('account'), visual=SYSTEM),
     NotificationType('block_follow_up', 'Un problème avec un membre bloqué ?', target=_page('blocked_users'), visual=SYSTEM),
 )
 
