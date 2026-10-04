@@ -1,0 +1,6 @@
+{% extends "password_reset/_layout.html" %}
+{% block heading %}Mot de passe modifié{% endblock %}
+{% block body %}
+<p class="text-sm text-gray-700">Votre mot de passe a été modifié. Les appareils déjà connectés à votre compte ont été déconnectés.</p>
+<a href="{% url 'login' %}" class="btn btn-primary w-full mt-4 text-white">Se connecter</a>
+{% endblock %}

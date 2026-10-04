@@ -54,3 +54,10 @@ LOGIN_BY_IP = Rule('login-ip', 10, timedelta(minutes=15))
 LOGIN_BY_ACCOUNT = Rule('login-account', 20, timedelta(minutes=15))
 SIGNUP_BY_IP = Rule('signup-ip', 10, timedelta(hours=1))
 PRO_SIGNUP_BY_IP = Rule('pro-signup-ip', 5, timedelta(hours=1))
+
+# Réinitialisation du mot de passe : par IP (refus explicite), par adresse et au total (silencieux, pour ne rien révéler).
+# Le plafond quotidien protège le quota d'envoi du compte Gmail (500 messages par jour).
+PASSWORD_RESET_BY_IP = Rule('reset-ip', 5, timedelta(hours=1))
+PASSWORD_RESET_BY_EMAIL = Rule('reset-email', 3, timedelta(hours=1))
+PASSWORD_RESET_GLOBAL = Rule('reset-global', 300, timedelta(days=1))
+PASSWORD_RESET_CONFIRM_BY_IP = Rule('reset-confirm-ip', 10, timedelta(hours=1))

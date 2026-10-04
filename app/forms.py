@@ -3,7 +3,7 @@ from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib.auth import password_validation
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, SetPasswordForm
 from django.core.exceptions import ValidationError
 from .auth_forms import ThrottledLoginMixin
 from .services import notification_types
@@ -510,3 +510,28 @@ class FeedbackAdminForm(forms.ModelForm):
         model = Feedback
         fields = ("status",)
 
+
+
+FIELD_CLASS = 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
+
+
+class StyledFieldsMixin:
+    """Applique le style des champs de saisie du site à tous les champs du formulaire."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs['class'] = FIELD_CLASS
+
+
+class PasswordResetRequestForm(StyledFieldsMixin, forms.Form):
+    email = forms.EmailField(label="Adresse e-mail du compte", max_length=254, widget=forms.EmailInput(attrs={'autocomplete': 'email'}))
+
+
+class NewPasswordForm(StyledFieldsMixin, SetPasswordForm):
+    """Nouveau mot de passe (règles de robustesse du site) saisi après le clic sur le lien reçu par e-mail."""
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, *args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs['autocomplete'] = 'new-password'

@@ -50,7 +50,7 @@ CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 # `Lax` : le navigateur n'envoie plus la session lors d'une requête venue d'un autre site. `None` n'est utile que si
 # le site doit être affiché dans une iframe tierce (COOKIE_SAMESITE=None).
-CSRF_COOKIE_SAMESITE = SESSION_COOKIE_SAMESITE = os.getenv('COOKIE_SAMESITE', 'Lax')
+CSRF_COOKIE_SAMESITE = SESSION_COOKIE_SAMESITE = os.getenv('COOKIE_SAMESITE')
 
 # HTTPS partout : redirection, HSTS (un an, sous-domaines compris) ; désactivés en développement (HTTP local).
 SECURE_SSL_REDIRECT = not DEBUG
@@ -216,6 +216,25 @@ INACTIVE_ACCOUNT_MONTHS = 24
 INACTIVE_ACCOUNT_WARNING_DAYS = 30
 # Secret de la tâche planifiée Vercel (envoyé en `Authorization: Bearer`) ; sans lui, l'endpoint est fermé.
 CRON_SECRET = os.getenv('CRON_SECRET')
+
+# --- E-mails transactionnels (réinitialisation du mot de passe) via le SMTP de Gmail ---
+# EMAIL_HOST_PASSWORD est un « mot de passe d'application » Google (validation en 2 étapes requise), jamais le mot de passe du compte.
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_TIMEOUT = 10
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+# Sans mot de passe d'application (poste de développement), les e-mails s'affichent dans la console au lieu d'être envoyés
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST_PASSWORD else 'django.core.mail.backends.console.EmailBackend'
+SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', EMAIL_HOST_USER)
+DEFAULT_FROM_EMAIL = f'Pokebeer <{EMAIL_HOST_USER}>'
+# Les liens des e-mails partent de cette adresse fixe, jamais de l'en-tête Host de la requête (empoisonnement de lien)
+PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', 'http://localhost:8000' if DEBUG else 'https://pokebeer.vercel.app').rstrip('/')
+# Validité d'un lien de réinitialisation (secondes) ; le lien ne sert qu'une fois (il dépend de l'ancien mot de passe)
+PASSWORD_RESET_TIMEOUT = 3600
+# Durée minimale d'une demande de réinitialisation : le temps de réponse ne révèle pas si l'adresse a un compte
+PASSWORD_RESET_MIN_SECONDS = 3
 
 # Le site ne peut être affiché en iframe que par lui-même (anti-clickjacking)
 X_FRAME_OPTIONS = 'SAMEORIGIN'

@@ -14,6 +14,7 @@ from .utils import get_user_achievements, check_and_notify_achievements, previou
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
 from ..services.feedback import FeedbackError, open_thread
+from ..services import password_reset
 from ..services.inactivity import delete_account
 from ..services.notifications import notify
 
@@ -52,6 +53,7 @@ def account_view(request):
             if password_form.is_valid():
                 user = password_form.save()
                 update_session_auth_hash(request, user)
+                password_reset.notify_password_changed(user)
                 messages.success(request, "Votre mot de passe a été changé avec succès !")
                 return redirect('account')
             else:

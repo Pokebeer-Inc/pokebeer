@@ -1,0 +1,7 @@
+{% extends "password_reset/_layout.html" %}
+{% block heading %}Mot de passe oublié{% endblock %}
+{% block body %}
+<p class="text-sm text-gray-600 mb-2">Saisissez l'adresse e-mail de votre compte : nous vous enverrons les instructions pour en choisir un nouveau.</p>
+{% include "password_reset/_form.html" with submit_label="Recevoir les instructions" %}
+<p class="text-center mt-6 text-sm text-gray-600"><a href="{% url 'login' %}" class="text-primary hover:underline font-bold">Retour à la connexion</a></p>
+{% endblock %}

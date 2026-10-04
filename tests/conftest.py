@@ -38,6 +38,8 @@ def fast_settings(settings):
     settings.WHITENOISE_AUTOREFRESH = True
     # Le client de test parle en HTTP : la redirection HTTPS (production) le renverrait en boucle
     settings.SECURE_SSL_REDIRECT = False
+    settings.PASSWORD_RESET_MIN_SECONDS = 0  # la temporisation anti-énumération n'a pas à ralentir la suite
+    settings.PUBLIC_BASE_URL = 'https://pokebeer.test'
 
 
 @pytest.fixture(autouse=True)
