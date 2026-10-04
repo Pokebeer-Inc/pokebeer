@@ -50,7 +50,7 @@ CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 # `Lax` : le navigateur n'envoie plus la session lors d'une requête venue d'un autre site. `None` n'est utile que si
 # le site doit être affiché dans une iframe tierce (COOKIE_SAMESITE=None).
-CSRF_COOKIE_SAMESITE = SESSION_COOKIE_SAMESITE = os.getenv('COOKIE_SAMESITE')
+CSRF_COOKIE_SAMESITE = SESSION_COOKIE_SAMESITE = os.getenv('COOKIE_SAMESITE', 'Lax')
 
 # HTTPS partout : redirection, HSTS (un an, sous-domaines compris) ; désactivés en développement (HTTP local).
 SECURE_SSL_REDIRECT = not DEBUG
@@ -223,7 +223,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 10
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'pokebeer.assistance@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 # Sans mot de passe d'application (poste de développement), les e-mails s'affichent dans la console au lieu d'être envoyés
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST_PASSWORD else 'django.core.mail.backends.console.EmailBackend'
