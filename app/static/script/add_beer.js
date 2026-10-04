@@ -49,13 +49,19 @@ document.addEventListener("DOMContentLoaded", function() {
         '/api/search-beer/',
         (div, item) => {
             div.className = "p-3 bg-error/10 hover:bg-error/20 cursor-pointer border-b border-error/20 flex justify-between items-center text-error transition-colors";
-            div.innerHTML = `
-                <div>
-                    <span class="font-bold text-lg">${item.name}</span>
-                    <span class="text-sm opacity-80 block">Déjà en stock (${item.brewery})</span>
-                </div>
-                <span class="btn btn-sm btn-error text-white shadow-sm">Aller la noter ↗</span>
-            `;
+            // Les noms viennent d'autres membres : toujours en texte (textContent), jamais en HTML
+            const label = document.createElement("div");
+            const name = document.createElement("span");
+            name.className = "font-bold text-lg";
+            name.textContent = item.name;
+            const stock = document.createElement("span");
+            stock.className = "text-sm opacity-80 block";
+            stock.textContent = `Déjà en stock (${item.brewery})`;
+            label.append(name, stock);
+            const action = document.createElement("span");
+            action.className = "btn btn-sm btn-error text-white shadow-sm";
+            action.textContent = "Aller la noter ↗";
+            div.append(label, action);
         },
         (item) => window.location.href = `/beer/${item.slug}/`
     );
@@ -67,7 +73,7 @@ document.addEventListener("DOMContentLoaded", function() {
         '/api/search-brewery/',
         (div, item) => {
             div.className = "p-3 bg-base-100 hover:bg-base-200 cursor-pointer border-b border-base-200 font-semibold";
-            div.innerHTML = `${item}`;
+            div.textContent = item;
         },
         (item, container, input) => {
             input.value = item;

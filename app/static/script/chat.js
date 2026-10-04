@@ -27,6 +27,21 @@ chatClose.addEventListener('click', closeChat);
 // Fermer si on clique en dehors (sur le fond grisé)
 chatOverlay.addEventListener('click', closeChat);
 
+// Bulles de discussion : le texte du membre est échappé, la réponse de l'IA (Markdown) est nettoyée par DOMPurify
+function userBubble(text) {
+    return `
+                <div class="chat chat-end">
+                    <div class="chat-bubble shadow-sm text-sm">${escapeHtml(text)}</div>
+                </div>`;
+}
+
+function modelBubble(markdown) {
+    return `
+            <div class="chat chat-start">
+                <div class="chat-bubble bg-primary text-black shadow-sm text-sm markdown-content">${renderMarkdown(markdown)}</div>
+            </div>`;
+}
+
 // Appui sur "Entrée"
 function handleEnter(e) {
     if (e.key === 'Enter') sendMessage();
@@ -43,10 +58,7 @@ async function sendMessage() {
     if (!msg) return;
     
     // 1. Afficher le message de l'utilisateur
-    chatMessages.innerHTML += `
-                <div class="chat chat-end">
-                    <div class="chat-bubble shadow-sm text-sm">${msg}</div>
-                </div>`;
+    chatMessages.innerHTML += userBubble(msg);
     chatInput.value = '';
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
@@ -78,13 +90,7 @@ async function sendMessage() {
         const loadingElement = document.getElementById(loadingId);
         if (loadingElement) loadingElement.remove();
         
-        // Formater la réponse pour gérer le Markdown
-        const formattedResponse = marked.parse(data.response);
-        
-        chatMessages.innerHTML += `
-            <div class="chat chat-start">
-                <div class="chat-bubble bg-primary text-black shadow-sm text-sm markdown-content">${formattedResponse}</div>
-            </div>`;
+        chatMessages.innerHTML += modelBubble(data.response);
     } catch (err) {
         const loadingElement = document.getElementById(loadingId);
         if (loadingElement) loadingElement.remove();
@@ -116,18 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 chatMessages.innerHTML = ''; // Efface le message par défaut
                 
                 data.history.forEach(msg => {
-                    if (msg.role === 'user') {
-                        chatMessages.innerHTML += `
-                            <div class="chat chat-end">
-                                <div class="chat-bubble shadow-sm text-sm">${msg.text}</div>
-                            </div>`;
-                    } else {
-                        const formattedResponse = marked.parse(msg.text);
-                        chatMessages.innerHTML += `
-                            <div class="chat chat-start">
-                                <div class="chat-bubble bg-primary text-black shadow-sm text-sm markdown-content">${formattedResponse}</div>
-                            </div>`;
-                    }
+                    chatMessages.innerHTML += msg.role === 'user' ? userBubble(msg.text) : modelBubble(msg.text);
                 });
                 // Le scroll vers le bas se fera tout seul lorsque l'utilisateur cliquera sur le bouton d'ouverture
             }

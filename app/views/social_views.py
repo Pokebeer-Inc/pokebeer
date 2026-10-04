@@ -10,7 +10,7 @@ import json
 
 from ..models import AccountDeletion, BeerUser, UserFollow, Beer, Drinks, UserBlock, DrinkReaction
 from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, NotificationPreferenceForm, ProSettingsForm
-from .utils import get_user_achievements, check_and_notify_achievements
+from .utils import get_user_achievements, check_and_notify_achievements, previous_page
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
 from ..services.feedback import FeedbackError, open_thread
@@ -199,7 +199,7 @@ def follow_user(request, username):
             messages.success(request, f"Vous suivez maintenant {username} !")
             
     check_and_notify_achievements(request.user)
-    return redirect(request.META.get('HTTP_REFERER', 'index'))
+    return redirect(previous_page(request))
 
 @login_required(login_url='login')
 def remove_follower(request, username):
@@ -213,7 +213,7 @@ def remove_follower(request, username):
         follow_record.delete()
         messages.info(request, f"{username} a été retiré de vos abonnés.")
         
-    return redirect(request.META.get('HTTP_REFERER', 'account'))
+    return redirect(previous_page(request, 'account'))
 
 @require_POST
 @login_required(login_url='login')

@@ -27,7 +27,7 @@ class TestPlacesForMap:
         assert places_for_map() == []
 
     def test_private_data_is_never_exposed(self, geocoder, user):
-        f.make_bar(address="Paris", siret="12345678901234", managers=[user])
+        f.make_bar(address="Paris", siret="73282932000074", managers=[user])
         place = places_for_map()[0]
         assert "siret" not in place and "alice" not in json.dumps(place) and "managers" not in place
         assert set(place) <= {*PUBLIC_FIELDS, "type", "type_label", "url", "managers_count"}

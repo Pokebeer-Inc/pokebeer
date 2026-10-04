@@ -4,7 +4,7 @@ from django.contrib import messages
 
 from ..forms import DrinkForm
 from ..models import Beer, Drinks
-from .utils import check_and_notify_achievements, posted_notebooks
+from .utils import check_and_notify_achievements, posted_notebooks, previous_page
 from ..services.drinks import delete_drink
 from ..services.notifications import notify
 
@@ -13,7 +13,7 @@ def rate_beer_view(request, beer_slug):
     """Traite la notation depuis n'importe quelle page"""
     beer = get_object_or_404(Beer, slug=beer_slug)
     
-    previous_url = request.META.get('HTTP_REFERER', 'index')
+    previous_url = previous_page(request)
     
     if Drinks.objects.filter(drinker_id=request.user, beer_id=beer).exists():
         messages.warning(request, f"Vous avez déjà noté la bière {beer.name}.")
@@ -84,4 +84,4 @@ def delete_drink_view(request, drink_slug):
         
         messages.success(request, "Votre dégustation a bien été supprimée.")
 
-    return redirect(request.META.get('HTTP_REFERER', 'account'))
+    return redirect(previous_page(request, 'account'))

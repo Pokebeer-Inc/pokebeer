@@ -65,6 +65,8 @@ PROTECTED_ROUTES = [
     ("api_search_users_for_manager", {"brewery_slug": "some-slug"}, GET),
     ("api_search_users_for_bar_manager", {"bar_slug": "some-slug"}, GET),
     ("api_update_fcm_token", {}, POST),
+    ("search_brewery", {}, GET),
+    ("search_beer", {}, GET),
 ]
 
 PUBLIC_ROUTES = [
@@ -72,8 +74,7 @@ PUBLIC_ROUTES = [
     ("register", {}),
     ("register_pro", {"pro_type": "bar"}),
     ("register_pro", {"pro_type": "brewery"}),
-    ("search_brewery", {}),
-    ("search_beer", {}),
+
 ]
 
 POST_ONLY_ROUTES = [

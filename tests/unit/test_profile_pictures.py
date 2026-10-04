@@ -42,7 +42,7 @@ class TestProcessing:
         assert error.value.code == "too_large"
 
     def test_decompression_bomb_is_refused(self, monkeypatch):
-        monkeypatch.setattr(pp, "MAX_SOURCE_PIXELS", 100)
+        monkeypatch.setattr("app.services.images.MAX_SOURCE_PIXELS", 100)
         with pytest.raises(ValidationError) as error:
             pp.process_profile_picture(upload(size=(50, 50)))
         assert error.value.code == "too_many_pixels"

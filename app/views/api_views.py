@@ -1,4 +1,5 @@
 import json
+import logging
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST, require_http_methods
 from django.db.models import Q
@@ -8,11 +9,15 @@ from google import genai
 from google.genai import types
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 
 from ..models import Beer, Brewery
 from ..services.ai import ask_zythologue, config_client
-from ..services.quota import consume_chat_quota
+from ..services.images import MIME_TYPES, open_image
+from ..services.quota import CHAT, LABEL_SCAN, consume_quota
 from ..services.slugs import SUFFIX_LENGTH
+
+logger = logging.getLogger(__name__)
 
 @require_http_methods(["GET", "POST"])
 @login_required(login_url='login')
@@ -38,7 +43,7 @@ def chat_api(request):
         if len(user_message) > settings.CHAT_MESSAGE_MAX_LENGTH:
             return JsonResponse({"response": f"Message trop long ({settings.CHAT_MESSAGE_MAX_LENGTH} caractères maximum)."}, status=400)
 
-        if not consume_chat_quota(request.user, settings.CHAT_DAILY_LIMIT):
+        if not consume_quota(request.user, settings.CHAT_DAILY_LIMIT, CHAT):
             return JsonResponse({"response": "Gaétan a assez parlé pour aujourd'hui, revenez demain !"}, status=429)
 
         # On récupère l'historique existant
@@ -57,12 +62,22 @@ def chat_api(request):
         return JsonResponse({"response": response_text})
 
 @require_POST
-@login_required
+@login_required(login_url='login')
 def analyze_beer_label(request):
     if 'image' not in request.FILES:
         return JsonResponse({"error": "Aucune image reçue."}, status=400)
 
     image_file = request.FILES['image']
+    try:
+        # Le format réel est lu dans le fichier : le type déclaré par le navigateur n'est jamais cru
+        mime_type = MIME_TYPES[open_image(image_file, settings.LABEL_MAX_UPLOAD_BYTES).format]
+    except ValidationError as error:
+        return JsonResponse({"error": error.messages[0]}, status=400)
+
+    if not consume_quota(request.user, settings.LABEL_DAILY_LIMIT, LABEL_SCAN):
+        return JsonResponse({"error": "Limite quotidienne d'analyses atteinte, revenez demain !"}, status=429)
+
+    image_file.seek(0)
     image_bytes = image_file.read()
 
     try:
@@ -87,7 +102,7 @@ def analyze_beer_label(request):
                 prompt,
                 types.Part.from_bytes(
                     data=image_bytes,
-                    mime_type=image_file.content_type,
+                    mime_type=mime_type,
                 )
             ],
             config=types.GenerateContentConfig(
@@ -100,9 +115,12 @@ def analyze_beer_label(request):
 
         return JsonResponse({"success": True, "data": data})
 
-    except Exception as e:
-        return JsonResponse({"error": f"Erreur lors de l'analyse : {str(e)}"}, status=500)
+    except Exception:
+        # Le détail (réponse de l'IA, message du SDK) reste dans les journaux : il ne doit jamais atteindre le client
+        logger.exception("Analyse d'étiquette impossible")
+        return JsonResponse({"error": "L'analyse de l'étiquette a échoué. Réessayez plus tard."}, status=500)
 
+@login_required(login_url='login')
 def search_brewery(request):
     """API pour l'autocomplétion des brasseries"""
     query = request.GET.get('term', '')
@@ -113,6 +131,7 @@ def search_brewery(request):
     results = [b.name for b in breweries]
     return JsonResponse(results, safe=False)
 
+@login_required(login_url='login')
 def search_beer(request):
     """API pour vérifier si une bière existe déjà (Recherche optimisée)"""
     query = request.GET.get('term', '')

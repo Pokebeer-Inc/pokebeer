@@ -30,7 +30,15 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.vercel.app,.hf.space').split(',')
+def _csv(name, default=''):
+    return [item.strip() for item in os.getenv(name, default).split(',') if item.strip()]
+
+
+# Pas de joker `.vercel.app` : n'importe quel autre projet Vercel pourrait sinon être servi sous un hôte accepté.
+# Vercel fournit lui-même l'URL de production et celle du déploiement ; un domaine personnalisé va dans ALLOWED_HOSTS.
+ALLOWED_HOSTS = _csv('ALLOWED_HOSTS', 'localhost,127.0.0.1') + [
+    host for host in (os.getenv('VERCEL_PROJECT_PRODUCTION_URL'), os.getenv('VERCEL_URL'), os.getenv('VERCEL_BRANCH_URL')) if host
+]
 
 # Sécurité CSRF pour Hugging Face (car HF est derrière un proxy HTTPS)
 CSRF_TRUSTED_ORIGINS = [
@@ -40,10 +48,24 @@ CSRF_TRUSTED_ORIGINS = [
 
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = 'None'
-SESSION_COOKIE_SAMESITE = 'None'
+# `Lax` : le navigateur n'envoie plus la session lors d'une requête venue d'un autre site. `None` n'est utile que si
+# le site doit être affiché dans une iframe tierce (COOKIE_SAMESITE=None).
+CSRF_COOKIE_SAMESITE = SESSION_COOKIE_SAMESITE = os.getenv('COOKIE_SAMESITE', 'Lax')
+
+# HTTPS partout : redirection, HSTS (un an, sous-domaines compris) ; désactivés en développement (HTTP local).
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Nombre de proxys de confiance devant l'application (Vercel : 1) ; sert à lire la vraie IP du visiteur.
+TRUSTED_PROXY_COUNT = int(os.getenv('TRUSTED_PROXY_COUNT', 1))
+
+# Chemin de l'administration (avec « / » final) : le changer évite les robots qui visent /admin/.
+ADMIN_URL = os.getenv('ADMIN_URL', 'admin/')
 
 SITE_ID = int(os.getenv('SITE_ID', 2))
+LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
@@ -52,7 +74,8 @@ ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*']
 ACCOUNT_USERNAME_MIN_LENGTH = 5
 ACCOUNT_USERNAME_VALIDATORS = 'app.validators.USERNAME_VALIDATORS'
-SOCIALACCOUNT_LOGIN_ON_GET = True
+# Connexion Google déclenchée par un POST (jeton CSRF) : un lien piégé ne peut pas connecter un visiteur à un compte choisi
+SOCIALACCOUNT_LOGIN_ON_GET = False
 
 # Application definition
 
@@ -87,8 +110,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'app.middleware.SecurityHeadersMiddleware',
     'app.middleware.ActivityMiddleware',
-    #'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -193,7 +217,7 @@ INACTIVE_ACCOUNT_WARNING_DAYS = 30
 # Secret de la tâche planifiée Vercel (envoyé en `Authorization: Bearer`) ; sans lui, l'endpoint est fermé.
 CRON_SECRET = os.getenv('CRON_SECRET')
 
-# Autoriser l'affichage dans l'Iframe de Hugging Face
+# Le site ne peut être affiché en iframe que par lui-même (anti-clickjacking)
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 #Nom du dossier contenant TailwindCSS
@@ -270,6 +294,8 @@ FCM_ANDROID_CHANNEL_ID = "pokebeer_channel"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 CHAT_DAILY_LIMIT = 10
 CHAT_MESSAGE_MAX_LENGTH = 5000
+LABEL_DAILY_LIMIT = 20
+LABEL_MAX_UPLOAD_BYTES = 4 * 1024 * 1024  # Vercel refuse de toute façon les requêtes de plus de 4,5 Mo
 REPORT_DAILY_LIMIT = 10
 
 UNFOLD = {
