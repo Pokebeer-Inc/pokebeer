@@ -18,6 +18,19 @@ class TestPolicy:
         assert "object-src 'none'" in policy and "frame-ancestors 'self'" in policy and "base-uri 'self'" in policy
         assert "form-action 'self'" in policy and "'unsafe-eval'" not in policy
 
+    def test_google_login_form_may_redirect_to_google(self, client, google_app):
+        """Le bouton Google poste un formulaire que le serveur redirige vers Google : `form-action` doit l'autoriser."""
+        response = client.get(reverse("login"))
+        html = response.content.decode()
+        policy = header(response, "Content-Security-Policy")
+        form_action = next(part for part in policy.split("; ") if part.startswith("form-action")).split()
+        assert 'action="/accounts/google/login/"' in html
+        assert "'self'" in form_action and "https://accounts.google.com" in form_action
+
+    def test_form_actions_stay_restricted_to_the_site_and_google(self):
+        form_action = next(part for part in csp.build_policy().split("; ") if part.startswith("form-action")).split()[1:]
+        assert set(form_action) == {"'self'", "https://accounts.google.com"}
+
     def test_unknown_script_origins_are_not_allowed(self):
         script_src = next(part for part in csp.build_policy().split("; ") if part.startswith("script-src"))
         assert "*" not in script_src.split() and "http:" not in script_src
