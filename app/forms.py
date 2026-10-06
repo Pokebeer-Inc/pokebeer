@@ -10,7 +10,11 @@ from .services import notification_types
 from .services.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
 from .services.threads import plain_text
 from .services.profile_pictures import process_profile_picture
-from .validators import plain_text_validator, validate_siret
+from .services.quota import consume_quota
+from .image_form import ProcessedImageMixin
+from .services.official_images import process_official_image
+from .services.tasting_photos import DAILY_LIMIT, QUOTA_SCOPE, process_tasting_photo
+from .validators import MAX_TEXT_LENGTH, plain_text_validator, validate_siret, validate_tasting_date
 from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
 from django.utils import timezone
 from django.utils.text import slugify
@@ -53,7 +57,16 @@ class UniqueUsernameMixin:
             raise ValidationError("Ce pseudo est déjà utilisé.", code='duplicate_username')
         return username
 
-class UserRegisterForm(UniqueUsernameMixin, UserCreationForm):
+class UniqueEmailMixin:
+    """Refuse une adresse déjà prise, sans tenir compte de la casse (« A@x.com » vaut « a@x.com »), même lors d'un changement d'adresse."""
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if BeerUser.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("Cet email est déjà utilisé par un autre membre.", code='duplicate_email')
+        return email
+
+class UserRegisterForm(UniqueUsernameMixin, UniqueEmailMixin, UserCreationForm):
     email = forms.EmailField(required=True)
 
     class Meta:
@@ -61,13 +74,6 @@ class UserRegisterForm(UniqueUsernameMixin, UserCreationForm):
         # Fields you want the user to fill in
         fields = ['username', 'email']
 
-    def clean_email(self):
-        # Add custom validation to ensure email is unique
-        email = self.cleaned_data.get('email')
-        if BeerUser.objects.filter(email=email).exists():
-            raise forms.ValidationError("Cet email est déjà utilisé.")
-        return email
-    
     def __init__(self, *args, **kwargs):
         super(UserRegisterForm, self).__init__(*args, **kwargs)
         
@@ -117,7 +123,7 @@ class UserLoginForm(ThrottledLoginMixin, SuspensionNoticeLoginForm):
                 'class': 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
             })
 
-class UserUpdateForm(UniqueUsernameMixin, forms.ModelForm):
+class UserUpdateForm(UniqueUsernameMixin, UniqueEmailMixin, forms.ModelForm):
     class Meta:
         model = BeerUser
         fields = ['username', 'email', 'bio']
@@ -137,13 +143,6 @@ class UserUpdateForm(UniqueUsernameMixin, forms.ModelForm):
                 'class': 'form-control',
                 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;'
             })
-
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        # On vérifie si l'email existe déjà chez un AUTRE utilisateur (exclure self.instance)
-        if BeerUser.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
-            raise forms.ValidationError("Cet email est déjà utilisé par un autre membre.")
-        return email
 
 class ProfilePictureForm(forms.ModelForm):
     """Seul champ modifiable : la photo ; le fichier est validé et ré-encodé avant d'être stocké."""
@@ -166,7 +165,7 @@ class ProSettingsForm(forms.ModelForm):
         model = BeerUser
         fields = ['show_establishments']
     
-class ProUserForm(UniqueUsernameMixin, forms.ModelForm):
+class ProUserForm(UniqueUsernameMixin, UniqueEmailMixin, forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'input input-bordered w-full bg-white'}), 
         label="Mot de passe"
@@ -198,7 +197,8 @@ class ProUserForm(UniqueUsernameMixin, forms.ModelForm):
 
 PRO_FIELDS = ['name', 'siret', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
 
-class BarProForm(forms.ModelForm):
+class BarProForm(ProcessedImageMixin, forms.ModelForm):
+    image_processors = {'image': process_official_image}
     siret = forms.CharField(max_length=14, min_length=14, required=True, validators=[validate_siret], label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
     
     class Meta:
@@ -216,7 +216,8 @@ class BarProForm(forms.ModelForm):
                 'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip()
             })
 
-class BreweryProForm(forms.ModelForm):
+class BreweryProForm(ProcessedImageMixin, forms.ModelForm):
+    image_processors = {'image': process_official_image}
     siret = forms.CharField(max_length=14, min_length=14, required=True, validators=[validate_siret], label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
     
     class Meta:
@@ -247,22 +248,25 @@ def _place_edit_widgets():
         'instagram': forms.URLInput(attrs={'class': input_class}),
         'facebook': forms.URLInput(attrs={'class': input_class}),
         'description': forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 4}),
-        'image': forms.ClearableFileInput(attrs={'class': 'file-input file-input-bordered file-input-primary w-full bg-white text-gray-700 mt-2'}),
     }
 
-class BreweryEditForm(forms.ModelForm):
+class BreweryEditForm(ProcessedImageMixin, forms.ModelForm):
+    image_processors = {'image': process_official_image}
     class Meta:
         model = Brewery
         fields = PLACE_EDIT_FIELDS
         widgets = _place_edit_widgets()
 
-class BarEditForm(forms.ModelForm):
+class BarEditForm(ProcessedImageMixin, forms.ModelForm):
+    image_processors = {'image': process_official_image}
     class Meta:
         model = Bar
         fields = PLACE_EDIT_FIELDS
         widgets = _place_edit_widgets()
 
-class BeerForm(forms.ModelForm):
+class BeerForm(ProcessedImageMixin, forms.ModelForm):
+    image_processors = {'image': process_official_image}
+
     brewery_name = forms.CharField(
         label='Brasserie', max_length=150, validators=[plain_text_validator],
         help_text="Tapez le nom. Si elle n'existe pas, elle sera créée.",
@@ -278,12 +282,11 @@ class BeerForm(forms.ModelForm):
             'bitterness': 'IBU (Optionnel)',
             'degree': 'Alcool (%)',
             'style': 'Style de bière (Optionnel)',
-            'image': 'Image officielle (Gérants uniquement)',
+            'image': 'Photo de la bière',
         }
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Historique, arômes selon le brasseur...'}),
             'name': forms.TextInput(attrs={'autocomplete': 'off', 'placeholder': 'Ex: Punk IPA'}),
-            'image': forms.ClearableFileInput(attrs={'class': 'file-input file-input-bordered file-input-primary w-full bg-white text-gray-700'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -295,43 +298,33 @@ class BeerForm(forms.ModelForm):
             
         super(BeerForm, self).__init__(*args, **kwargs)
         
-        # On masque le champ image si l'utilisateur n'a pas les droits
-        if self.user:
-            if self.instance and self.instance.pk and self.instance.brewery_id:
-                # En édition : on vérifie s'il gère CETTE brasserie spécifique
-                if not self.instance.brewery_id.managers.filter(id=self.user.id).exists():
-                    self.fields.pop('image', None)
-            else:
-                # En création : s'il ne gère AUCUNE brasserie, inutile d'afficher le champ
-                if not self.user.my_breweries.exists():
-                    self.fields.pop('image', None)
-        else:
-            self.fields.pop('image', None)
-        
+        # Le champ image n'est proposé qu'à ceux qui ont le droit de la modifier
+        if not self.may_edit_image(self.user, self.instance):
+            self.drop_image_field('image')
+
         for field_name, field in self.fields.items():
             existing_classes = field.widget.attrs.get('class', '')
-            # On ne surcharge pas le style de l'input fichier
-            if field_name != 'image':
+            # L'image est gérée par le composant partials/image_field.html
+            if field_name not in ('image', 'remove_image'):
                 field.widget.attrs.update({
                     'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip(),
                     'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;'
                 })
 
-    def clean(self):
-        """Vérification de sécurité finale anti-fraude sur l'image"""
-        cleaned_data = super().clean()
-        image = cleaned_data.get('image')
-        b_name = cleaned_data.get('brewery_name')
-        
-        # Si une image est envoyée, on vérifie strictement que l'utilisateur gère la brasserie TAPPÉE
-        if image and b_name and self.user:
-            brewery = Brewery.objects.filter(name__iexact=b_name).first()
-            if not brewery or not brewery.managers.filter(id=self.user.id).exists():
-                self.add_error('image', "Action refusée : Vous devez être le gérant de cette brasserie pour uploader une image officielle.")
-        return cleaned_data
+    @staticmethod
+    def may_edit_image(user, beer):
+        """À la création, l'auteur de la bière peut l'illustrer. Ensuite : le gérant de sa brasserie, ou son créateur tant que
+        le staff ne l'a pas vérifiée (la fiche vérifiée est alors garantie par le staff)."""
+        if not user:
+            return False
+        if not beer.pk:
+            return True
+        if beer.brewery_id and beer.brewery_id.managers.filter(id=user.id).exists():
+            return True
+        return beer.added_by_id == user.id and not beer.is_verified
 
     def save(self, user=None, commit=True):
-        beer = super(BeerForm, self).save(commit=False)
+        beer = super().save(commit=False)
         b_name = self.cleaned_data['brewery_name']
         brewery, created = Brewery.objects.get_or_create(
             name__iexact=b_name,
@@ -344,6 +337,7 @@ class BeerForm(forms.ModelForm):
             
         if commit:
             beer.save()
+            self.delete_replaced_images()
         return beer
     
     def clean_name(self):
@@ -379,16 +373,24 @@ class BeerSpotForm(forms.Form):
     """Validation des champs envoyés par la modale de la carte (création et modification d'un lieu)."""
     spot_slug = forms.SlugField(required=False, max_length=150, label="Lieu")
     title = forms.CharField(max_length=150, label="Titre")
-    description = forms.CharField(required=False, label="Description")
-    date = forms.DateField(required=False, label="Date")
+    description = forms.CharField(required=False, max_length=MAX_TEXT_LENGTH, label="Description")
+    date = forms.DateField(required=False, label="Date", validators=[validate_tasting_date])
     # FloatField refuse aussi NaN et l'infini
     lat = forms.FloatField(min_value=-90, max_value=90, label="Latitude")
     lng = forms.FloatField(min_value=-180, max_value=180, label="Longitude")
 
-class DrinkForm(forms.ModelForm):
+class DrinkForm(ProcessedImageMixin, forms.ModelForm):
+    """Note, commentaire et photo facultative d'une dégustation.
+
+    La photo envoyée est validée et ré-encodée avant stockage ; `remove_photo` coché retire celle qui existe.
+    `user` (le membre qui envoie) active le quota quotidien d'envois de photos.
+    """
+    image_processors = {'photo': process_tasting_photo}
+    photo = forms.ImageField(required=False, label="Photo")
+
     class Meta:
         model = Drinks
-        fields = ['date', 'note', 'comment']
+        fields = ['date', 'note', 'comment', 'photo']
         labels = {
             'date': 'Date de dégustation',
             'note': 'Note (sur 10)',
@@ -400,15 +402,31 @@ class DrinkForm(forms.ModelForm):
             'note': forms.NumberInput(attrs={'min': 0, 'max': 10}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super(DrinkForm, self).__init__(*args, **kwargs)
+        self.user = user
         self.fields['note'].required = False
-        for field in self.fields.values():
+        for name, field in self.fields.items():
+            if name in ('photo', 'remove_photo'):
+                continue  # gérés par le composant partials/image_field.html
             field.widget.attrs.update({
                 'class': 'form-control placeholder:text-gray-400',
                 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;'
             })
-            
+
+    def clean_date(self):
+        date = self.cleaned_data['date']
+        if not self.instance.pk or date != self.instance.date:  # une date déjà enregistrée n'est pas revalidée à chaque modification
+            validate_tasting_date(date)
+        return date
+
+    def _post_clean(self):
+        super()._post_clean()
+        # Le quota n'est consommé qu'une fois tout le formulaire valide : une erreur de saisie ne fait pas perdre d'envoi
+        if not self.errors and self.user and self.uploaded_image('photo'):
+            if not consume_quota(self.user, DAILY_LIMIT, QUOTA_SCOPE):
+                self.add_error('photo', ValidationError("Limite quotidienne d'envois de photos atteinte, réessayez demain.", code='quota'))
+
 class FeedbackForm(forms.Form):
     """Premier message d'un échange avec l'équipe."""
     message = forms.CharField(

@@ -1,7 +1,10 @@
 {% for beer in unrated_beers %}
-<div class="card bg-white shadow-sm border border-base-200 flex flex-row items-center p-3 gap-3 relative overflow-hidden hover:bg-base-200 active:scale-[0.98] transition-all">
+<div class="card bg-white shadow-sm border border-base-200 flex flex-col p-3 relative overflow-hidden hover:bg-base-200 active:scale-[0.98] transition-all">
     <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
     
+    {% include "partials/beer_thumb.html" with beer=beer cover=True %}
+
+    <div class="flex items-center gap-3">
     <div class="flex-1 pointer-events-none">
         <h4 class="font-bold text-sm leading-tight">{{ beer.name }}</h4>
         <span class="text-xs inline-block text-gray-500 block mb-1 pointer-events-auto relative z-10 hover:text-primary transition-colors w-fit"><a href="{% url 'brewery_detail' beer.brewery_id.slug %}">{{ beer.brewery_id.name }}</a></span>
@@ -28,6 +31,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
         </button>
+    </div>
     </div>
     
     {% include "partials/rate_beer_modal.html" %}

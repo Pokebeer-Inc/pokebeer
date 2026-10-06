@@ -184,6 +184,37 @@ class TestEditBeer:
         auth_client.post(self.url(beer), edit_data(beer))
         assert Notification.objects.get().notif_type == "beer_updated_by_manager"
 
+    def test_creator_can_no_longer_edit_a_verified_beer(self, other_client, beer):
+        Beer.objects.filter(pk=beer.pk).update(is_verified=True)
+        assert_redirects(other_client.post(self.url(beer), edit_data(beer, degree="12")), reverse("beer_detail", args=[beer.slug]))
+        beer.refresh_from_db()
+        assert beer.degree == 5
+
+    def test_manager_can_still_edit_a_verified_beer(self, auth_client, user, beer):
+        Beer.objects.filter(pk=beer.pk).update(is_verified=True)
+        beer.brewery_id.managers.add(user)
+        auth_client.post(self.url(beer), edit_data(beer))
+        beer.refresh_from_db()
+        assert beer.degree == 7
+
+    def test_creator_changes_the_picture_and_the_old_one_is_deleted(self, other_client, beer, django_capture_on_commit_callbacks):
+        other_client.post(self.url(beer), {**edit_data(beer), "image": f.make_image_upload()})
+        beer.refresh_from_db()
+        first, storage = beer.image.name, beer.image.storage
+        assert first.startswith("beers/") and first.endswith(".webp")
+        with django_capture_on_commit_callbacks(execute=True):
+            other_client.post(self.url(beer), {**edit_data(beer), "image": f.make_image_upload()})
+        beer.refresh_from_db()
+        assert beer.image.name != first and not storage.exists(first)
+
+    def test_editing_without_a_new_file_keeps_the_picture(self, other_client, beer):
+        other_client.post(self.url(beer), {**edit_data(beer), "image": f.make_image_upload()})
+        beer.refresh_from_db()
+        name = beer.image.name
+        other_client.post(self.url(beer), edit_data(beer))
+        beer.refresh_from_db()
+        assert beer.image.name == name
+
     def test_deleted_beer_cannot_be_edited(self, other_client, beer):
         Beer.objects.filter(pk=beer.pk).update(is_deleted=True)
         assert other_client.get(self.url(beer)).status_code == 404

@@ -28,7 +28,7 @@ def add_beer_view(request):
     """Crée une bière ET ajoute une première note automatiquement."""
     if request.method == 'POST':
         beer_form = BeerForm(request.POST, request.FILES, prefix='beer', user=request.user)
-        drink_form = DrinkForm(request.POST, prefix='drink')
+        drink_form = DrinkForm(request.POST, request.FILES, prefix='drink', user=request.user)
         
         notebooks = posted_notebooks(request)
         forms_valid = beer_form.is_valid() & drink_form.is_valid()  # & : valide les deux pour afficher toutes les erreurs
@@ -110,6 +110,7 @@ def beer_detail_view(request, beer_slug):
         user_rating = {
             'note': user_drink.note,
             'comment': user_drink.comment,
+            'photo_url': user_drink.photo_url,
             'date': user_drink.date,
             'slug': user_drink.slug,
             'likes': getattr(user_drink, 'likes', 0),
@@ -150,12 +151,12 @@ def edit_beer_view(request, beer_slug):
     
     beer = get_object_or_404(Beer, slug=beer_slug, is_deleted=False)
     
-    # Vérification des droits (Créateur OU Manager)
+    # Vérification des droits : le gérant de la brasserie, ou le créateur tant que le staff n'a pas vérifié la fiche
     is_creator = (beer.added_by == request.user)
     is_manager = beer.brewery_id and beer.brewery_id.managers.filter(id=request.user.id).exists()
     
-    if not (is_creator or is_manager):
-        messages.error(request, "Vous n'avez pas l'autorisation de modifier cette bière.")
+    if not (is_manager or (is_creator and not beer.is_verified)):
+        messages.error(request, "Cette fiche est vérifiée : seul le gérant de la brasserie peut la modifier." if is_creator else "Vous n'avez pas l'autorisation de modifier cette bière.")
         return redirect('beer_detail', beer_slug=beer.slug)
 
     if request.method == 'POST':

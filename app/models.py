@@ -6,10 +6,13 @@ from datetime import date
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.functions import Lower
 from .fields import PublicSlugField
-from .validators import plain_text_validator, username_validator
+from .validators import MAX_BIO_LENGTH, MAX_TEXT_LENGTH, plain_text_validator, username_validator
 from .services import notification_policy, notification_types
 from .services.avatars import initials_avatar_url
-from .services.profile_pictures import delete_stored_picture, profile_picture_path, profile_pictures_storage
+from .services.images import delete_stored_file
+from .services.official_images import bar_image_path, beer_image_path, brewery_image_path
+from .services.tasting_photos import tasting_photo_path
+from .services.profile_pictures import profile_picture_path, profile_pictures_storage
 from pgvector.django import VectorField
 import requests
 from django.db.models.signals import post_delete, post_save, m2m_changed
@@ -97,7 +100,7 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=False, blank=False)
     created_at = models.DateTimeField(default=timezone.now)
     username = models.CharField(max_length=150, blank=False, unique=True, validators=[username_validator])
-    bio = models.TextField(verbose_name="Biographie", blank=True, null=True)
+    bio = models.TextField(max_length=MAX_BIO_LENGTH, verbose_name="Biographie", blank=True, null=True)
     avatar = models.ImageField(upload_to=profile_picture_path, storage=profile_pictures_storage, blank=True, null=True, verbose_name="Photo de profil")
     avatar_updated_at = models.DateTimeField(null=True, blank=True, editable=False)
     wishlist_beers = models.ManyToManyField('Beer', blank=True, related_name='wishlisted_by', verbose_name="Wishlist")
@@ -128,6 +131,7 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
         constraints = [
             # « Alice » et « alice » désigneraient deux comptes différents : l'unicité ignore la casse
             models.UniqueConstraint(Lower('username'), name='unique_username_ci', violation_error_message="Ce pseudo est déjà utilisé."),
+            models.UniqueConstraint(Lower('email'), name='unique_email_ci', violation_error_message="Cet email est déjà utilisé par un autre membre."),
         ]
         
     @property
@@ -229,11 +233,19 @@ class VerifiableMixin(models.Model):
     class Meta:
         abstract = True
 
-class Brewery(GeocodableMixin, VerifiableMixin):
+class OfficialImageMixin:
+    """Image officielle d'un établissement ou d'une bière (champ `image`)."""
+
+    @property
+    def image_url(self):
+        """URL de l'image, ou None : à utiliser dans les gabarits (image.url lève une erreur sans fichier)."""
+        return self.image.url if self.image else None
+
+class Brewery(OfficialImageMixin, GeocodableMixin, VerifiableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom", validators=[plain_text_validator])
     slug = PublicSlugField(source='name')
-    description = models.TextField(verbose_name="Description")
-    image = models.ImageField(upload_to='breweries/', blank=True, null=True, verbose_name="Image")
+    description = models.TextField(max_length=MAX_TEXT_LENGTH, verbose_name="Description")
+    image = models.ImageField(upload_to=brewery_image_path, blank=True, null=True, verbose_name="Image")
     siret = models.CharField(max_length=14, unique=True, blank=True, null=True, verbose_name="Numéro SIRET")
     managers = models.ManyToManyField('BeerUser', blank=True, related_name='managed_breweries', verbose_name="Gérants")
     
@@ -260,11 +272,11 @@ class Brewery(GeocodableMixin, VerifiableMixin):
     def __str__(self):
         return self.name
     
-class Bar(GeocodableMixin, VerifiableMixin):
+class Bar(OfficialImageMixin, GeocodableMixin, VerifiableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom", validators=[plain_text_validator])
     slug = PublicSlugField(source='name')
-    description = models.TextField(blank=True, null=True, verbose_name="Description")
-    image = models.ImageField(upload_to='bars/', blank=True, null=True, verbose_name="Image")
+    description = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, null=True, verbose_name="Description")
+    image = models.ImageField(upload_to=bar_image_path, blank=True, null=True, verbose_name="Image")
     siret = models.CharField(max_length=14, unique=True, blank=True, null=True, verbose_name="Numéro SIRET")
     managers = models.ManyToManyField('BeerUser', blank=True, related_name='managed_bars', verbose_name="Gérants")
     
@@ -293,10 +305,10 @@ class Bar(GeocodableMixin, VerifiableMixin):
     def __str__(self):
         return self.name
 
-class Beer(VerifiableMixin):
+class Beer(OfficialImageMixin, VerifiableMixin):
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom", validators=[plain_text_validator])
-    image = models.ImageField(upload_to='beers/', blank=True, null=True, verbose_name="Image")
-    description = models.TextField(blank=True, null=True, verbose_name="Description officielle")
+    image = models.ImageField(upload_to=beer_image_path, blank=True, null=True, verbose_name="Image")
+    description = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, null=True, verbose_name="Description officielle")
     bitterness = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(500)], verbose_name="IBU")
     degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Degré")
     brewery_id = models.ForeignKey(Brewery, on_delete=models.CASCADE)
@@ -368,7 +380,8 @@ class Drinks(models.Model):
     date = models.DateField(default=date.today, verbose_name="Date")
     slug = PublicSlugField()
     note = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(10)], null=True, blank=True, verbose_name="Note")
-    comment = models.TextField(verbose_name="Commentaire")
+    comment = models.TextField(max_length=MAX_TEXT_LENGTH, verbose_name="Commentaire")
+    photo = models.ImageField(upload_to=tasting_photo_path, blank=True, null=True, verbose_name="Photo")
     
     drinker_id = models.ForeignKey(BeerUser, on_delete=models.CASCADE)
     beer_id = models.ForeignKey(Beer, on_delete=models.CASCADE)
@@ -382,12 +395,17 @@ class Drinks(models.Model):
 
     def __str__(self):
         return f"{self.drinker_id.username} - {self.beer_id.name} ({self.note}/10)"
+
+    @property
+    def photo_url(self):
+        """URL de la photo de la dégustation, ou None : à utiliser dans les gabarits (photo.url lève une erreur sans fichier)."""
+        return self.photo.url if self.photo else None
     
 class BeerSpot(models.Model):
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='spots')
     slug = PublicSlugField()
     title = models.CharField(max_length=150, verbose_name="Titre du lieu")
-    description = models.TextField(blank=True, null=True, verbose_name="Description / Souvenirs")
+    description = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, null=True, verbose_name="Description / Souvenirs")
     date = models.DateField(default=date.today, verbose_name="Date")
     latitude = models.FloatField()
     longitude = models.FloatField()
@@ -745,7 +763,7 @@ class CustomNotebook(models.Model):
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='custom_notebooks')
     slug = PublicSlugField()
     title = models.CharField(max_length=150, verbose_name="Titre du carnet")
-    description = models.TextField(blank=True, null=True, verbose_name="Description")
+    description = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, null=True, verbose_name="Description")
     drinks = models.ManyToManyField('Drinks', blank=True, related_name='notebooks', verbose_name="Dégustations")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -818,12 +836,22 @@ def assign_default_role(sender, instance, created, **kwargs):
         grp_contrib, _ = Group.objects.get_or_create(name='Contributeur')
         instance.groups.add(grp_contrib)
 
-@receiver(post_delete, sender=BeerUser)
-def delete_profile_picture_with_account(sender, instance, **kwargs):
-    """La photo d'un compte supprimé ne doit pas rester dans le bucket."""
-    if instance.avatar:
-        name = instance.avatar.name
-        transaction.on_commit(lambda: delete_stored_picture(name))
+def delete_files_with(model, *fields):
+    """Les fichiers d'un objet supprimé (par son auteur, la modération ou la suppression du compte) ne doivent pas rester dans le bucket."""
+    def handler(sender, instance, **kwargs):
+        for field in fields:
+            stored = getattr(instance, field)
+            if stored:
+                storage, name = stored.storage, stored.name
+                transaction.on_commit(lambda storage=storage, name=name: delete_stored_file(storage, name))
+    post_delete.connect(handler, sender=model, weak=False, dispatch_uid=f'delete_files_{model.__name__}')
+
+
+delete_files_with(BeerUser, 'avatar')
+delete_files_with(Drinks, 'photo')
+delete_files_with(Beer, 'image')
+delete_files_with(Brewery, 'image')
+delete_files_with(Bar, 'image')
 
 
 @receiver(m2m_changed, sender=Brewery.managers.through)

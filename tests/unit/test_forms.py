@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 
 from app.forms import (
@@ -104,28 +106,81 @@ class TestBeerFormImagePermission:
     def test_image_field_is_hidden_for_anonymous_form(self):
         assert "image" not in BeerForm().fields
 
-    def test_image_field_is_hidden_for_users_without_brewery(self, user):
-        assert "image" not in BeerForm(user=user).fields
-
-    def test_image_field_is_shown_to_brewery_managers(self, user):
-        f.make_brewery(managers=[user])
+    def test_image_field_is_shown_to_the_author_of_a_new_beer(self, user):
         assert "image" in BeerForm(user=user).fields
 
-    def test_image_field_on_edit_requires_managing_that_beer_brewery(self, user, beer):
-        f.make_brewery(managers=[user])
+    def test_creator_can_edit_the_image_until_the_beer_is_verified(self, user, other_user, beer):
+        beer.added_by = user
+        assert "image" in BeerForm(instance=beer, user=user).fields
+        beer.is_verified = True
         assert "image" not in BeerForm(instance=beer, user=user).fields
+
+    def test_brewery_manager_can_edit_the_image_even_when_verified(self, user, beer):
+        beer.is_verified = True
         beer.brewery_id.managers.add(user)
         assert "image" in BeerForm(instance=beer, user=user).fields
 
-    def test_image_upload_for_a_brewery_not_managed_is_rejected(self, user, brewery):
-        f.make_brewery(name="Ma Brasserie", managers=[user])
-        form = BeerForm(data=beer_data(brewery_name=brewery.name), files={"image": f.make_image_upload()}, user=user)
-        assert not form.is_valid()
-        assert "image" in form.errors
+    def test_a_stranger_cannot_edit_the_image(self, user, beer):
+        assert "image" not in BeerForm(instance=beer, user=user).fields
 
-    def test_image_upload_for_a_managed_brewery_is_accepted(self, user):
-        f.make_brewery(name="Ma Brasserie", managers=[user])
-        form = BeerForm(data=beer_data(brewery_name="ma brasserie"), files={"image": f.make_image_upload()}, user=user)
+    def test_remove_flag_is_ignored_when_the_image_field_is_not_allowed(self, user, beer):
+        beer.image.save("x.webp", f.make_image_upload(), save=True)
+        form = BeerForm(data=beer_data(name=beer.name, brewery_name=beer.brewery_id.name, remove_image="on"), instance=beer, user=user)
+        assert form.is_valid(), form.errors
+        form.save()
+        beer.refresh_from_db()
+        assert beer.image
+
+    def test_uploaded_image_is_reencoded_with_a_random_name(self, user):
+        form = BeerForm(data=beer_data(), files={"image": f.make_image_upload("../../evil.png")}, user=user)
+        assert form.is_valid(), form.errors
+        beer = form.save(user=user)
+        assert beer.image.name.startswith("beers/") and beer.image.name.endswith(".webp") and "evil" not in beer.image.name
+
+    def test_non_image_upload_is_rejected(self, user):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        form = BeerForm(data=beer_data(), files={"image": SimpleUploadedFile("a.png", b"not an image")}, user=user)
+        assert not form.is_valid() and "image" in form.errors
+
+    def test_image_is_replaced_and_old_file_deleted(self, user, beer, django_capture_on_commit_callbacks):
+        beer.added_by = user
+        beer.image.save("x.webp", f.make_image_upload(), save=True)
+        old, storage = beer.image.name, beer.image.storage
+        form = BeerForm(data=beer_data(name=beer.name, brewery_name=beer.brewery_id.name), files={"image": f.make_image_upload()}, instance=beer, user=user)
+        assert form.is_valid(), form.errors
+        with django_capture_on_commit_callbacks(execute=True):
+            form.save()
+        beer.refresh_from_db()
+        assert beer.image.name != old and not storage.exists(old)
+
+    def test_image_can_be_removed(self, user, beer, django_capture_on_commit_callbacks):
+        beer.added_by = user
+        beer.image.save("x.webp", f.make_image_upload(), save=True)
+        old, storage = beer.image.name, beer.image.storage
+        form = BeerForm(data=beer_data(name=beer.name, brewery_name=beer.brewery_id.name, remove_image="on"), instance=beer, user=user)
+        assert form.is_valid(), form.errors
+        with django_capture_on_commit_callbacks(execute=True):
+            form.save()
+        beer.refresh_from_db()
+        assert not beer.image and not storage.exists(old)
+
+
+class TestEmailUniqueness:
+    @pytest.mark.parametrize("typed", ["alice@example.com", "ALICE@Example.com"])
+    def test_register_refuses_an_email_whatever_its_case(self, user, typed):
+        user.email = "alice@example.com"
+        user.save()
+        form = UserRegisterForm(data={"username": "nouveau", "email": typed, "password1": "Sup3r-Secret!x", "password2": "Sup3r-Secret!x"})
+        assert not form.is_valid() and "email" in form.errors
+
+    def test_update_refuses_the_email_of_another_member_whatever_its_case(self, user, other_user):
+        other_user.email = "bob@example.com"
+        other_user.save()
+        form = UserUpdateForm(data={"username": user.username, "email": "BOB@example.com", "bio": ""}, instance=user)
+        assert not form.is_valid() and "email" in form.errors
+
+    def test_update_keeps_the_members_own_email(self, user):
+        form = UserUpdateForm(data={"username": user.username, "email": user.email, "bio": ""}, instance=user)
         assert form.is_valid(), form.errors
 
 
@@ -187,3 +242,26 @@ class TestProForms:
     @pytest.mark.parametrize("field", ["website", "instagram", "facebook"])
     def test_social_links_must_be_urls(self, form_class, field):
         assert field in form_class(data=self.data(**{field: "javascript:alert(1)"})).errors
+
+
+class TestTextAndDateLimits:
+    def drink(self, **overrides):
+        return DrinkForm(data={"date": "2026-01-01", "note": "5", "comment": "ok", **overrides})
+
+    def test_comment_is_bounded(self):
+        assert not self.drink(comment="x" * 2001).is_valid()
+        assert self.drink(comment="x" * 2000).is_valid()
+
+    @pytest.mark.parametrize("date", ["2999-01-01", "1800-01-01"])
+    def test_implausible_dates_are_refused(self, date):
+        assert "date" in self.drink(date=date).errors
+
+    def test_an_already_saved_date_is_not_revalidated_on_edit(self, user, beer):
+        drink = f.make_drink(user, beer)
+        drink.date = date(1850, 1, 1)
+        form = DrinkForm(data={"date": "1850-01-01", "note": "5", "comment": "ok"}, instance=drink)
+        assert form.is_valid(), form.errors
+
+    def test_bio_is_bounded(self, user):
+        form = UserUpdateForm(data={"username": user.username, "email": user.email, "bio": "x" * 501}, instance=user)
+        assert "bio" in form.errors

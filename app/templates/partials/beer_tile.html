@@ -1,7 +1,10 @@
-<div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all gap-3 relative overflow-hidden">
+<div class="flex flex-col bg-white p-3 rounded-lg shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all relative overflow-hidden">
     
     <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
     
+    {% include "partials/beer_thumb.html" with beer=beer cover=True %}
+
+    <div class="flex items-center justify-between gap-3">
     {% if show_rank %}
     <div class="font-bold text-lg text-primary w-5 text-center shrink-0 pointer-events-none">{{ rank }}</div>
     {% endif %}
@@ -34,5 +37,6 @@
         {% elif show_empty_note %}
         <span class="text-[10px] text-gray-400 italic">Non notée</span>
         {% endif %}
+    </div>
     </div>
 </div>

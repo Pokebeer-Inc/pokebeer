@@ -7,7 +7,7 @@
             <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-10 bg-base-200" onclick="document.getElementById('modalEditDrink-{{ drink.slug }}').close()">✕</button>
             <h3 class="text-sm font-bold border-b border-primary pb-2 mb-4 shrink-0">Modifier : {{ drink.beer_id.name }}</h3>
             
-            <form method="post" action="{% url 'modify_rate_beer' drink.slug %}" class="flex flex-col flex-1 overflow-y-auto">
+            <form method="post" action="{% url 'modify_rate_beer' drink.slug %}" class="flex flex-col flex-1 overflow-y-auto" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="form-control w-full mb-2">
                     <label class="label py-1"><span class="label-text text-xs font-bold">Date</span></label>
@@ -21,6 +21,7 @@
                     <label class="label py-1"><span class="label-text text-xs font-bold">Commentaire</span></label>
                     <textarea name="comment" class="textarea textarea-bordered w-full h-20 text-xs bg-white">{{ drink.comment }}</textarea>
                 </div>
+                {% include "partials/image_field.html" with name="photo" field_id="photo-edit-"|add:drink.slug photo_url=drink.photo_url remove_name="remove_photo" %}
                 {% include "partials/notebook_selector.html" with current_drink=drink %}
                 <button type="submit" class="btn btn-success btn-sm w-full text-white">Enregistrer</button>
             </form>

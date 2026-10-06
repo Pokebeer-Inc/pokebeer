@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
+from django.utils import timezone
 
 USERNAME_MIN_LENGTH = 3
 USERNAME_MAX_LENGTH = 30
@@ -42,3 +45,18 @@ def validate_siret(value):
         valid = valid or sum(map(int, value)) % 5 == 0
     if not valid:
         raise ValidationError("Ce numéro SIRET n'est pas valide.", code='invalid_siret')
+
+
+# Plafond des textes libres (avis, bio, descriptions) : un TextField n'a aucune limite de lui-même
+MAX_TEXT_LENGTH = 2000
+MAX_BIO_LENGTH = 500
+
+TASTING_EARLIEST_YEAR = 1900
+
+
+def validate_tasting_date(value):
+    """Une dégustation a eu lieu : ni dans le futur (un jour de marge pour les fuseaux horaires), ni avant 1900."""
+    if value > timezone.localdate() + timedelta(days=1):
+        raise ValidationError("La date ne peut pas être dans le futur.", code='future_date')
+    if value.year < TASTING_EARLIEST_YEAR:
+        raise ValidationError("Cette date est trop ancienne.", code='date_too_old')

@@ -54,6 +54,24 @@ class TestEditBrewery:
         assert (managed_brewery.name, managed_brewery.latitude) == ("Nouveau nom", 48.8566)
         assert list(Notification.objects.values_list("recipient", "notif_type")) == [(other_user.id, "place_updated")]
 
+    def test_picture_is_reencoded_replaced_and_removed(self, auth_client, managed_brewery, django_capture_on_commit_callbacks):
+        url = reverse("edit_brewery", args=[managed_brewery.slug])
+        auth_client.post(url, {**self.data(), "image": f.make_image_upload()})
+        managed_brewery.refresh_from_db()
+        first, storage = managed_brewery.image.name, managed_brewery.image.storage
+        assert first.startswith("breweries/") and first.endswith(".webp")
+        with django_capture_on_commit_callbacks(execute=True):
+            auth_client.post(url, {**self.data(), "remove_image": "on"})
+        managed_brewery.refresh_from_db()
+        assert not managed_brewery.image and not storage.exists(first)
+
+    def test_non_image_file_is_refused(self, auth_client, managed_brewery):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        response = auth_client.post(reverse("edit_brewery", args=[managed_brewery.slug]), {**self.data(), "image": SimpleUploadedFile("a.png", b"nope")})
+        assert response.status_code == 200
+        managed_brewery.refresh_from_db()
+        assert not managed_brewery.image
+
     @pytest.mark.parametrize("field, value", [("name", ""), ("website", "not a url"), ("email", "nope"), ("name", "x" * 151)])
     def test_invalid_data_is_refused(self, auth_client, managed_brewery, field, value):
         response = auth_client.post(reverse("edit_brewery", args=[managed_brewery.slug]), self.data(**{field: value}))

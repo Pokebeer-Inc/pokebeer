@@ -1,21 +1,14 @@
 """Photos de profil : validation stricte puis ré-encodage, stockage dans un bucket dédié.
 
-Le fichier envoyé n'est jamais conservé tel quel : on le décode avec Pillow, on le recadre en carré et on le
-ré-encode en WebP. Cela élimine les métadonnées (EXIF/GPS), les contenus polyglottes et les formats non voulus (SVG...).
+Le fichier envoyé n'est jamais conservé tel quel : on le recadre en carré et on le ré-encode en WebP (voir images.reencode_as_webp).
 """
-import logging
-from io import BytesIO
 from uuid import uuid4
 
-from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
 from django.core.files.storage import storages
 from django.utils.functional import LazyObject
 from PIL import Image, ImageOps
 
-from .images import open_image
-
-logger = logging.getLogger(__name__)
+from .images import delete_stored_file, reencode_as_webp
 
 STORAGE_ALIAS = 'profile_pictures'
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024
@@ -41,23 +34,13 @@ def profile_picture_path(instance, filename):
 
 def process_profile_picture(upload):
     """Valide l'envoi et renvoie une image WebP carrée prête à être stockée (ValidationError sinon)."""
-    image = open_image(upload, MAX_UPLOAD_BYTES)
-    try:
-        image = ImageOps.exif_transpose(image)  # applique l'orientation avant de supprimer les métadonnées
-        image = ImageOps.fit(image.convert('RGB'), (OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
-    except (OSError, ValueError, Image.DecompressionBombError):
-        raise ValidationError("Ce fichier n'est pas une image valide.", code='invalid_image') from None
-
-    buffer = BytesIO()
-    image.save(buffer, format='WEBP', quality=85)
-    return ContentFile(buffer.getvalue(), name='avatar.webp')
+    return reencode_as_webp(
+        upload, MAX_UPLOAD_BYTES,
+        lambda image: ImageOps.fit(image, (OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS),
+        name='avatar.webp',
+    )
 
 
 def delete_stored_picture(name):
     """Supprime l'ancien fichier ; un échec de stockage ne doit jamais casser la requête."""
-    if not name:
-        return
-    try:
-        profile_pictures_storage().delete(name)
-    except Exception:
-        logger.exception("Suppression de la photo de profil %s impossible", name)
+    delete_stored_file(profile_pictures_storage(), name)
