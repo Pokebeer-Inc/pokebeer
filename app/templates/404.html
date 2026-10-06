@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
+    <div class="relative mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-32 h-32 text-primary drop-shadow-md">
+            <path d="M18 16 C18 16, 14 54, 22 58 C30 62, 38 62, 46 58 C54 54, 50 16, 50 16 Z" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19 40 C19 40, 18 54, 22 57 C30 61, 38 61, 46 57 C49 54, 49 40, 49 40 Z" fill="currentColor" opacity="0.35"/>
+            <path d="M50 26 C62 26, 64 42, 48 46" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round"/>
+            <path d="M14 18 C14 10, 22 8, 26 14 C30 6, 38 6, 42 14 C46 10, 54 12, 54 18 C54 26, 14 26, 14 18 Z" fill="#F3F4F6" stroke="#374151" stroke-width="3"/>
+        </svg>
+    </div>
+
+    <h1 class="font-castoro font-bold text-primary text-7xl leading-none">404</h1>
+    <h2 class="font-castoro font-bold text-2xl mt-3">Oups, ce verre est vide !</h2>
+    <p class="text-sm text-gray-500 mt-2 max-w-xs">
+        La page que vous cherchez n'existe pas ou a été déplacée. Pas de panique, il reste plein de bières à découvrir.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-3 mt-8 w-full max-w-xs sm:max-w-md justify-center">
+        <button type="button" id="not-found-back" class="btn btn-outline btn-primary flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+            Retour
+        </button>
+        <a href="{% url 'index' %}" class="btn btn-primary text-black flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            Aller à l'accueil
+        </a>
+    </div>
+</div>
+
+<script>
+    document.getElementById('not-found-back').addEventListener('click', function () {
+        if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            window.location.href = "{% url 'index' %}";
+        }
+    });
+</script>
+{% endblock %}
