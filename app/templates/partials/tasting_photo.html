@@ -1,0 +1,5 @@
+{% comment %}Photo d'une dégustation, affichée au-dessus de son commentaire. Paramètres : url (drink.photo_url), compact (optionnel : vignette plus basse).{% endcomment %}
+{% if url %}
+<img src="{{ url }}" alt="Photo de la dégustation" loading="lazy" decoding="async"
+     class="w-full {% if compact %}h-28{% else %}max-h-60{% endif %} object-cover rounded-lg border border-base-200 mb-2 bg-base-200">
+{% endif %}

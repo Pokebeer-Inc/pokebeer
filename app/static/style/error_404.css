@@ -1,0 +1,45 @@
+.error-404 {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 8rem);
+}
+
+.error-404-card {
+    width: 100%;
+    max-width: 24rem;
+}
+
+.error-404-glass {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .25rem;
+}
+
+.error-404-digit {
+    font-family: 'Castoro', serif;
+    font-size: 5.5rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #f1c40f;
+    -webkit-text-stroke: 3px #333;
+    paint-order: stroke fill;
+    text-shadow: 0 4px 0 #eca054;
+}
+
+.error-404-mug {
+    width: 5.5rem;
+    height: 5.5rem;
+    animation: error-404-wobble 3s ease-in-out infinite;
+    transform-origin: 50% 90%;
+}
+
+@keyframes error-404-wobble {
+    0%, 100% { transform: rotate(-6deg); }
+    50% { transform: rotate(6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .error-404-mug { animation: none; }
+}

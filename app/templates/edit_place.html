@@ -17,6 +17,12 @@
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {% for field in form %}
+                    {% if field.name == 'image' %}
+                    <div class="col-span-full">
+                        {% include "partials/image_field.html" with name=field.html_name field_id=field.id_for_label label=field.label photo_url=place.image_url remove_name="remove_image" %}
+                        {% include "partials/field_errors.html" with field=field %}
+                    </div>
+                    {% elif field.name != 'remove_image' %}
                     <div class="form-control w-full {% if field.name == 'description' %}col-span-full{% endif %}">
                         <label class="label py-1">
                             <span class="label-text font-bold text-xs">
@@ -26,22 +32,10 @@
                                 {% endif %}
                             </span>
                         </label>
-                        
-                        {% if field.name == 'image' %}
-                            <div class="p-3 border border-base-200 rounded-xl bg-gray-50/50 text-sm text-gray-600 leading-relaxed
-                                        [&>a]:block [&>a]:mt-1 [&>a]:mb-4 [&>a]:text-primary [&>a]:font-semibold [&>a]:break-all [&>a]:hover:underline
-                                        [&>input[type=checkbox]]:float-left [&>input[type=checkbox]]:mt-0.5 [&>input[type=checkbox]]:mr-2 [&>input[type=checkbox]]:checkbox [&>input[type=checkbox]]:checkbox-error [&>input[type=checkbox]]:checkbox-sm
-                                        [&>label]:block [&>label]:mb-4 [&>label]:text-error [&>label]:font-bold [&>label]:cursor-pointer
-                                        [&>br]:hidden
-                                        [&>input[type=file]]:block [&>input[type=file]]:mt-2">
-                                {{ field }}
-                            </div>
-                        {% else %}
-                            {{ field }}
-                        {% endif %}
-                        
+                        {{ field }}
                         {% if field.errors %}<span class="text-xs text-error mt-1">{{ field.errors }}</span>{% endif %}
                     </div>
+                    {% endif %}
                 {% endfor %}
             </div>
             

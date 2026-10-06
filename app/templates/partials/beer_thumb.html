@@ -1,0 +1,7 @@
+{% comment %}Photo officielle de la bière (jamais celle d'une dégustation), carrée ; rien n'est affiché sans photo.
+Paramètres : beer ; banner (carré pleine largeur en haut d'une carte sans marge interne) ; cover (idem pour une carte avec marge interne p-3, la photo va jusqu'aux bords) ; sinon vignette.{% endcomment %}
+{% if beer.image %}
+<img src="{{ beer.image.url }}" alt="{{ beer.name }}" loading="lazy" decoding="async"
+     {% if cover %}style="width: calc(100% + 1.5rem); max-width: none; margin: -0.75rem -0.75rem 0.75rem;"{% endif %}
+     class="pointer-events-none bg-base-200 object-cover aspect-square {% if banner %}w-full rounded-t-2xl{% elif cover %}block{% else %}w-14 rounded-lg shrink-0 self-start border border-base-200{% endif %}">
+{% endif %}

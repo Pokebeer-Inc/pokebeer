@@ -1,6 +1,11 @@
-<div class="bg-white rounded-lg p-3 relative overflow-hidden flex items-start gap-3 shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all">
+<div class="bg-white rounded-lg p-3 relative overflow-hidden flex flex-col shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all">
     <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="absolute inset-0 z-0"></a>
-    
+
+    {% if not drink.photo %}{# la photo de la dégustation illustre déjà la carte #}
+    {% include "partials/beer_thumb.html" with beer=drink.beer_id cover=True %}
+    {% endif %}
+
+    <div class="flex items-start gap-3">
     {% if is_editable %}
     <!-- Mode modifiable (Mon propre carnet) -->
     <button onclick="document.getElementById('modalEditDrink-{{ drink.slug }}').showModal()" class="shrink-0 flex flex-col items-center gap-1 hover:scale-110 transition-transform z-10 relative">
@@ -34,7 +39,7 @@
     </div>
     {% endif %}
 
-    <div class="flex-1 pointer-events-none">
+    <div class="flex-1 min-w-0 pointer-events-none">
         <h4 class="font-bold text-sm leading-tight text-gray-900">
             {{ drink.beer_id.name }}
             {% if drink.beer_id.is_deleted %}
@@ -47,6 +52,8 @@
             <span class="italic text-gray-400 font-medium">(modifié)</span>
             {% endif %}
         </p>
+        {% include "partials/tasting_photo.html" with url=drink.photo_url compact=True %}
         {% if drink.comment %}<p class="text-[11px] text-gray-600 italic mt-1 line-clamp-2">"{{ drink.comment }}"</p>{% endif %}
+    </div>
     </div>
 </div>

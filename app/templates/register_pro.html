@@ -47,6 +47,12 @@
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {% for field in pro_form %}
+                        {% if field.name == 'image' %}
+                        <div class="col-span-full">
+                            {% include "partials/image_field.html" with name=field.html_name field_id=field.id_for_label label=field.label %}
+                            {% include "partials/field_errors.html" with field=field %}
+                        </div>
+                        {% elif field.name != 'remove_image' %}
                         <div class="form-control w-full {% if field.name == 'description' %}col-span-full{% endif %}">
                             <label class="label py-1">
                                 <span class="label-text font-bold text-xs">
@@ -75,6 +81,7 @@
                             
                             {% if field.errors %}<span class="text-xs text-error mt-1">{{ field.errors }}</span>{% endif %}
                         </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>

@@ -2,7 +2,7 @@ from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
-from ..forms import DrinkForm
+from ..forms import DrinkForm, error_summary
 from ..models import Beer, Drinks
 from .utils import check_and_notify_achievements, posted_notebooks, previous_page
 from ..services.drinks import delete_drink
@@ -20,7 +20,7 @@ def rate_beer_view(request, beer_slug):
         return redirect(previous_url)
     
     if request.method == 'POST':
-        form = DrinkForm(request.POST)
+        form = DrinkForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
             drink = form.save(commit=False)
             drink.drinker_id = request.user
@@ -40,7 +40,7 @@ def rate_beer_view(request, beer_slug):
             
             messages.success(request, f"Votre avis sur {beer.name} a été enregistré !")
         else:
-            messages.error(request, "Erreur dans le formulaire de notation.")
+            messages.error(request, "Erreur dans le formulaire de notation : " + " ; ".join(error_summary(form)))
             
     check_and_notify_achievements(request.user)
     return redirect(previous_url)
@@ -52,7 +52,7 @@ def modify_rate_beer_view(request, drink_slug):
     beer = drink.beer_id
     
     if request.method == 'POST':
-        form = DrinkForm(request.POST, instance=drink)
+        form = DrinkForm(request.POST, request.FILES, instance=drink, user=request.user)
         if form.is_valid():
             form.save()
             
@@ -68,7 +68,7 @@ def modify_rate_beer_view(request, drink_slug):
             
             messages.success(request, f"Votre avis sur {beer.name} a été mis à jour !")
         else:
-            messages.error(request, "Erreur dans le formulaire de modification.")
+            messages.error(request, "Erreur dans le formulaire de modification : " + " ; ".join(error_summary(form)))
             
     return redirect('beer_detail', beer_slug=beer.slug)
 

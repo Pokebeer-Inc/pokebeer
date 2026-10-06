@@ -1,0 +1,22 @@
+{% comment %}
+Champ image facultatif (photo de dégustation, image officielle d'une bière, d'une brasserie ou d'un bar) (comportement : static/script/image_field.js).
+Paramètres : name (nom du champ fichier), field_id (id unique dans la page), photo_url (image actuelle), label (libellé, « Photo » par défaut),
+remove_name (nom de la case « retirer », uniquement en modification), hint (texte d'aide facultatif).
+{% endcomment %}
+<div class="form-control w-full mb-3" data-image-field data-original-url="{{ photo_url|default:'' }}">
+    <label class="label py-1"><span class="label-text text-xs font-bold">{{ label|default:"Photo" }} <span class="font-normal text-gray-500">(facultatif)</span></span></label>
+    <div class="flex items-center gap-3">
+        <img data-image-preview src="{{ photo_url|default:'' }}" alt="Aperçu de la photo"
+             class="{% if not photo_url %}hidden {% endif %}w-20 h-20 object-cover rounded-lg border border-base-300 bg-base-200">
+        <div class="flex flex-col items-start gap-1">
+            <label for="{{ field_id }}" class="btn btn-sm btn-outline btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span data-image-label>{% if photo_url %}Changer{% else %}Ajouter une photo{% endif %}</span>
+            </label>
+            <input type="file" id="{{ field_id }}" name="{{ name }}" accept="image/jpeg,image/png,image/webp" class="hidden" data-image-input>
+            {% if remove_name %}<input type="checkbox" name="{{ remove_name }}" class="hidden" data-image-remove>{% endif %}
+            <button type="button" data-image-clear class="btn btn-xs btn-ghost text-error{% if not photo_url %} hidden{% endif %}">Retirer la photo</button>
+        </div>
+    </div>
+    {% if hint %}<p data-image-hint class="text-[10px] text-gray-500 italic mt-1 hidden">{{ hint }}</p>{% endif %}
+</div>

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/error_404.css' %}">
+
+{% include "partials/beer_bubbles.html" %}
+
+<div class="error-404 relative z-10">
+    <div class="error-404-card card bg-white/90 backdrop-blur-md border border-white/50 shadow-xl">
+        <div class="card-body items-center text-center">
+            <div class="error-404-glass" aria-hidden="true">
+                <span class="error-404-digit">4</span>
+                <svg class="error-404-mug" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 14h32v36a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6V14z" fill="#fff" stroke="#333" stroke-width="3" stroke-linejoin="round"/>
+                    <path d="M14 30h28v20a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V30z" fill="#f1c40f"/>
+                    <path d="M44 22h6a6 6 0 0 1 6 6v8a6 6 0 0 1-6 6h-6" stroke="#333" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M10 14c0-5 5-8 10-8 3 0 4 2 7 2s4-2 8-2c5 0 9 3 9 8z" fill="#fff" stroke="#333" stroke-width="3" stroke-linejoin="round"/>
+                    <circle cx="22" cy="40" r="2" fill="#fff" opacity=".8"/>
+                    <circle cx="32" cy="46" r="1.6" fill="#fff" opacity=".8"/>
+                    <circle cx="34" cy="36" r="1.4" fill="#fff" opacity=".8"/>
+                </svg>
+                <span class="error-404-digit">4</span>
+            </div>
+
+            <h1 class="font-castoro text-2xl font-bold mt-4">Oups, cette page s'est évaporée !</h1>
+            <p class="text-sm text-gray-600 mt-2 max-w-xs">
+                La page que vous cherchez n'existe pas ou a été déplacée.
+                Le verre est vide, mais la tournée continue.
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-3 w-full mt-6">
+                <button type="button" id="error-404-back" class="btn btn-outline btn-secondary flex-1">
+                    Retour
+                </button>
+                <a href="{% url 'index' %}" id="error-404-home" class="btn btn-primary text-white flex-1">
+                    Aller à l'accueil
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'script/error_404.js' %}"></script>
+{% endblock %}

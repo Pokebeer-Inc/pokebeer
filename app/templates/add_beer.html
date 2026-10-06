@@ -98,15 +98,8 @@
             </div>
 
             {% if 'image' in beer_form.fields %}
-            <div id="beer-image-container" data-managed="{% for b in user.my_breweries %}{{ b.name|lower }}||{% endfor %}" class="form-control w-full mb-3 p-3 bg-primary/10 rounded-lg border border-primary/20 hidden">
-                <label class="label py-1">
-                    <span class="label-text font-bold text-xs text-primary">{{ beer_form.image.label }}</span>
-                </label>
-                {{ beer_form.image }}
-                {% if beer_form.image.errors %}
-                <span class="text-error font-bold text-xs mt-1 block">{{ beer_form.image.errors.0 }}</span>
-                {% endif %}
-            </div>
+            {% include "partials/image_field.html" with name=beer_form.image.html_name field_id=beer_form.image.id_for_label label=beer_form.image.label %}
+            {% include "partials/field_errors.html" with field=beer_form.image %}
             {% endif %}
         </section>
         
@@ -133,13 +126,16 @@
                 </div>
             </div>
             
-            <div class="form-control w-full">
+            <div class="form-control w-full mb-3">
                 <label class="label py-1">
                     <span class="label-text font-bold text-xs">{{ drink_form.comment.label }} <span class="text-error">*</span></span>
                 </label>
                 {{ drink_form.comment }}
                 {% include "partials/field_errors.html" with field=drink_form.comment %}
             </div>
+
+            {% include "partials/image_field.html" with name=drink_form.photo.html_name field_id=drink_form.photo.id_for_label hint="Photo prise pour l'analyse : gardez-la pour illustrer votre avis, changez-la ou retirez-la." %}
+            {% include "partials/field_errors.html" with field=drink_form.photo %}
         </section>
         
         {% if user.custom_notebooks.exists %}

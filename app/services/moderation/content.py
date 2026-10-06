@@ -120,7 +120,7 @@ class CommentContent(ModeratedContent):
     kind = Kind.COMMENT
     model = Drinks
     noun = "avis"
-    fields = (FieldSpec('comment', 'Commentaire'),)
+    fields = (FieldSpec('comment', 'Commentaire'), FieldSpec('photo', 'Photo', is_image=True))
 
     def title(self, obj):
         return f"Avis de {obj.drinker_id.username} sur {obj.beer_id.name}"

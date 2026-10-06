@@ -1,7 +1,7 @@
 <dialog id="modalRate-{{ beer.slug }}" class="modal">
     <div class="modal-box custom-modal-form">
         <h3 class="font-bold text-lg mb-4">Noter : {{ beer.name }}</h3>
-        <form method="post" action="{% url 'rate_beer' beer.slug %}">
+        <form method="post" action="{% url 'rate_beer' beer.slug %}" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="form-control w-full mb-3">
                 <label class="label"><span class="label-text">{{ rating_form.date.label }}</span></label>
@@ -15,6 +15,7 @@
                 <label class="label"><span class="label-text">{{ rating_form.comment.label }}</span></label>
                 {{ rating_form.comment }}
             </div>
+            {% include "partials/image_field.html" with name="photo" field_id="photo-rate-"|add:beer.slug %}
             {% include "partials/notebook_selector.html" %}
             <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
         </form>
