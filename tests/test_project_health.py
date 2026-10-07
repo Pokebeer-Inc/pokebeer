@@ -67,3 +67,13 @@ class TestUserManager:
     def test_username_is_required(self):
         with pytest.raises(ValueError):
             BeerUser.objects.create_user("", email="nobody@example.test")
+
+
+def test_every_model_is_reexported_by_the_models_package():
+    """`from app.models import X` doit toujours fonctionner : un nouveau modèle se déclare dans un module de app/models/ ET dans __init__."""
+    from django.apps import apps
+
+    import app.models as models_package
+
+    missing = [model.__name__ for model in apps.get_app_config("app").get_models() if getattr(models_package, model.__name__, None) is not model]
+    assert not missing, missing

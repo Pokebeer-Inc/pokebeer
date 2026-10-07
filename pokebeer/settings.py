@@ -325,6 +325,10 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 CHAT_DAILY_LIMIT = 10
 CHAT_MESSAGE_MAX_LENGTH = 5000
 LABEL_DAILY_LIMIT = 20
+# Recherche par code-barres (Open Food Facts) : plafond quotidien par membre, délai et identification de l'application
+EAN_DAILY_LIMIT = 60
+OPEN_FOOD_FACTS_TIMEOUT = 4
+OPEN_FOOD_FACTS_USER_AGENT = f'Pokebeer/1.0 ({os.getenv("EMAIL_HOST_USER", "pokebeer.assistance@gmail.com")})'
 LABEL_MAX_UPLOAD_BYTES = 4 * 1024 * 1024  # Vercel refuse de toute façon les requêtes de plus de 4,5 Mo
 REPORT_DAILY_LIMIT = 10
 

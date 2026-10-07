@@ -12,9 +12,11 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 
 from ..models import Beer, Brewery
+from .utils import get_blocked_users
+from ..services import ean, label_scan, product_lookup
 from ..services.ai import ask_zythologue, config_client
 from ..services.images import MIME_TYPES, open_image
-from ..services.quota import CHAT, LABEL_SCAN, consume_quota
+from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota
 from ..services.slugs import SUFFIX_LENGTH
 
 logger = logging.getLogger(__name__)
@@ -82,24 +84,10 @@ def analyze_beer_label(request):
 
     try:
         client = config_client()
-        prompt = """
-            Tu es un expert zythologue de la bière. 
-            1. Analyse l'image de cette étiquette pour identifier la bière.
-            2. Si des informations (comme la brasserie, le style, le degré d'alcool ou l'IBU) ne sont pas visibles ou lisibles sur l'image, UTILISE TES CONNAISSANCES INTERNES d'expert pour déduire et compléter ces champs manquants à partir du nom trouvé.
-            3. Ne renvoie AUCUN autre texte que le JSON strict.
-
-            Les clés doivent être exactement :
-            - "name" : Le nom de la bière.
-            - "brewery" : Le nom de la brasserie (déduis-le si non écrit).
-            - "style" : Le style de bière (ex: IPA, Stout, Triple...).
-            - "degree" : Le degré d'alcool en format numérique (ex: 5.5).
-            - "bitterness" : L'amertume IBU en nombre entier (déduis-le si possible, sinon null).
-            """
-
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=[
-                prompt,
+                label_scan.PROMPT,
                 types.Part.from_bytes(
                     data=image_bytes,
                     mime_type=mime_type,
@@ -110,15 +98,38 @@ def analyze_beer_label(request):
             )
         )
         
-        raw_json = response.text.replace('```json', '').replace('```', '').strip()
-        data = json.loads(raw_json)
-
-        return JsonResponse({"success": True, "data": data})
+        label = label_scan.parse(response.text)
+        if label is None:
+            # Image sans bière identifiable : réponse normale (le scanner continue de chercher), pas une erreur
+            return JsonResponse({"success": False, "not_found": True, "error": "Aucune étiquette de bière reconnue."})
+        return JsonResponse({"success": True, "data": label})
 
     except Exception:
         # Le détail (réponse de l'IA, message du SDK) reste dans les journaux : il ne doit jamais atteindre le client
         logger.exception("Analyse d'étiquette impossible")
         return JsonResponse({"error": "L'analyse de l'étiquette a échoué. Réessayez plus tard."}, status=500)
+
+@login_required(login_url='login')
+@require_POST
+def lookup_ean(request):
+    """Bière correspondant à un code-barres : d'abord le catalogue (sans service extérieur ni quota), puis Open Food Facts."""
+    code = ean.normalize(request.POST.get('ean'))
+    if code is None:
+        return JsonResponse({"error": "Code-barres invalide."}, status=400)
+
+    known = Beer.objects.filter(ean=code, is_deleted=False).exclude(added_by__in=get_blocked_users(request.user)).select_related('brewery_id').first()
+    if known:
+        return JsonResponse({"success": True, "source": "catalog", "existing": {"name": known.name, "brewery": known.brewery_id.name, "slug": known.slug}})
+
+    if not consume_quota(request.user, settings.EAN_DAILY_LIMIT, EAN_LOOKUP):
+        return JsonResponse({"error": "Limite quotidienne de recherches par code-barres atteinte, revenez demain !"}, status=429)
+    try:
+        beer = product_lookup.fetch(code)
+    except product_lookup.LookupUnavailable:
+        return JsonResponse({"error": "La base de produits ne répond pas. Réessayez plus tard."}, status=503)
+    if beer is None:
+        return JsonResponse({"success": False, "not_found": True, "error": "Code-barres inconnu."})
+    return JsonResponse({"success": True, "source": "openfoodfacts", "ean": code, "data": beer})
 
 @login_required(login_url='login')
 def search_brewery(request):

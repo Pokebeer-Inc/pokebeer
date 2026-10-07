@@ -48,7 +48,7 @@ def geocoder(monkeypatch):
     response = mock.Mock(status_code=200)
     response.json.return_value = [{"lat": "48.8566", "lon": "2.3522"}]
     get = mock.Mock(return_value=response)
-    monkeypatch.setattr("app.models.requests.get", get)
+    monkeypatch.setattr("app.models.mixins.requests.get", get)
     return get
 
 

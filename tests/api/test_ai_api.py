@@ -129,10 +129,31 @@ class TestAnalyzeLabel:
     def test_image_is_required(self, auth_client):
         assert auth_client.post(LABEL_URL).status_code == 400
 
-    @pytest.mark.parametrize("raw", ['{"name": "Punk IPA", "degree": 5.6}', '```json\n{"name": "Punk IPA", "degree": 5.6}\n```'])
+    @pytest.mark.parametrize("raw", [
+        '{"found": true, "name": "Punk IPA", "degree": 5.6}',
+        '```json\n{"found": true, "name": "Punk IPA", "degree": 5.6}\n```',
+    ])
     def test_returns_parsed_json_even_inside_markdown_fence(self, auth_client, label_client, raw):
         label_client.models.generate_content.return_value = SimpleNamespace(text=raw)
-        assert self.upload(auth_client).json() == {"success": True, "data": {"name": "Punk IPA", "degree": 5.6}}
+        assert self.upload(auth_client).json() == {"success": True, "data": {"name": "Punk IPA", "brewery": None, "style": None, "degree": 5.6, "bitterness": None}}
+
+    @pytest.mark.parametrize("raw", ['{"found": false}', '{"found": true}', '{}', '{"found": "true", "name": "X"}'])
+    def test_an_image_without_an_identified_beer_is_not_an_error(self, auth_client, label_client, raw):
+        label_client.models.generate_content.return_value = SimpleNamespace(text=raw)
+        response = self.upload(auth_client)
+        assert response.status_code == 200 and response.json()["success"] is False and response.json()["not_found"] is True
+
+    def test_the_ai_answer_is_cleaned_before_it_reaches_the_form(self, auth_client, label_client):
+        label_client.models.generate_content.return_value = SimpleNamespace(
+            text='{"found": true, "name": "<img src=x onerror=alert(1)>Stout", "brewery": 42, "style": "IPA", "degree": 500, "bitterness": "abc", "extra": "x"}'
+        )
+        data = self.upload(auth_client).json()["data"]
+        assert data == {"name": "img src=x onerror=alert(1)Stout", "brewery": None, "style": "IPA", "degree": None, "bitterness": None}
+
+    def test_the_prompt_asks_the_ai_to_say_when_no_beer_is_visible(self, auth_client, label_client):
+        label_client.models.generate_content.return_value = SimpleNamespace(text='{"found": false}')
+        self.upload(auth_client)
+        assert '"found"' in label_client.models.generate_content.call_args.kwargs["contents"][0]
 
     def test_image_is_sent_with_its_mime_type(self, auth_client, label_client):
         label_client.models.generate_content.return_value = SimpleNamespace(text="{}")

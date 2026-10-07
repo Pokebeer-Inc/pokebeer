@@ -6,7 +6,7 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, SetPasswordForm
 from django.core.exceptions import ValidationError
 from .auth_forms import ThrottledLoginMixin
-from .services import marketing, notification_types
+from .services import ean, marketing, notification_types
 from .services.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
 from .services.threads import plain_text
 from .services.profile_pictures import process_profile_picture
@@ -273,6 +273,9 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
         widget=forms.TextInput(attrs={'autocomplete': 'off'})
     )
 
+    # Code-barres lu par le scanner (champ caché, à la création seulement) : validé ici, jamais cru tel quel
+    ean = forms.CharField(required=False, widget=forms.HiddenInput())
+
     class Meta:
         model = Beer
         fields = ['name', 'brewery_name', 'style', 'description', 'bitterness', 'degree', 'image']
@@ -298,6 +301,9 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             
         super(BeerForm, self).__init__(*args, **kwargs)
         
+        if self.instance.pk:
+            del self.fields['ean']  # le code-barres se pose à l'ajout, pas à la modification
+
         # Le champ image n'est proposé qu'à ceux qui ont le droit de la modifier
         if not self.may_edit_image(self.user, self.instance):
             self.drop_image_field('image')
@@ -331,6 +337,8 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             defaults={'name': b_name, 'description': 'Ajoutée automatiquement'}
         )
         beer.brewery_id = brewery
+        if 'ean' in self.fields:  # création seulement : une modification ne touche jamais au code-barres
+            beer.ean = self.cleaned_data.get('ean') or None
         
         if user:
             beer.added_by = user
@@ -340,6 +348,13 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             self.delete_replaced_images()
         return beer
     
+    def clean_ean(self):
+        """Code valide et pas déjà celui d'une autre bière du catalogue, sinon ignoré (l'ajout de la bière n'est pas bloqué)."""
+        code = ean.normalize(self.cleaned_data.get('ean'))
+        if code and Beer.objects.filter(ean=code, is_deleted=False).exists():
+            return None
+        return code
+
     def clean_name(self):
         """Bouclier anti-doublon insensible à la casse, espaces, et accents"""
         name = self.cleaned_data.get('name')
