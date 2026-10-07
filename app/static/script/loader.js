@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Interception des clics sur les liens
     document.addEventListener('click', (e) => {
+        // Un script de la page a déjà pris le clic en charge (onglets de la recherche…) : il n'y aura pas de navigation
+        if (e.defaultPrevented) return;
         // Remonte l'arbre DOM pour trouver si le clic vient d'une balise <a>
         const link = e.target.closest('a');
         if (!link) return;
@@ -35,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Interception des soumissions de formulaires
     document.addEventListener('submit', (e) => {
+        // Formulaire envoyé par un script (recherche en direct) : la page ne se recharge pas, le loader ne se refermerait jamais
+        if (e.defaultPrevented) return;
         const form = e.target;
 
         if (form.id === 'age-form') {

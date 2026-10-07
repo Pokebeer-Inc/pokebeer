@@ -1,7 +1,7 @@
 {% comment %}Signalement d'un membre. Paramètres : modal_id (id du dialog), username (membre signalé).{% endcomment %}
 <dialog id="{{ modal_id }}" class="modal z-[99999]">
     <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="this.closest('dialog').close()">✕</button>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="this.closest('dialog').close()">{% include "partials/icon.html" with name="close" %}</button>
         <h3 class="font-bold text-lg text-error mb-4">Signaler ce profil</h3>
         
         <form method="post" action="{% url 'submit_report' %}">

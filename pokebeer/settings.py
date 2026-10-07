@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'app',
     'django.contrib.sites',
+    'django.contrib.postgres',  # recherche : opérateurs trigramme (voir app/services/search.py)
     'allauth',
     'allauth.account',
     'allauth.socialaccount',

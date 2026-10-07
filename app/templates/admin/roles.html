@@ -56,7 +56,7 @@
           <td class="px-4 py-3 text-center">
             {% if cell.has %}
               {% if cell.locked or not can_edit or cell.self_lock %}
-                <span class="text-green-600" title="{% if cell.locked %}Toujours conservé{% elif cell.self_lock %}Vous ne pouvez pas vous retirer ce rôle{% else %}Réservé aux admins{% endif %}">✔</span>
+                <span class="text-green-600" title="{% if cell.locked %}Toujours conservé{% elif cell.self_lock %}Vous ne pouvez pas vous retirer ce rôle{% else %}Réservé aux admins{% endif %}">{% include "partials/icon.html" with name="check" %}</span>
               {% else %}
                 <form method="post" onsubmit="return confirm('Retirer le rôle {{ cell.label }} à {{ row.user.username }} ?')">
                   {% csrf_token %}
@@ -64,7 +64,7 @@
                   <input type="hidden" name="role" value="{{ cell.key }}">
                   <input type="hidden" name="op" value="remove">
                   <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <button class="text-green-600 hover:text-red-600" title="Retirer">✔</button>
+                  <button class="text-green-600 hover:text-red-600" title="Retirer" aria-label="Retirer le rôle">{% include "partials/icon.html" with name="check" %}</button>
                 </form>
               {% endif %}
             {% elif can_edit %}
@@ -103,9 +103,9 @@
 
   {% if page.has_other_pages %}
   <div class="mt-4 flex items-center gap-4 text-sm">
-    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}{% if role %}&role={{ role }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}">← Précédent</a>{% endif %}
+    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}{% if role %}&role={{ role }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}">{% include "partials/icon.html" with name="arrow-left" size="14" %} Précédent</a>{% endif %}
     <span>Page {{ page.number }} / {{ page.paginator.num_pages }}</span>
-    {% if page.has_next %}<a href="?page={{ page.next_page_number }}{% if role %}&role={{ role }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}">Suivant →</a>{% endif %}
+    {% if page.has_next %}<a href="?page={{ page.next_page_number }}{% if role %}&role={{ role }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}">Suivant {% include "partials/icon.html" with name="arrow-right" size="14" %}</a>{% endif %}
   </div>
   {% endif %}
 </div>

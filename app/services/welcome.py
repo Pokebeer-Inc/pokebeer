@@ -10,7 +10,7 @@ from ..models import BeerUser
 from . import app_links, mailer, marketing
 from .throttle import WELCOME_EMAIL_GLOBAL
 
-SUBJECT = "Bienvenue sur Pokebeer 🍺"
+SUBJECT = "Bienvenue sur Pokebeer"
 GLOBAL_KEY = 'all'
 
 

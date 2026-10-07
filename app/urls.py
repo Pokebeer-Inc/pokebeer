@@ -112,6 +112,8 @@ urlpatterns = [
     # ==========================================
     path('api/chat/', views.chat_api, name='chat_api'),
     path('api/analyze-label/', views.analyze_beer_label, name='analyze_label'),
+    path('api/search/', views.search_api, name='api_search'),
+    path('api/places/', views.places_directory, name='api_places'),
     path('api/search-brewery/', views.search_brewery, name='search_brewery'),
     path('api/search-beer/', views.search_beer, name='search_beer'),
     path('api/notifications/unread/', views.api_unread_notifications, name='api_unread_notifications'),

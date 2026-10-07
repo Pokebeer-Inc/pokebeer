@@ -1,0 +1,34 @@
+{% comment %}Filtres et tri des brasseries et des bars (champs rattachés au formulaire de recherche par l'attribut form).{% endcomment %}
+<div>
+    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Ville</h4>
+    <select form="search-form" name="city" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+        <option value="">Toutes les villes</option>
+        {% for city in cities %}<option value="{{ city }}" {% if request.GET.city == city %}selected{% endif %}>{{ city }}</option>{% endfor %}
+    </select>
+</div>
+
+{% if is_brewery_tab %}
+<div>
+    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Style de bière brassé</h4>
+    <select form="search-form" name="style" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+        <option value="">Tous les styles</option>
+        {% for style_name in styles %}<option value="{{ style_name }}" {% if request.GET.style == style_name %}selected{% endif %}>{{ style_name }}</option>{% endfor %}
+    </select>
+</div>
+{% endif %}
+
+<label class="flex items-center justify-between gap-3 cursor-pointer">
+    <span class="text-sm">Vérifiés uniquement</span>
+    <input form="search-form" type="checkbox" name="verified" value="1" class="toggle toggle-sm toggle-primary" {% if request.GET.verified %}checked{% endif %}>
+</label>
+
+<div>
+    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Trier par</h4>
+    <select form="search-form" name="sort" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+        <option value="" {% if not request.GET.sort %}selected{% endif %}>{% if has_query %}Pertinence{% else %}Par défaut{% endif %}</option>
+        <option value="date_desc" {% if request.GET.sort == 'date_desc' %}selected{% endif %}>Ajout (récent en premier)</option>
+        <option value="date_asc" {% if request.GET.sort == 'date_asc' %}selected{% endif %}>Ajout (ancien en premier)</option>
+        <option value="name_asc" {% if request.GET.sort == 'name_asc' %}selected{% endif %}>Nom (A-Z)</option>
+        <option value="name_desc" {% if request.GET.sort == 'name_desc' %}selected{% endif %}>Nom (Z-A)</option>
+    </select>
+</div>

@@ -48,9 +48,9 @@
 
 {% if page.has_other_pages %}
 <div class="flex justify-center items-center gap-3 my-4 text-sm">
-    {% if page.has_previous %}<a class="btn btn-sm btn-ghost" href="?page={{ page.previous_page_number }}">← Plus récentes</a>{% endif %}
+    {% if page.has_previous %}<a class="btn btn-sm btn-ghost" href="?page={{ page.previous_page_number }}">{% include "partials/icon.html" with name="arrow-left" %} Plus récentes</a>{% endif %}
     <span class="text-gray-400">Page {{ page.number }} / {{ page.paginator.num_pages }}</span>
-    {% if page.has_next %}<a class="btn btn-sm btn-ghost" href="?page={{ page.next_page_number }}">Plus anciennes →</a>{% endif %}
+    {% if page.has_next %}<a class="btn btn-sm btn-ghost" href="?page={{ page.next_page_number }}">Plus anciennes {% include "partials/icon.html" with name="arrow-right" %}</a>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

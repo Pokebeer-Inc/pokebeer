@@ -468,7 +468,7 @@ class ReverseGeocode(models.Model):
         return self.resolved_at is not None
 
     def __str__(self):
-        return f"{self.lat_e4 / 10_000:.4f}, {self.lon_e4 / 10_000:.4f} → {self.city or '?'}"
+        return f"{self.lat_e4 / 10_000:.4f}, {self.lon_e4 / 10_000:.4f} - {self.city or '?'}"
 
 class AnalyticsLayout(models.Model):
     """Disposition personnelle d'une page d'analytics : ordre des tuiles et tuiles masquées (une ligne par membre et par page)."""

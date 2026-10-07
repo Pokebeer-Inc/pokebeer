@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", function() {
+    // Icône SVG (constante du code) ajoutée au libellé du bouton
+    const EXTERNAL_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="inline-block ml-1"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>';
     
     // --- 1. LOGIQUE D'AUTOCOMPLÉTION (DRY) ---
     function setupAutocomplete(inputId, suggId, apiPath, renderItem, onSelect) {
@@ -60,7 +62,8 @@ document.addEventListener("DOMContentLoaded", function() {
             label.append(name, stock);
             const action = document.createElement("span");
             action.className = "btn btn-sm btn-error text-white shadow-sm";
-            action.textContent = "Aller la noter ↗";
+            action.textContent = "Aller la noter";
+            action.insertAdjacentHTML("beforeend", EXTERNAL_ICON);
             div.append(label, action);
         },
         (item) => window.location.href = `/beer/${item.slug}/`
