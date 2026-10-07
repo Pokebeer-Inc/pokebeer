@@ -6,7 +6,7 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, SetPasswordForm
 from django.core.exceptions import ValidationError
 from .auth_forms import ThrottledLoginMixin
-from .services import notification_types
+from .services import marketing, notification_types
 from .services.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
 from .services.threads import plain_text
 from .services.profile_pictures import process_profile_picture
@@ -453,6 +453,24 @@ class NotificationPreferenceForm(forms.ModelForm):
             'notif_global': forms.CheckboxInput(attrs={'class': 'toggle toggle-primary'}),
             **{field: forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}) for field in notification_types.CATEGORY_FIELDS},
         }
+
+
+class MarketingConsentForm(forms.Form):
+    """Choix des e-mails promotionnels (page du compte) : le choix est horodaté et son origine conservée.
+
+    Formulaire simple et non ModelForm : un ModelForm modifierait l'instance avant l'enregistrement, et le service ne verrait plus le changement.
+    """
+    marketing_opt_in = forms.BooleanField(
+        required=False, label="Recevoir les nouveautés par e-mail",
+        widget=forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
+    )
+
+    def __init__(self, *args, user, **kwargs):
+        self.user = user
+        super().__init__(*args, initial={'marketing_opt_in': user.marketing_opt_in}, **kwargs)
+
+    def save(self):
+        return marketing.set_consent(self.user, self.cleaned_data['marketing_opt_in'], marketing.ACCOUNT)
 
 
 class ReportForm(forms.Form):

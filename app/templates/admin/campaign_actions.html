@@ -1,0 +1,46 @@
+{% if campaign %}
+<div class="mt-6 rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <h2 class="mb-3 text-lg font-semibold">Envoi</h2>
+
+    {% if preview %}
+    <p class="mb-4 text-sm">
+        <strong>{{ preview.recipients }}</strong> destinataire(s) si vous lancez maintenant.
+        {% if preview.no_consent %}<span class="text-font-subtle-light dark:text-font-subtle-dark">{{ preview.no_consent }} membre(s) de l'audience écarté(s) : désinscrit(s) des e-mails promotionnels.</span>{% endif %}
+    </p>
+    {% elif stats.total %}
+    <ul class="mb-4 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        {% for label, count in stats.items %}<li><span class="text-font-subtle-light dark:text-font-subtle-dark">{{ label|capfirst }}</span> <strong>{{ count }}</strong></li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="flex flex-wrap items-end gap-3">
+        <a href="{% url 'admin:app_emailcampaign_preview' campaign.pk %}" target="_blank" rel="noopener" class="rounded-default border border-base-200 px-4 py-2 text-sm font-semibold dark:border-base-700">Aperçu</a>
+
+        <form method="post" action="{% url 'admin:app_emailcampaign_action' campaign.pk 'test' %}">{% csrf_token %}
+            <button type="submit" class="rounded-default border border-base-200 px-4 py-2 text-sm font-semibold dark:border-base-700">M'envoyer un test</button>
+        </form>
+
+        {% if is_draft %}
+        <form method="post" action="{% url 'admin:app_emailcampaign_action' campaign.pk 'launch' %}" class="flex flex-wrap items-end gap-3"
+              onsubmit="return confirm('Lancer cette campagne pour {{ preview.recipients }} destinataire(s) ? Les premiers e-mails partent immédiatement, la suite par lots (maximum {{ daily_limit }} par jour).');">{% csrf_token %}
+            {% if campaign.kind == 'service' %}
+            <label class="flex max-w-sm items-start gap-2 text-sm"><input type="checkbox" name="confirm_service" required class="mt-1"> J'atteste que ce message est indispensable : il partira à tous les membres de l'audience, même ceux qui ont refusé les e-mails.</label>
+            {% endif %}
+            <button type="submit" class="rounded-default bg-primary-600 px-4 py-2 text-sm font-semibold text-white">Lancer la campagne</button>
+        </form>
+        {% endif %}
+
+        {% if is_sending %}
+        <form method="post" action="{% url 'admin:app_emailcampaign_action' campaign.pk 'batch' %}">{% csrf_token %}
+            <button type="submit" class="rounded-default bg-primary-600 px-4 py-2 text-sm font-semibold text-white">Envoyer le lot suivant</button>
+        </form>
+        {% endif %}
+
+        {% if is_draft or is_sending %}
+        <form method="post" action="{% url 'admin:app_emailcampaign_action' campaign.pk 'cancel' %}" onsubmit="return confirm('Annuler cette campagne ? Les messages déjà partis ne peuvent pas être rappelés.');">{% csrf_token %}
+            <button type="submit" class="rounded-default border border-red-300 px-4 py-2 text-sm font-semibold text-red-600">Annuler</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

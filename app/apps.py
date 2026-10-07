@@ -10,3 +10,6 @@ class AppConfig(AppConfig):
 
         from .services.reverse_geocoding import connect_signals as connect_geocoding_signals
         connect_geocoding_signals()
+
+        from .services.welcome import connect_signals as connect_welcome_signals
+        connect_welcome_signals()

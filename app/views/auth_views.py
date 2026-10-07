@@ -10,6 +10,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 
 from ..forms import UserRegisterForm, UserLoginForm, ProUserForm, BarProForm, BreweryProForm
 from ..models import BeerUser
+from ..services.welcome import send_welcome
 from ..services.throttle import PRO_SIGNUP_BY_IP, SIGNUP_BY_IP
 from .utils import limit_posts
 
@@ -26,6 +27,7 @@ def register_view(request):
         if form.is_valid():
             user = form.save()
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            send_welcome(user)
             messages.success(request, f"Bienvenue, {user.username} ! Votre compte a été créé.")
             return redirect('index')
         else:
@@ -107,6 +109,7 @@ def register_pro_view(request, pro_type):
                     # 3. On ajoute l'utilisateur à la liste des gérants (droits de modification futurs)
                     pro_instance.managers.add(user)
                     
+                send_welcome(user)
                 messages.success(request, f"L'établissement {pro_instance.name} a été créé ! Connectez-vous.")
                 return redirect('login')
                 

@@ -2,7 +2,7 @@
 from django.contrib import admin
 
 from ..auth_forms import ThrottledAdminAuthenticationForm
-from . import blocks, catalog, feedback, moderation, policy, reports, users  # noqa: F401
+from . import blocks, campaigns, catalog, feedback, moderation, policy, reports, users  # noqa: F401
 from .dashboard import dashboard_callback  # noqa: F401
 
 

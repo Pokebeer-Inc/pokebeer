@@ -9,7 +9,7 @@ from django.contrib.auth.forms import PasswordChangeForm
 import json
 
 from ..models import AccountDeletion, BeerUser, UserFollow, Beer, Drinks, UserBlock, DrinkReaction
-from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, NotificationPreferenceForm, ProSettingsForm
+from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, MarketingConsentForm, NotificationPreferenceForm, ProSettingsForm
 from .utils import get_user_achievements, check_and_notify_achievements, previous_page
 from .services.stats import get_user_statistics, get_top_beers_data
 from .services.selectors import get_filtered_beers
@@ -26,6 +26,7 @@ def account_view(request):
     password_form = PasswordChangeForm(user=user)
     feedback_form = FeedbackForm()
     notif_form = NotificationPreferenceForm(instance=user)
+    marketing_form = MarketingConsentForm(user=user)
     pro_settings_form = ProSettingsForm(instance=user)
     
     if request.method == 'POST':
@@ -83,6 +84,14 @@ def account_view(request):
             else:
                 messages.error(request, "Erreur dans le changement de préférence des notifications.")
 
+        # Accord aux e-mails promotionnels
+        elif 'btn_marketing' in request.POST:
+            marketing_form = MarketingConsentForm(request.POST, user=user)
+            if marketing_form.is_valid():
+                marketing_form.save()
+                messages.success(request, "Préférence d'e-mails mise à jour.")
+                return redirect('account')
+
     # 2. Requêtes de base
     my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
     
@@ -103,6 +112,7 @@ def account_view(request):
         'password_form': password_form,
         'feedback_form': feedback_form,
         'notif_form': notif_form,
+        'marketing_form': marketing_form,
         'pro_settings_form': pro_settings_form,
         'feedback_threads_count': user.feedbacks.count(),
         'my_drinks': my_drinks,

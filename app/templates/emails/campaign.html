@@ -1,0 +1,8 @@
+{% extends "emails/_layout.html" %}
+{% block content %}
+<p>Bonjour {{ user.username }},</p>
+{% for paragraph in paragraphs %}<p>{{ paragraph|linebreaksbr }}</p>
+{% endfor %}
+{% if cta_url and cta_label %}<p style="margin:24px 0;"><a href="{{ cta_url }}" style="background:#facc15;color:#1c1917;font-weight:bold;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;">{{ cta_label }}</a></p>{% endif %}
+{% endblock %}
+{% block footer %}{% if promotional %}Vous recevez cet e-mail en tant que membre de Pokebeer. <a href="{{ preferences_url }}" style="color:#78716c;">Ne plus recevoir ces e-mails</a>.{% else %}Cet e-mail est un message important lié à votre compte ou au service Pokebeer : il est envoyé à tous les membres. Une question ? Écrivez à {{ support_email }}.{% endif %}{% endblock %}

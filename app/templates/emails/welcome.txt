@@ -1,0 +1,12 @@
+{% autoescape off %}Bonjour {{ user.username }},
+
+Bienvenue sur Pokebeer ! Votre compte est prêt : voici de quoi bien démarrer.
+{% for item in highlights %}
+- {{ item.title }} : {{ item.text }}
+  {{ item.url }}
+{% endfor %}
+L'équipe Pokebeer
+
+--
+Vous recevrez de temps en temps les nouveautés de Pokebeer par e-mail. Ne plus les recevoir : {{ preferences_url }}
+Les e-mails indispensables à votre compte restent envoyés.{% endautoescape %}

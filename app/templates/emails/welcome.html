@@ -1,0 +1,15 @@
+{% extends "emails/_layout.html" %}
+{% block content %}
+<p>Bonjour {{ user.username }},</p>
+<p>Bienvenue sur <strong>Pokebeer</strong> ! Votre compte est prêt : voici de quoi bien démarrer.</p>
+<table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0;">
+  {% for item in highlights %}
+  <tr><td style="padding:10px 0;border-top:1px solid #e7e5e4;">
+    <a href="{{ item.url }}" style="color:#1c1917;font-weight:bold;text-decoration:none;">{{ item.title }} →</a><br>
+    <span style="font-size:13px;color:#57534e;">{{ item.text }}</span>
+  </td></tr>
+  {% endfor %}
+</table>
+<p style="margin:24px 0;"><a href="{{ highlights.0.url }}" style="background:#facc15;color:#1c1917;font-weight:bold;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;">Découvrir la liste des bières</a></p>
+{% endblock %}
+{% block footer %}Vous recevrez de temps en temps les nouveautés de Pokebeer par e-mail. <a href="{{ preferences_url }}" style="color:#78716c;">Ne plus les recevoir</a>. Les e-mails indispensables à votre compte restent envoyés. Une question ? Écrivez à {{ support_email }}.{% endblock %}
