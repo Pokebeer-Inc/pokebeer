@@ -70,6 +70,7 @@ function setLocationEnabled(enabled) {
     chatLocationButton.setAttribute('aria-pressed', String(enabled));
     chatLocationButton.classList.toggle('btn-primary', enabled);
     chatLocationButton.classList.toggle('btn-outline', !enabled);
+    chatLocationButton.classList.toggle('text-black', enabled);  // le texte du bouton plein est clair sur le jaune du thème
 }
 
 function readPosition() {
@@ -85,11 +86,16 @@ function readPosition() {
     });
 }
 
+// Vrai quand la dernière réponse de Gaétan attendait la position du membre : l'activer relance alors la conversation
+let awaitingLocation = false;
+const LOCATION_RESUME_MESSAGE = "J'ai activé ma position, reprends ma demande précédente.";
+
 chatLocationButton.addEventListener('click', async () => {
     if (locationEnabled()) return setLocationEnabled(false);
     const position = await readPosition();  // déclenche la demande d'autorisation du navigateur
     if (position.error) return addToChat(errorBubble(position.error));
     setLocationEnabled(true);
+    if (awaitingLocation) return sendMessage(LOCATION_RESUME_MESSAGE);
     addToChat(modelBubble("Position activée : je peux chercher des bars et brasseries autour de vous. Elle n'est jamais enregistrée."));
 });
 
@@ -127,6 +133,7 @@ async function sendMessage(text) {
         const data = await res.json();
         document.getElementById(loadingId)?.remove();
         // Un refus (quota, message invalide, service indisponible) n'est pas une réponse de Gaétan
+        awaitingLocation = res.ok && data.needs_location === true;
         addToChat(res.ok ? modelBubble(data.response) : errorBubble(data.response));
     } catch (err) {
         document.getElementById(loadingId)?.remove();

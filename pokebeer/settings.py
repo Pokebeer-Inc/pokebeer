@@ -324,10 +324,13 @@ else:
 FCM_ANDROID_CHANNEL_ID = "pokebeer_channel"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 # Gaétan (assistant bière) : tout reste dans les quotas gratuits de Gemini, d'où des plafonds par membre ET pour toute l'application
-CHAT_MODEL = os.getenv("CHAT_MODEL", "gemini-2.5-flash")
+# Modèles essayés dans l'ordre quand le précédent est saturé (429) ou indisponible : chaque modèle a son propre quota gratuit
+CHAT_MODELS = tuple(name.strip() for name in os.getenv("CHAT_MODELS", "gemini-2.5-flash,gemini-3.1-flash-lite,gemini-3.5-flash").split(",") if name.strip())
 CHAT_DAILY_LIMIT = 10
 CHAT_WEEKLY_LIMIT = 40  # sur 7 jours glissants : empêche d'épuiser le plafond quotidien chaque jour
 CHAT_GLOBAL_DAILY_LIMIT = int(os.getenv("CHAT_GLOBAL_DAILY_LIMIT", "200"))  # appels au modèle par jour, tous membres confondus
+# Appels au modèle par minute, tous membres confondus : le palier gratuit de Gemini en autorise très peu (5 par minute constatés)
+CHAT_MODEL_CALLS_PER_MINUTE = int(os.getenv("CHAT_MODEL_CALLS_PER_MINUTE", "4"))
 CHAT_MESSAGE_MAX_LENGTH = 600
 CHAT_HISTORY_LIMIT = 10  # messages conservés en session (5 échanges)
 CHAT_MAX_OUTPUT_TOKENS = 700

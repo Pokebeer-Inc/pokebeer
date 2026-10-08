@@ -19,12 +19,13 @@ from django.template.loader import render_to_string
 from ..services import catalog_matching, ean, label_scan, postal_codes, product_lookup, upstream
 from ..services.throttle import CATALOG_CHECK_BY_USER, CHAT_BURST_BY_USER, CHAT_GLOBAL, CHAT_GLOBAL_KEY, POSTAL_LOOKUP_BY_IP, client_ip
 from ..services.ai import ask_zythologue, config_client
-from ..services.chat import ChatUnavailable, payload as chat_payload
+from ..services.chat import ChatBusy, ChatUnavailable, payload as chat_payload
 from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota, refund_quota
 from ..services.slugs import SUFFIX_LENGTH
 
 logger = logging.getLogger(__name__)
 
+CHAT_BUSY = "Gaétan a beaucoup de monde au comptoir : réessayez dans une minute."
 CHAT_UNAVAILABLE = "Désolé, j'ai eu un coup de chaud en cave. Pouvez-vous revenir plus tard s'il vous plaît ?"
 
 
@@ -51,16 +52,16 @@ def _post_chat_message(request):
 
     history = request.session.get('chat_history', [])
     try:
-        response_text = ask_zythologue(chat_request.message, history, chat_request.location)
-    except ChatUnavailable:
+        reply = ask_zythologue(chat_request.message, history, chat_request.location)
+    except ChatUnavailable as error:
         # Rien n'est enregistré et le membre récupère sa question
         refund_quota(request.user, CHAT)
-        return _chat_error(CHAT_UNAVAILABLE, 503)
+        return _chat_error(CHAT_BUSY if isinstance(error, ChatBusy) else CHAT_UNAVAILABLE, 503)
 
-    history = [*history, {'role': 'user', 'text': chat_request.message}, {'role': 'model', 'text': response_text}]
+    history = [*history, {'role': 'user', 'text': chat_request.message}, {'role': 'model', 'text': reply.text}]
     # Seuls les derniers messages sont gardés : la session reste légère et la conversation courte
     request.session['chat_history'] = history[-settings.CHAT_HISTORY_LIMIT:]
-    return JsonResponse({"response": response_text})
+    return JsonResponse({"response": reply.text, "needs_location": reply.needs_location})
 
 
 @require_http_methods(["GET", "POST"])

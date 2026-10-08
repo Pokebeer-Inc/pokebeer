@@ -120,8 +120,14 @@ class TestFindPlacesTool:
         assert "around:3000" in overpass.call_args.kwargs["params"]["data"]
 
     def test_without_any_position_the_model_is_told_to_ask(self, overpass):
-        assert "localisation" in FindPlacesTool(None).run({})["error"]
+        result = FindPlacesTool(None).run({})
+        assert "localisation" in result["error"] and result["needs_location"] is True
         overpass.assert_not_called()
+
+    def test_an_unknown_named_place_does_not_ask_for_the_position(self, monkeypatch):
+        monkeypatch.setattr(upstream, "get_json", mock.Mock(return_value=[]))
+        result = FindPlacesTool(None).run({"place_name": "Nullepart"})
+        assert "introuvable" in result["error"] and "needs_location" not in result
 
     def test_a_named_place_is_geocoded_and_replaces_the_device_position(self, monkeypatch, overpass):
         monkeypatch.setattr(upstream, "get_json", mock.Mock(side_effect=[[{"lat": "53.35", "lon": "-6.26"}], osm()]))
