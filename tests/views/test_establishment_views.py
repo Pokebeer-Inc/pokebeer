@@ -39,7 +39,7 @@ class TestDetailPages:
 
 class TestEditBrewery:
     def data(self, **overrides):
-        return {"name": "Nouveau nom", "description": "Nouvelle description", "address": "Rennes", **overrides}
+        return {"name": "Nouveau nom", "description": "Nouvelle description", "street": "1 Rue de Rennes", "postal_code": "44000", **overrides}
 
     def test_non_manager_is_refused(self, auth_client, brewery):
         response = auth_client.post(reverse("edit_brewery", args=[brewery.slug]), self.data())
@@ -168,7 +168,7 @@ class TestBarManagement:
         managed_bar.managers.add(other_user)
         response = auth_client.post(
             reverse("edit_bar", args=[managed_bar.slug]),
-            {"name": "Nouveau nom", "description": "Nouvelle description", "address": "Rennes"},
+            {"name": "Nouveau nom", "description": "Nouvelle description", "street": "1 Rue de Rennes", "postal_code": "44000"},
         )
         managed_bar.refresh_from_db()
         assert_redirects(response, reverse("bar_detail", args=[managed_bar.slug]))

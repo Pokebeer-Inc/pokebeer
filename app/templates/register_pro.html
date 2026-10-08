@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'style/duplicate_panel.css' %}">
 
 {% include "partials/beer_bubbles.html" %}
 
@@ -9,7 +10,7 @@
         <h2 class="card-title text-3xl justify-center font-castoro mb-2 text-primary">
             {% if pro_type == 'bar' %}Créer votre Bar{% else %}Créer votre Brasserie{% endif %}
         </h2>
-        <p class="text-center text-gray-600 mb-6 text-sm">Créez votre compte gérant et référencez votre établissement en une seule étape.</p>
+        <p class="text-center text-gray-600 mb-6 text-sm">Créez votre compte et déclarez votre établissement en une seule étape. L'équipe vérifie ensuite votre SIRET avant de vous donner les droits de gestion.</p>
         
         <form method="post" enctype="multipart/form-data" class="flex flex-col gap-6">
             {% csrf_token %}
@@ -38,6 +39,8 @@
                 </div>
             </div>
             
+            {% include "partials/claim_choice_panel.html" with report=claim_report %}
+
             <!-- SECTION 2 : ÉTABLISSEMENT -->
             <div class="bg-base-200/50 p-4 rounded-xl border border-base-300">
                 <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
@@ -63,11 +66,15 @@
                                 </span>
                             </label>
 
-                            {% if field.name == 'address' %}
+                            {% if field.name == 'street' %}
                                 <span class="text-[10px] text-gray-500 mb-1 italic flex items-start gap-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 shrink-0 mt-0.5 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    L'établissement pourra ainsi apparaîtra sur la carte interactive de tous les utilisateurs.
+                                    Facultative pour commencer : sans rue, la fiche n'apparaît pas encore sur la carte. Vous (ou l'équipe) pourrez la compléter plus tard.
                                 </span>
+                            {% endif %}
+
+                            {% if field.name == 'postal_code' %}
+                                <span class="text-[10px] text-gray-500 mb-1 italic">La ville est déduite du code postal. Elle distingue votre établissement d'un autre du même nom.</span>
                             {% endif %}
 
                             {% if field.name == 'email' %}
@@ -87,13 +94,15 @@
             </div>
             
             <button type="submit" class="btn btn-primary w-full mt-2 text-white shadow-lg text-lg">
-                Publier et créer mon compte
+                Créer mon compte et envoyer ma demande
             </button>
         </form>
+        <datalist id="cities-pro"></datalist>
         
         <p class="text-center mt-6 text-sm text-gray-600">
             Retourner à <a href="{% url 'register' %}" class="text-primary hover:underline font-bold">l'inscription classique</a>
         </p>
     </div>
 </div>
+<script src="{% static 'script/postal_code.js' %}"></script>
 {% endblock %}

@@ -1,0 +1,27 @@
+{% comment %}Inscription d'un gérant : des fiches existent déjà avec ce nom ou ce lieu. Le gérant dit laquelle est la sienne, ou qu'elle n'existe pas encore.
+Paramètre : report (catalog_matching.Report). Le champ « pro-claim_choice » est relu et revérifié par le serveur (services/claims.plan_registration).{% endcomment %}
+{% if report %}
+<div class="dup dup--warning" role="alert" data-claim-choice>
+    <p class="dup__title">Des fiches existent déjà avec ce nom. Laquelle est la vôtre ?</p>
+    <ul class="dup__list">
+        {% for c in report.candidates %}
+        <li>
+            <label class="dup__confirm" style="border-top:0;padding-top:0">
+                <input type="radio" class="radio radio-xs" name="pro-claim_choice" value="existing:{{ c.obj.slug }}" required>
+                <span><strong>{{ c.obj.name }}</strong>{% if c.obj.postal_code or c.obj.city %} <span class="dup__hint">{{ c.obj.postal_code }} {{ c.obj.city }}</span>{% endif %}
+                    {% if c.obj.managers.exists %}<br><span class="dup__hint">Cette fiche a déjà des gérants : ils seront prévenus de votre demande.</span>{% endif %}</span>
+            </label>
+        </li>
+        {% endfor %}
+        {% if report.token %}
+        <li>
+            <label class="dup__confirm" style="border-top:0;padding-top:0">
+                <input type="radio" class="radio radio-xs" name="pro-claim_choice" value="new:{{ report.token }}" required>
+                <span>Aucune de ces fiches : créer la mienne</span>
+            </label>
+        </li>
+        {% endif %}
+    </ul>
+    <p class="dup__hint">Dans les deux cas, l'équipe vérifie votre SIRET avant de vous donner les droits de gestion. Si vous choisissez une fiche existante, les informations saisies ci-dessous ne sont pas utilisées : vous pourrez la modifier une fois la demande acceptée.</p>
+</div>
+{% endif %}

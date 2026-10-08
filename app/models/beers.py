@@ -3,6 +3,7 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from pgvector.django import VectorField
 from datetime import date
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models, transaction
 
 from ..validators import MAX_TEXT_LENGTH, plain_text_validator
@@ -11,11 +12,14 @@ from ..services.official_images import beer_image_path
 from ..services.tasting_photos import tasting_photo_path
 
 from .establishments import Brewery
-from .mixins import OfficialImageMixin, VerifiableMixin
+from ..services import match_keys
+from .mixins import MatchKeyMixin, OfficialImageMixin, VerifiableMixin
 from .users import BeerUser
 
 
-class Beer(OfficialImageMixin, VerifiableMixin):
+class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
+    MATCH_KIND = match_keys.BEER
+
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom", validators=[plain_text_validator])
     image = models.ImageField(upload_to=beer_image_path, blank=True, null=True, verbose_name="Image")
     description = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, null=True, verbose_name="Description officielle")
@@ -34,13 +38,15 @@ class Beer(OfficialImageMixin, VerifiableMixin):
     class Meta:
         verbose_name = "Bière"
         ordering = ['name']
+        indexes = [GinIndex(fields=['match_key'], name='beer_match_key_trgm', opclasses=['gin_trgm_ops'])]
         constraints = [
-            # Une bière retirée du catalogue libère son nom ; le slug reste unique pour garder ses anciennes URLs
+            # Un nom par brasserie (deux brasseries peuvent avoir chacune leur « Blonde »). Une bière retirée du catalogue libère son
+            # nom ; le slug reste unique pour garder ses anciennes URLs. Les noms proches sont traités par services/catalog_matching.py.
             models.UniqueConstraint(
-                fields=['name'],
+                fields=['brewery_id', 'name'],
                 condition=models.Q(is_deleted=False),
-                name='unique_active_beer_name',
-                violation_error_message="Une bière du catalogue porte déjà ce nom.",
+                name='unique_active_beer_name_per_brewery',
+                violation_error_message="Cette brasserie a déjà une bière de ce nom.",
             ),
             # Un code-barres désigne une seule bière du catalogue : le premier ajout le garde
             models.UniqueConstraint(

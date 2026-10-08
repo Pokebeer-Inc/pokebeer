@@ -146,7 +146,7 @@ class EstablishmentContent(ModeratedContent):
     certifiable = True
     superuser_only = True
     fields = (
-        FieldSpec('name', 'Nom'), FieldSpec('description', 'Description'), FieldSpec('address', 'Adresse'),
+        FieldSpec('name', 'Nom'), FieldSpec('description', 'Description'), FieldSpec('street', 'Adresse'), FieldSpec('postal_code', 'Code postal'), FieldSpec('city', 'Ville'),
         FieldSpec('phone', 'Téléphone'), FieldSpec('email', 'Email'), FieldSpec('website', 'Site web'),
         FieldSpec('instagram', 'Instagram'), FieldSpec('facebook', 'Facebook'),
         FieldSpec('image', 'Image', is_image=True),

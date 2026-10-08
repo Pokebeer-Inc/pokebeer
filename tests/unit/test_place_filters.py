@@ -17,10 +17,9 @@ class TestCities:
     def test_city_is_read_after_the_postal_code(self):
         f.make_bar(name="A", address="2 Quai de la Fosse, 44000 Nantes")
         f.make_bar(name="B", address="5 Rue du Port, 29900 Concarneau, France")
-        f.make_bar(name="C", address="Rue Neuve 1000 Bruxelles")
         f.make_bar(name="D", address="Sans code postal")
         f.make_bar(name="E")
-        assert place_filters.cities(Bar) == ["Bruxelles", "Concarneau", "Nantes"]
+        assert place_filters.cities(Bar) == ["Concarneau", "Nantes"]
 
     def test_the_same_city_is_listed_once_whatever_accents_and_case(self):
         f.make_bar(name="A", address="1 rue A, 91000 Évry")

@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 import pytest
 from django.urls import reverse
 
-from app.models import Bar, BeerUser, Brewery
+from app.models import Bar, BeerUser, Brewery, EstablishmentClaim
 from tests import factories as f
 from tests.helpers import assert_redirects, messages_of
 
@@ -98,7 +98,7 @@ class TestRegisterPro:
     def data(self, **overrides):
         return {
             "user-username": "patron", "user-email": "patron@example.test", "user-password": f.PASSWORD,
-            "pro-name": "Chez Patron", "pro-siret": "73282932000074", "pro-description": "Un lieu",
+            "pro-name": "Chez Patron", "pro-siret": "73282932000074", "pro-description": "Un lieu", "pro-postal_code": "44000",
             **overrides,
         }
 
@@ -106,14 +106,16 @@ class TestRegisterPro:
         assert_redirects(client.get(reverse("register_pro", args=["casino"])), reverse("register"))
 
     @pytest.mark.parametrize("pro_type, model, role", [("brewery", Brewery, "is_brewer"), ("bar", Bar, "is_bartender")])
-    def test_creates_manager_account_and_establishment(self, client, pro_type, model, role):
+    def test_creates_the_account_the_establishment_and_a_pending_claim_but_no_rights(self, client, pro_type, model, role):
         assert_redirects(client.post(reverse("register_pro", args=[pro_type]), self.data()), reverse("login"))
 
-        manager = BeerUser.objects.get(username="patron")
-        establishment = model.objects.get(siret="73282932000074")
-        assert manager.check_password(f.PASSWORD)
-        assert list(establishment.managers.all()) == [manager]
-        assert getattr(manager, role)
+        member = BeerUser.objects.get(username="patron")
+        establishment = model.objects.get(name="Chez Patron")
+        assert member.check_password(f.PASSWORD)
+        # Aucun droit avant la validation de l'équipe : ni gérant, ni rôle, et le SIRET n'est pas encore rattaché à la fiche
+        assert list(establishment.managers.all()) == [] and not getattr(member, role) and establishment.siret is None
+        claim = EstablishmentClaim.objects.get()
+        assert (claim.claimant, claim.place, claim.siret, claim.status) == (member, establishment, "73282932000074", "pending")
 
     def test_bar_keeps_track_of_its_creator(self, client):
         client.post(reverse("register_pro", args=["bar"]), self.data())
@@ -142,10 +144,10 @@ class TestRegisterPro:
         response = client.post(reverse("register_pro", args=["bar"]), self.data())
         assert "secret internal detail" not in response.content.decode() + "".join(messages_of(response))
 
-    def test_duplicate_siret_creates_nothing(self, client):
-        f.make_brewery(siret="73282932000074")
+    def test_an_existing_siret_turns_the_registration_into_a_claim_on_that_fiche(self, client):
+        existing = f.make_brewery(name="Brasserie Existante", siret="73282932000074")
         client.post(reverse("register_pro", args=["brewery"]), self.data())
-        assert not BeerUser.objects.filter(username="patron").exists()
+        assert Brewery.objects.count() == 1 and EstablishmentClaim.objects.get().brewery == existing and not existing.managers.exists()
 
     @pytest.mark.parametrize("password", ["1", "Ab1-xyz", "password", "12345678901", "patron2026"],
                              ids=["single-char", "too-short", "common", "numeric", "similar-to-username"])

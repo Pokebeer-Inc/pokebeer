@@ -1,0 +1,54 @@
+{% comment %}Brasseries et bières déjà au catalogue qui ressemblent à la saisie. Rendu par le formulaire (après envoi) et par la vérification en
+direct (API) : un seul gabarit. Paramètres : inspection, confirm_brewery_name, confirm_beer_name (noms des champs de confirmation).
+Les cases portent le jeton signé de confirmation : cochées, elles disent « c'est bien une autre brasserie / bière ».{% endcomment %}
+{% if inspection %}
+{% with brewery=inspection.brewery beer=inspection.beer %}
+
+{% if brewery.same %}
+<div class="dup dup--info" role="status" data-duplicate="brewery-same">
+    <p>Brasserie déjà connue : <strong>{{ brewery.same.obj.name }}</strong>{% if brewery.same.obj.address %} <span class="dup__hint">{{ brewery.same.obj.address }}</span>{% endif %}. Elle sera utilisée.</p>
+    {% if brewery.same.obj.postal_code and not typed_postal_code and not inspection.postal_typed %}<p class="dup__hint">Ce n'est pas celle-ci ? Indiquez le code postal de votre brasserie : elle sera créée à part.</p>{% endif %}
+</div>
+{% elif brewery.probables %}
+<div class="dup dup--warning" role="alert" data-duplicate="brewery-probable">
+    <p class="dup__title">Une brasserie proche existe déjà. Est-ce la même ?</p>
+    {% if typed_postal_code or inspection.postal_typed %}<p class="dup__hint">Sa localisation n'est pas connue : confirmez s'il s'agit bien d'une autre brasserie.</p>{% endif %}
+    <ul class="dup__list">
+        {% for c in brewery.probables %}
+        <li class="dup__item">
+            <span><strong>{{ c.obj.name }}</strong>{% if c.obj.address %}<br><span class="dup__hint">{{ c.obj.address }}</span>{% endif %}</span>
+            <button type="button" class="btn btn-xs btn-neutral" data-use-brewery="{{ c.obj.name }}">Utiliser celle-ci</button>
+        </li>
+        {% endfor %}
+    </ul>
+    <label class="dup__confirm"><input type="checkbox" class="checkbox checkbox-xs" name="{{ confirm_brewery_name }}" value="{{ brewery.token }}"> Non, c'est une autre brasserie</label>
+</div>
+{% endif %}
+
+{% if beer.same %}
+<div class="dup dup--error" role="alert" data-duplicate="beer-same">
+    <p class="dup__title">Cette bière est déjà au catalogue.</p>
+    <a href="{% url 'beer_detail' beer.same.obj.slug %}">{{ beer.same.obj.name }} ({{ beer.same.obj.brewery_id.name }}) : aller la noter</a>
+</div>
+{% elif beer.probables %}
+<div class="dup dup--warning" role="alert" data-duplicate="beer-probable">
+    <p class="dup__title">Une bière très proche existe déjà. Est-ce la même ?</p>
+    <ul class="dup__list">
+        {% for c in beer.probables %}
+        <li><a href="{% url 'beer_detail' c.obj.slug %}">{{ c.obj.name }} ({{ c.obj.brewery_id.name }}) : aller la noter</a></li>
+        {% endfor %}
+    </ul>
+    <label class="dup__confirm"><input type="checkbox" class="checkbox checkbox-xs" name="{{ confirm_beer_name }}" value="{{ beer.token }}"> Non, c'est une autre bière</label>
+</div>
+{% endif %}
+
+{% if beer.elsewhere and not beer.same %}
+<div class="dup dup--info" role="status" data-duplicate="beer-elsewhere">
+    <p>Une bière du même nom existe chez
+        {% for c in beer.elsewhere %}<a href="{% url 'beer_detail' c.obj.slug %}">{{ c.obj.brewery_id.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.
+        Vous pouvez continuer si c'est une autre bière.</p>
+</div>
+{% endif %}
+
+{% endwith %}
+{% endif %}

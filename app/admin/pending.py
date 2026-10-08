@@ -1,11 +1,17 @@
 """Éléments « à traiter » : pastille du menu latéral et KPI en tête de liste, pour les modèles à statut."""
 from ..models import Feedback, Report
+from ..services import claims
 
 PENDING_REPORTS_EXCLUDED_STATUS = 'resolved'
 
 
 def pending_feedback_count(request=None):
     return Feedback.objects.filter(status='pending').count()
+
+
+def pending_claims_count(request=None):
+    """Demandes de gestion d'établissement qui attendent une décision."""
+    return claims.pending_count()
 
 
 def pending_report_count(request=None):

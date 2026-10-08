@@ -42,6 +42,46 @@ def fast_settings(settings):
     settings.PUBLIC_BASE_URL = 'https://pokebeer.test'
 
 
+# Annuaire des communes simulé : aucun test n'appelle geo.api.gouv.fr. Un code absent d'ici est « inconnu » ; 44100 couvre deux communes.
+POSTAL_DIRECTORY = {
+    "44000": ["Nantes"], "44100": ["Nantes", "Saint-Herblain"], "75010": ["Paris"], "75001": ["Paris"], "69001": ["Lyon"], "69002": ["Lyon"], "69000": ["Lyon"],
+    "13002": ["Marseille"], "13006": ["Marseille"], "29900": ["Concarneau"], "38000": ["Grenoble"], "59000": ["Lille"], "31000": ["Toulouse"],
+    "91000": ["Évry-Courcouronnes"], "67000": ["Strasbourg"], "33000": ["Bordeaux"], "06000": ["Nice"],
+}
+
+
+@pytest.fixture(autouse=True)
+def postal_directory(monkeypatch):
+    from app.services import postal_codes
+    monkeypatch.setattr(postal_codes, "_fetch", lambda code: list(POSTAL_DIRECTORY.get(code, [])))
+    return POSTAL_DIRECTORY
+
+
+class SiretDirectory(dict):
+    """SIRET -> SiretCheck imposé par un test ; `.real` donne la vraie fonction de contrôle (pour tester siret_registry lui-même)."""
+
+    def __init__(self, real):
+        super().__init__()
+        self.real = real
+
+
+@pytest.fixture(autouse=True)
+def siret_directory(monkeypatch):
+    """Annuaire des entreprises simulé : tout SIRET est valable (établissement ouvert, activité cohérente) sauf ceux que le test déclare
+    dans le dict renvoyé ; aucun test n'appelle recherche-entreprises.api.gouv.fr."""
+    from app.services import siret_registry
+    directory = SiretDirectory(siret_registry.check)
+
+    def check(siret, kind, name="", postal_code=""):
+        return directory.get(siret) or siret_registry.SiretCheck(
+            siret=siret, found=True, active=True, name=(name or "ENTREPRISE TEST").upper(), activity_code="11.05Z" if kind == "brewery" else "56.30Z",
+            activity_ok=True, postal_code=postal_code, city="Nantes", postal_match=bool(postal_code), name_score=1.0,
+        )
+
+    monkeypatch.setattr(siret_registry, "check", check)
+    return directory
+
+
 @pytest.fixture(autouse=True)
 def geocoder(monkeypatch):
     """Remplace Nominatim : coordonnées fixes, appels inspectables via le mock retourné."""
@@ -64,6 +104,16 @@ def google_app(db, settings):
 @pytest.fixture
 def user(db):
     return factories.make_user(username="alice")
+
+
+@pytest.fixture
+def superuser(db):
+    return factories.make_user(username="root", is_superuser=True, groups=("Staff",))
+
+
+@pytest.fixture
+def staff(db):
+    return factories.make_user(username="moderator", groups=("Staff",))
 
 
 @pytest.fixture

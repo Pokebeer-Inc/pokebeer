@@ -1,33 +1,13 @@
 """Recherche d'une bière par son code-barres dans Open Food Facts (base de produits collaborative, accès libre).
 
-Seul un code EAN valide (chiffres uniquement, voir ean.normalize) est inséré dans l'adresse, qui part toujours vers le même hôte :
-rien de ce que l'utilisateur tape ne choisit la destination. La réponse est une donnée non fiable : taille bornée, aucune
-redirection suivie, champs réduits et nettoyés par beer_fields. Aucune donnée du membre n'est transmise : la requête vient du serveur.
+Seul un code EAN valide (chiffres uniquement, voir ean.normalize) est inséré dans l'adresse. La réponse est une donnée non fiable :
+l'appel passe par services/upstream.py (hôte fixe, taille bornée, sans redirection) et les champs sont réduits et nettoyés par beer_fields.
 """
-import json
-import logging
-
-import requests
-from django.conf import settings
-
-from . import beer_fields
-
-logger = logging.getLogger(__name__)
+from . import beer_fields, upstream
 
 URL = 'https://world.openfoodfacts.org/api/v2/product/{ean}.json'
 FIELDS = 'product_name,brands,categories_tags,nutriments'
-MAX_RESPONSE_BYTES = 256 * 1024
-
-
-class LookupUnavailable(Exception):
-    """La base de produits ne répond pas correctement (panne, délai, réponse invalide) : à distinguer d'un code inconnu."""
-
-
-def _read_limited(response):
-    body = response.raw.read(MAX_RESPONSE_BYTES + 1, decode_content=True)
-    if len(body) > MAX_RESPONSE_BYTES:
-        raise LookupUnavailable("Réponse trop volumineuse")
-    return body
+LookupUnavailable = upstream.UpstreamUnavailable  # nom historique : une panne de la base de produits
 
 
 def _alcohol(nutriments):
@@ -51,23 +31,7 @@ def fetch(ean):
 
     Lève LookupUnavailable si la base ne répond pas correctement.
     """
-    try:
-        response = requests.get(
-            URL.format(ean=ean), params={'fields': FIELDS}, headers={'User-Agent': settings.OPEN_FOOD_FACTS_USER_AGENT},
-            timeout=settings.OPEN_FOOD_FACTS_TIMEOUT, allow_redirects=False, stream=True,
-        )
-    except requests.RequestException as error:
-        logger.warning("Open Food Facts injoignable : %s", type(error).__name__)
-        raise LookupUnavailable from error
-    with response:
-        if response.status_code == 404:
-            return None
-        if response.status_code != 200:
-            raise LookupUnavailable(f"Statut {response.status_code}")
-        try:
-            data = json.loads(_read_limited(response))
-        except (ValueError, requests.RequestException) as error:
-            raise LookupUnavailable("Réponse illisible") from error
+    data = upstream.get_json(URL.format(ean=ean), {'fields': FIELDS})
     product = data.get('product') if isinstance(data, dict) and data.get('status') == 1 else None
     if not isinstance(product, dict) or not _is_beer(product):
         return None

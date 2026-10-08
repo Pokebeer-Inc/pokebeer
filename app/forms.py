@@ -2,11 +2,12 @@ from datetime import timedelta
 
 from django import forms
 from django.conf import settings
+from django.urls import reverse_lazy
 from django.contrib.auth import password_validation
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, SetPasswordForm
 from django.core.exceptions import ValidationError
 from .auth_forms import ThrottledLoginMixin
-from .services import ean, marketing, notification_types
+from .services import catalog_matching, ean, marketing, notification_types, postal_codes
 from .services.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
 from .services.threads import plain_text
 from .services.profile_pictures import process_profile_picture
@@ -195,53 +196,91 @@ class ProUserForm(UniqueUsernameMixin, UniqueEmailMixin, forms.ModelForm):
             user.save()
         return user
 
-PRO_FIELDS = ['name', 'siret', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
+ADDRESS_FIELDS = ['street', 'postal_code', 'city']
+PRO_FIELDS = ['name', 'siret', 'description', *ADDRESS_FIELDS, 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
 
-class BarProForm(ProcessedImageMixin, forms.ModelForm):
+
+def address_widgets(css_class, group='address'):
+    """Rue, code postal et ville : le script postal_code.js relie les deux derniers (la ville se déduit du code postal)."""
+    return {
+        'street': forms.TextInput(attrs={'class': css_class, 'autocomplete': 'street-address'}),
+        'postal_code': forms.TextInput(attrs={'class': css_class, 'inputmode': 'numeric', 'maxlength': 5, 'pattern': r'\d{5}', 'autocomplete': 'postal-code', 'data-postal-group': group, 'data-postal-input': '', 'data-postal-url': reverse_lazy('postal_code_lookup')}),
+        'city': forms.TextInput(attrs={'class': css_class, 'autocomplete': 'address-level2', 'list': f'cities-{group}', 'data-postal-group': group, 'data-city-input': ''}),
+    }
+
+
+class PostalAddressFormMixin:
+    """La ville d'un établissement vient de son code postal (services/postal_codes.py) : jamais une ville inventée ou en désaccord avec le code."""
+
+    def clean(self):
+        data = super().clean()
+        if self.errors.get('postal_code') or self.errors.get('city'):
+            return data
+        try:
+            resolution = postal_codes.resolve(data.get('postal_code', ''), data.get('city', ''))
+        except postal_codes.PostalCodeError as error:
+            self.add_error(error.field, str(error))
+            return data
+        data['postal_code'], data['city'] = resolution.postal_code, resolution.city
+        return data
+
+
+class ProPlaceForm(PostalAddressFormMixin, ProcessedImageMixin, forms.ModelForm):
+    """Fiche d'un établissement à l'inscription d'un gérant : commune à Bar et Brasserie, seul le modèle change."""
     image_processors = {'image': process_official_image}
     siret = forms.CharField(max_length=14, min_length=14, required=True, validators=[validate_siret], label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
-    
+
     class Meta:
+        fields = PRO_FIELDS
+        widgets = {field: forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}) for field in PRO_FIELDS if field not in ['description', 'image', 'siret', *ADDRESS_FIELDS]}
+        widgets.update(address_widgets('input input-bordered w-full bg-white', 'pro'))
+        widgets['description'] = forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 3})
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            existing_classes = field.widget.attrs.get('class', '')
+            field.widget.attrs.update({'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip()})
+        self.fields['postal_code'].required = True  # c'est elle qui distingue deux établissements de même nom
+
+
+    def validate_unique(self):
+        """Le SIRET d'une fiche existante n'est pas une erreur ici : l'inscription devient alors une demande de gestion de cette fiche
+        (services/claims.py). Le SIRET n'est rattaché à une fiche qu'à l'acceptation de la demande."""
+        exclude = self._get_validation_exclusions() | {'siret'}
+        try:
+            self.instance.validate_unique(exclude=exclude)
+        except ValidationError as error:
+            self._update_errors(error)
+
+
+class BarProForm(ProPlaceForm):
+    class Meta(ProPlaceForm.Meta):
         model = Bar
-        fields = PRO_FIELDS
-        widgets = {field: forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}) for field in PRO_FIELDS if field not in ['description', 'image', 'siret']}
-        widgets['description'] = forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 3})
-        
-    def __init__(self, *args, **kwargs):
-        super(BarProForm, self).__init__(*args, **kwargs)
-        for field in self.fields.values():
-            existing_classes = field.widget.attrs.get('class', '')
-            
-            field.widget.attrs.update({
-                'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip()
-            })
 
-class BreweryProForm(ProcessedImageMixin, forms.ModelForm):
-    image_processors = {'image': process_official_image}
-    siret = forms.CharField(max_length=14, min_length=14, required=True, validators=[validate_siret], label="Numéro SIRET (14 chiffres)", widget=forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white', 'placeholder': 'Ex: 12345678901234'}))
-    
-    class Meta:
+
+class BreweryProForm(ProPlaceForm):
+    class Meta(ProPlaceForm.Meta):
         model = Brewery
-        fields = PRO_FIELDS
-        widgets = {field: forms.TextInput(attrs={'class': 'input input-bordered w-full bg-white'}) for field in PRO_FIELDS if field not in ['description', 'image', 'siret']}
-        widgets['description'] = forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 3})
-        
-    def __init__(self, *args, **kwargs):
-        super(BreweryProForm, self).__init__(*args, **kwargs)
-        for field in self.fields.values():
-            existing_classes = field.widget.attrs.get('class', '')
-            
-            field.widget.attrs.update({
-                'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip()
-            })
-            
-PLACE_EDIT_FIELDS = ['name', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
+
+
+class ClaimForm(forms.Form):
+    """Demande de gestion d'une fiche existante (bouton « Revendiquer cette fiche »)."""
+    siret = forms.CharField(label="SIRET de l'établissement (14 chiffres)", max_length=20, widget=forms.TextInput(attrs={'inputmode': 'numeric', 'placeholder': 'Ex : 12345678901234', 'class': 'input input-bordered w-full bg-white'}))
+    message = forms.CharField(
+        label="Message à l'équipe (facultatif)", required=False, max_length=500, validators=[plain_text_validator],
+        help_text="Quelques mots sur votre rôle, ou un moyen de vous joindre.",
+        widget=forms.Textarea(attrs={'rows': 3, 'class': 'textarea textarea-bordered w-full bg-white'}),
+    )
+
+
+PLACE_EDIT_FIELDS = ['name', 'description', *ADDRESS_FIELDS, 'phone', 'email', 'website', 'instagram', 'facebook', 'image']
 
 def _place_edit_widgets():
     input_class = 'input input-bordered w-full bg-white'
     return {
         'name': forms.TextInput(attrs={'class': input_class}),
-        'address': forms.TextInput(attrs={'class': input_class}),
+        **address_widgets(input_class, 'edit'),
         'phone': forms.TextInput(attrs={'class': input_class}),
         'email': forms.EmailInput(attrs={'class': input_class}),
         'website': forms.URLInput(attrs={'class': input_class}),
@@ -250,14 +289,14 @@ def _place_edit_widgets():
         'description': forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full bg-white', 'rows': 4}),
     }
 
-class BreweryEditForm(ProcessedImageMixin, forms.ModelForm):
+class BreweryEditForm(PostalAddressFormMixin, ProcessedImageMixin, forms.ModelForm):
     image_processors = {'image': process_official_image}
     class Meta:
         model = Brewery
         fields = PLACE_EDIT_FIELDS
         widgets = _place_edit_widgets()
 
-class BarEditForm(ProcessedImageMixin, forms.ModelForm):
+class BarEditForm(PostalAddressFormMixin, ProcessedImageMixin, forms.ModelForm):
     image_processors = {'image': process_official_image}
     class Meta:
         model = Bar
@@ -273,8 +312,24 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
         widget=forms.TextInput(attrs={'autocomplete': 'off'})
     )
 
+    # Lieu de la brasserie (facultatif) : il distingue deux brasseries de même nom. La ville se déduit du code postal (services/postal_codes.py).
+    brewery_postal_code = forms.CharField(
+        required=False, max_length=5, label="Code postal de la brasserie",
+        help_text="Facultatif. Utile quand plusieurs brasseries portent ce nom : la ville s'en déduit.",
+        widget=forms.TextInput(attrs={
+            'inputmode': 'numeric', 'maxlength': 5, 'pattern': r'\d{5}', 'autocomplete': 'off', 'data-postal-group': 'beer', 'data-postal-input': '',
+            'data-postal-url': reverse_lazy('postal_code_lookup'), 'placeholder': 'Ex : 44000',
+        }),
+    )
+    brewery_city = forms.CharField(
+        required=False, max_length=100, label="Ville",
+        widget=forms.TextInput(attrs={'autocomplete': 'off', 'list': 'cities-beer', 'data-postal-group': 'beer', 'data-city-input': ''}),
+    )
     # Code-barres lu par le scanner (champ caché, à la création seulement) : validé ici, jamais cru tel quel
     ean = forms.CharField(required=False, widget=forms.HiddenInput())
+    # Confirmations : jeton signé envoyé par la case du panneau « doublon probable » (voir services/catalog_matching.py)
+    confirm_brewery = forms.CharField(required=False, max_length=600, widget=forms.HiddenInput())
+    confirm_beer = forms.CharField(required=False, max_length=600, widget=forms.HiddenInput())
 
     class Meta:
         model = Beer
@@ -294,6 +349,8 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
+        self.inspection = None  # rapport de détection de doublons, rempli par clean() et affiché par partials/duplicate_panel.html
+        self.location = postal_codes.Resolution('', '', False)  # lieu de la brasserie saisie, rempli par clean()
         
         if 'instance' in kwargs and kwargs['instance'] and kwargs['instance'].brewery_id:
             initial = kwargs.setdefault('initial', {})
@@ -332,9 +389,10 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
     def save(self, user=None, commit=True):
         beer = super().save(commit=False)
         b_name = self.cleaned_data['brewery_name']
-        brewery, created = Brewery.objects.get_or_create(
-            name__iexact=b_name,
-            defaults={'name': b_name, 'description': 'Ajoutée automatiquement'}
+        # Une brasserie identique (accents, casse, mots génériques) est réutilisée ; sinon elle est créée, après les contrôles de clean()
+        report = self.inspection.brewery if self.inspection else catalog_matching.find_brewery(b_name, self.location.postal_code, self.location.city)
+        brewery = report.same.obj if report.same else Brewery.objects.create(
+            name=b_name, description='Ajoutée automatiquement', postal_code=self.location.postal_code, city=self.location.city,
         )
         beer.brewery_id = brewery
         if 'ean' in self.fields:  # création seulement : une modification ne touche jamais au code-barres
@@ -355,20 +413,29 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             return None
         return code
 
-    def clean_name(self):
-        """Bouclier anti-doublon insensible à la casse, espaces, et accents"""
-        name = self.cleaned_data.get('name')
-        if name:
-            # On transforme le nom tapé en slug (ex: "Pünk I.P.A " devient "punk-ipa")
-            normalized_name = slugify(name)
-            # On compare les noms normalisés et non les slugs : une bière recréée après suppression reçoit un slug suffixé
-            # ("punk-ipa-1"). Les bières supprimées sont ignorées, ainsi que la bière en cours de modification.
-            candidates = Beer.objects.filter(slug__startswith=normalized_name, is_deleted=False).exclude(pk=self.instance.pk)
-            existing_beer = next((beer for beer in candidates if slugify(beer.name) == normalized_name), None)
-            if existing_beer:
-                raise forms.ValidationError(f"Cette bière existe déjà sous le nom '{existing_beer.name}'")
-        return name
-    
+    def clean(self):
+        """Détection des doublons (brasserie et bière) : refuse tant que le membre n'a pas choisi l'existant ou confirmé la différence."""
+        data = super().clean()
+        name, brewery_name = data.get('name'), data.get('brewery_name')
+        if not name or not brewery_name:
+            return data  # champs déjà en erreur : rien à comparer
+        try:
+            self.location = postal_codes.resolve(data.get('brewery_postal_code', ''), data.get('brewery_city', ''))
+        except postal_codes.PostalCodeError as error:
+            self.add_error('brewery_postal_code' if error.field == 'postal_code' else 'brewery_city', str(error))
+            return data
+        try:
+            self.inspection = catalog_matching.decide(
+                name, brewery_name, exclude_beer_pk=self.instance.pk,
+                confirm_brewery=data.get('confirm_brewery', ''), confirm_beer=data.get('confirm_beer', ''),
+                postal_code=self.location.postal_code, city=self.location.city,
+            )
+        except catalog_matching.DuplicateFound as found:
+            self.inspection = found.inspection
+            # Erreur non rattachée à un champ : le nom saisi n'est pas vidé, le membre garde de quoi corriger
+            raise forms.ValidationError([forms.ValidationError(message, code='duplicate') for message in found.messages])
+        return data
+
     def clean_style(self):
         style = self.cleaned_data.get('style')
         if style:

@@ -1,0 +1,8 @@
+{% extends "emails/_layout.html" %}
+{% block content %}
+<p>Bonjour {{ user.username }},</p>
+<p>Nous avons bien reçu votre demande de gestion de <strong>{{ place_name }}</strong>. L'équipe Pokebeer vérifie le SIRET et l'établissement, puis vous répond par notification et par e-mail.</p>
+<p style="font-size:13px;color:#57534e;">En attendant, vous gardez votre compte de membre. Les droits de gestion (modifier la fiche, gérer l'équipe) ne sont accordés qu'après validation.</p>
+<p style="margin:24px 0;"><a href="{{ place_url }}" style="background:#facc15;color:#1c1917;font-weight:bold;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;">Voir la fiche</a></p>
+<p style="font-size:13px;color:#57534e;">Vous n'êtes pas à l'origine de cette demande ? Écrivez-nous à {{ support_email }}.</p>
+{% endblock %}

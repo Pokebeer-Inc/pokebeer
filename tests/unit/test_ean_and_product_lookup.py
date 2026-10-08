@@ -9,7 +9,7 @@ import requests
 
 from app.forms import BeerForm
 from app.models import Beer
-from app.services import beer_fields, ean, product_lookup
+from app.services import beer_fields, ean, product_lookup, upstream
 from tests import factories as f
 
 LEFFE = "5410228142218"
@@ -67,7 +67,7 @@ LEFFE_PRODUCT = {"status": 1, "product": {
 @pytest.fixture
 def off(monkeypatch):
     get = mock.Mock(return_value=FakeResponse(body=LEFFE_PRODUCT))
-    monkeypatch.setattr(product_lookup.requests, "get", get)
+    monkeypatch.setattr(upstream.requests, "get", get)
     return get
 
 
@@ -81,6 +81,7 @@ class TestProductLookup:
         assert args[0] == f"https://world.openfoodfacts.org/api/v2/product/{LEFFE}.json"
         assert kwargs["allow_redirects"] is False and kwargs["timeout"] == 4 and kwargs["stream"] is True
         assert "Pokebeer" in kwargs["headers"]["User-Agent"] and "cookies" not in kwargs and "auth" not in kwargs
+        assert kwargs["params"] == {"fields": product_lookup.FIELDS}
 
     def test_unknown_code_gives_none(self, off):
         off.return_value = FakeResponse(404, {"status": 0})
@@ -96,7 +97,7 @@ class TestProductLookup:
         assert product_lookup.fetch(LEFFE) is None
 
     @pytest.mark.parametrize("response", [
-        FakeResponse(500, {}), FakeResponse(302, {}), FakeResponse(200, raw_bytes=b"not json"), FakeResponse(200, raw_bytes=b"x" * (product_lookup.MAX_RESPONSE_BYTES + 5)),
+        FakeResponse(500, {}), FakeResponse(302, {}), FakeResponse(200, raw_bytes=b"not json"), FakeResponse(200, raw_bytes=b"x" * (upstream.MAX_RESPONSE_BYTES + 5)),
     ])
     def test_a_failing_service_is_reported_as_unavailable(self, off, response):
         off.return_value = response

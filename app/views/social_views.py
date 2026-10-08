@@ -112,6 +112,7 @@ def account_view(request):
         'password_form': password_form,
         'feedback_form': feedback_form,
         'notif_form': notif_form,
+        'pending_claims': user.claims.filter(status='pending').select_related('brewery', 'bar'),
         'marketing_form': marketing_form,
         'pro_settings_form': pro_settings_form,
         'feedback_threads_count': user.feedbacks.count(),

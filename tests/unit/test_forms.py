@@ -20,7 +20,7 @@ class TestBeerFormDuplicates:
     def test_name_variants_of_an_existing_beer_are_rejected(self, beer, typed_name):
         form = BeerForm(data=beer_data(name=typed_name))
         assert not form.is_valid()
-        assert "Test IPA" in form.errors["name"][0]
+        assert "Test IPA" in form.non_field_errors()[0]  # erreur du formulaire : le nom saisi n'est pas vidé
 
     def test_soft_deleted_beer_does_not_block_the_name(self, beer):
         beer.is_deleted = True
@@ -32,9 +32,9 @@ class TestBeerFormDuplicates:
 
     def test_active_beer_with_a_suffixed_slug_still_blocks_its_name(self, beer):
         Beer.objects.filter(pk=beer.pk).update(is_deleted=True)
-        f.make_beer(name="Test IPA")
+        f.make_beer(name="Test IPA", brewery=beer.brewery_id)
         form = BeerForm(data=beer_data(name="test ipa"))
-        assert not form.is_valid() and "Test IPA" in form.errors["name"][0]
+        assert not form.is_valid() and "Test IPA" in form.non_field_errors()[0]
 
     def test_beer_whose_slug_only_starts_the_same_does_not_block(self, beer):
         assert BeerForm(data=beer_data(name="Test")).is_valid()
@@ -226,7 +226,7 @@ class TestUserForms:
 @pytest.mark.parametrize("form_class", [BarProForm, BreweryProForm])
 class TestProForms:
     def data(self, **overrides):
-        return {"name": "Etablissement", "siret": "73282932000074", "description": "Desc", **overrides}
+        return {"name": "Etablissement", "siret": "73282932000074", "description": "Desc", "postal_code": "44000", **overrides}
 
     def test_valid_establishment(self, form_class):
         assert form_class(data=self.data()).is_valid()
@@ -235,9 +235,13 @@ class TestProForms:
     def test_siret_must_have_exactly_14_characters(self, form_class, siret):
         assert "siret" in form_class(data=self.data(siret=siret)).errors
 
-    def test_siret_is_unique(self, form_class):
-        form_class(data=self.data()).save()
-        assert "siret" in form_class(data=self.data(name="Autre")).errors
+    def test_an_existing_siret_is_not_a_form_error_it_becomes_a_claim(self, form_class):
+        """Le SIRET d'une fiche existante est traité par services/claims.py (demande de gestion), pas refusé par le formulaire."""
+        form = form_class(data=self.data())
+        assert form.is_valid()
+        place = form.save(commit=False)
+        place.save()
+        assert "siret" not in form_class(data=self.data(name="Autre")).errors
 
     @pytest.mark.parametrize("field", ["website", "instagram", "facebook"])
     def test_social_links_must_be_urls(self, form_class, field):

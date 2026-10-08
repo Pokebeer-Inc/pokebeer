@@ -25,6 +25,12 @@
     </div>{% else %}.{% endif %}{% endwith %}
 {% elif notif.notif_type == 'manager_added' %}
     <span class="font-bold">{{ notif.sender.username }}</span> vous a nommé(e) dans l'équipe de : <span class="font-bold">{{ notif.place.name }}</span>.
+{% elif notif.notif_type == 'claim_received' %}
+    <span class="font-bold">{{ notif.sender.username }}</span> demande à gérer <span class="font-bold">{{ notif.place.name }}</span>. L'équipe Pokebeer examine la demande ; si ce n'est pas normal, écrivez-nous.
+{% elif notif.notif_type == 'claim_approved' %}
+    Votre demande est acceptée : vous gérez désormais <span class="font-bold">{{ notif.place.name }}</span>.
+{% elif notif.notif_type == 'claim_rejected' %}
+    Votre demande de gestion de <span class="font-bold">{{ notif.place.name }}</span> a été refusée{% if notif.text_content %} : {{ notif.text_content }}{% endif %}.
 {% elif notif.notif_type == 'manager_removed' %}
     <span class="font-bold">{{ notif.sender.username }}</span> vous a retiré(e) de l'équipe de gestion de : <span class="font-bold">{{ notif.text_content }}</span>.
 {% elif notif.notif_type == 'place_updated' %}

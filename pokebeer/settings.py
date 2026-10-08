@@ -134,6 +134,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'app.context_processors.supabase_config',
+                'app.context_processors.chat_config',
             ],
         },
     },
@@ -322,13 +323,24 @@ else:
 # Canal des notifications push Android : créé par l'application (NotificationChannels.kt) ; les deux doivent rester identiques
 FCM_ANDROID_CHANNEL_ID = "pokebeer_channel"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+# Gaétan (assistant bière) : tout reste dans les quotas gratuits de Gemini, d'où des plafonds par membre ET pour toute l'application
+CHAT_MODEL = os.getenv("CHAT_MODEL", "gemini-2.5-flash")
 CHAT_DAILY_LIMIT = 10
-CHAT_MESSAGE_MAX_LENGTH = 5000
+CHAT_WEEKLY_LIMIT = 40  # sur 7 jours glissants : empêche d'épuiser le plafond quotidien chaque jour
+CHAT_GLOBAL_DAILY_LIMIT = int(os.getenv("CHAT_GLOBAL_DAILY_LIMIT", "200"))  # appels au modèle par jour, tous membres confondus
+CHAT_MESSAGE_MAX_LENGTH = 600
+CHAT_HISTORY_LIMIT = 10  # messages conservés en session (5 échanges)
+CHAT_MAX_OUTPUT_TOKENS = 700
+CHAT_GENERATION_TIMEOUT_MS = 15000  # une fonction serverless ne doit jamais attendre le modèle indéfiniment
+# Lieux proches (OpenStreetMap, gratuit et sans clé) : la position est arrondie (~1 km) et n'est jamais enregistrée
+OVERPASS_URL = os.getenv("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 LABEL_DAILY_LIMIT = 20
 # Recherche par code-barres (Open Food Facts) : plafond quotidien par membre, délai et identification de l'application
 EAN_DAILY_LIMIT = 60
-OPEN_FOOD_FACTS_TIMEOUT = 4
-OPEN_FOOD_FACTS_USER_AGENT = f'Pokebeer/1.0 ({os.getenv("EMAIL_HOST_USER", "pokebeer.assistance@gmail.com")})'
+# Services publics extérieurs (Open Food Facts, annuaire des entreprises, communes) : délai et identification de l'application
+UPSTREAM_TIMEOUT = 4
+UPSTREAM_USER_AGENT = f'Pokebeer/1.0 ({os.getenv("EMAIL_HOST_USER", "pokebeer.assistance@gmail.com")})'
 LABEL_MAX_UPLOAD_BYTES = 4 * 1024 * 1024  # Vercel refuse de toute façon les requêtes de plus de 4,5 Mo
 REPORT_DAILY_LIMIT = 10
 
@@ -410,6 +422,19 @@ UNFOLD = {
                         "icon": "fact_check",
                         "link": reverse_lazy("admin:app_moderationentry_changelist"),
                         "badge": "app.admin.moderation.pending_count",
+                        "permission": lambda request: request.user.is_staff,
+                    },
+                    {
+                        "title": _("Demandes de gestion"),
+                        "icon": "storefront",
+                        "link": reverse_lazy("admin:app_establishmentclaim_changelist"),
+                        "badge": "app.admin.pending.pending_claims_count",
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": _("Doublons probables"),
+                        "icon": "content_copy",
+                        "link": reverse_lazy("admin_duplicates"),
                         "permission": lambda request: request.user.is_staff,
                     },
                     {

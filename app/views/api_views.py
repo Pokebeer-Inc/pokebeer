@@ -1,7 +1,7 @@
 import json
 import logging
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST, require_http_methods
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.db.models import Q
 from django.db.models.functions import Greatest, Left, Length
 from django.utils.text import slugify
@@ -12,56 +12,64 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 
 from ..models import Beer, Brewery
+from ..services.match_keys import MAX_NAME_LENGTH
 from .utils import get_blocked_users
-from ..services import ean, label_scan, product_lookup
+from django.template.loader import render_to_string
+
+from ..services import catalog_matching, ean, label_scan, postal_codes, product_lookup, upstream
+from ..services.throttle import CATALOG_CHECK_BY_USER, CHAT_BURST_BY_USER, CHAT_GLOBAL, CHAT_GLOBAL_KEY, POSTAL_LOOKUP_BY_IP, client_ip
 from ..services.ai import ask_zythologue, config_client
-from ..services.images import MIME_TYPES, open_image
-from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota
+from ..services.chat import ChatUnavailable, payload as chat_payload
+from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota, refund_quota
 from ..services.slugs import SUFFIX_LENGTH
 
 logger = logging.getLogger(__name__)
 
+CHAT_UNAVAILABLE = "Désolé, j'ai eu un coup de chaud en cave. Pouvez-vous revenir plus tard s'il vous plaît ?"
+
+
+def _chat_error(message, status):
+    return JsonResponse({"response": message}, status=status)
+
+
+def _post_chat_message(request):
+    """Nouveau message : validation, limites (rafale, budget global, quota du membre), réponse, historique."""
+    try:
+        chat_request = chat_payload.parse(request.body)
+    except chat_payload.InvalidChatRequest as error:
+        return _chat_error(str(error), 400)
+
+    user_id = request.user.pk
+    if CHAT_GLOBAL.exceeded(CHAT_GLOBAL_KEY):
+        return _chat_error("Gaétan est très sollicité aujourd'hui, revenez demain !", 503)
+    if CHAT_BURST_BY_USER.exceeded(user_id):
+        return _chat_error("Doucement, Gaétan reprend son souffle : réessayez dans une minute.", 429)
+    CHAT_BURST_BY_USER.record(user_id)
+    if not consume_quota(request.user, settings.CHAT_DAILY_LIMIT, CHAT, settings.CHAT_WEEKLY_LIMIT):
+        return _chat_error("Gaétan a assez parlé pour le moment, revenez demain !", 429)
+    CHAT_GLOBAL.record(CHAT_GLOBAL_KEY)
+
+    history = request.session.get('chat_history', [])
+    try:
+        response_text = ask_zythologue(chat_request.message, history, chat_request.location)
+    except ChatUnavailable:
+        # Rien n'est enregistré et le membre récupère sa question
+        refund_quota(request.user, CHAT)
+        return _chat_error(CHAT_UNAVAILABLE, 503)
+
+    history = [*history, {'role': 'user', 'text': chat_request.message}, {'role': 'model', 'text': response_text}]
+    # Seuls les derniers messages sont gardés : la session reste légère et la conversation courte
+    request.session['chat_history'] = history[-settings.CHAT_HISTORY_LIMIT:]
+    return JsonResponse({"response": response_text})
+
+
 @require_http_methods(["GET", "POST"])
 @login_required(login_url='login')
 def chat_api(request):
-    """Endpoint API : Gère l'historique et la discussion avec l'IA."""
-    
-    # 1. Requête GET : Le frontend demande l'historique au chargement de la page
+    """Endpoint API : historique de la discussion avec Gaétan (GET) et nouveau message (POST)."""
     if request.method == 'GET':
-        history = request.session.get('chat_history', [])
-        return JsonResponse({"history": history})
-
-    # 2. Requête POST : Nouveau message de l'utilisateur
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            user_message = data.get('message', '')
-        except (json.JSONDecodeError, AttributeError):
-            return JsonResponse({"response": "Format JSON invalide."}, status=400)
-
-        if not isinstance(user_message, str) or not user_message.strip():
-            return JsonResponse({"response": "Message vide."}, status=400)
-
-        if len(user_message) > settings.CHAT_MESSAGE_MAX_LENGTH:
-            return JsonResponse({"response": f"Message trop long ({settings.CHAT_MESSAGE_MAX_LENGTH} caractères maximum)."}, status=400)
-
-        if not consume_quota(request.user, settings.CHAT_DAILY_LIMIT, CHAT):
-            return JsonResponse({"response": "Gaétan a assez parlé pour aujourd'hui, revenez demain !"}, status=429)
-
-        # On récupère l'historique existant
-        history = request.session.get('chat_history', [])
-        
-        # On passe le message et l'historique au service IA
-        response_text = ask_zythologue(user_message, history)
-        
-        # On sauvegarde le nouvel échange dans la session
-        history.append({'role': 'user', 'text': user_message})
-        history.append({'role': 'model', 'text': response_text})
-        
-        # On ne garde que les 10 derniers messages (5 échanges) pour ne pas surcharger la session
-        request.session['chat_history'] = history[-10:]
-        
-        return JsonResponse({"response": response_text})
+        return JsonResponse({"history": request.session.get('chat_history', [])})
+    return _post_chat_message(request)
 
 @require_POST
 @login_required(login_url='login')
@@ -69,18 +77,14 @@ def analyze_beer_label(request):
     if 'image' not in request.FILES:
         return JsonResponse({"error": "Aucune image reçue."}, status=400)
 
-    image_file = request.FILES['image']
     try:
-        # Le format réel est lu dans le fichier : le type déclaré par le navigateur n'est jamais cru
-        mime_type = MIME_TYPES[open_image(image_file, settings.LABEL_MAX_UPLOAD_BYTES).format]
+        # L'IA ne reçoit que l'image ré-encodée : le type déclaré par le navigateur n'est jamais cru, les métadonnées sont retirées
+        image_bytes = label_scan.prepare_image(request.FILES['image'], settings.LABEL_MAX_UPLOAD_BYTES)
     except ValidationError as error:
         return JsonResponse({"error": error.messages[0]}, status=400)
 
     if not consume_quota(request.user, settings.LABEL_DAILY_LIMIT, LABEL_SCAN):
         return JsonResponse({"error": "Limite quotidienne d'analyses atteinte, revenez demain !"}, status=429)
-
-    image_file.seek(0)
-    image_bytes = image_file.read()
 
     try:
         client = config_client()
@@ -90,7 +94,7 @@ def analyze_beer_label(request):
                 label_scan.PROMPT,
                 types.Part.from_bytes(
                     data=image_bytes,
-                    mime_type=mime_type,
+                    mime_type=label_scan.MIME_TYPE,
                 )
             ],
             config=types.GenerateContentConfig(
@@ -107,6 +111,7 @@ def analyze_beer_label(request):
     except Exception:
         # Le détail (réponse de l'IA, message du SDK) reste dans les journaux : il ne doit jamais atteindre le client
         logger.exception("Analyse d'étiquette impossible")
+        refund_quota(request.user, LABEL_SCAN)  # une panne de l'IA ne coûte pas son essai au membre
         return JsonResponse({"error": "L'analyse de l'étiquette a échoué. Réessayez plus tard."}, status=500)
 
 @login_required(login_url='login')
@@ -130,6 +135,47 @@ def lookup_ean(request):
     if beer is None:
         return JsonResponse({"success": False, "not_found": True, "error": "Code-barres inconnu."})
     return JsonResponse({"success": True, "source": "openfoodfacts", "ean": code, "data": beer})
+
+@login_required(login_url='login')
+@require_GET
+def check_catalog(request):
+    """Doublons possibles pendant la saisie : le panneau HTML (même gabarit que le formulaire) et la brasserie à utiliser telle quelle."""
+    if CATALOG_CHECK_BY_USER.exceeded(request.user.pk):
+        return JsonResponse({"error": "Trop de vérifications, réessayez dans un moment."}, status=429)
+    CATALOG_CHECK_BY_USER.record(request.user.pk)
+    name = request.GET.get('name', '').strip()[:MAX_NAME_LENGTH]
+    brewery_name = request.GET.get('brewery', '').strip()[:MAX_NAME_LENGTH]
+    postal_code = request.GET.get('postal', '').strip()
+    postal_code = postal_code if postal_codes.is_valid_format(postal_code) else ''
+    city = ' '.join(request.GET.get('city', '').split())[:100]
+    if len(name) < 2 and len(brewery_name) < 2:
+        return JsonResponse({"html": "", "apply_brewery": None})
+    inspection = catalog_matching.inspect(name, brewery_name, postal_code=postal_code, city=city)
+    same = inspection.reusable_brewery
+    return JsonResponse({
+        "html": render_to_string('partials/duplicate_panel.html', {
+            'inspection': inspection, 'confirm_brewery_name': 'beer-confirm_brewery', 'confirm_beer_name': 'beer-confirm_beer', 'typed_postal_code': postal_code,
+        }),
+        # Nom exact de la brasserie déjà connue : le formulaire l'adopte, la saisie (ou l'IA) ne crée pas de variante
+        "apply_brewery": same.name if same else None,
+    })
+
+@require_GET
+def postal_code_lookup(request):
+    """Communes d'un code postal (données publiques), pour remplir la ville d'un formulaire d'établissement. Ouvert sans connexion : l'inscription
+    d'un gérant en a besoin ; limité par adresse IP."""
+    ip = client_ip(request)
+    if POSTAL_LOOKUP_BY_IP.exceeded(ip):
+        return JsonResponse({"error": "Trop de recherches, réessayez dans un moment."}, status=429)
+    POSTAL_LOOKUP_BY_IP.record(ip)
+    code = request.GET.get('code', '').strip()
+    if not postal_codes.is_valid_format(code):
+        return JsonResponse({"cities": [], "known": False, "available": True})
+    try:
+        cities = postal_codes.communes(code)
+    except upstream.UpstreamUnavailable:
+        return JsonResponse({"cities": [], "known": False, "available": False})  # l'annuaire ne répond pas : la saisie n'est pas bloquée
+    return JsonResponse({"cities": cities, "known": bool(cities), "available": True})
 
 @login_required(login_url='login')
 def search_brewery(request):

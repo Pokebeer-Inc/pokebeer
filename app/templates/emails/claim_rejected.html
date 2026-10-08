@@ -1,0 +1,7 @@
+{% extends "emails/_layout.html" %}
+{% block content %}
+<p>Bonjour {{ user.username }},</p>
+<p>Nous n'avons pas pu accepter votre demande de gestion de <strong>{{ place_name }}</strong>.</p>
+<p style="padding:12px;background:#fef3c7;border-radius:8px;">Motif : {{ reason }}</p>
+<p style="font-size:13px;color:#57534e;">Si vous pensez qu'il s'agit d'une erreur, répondez à cet e-mail ou écrivez-nous à {{ support_email }} avec les éléments utiles (SIRET, justificatif) : nous réexaminerons la demande.</p>
+{% endblock %}

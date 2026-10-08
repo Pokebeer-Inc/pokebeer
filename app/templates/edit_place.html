@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
 
 {% if place_type == 'bar' %}
@@ -44,6 +45,8 @@
                 <button type="submit" class="btn btn-primary text-white flex-1 shadow-md">Enregistrer</button>
             </div>
         </form>
+        <datalist id="cities-edit"></datalist>
     </div>
 </div>
+<script src="{% static 'script/postal_code.js' %}"></script>
 {% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/page_header.html" with title="Revendiquer cette fiche" subtitle=place.name back_url=back_url %}
+
+<div class="card-body bg-white p-4 rounded-xl border border-base-300 space-y-3">
+    <p class="text-sm text-gray-700">
+        Vous gérez <strong>{{ place.name }}</strong>{% if place.postal_code or place.city %} ({{ place.postal_code }} {{ place.city }}){% endif %} ?
+        Indiquez le SIRET de l'établissement. L'équipe Pokebeer le contrôle dans l'annuaire officiel des entreprises, puis valide votre demande :
+        les droits de gestion ne sont accordés qu'après cette validation.
+    </p>
+    {% if place.managers.exists %}
+    <p class="text-xs text-gray-500">Cette fiche a déjà des gérants : ils seront prévenus de votre demande.</p>
+    {% endif %}
+
+    <form method="post" class="flex flex-col gap-4">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="alert alert-error text-sm" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}
+
+        <div class="form-control w-full">
+            <label class="label py-1" for="{{ form.siret.id_for_label }}"><span class="label-text font-bold text-xs">{{ form.siret.label }} <span class="text-error">*</span></span></label>
+            {{ form.siret }}
+            {% include "partials/field_errors.html" with field=form.siret %}
+        </div>
+        <div class="form-control w-full">
+            <label class="label py-1" for="{{ form.message.id_for_label }}"><span class="label-text font-bold text-xs">{{ form.message.label }}</span></label>
+            {{ form.message }}
+            <span class="text-[10px] text-gray-500 mt-1">{{ form.message.help_text }}</span>
+            {% include "partials/field_errors.html" with field=form.message %}
+        </div>
+
+        <button type="submit" class="btn btn-primary text-white w-full">Envoyer ma demande</button>
+    </form>
+</div>
+{% endblock %}

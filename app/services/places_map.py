@@ -4,7 +4,7 @@ from django.db.models import Count
 from .places import PLACE_KINDS
 
 # Seuls les champs déjà publics sur la page de l'établissement : ni SIRET, ni identité des gérants
-PUBLIC_FIELDS = ('slug', 'name', 'description', 'address', 'phone', 'email', 'website', 'instagram', 'facebook',
+PUBLIC_FIELDS = ('slug', 'name', 'description', 'street', 'postal_code', 'city', 'phone', 'email', 'website', 'instagram', 'facebook',
                  'latitude', 'longitude', 'is_verified', 'verified_at')
 
 
@@ -23,6 +23,7 @@ def places_for_map():
                 'type_label': kind.label,
                 'url': kind.detail_path(place),
                 'managers_count': place.managers_count,
+                'address': place.address,
                 **{field: getattr(place, field) for field in PUBLIC_FIELDS if field != 'verified_at'},
                 'verified_at': place.verified_at.date().isoformat() if place.verified_at else None,
             })

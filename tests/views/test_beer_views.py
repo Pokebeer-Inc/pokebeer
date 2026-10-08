@@ -99,16 +99,17 @@ class TestAddBeerErrors:
         response = self.submit(auth_client, **{"beer-name": "test ipa", "drink-note": "11"})
         message = " ".join(messages_of(response))
         assert "n'a pas pu être ajoutée" in message
-        assert "Nom de la bière : Cette bière existe déjà sous le nom 'Test IPA'" in message
+        assert "Cette bière existe déjà : « Test IPA » (Brasserie Test)." in message
         assert "Note (sur 10)" in message
 
     def test_invalid_fields_are_emptied_and_highlighted_valid_ones_kept(self, auth_client, beer):
         response = self.submit(auth_client, **{"beer-name": "test ipa", "beer-degree": "101"})
         beer_form = response.context["beer_form"]
-        assert (beer_form["name"].value(), beer_form["degree"].value()) == ("", "")
+        # Le doublon est une erreur du formulaire (le nom reste modifiable) ; seul le champ invalide est vidé
+        assert (beer_form["name"].value(), beer_form["degree"].value()) == ("test ipa", "")
         assert beer_form["brewery_name"].value() == "Brasserie Test"
         assert response.context["drink_form"]["comment"].value() == "Fruitée"
-        assert beer_form.fields["name"].widget.attrs["aria-invalid"] == "true"
+        assert "aria-invalid" not in beer_form.fields["name"].widget.attrs and beer_form.fields["degree"].widget.attrs["aria-invalid"] == "true"
         assert 'aria-invalid="true"' in str(beer_form["degree"]) and 'aria-invalid' not in str(beer_form["style"])
 
     def test_reasons_are_displayed_next_to_the_fields(self, auth_client, beer):
@@ -117,7 +118,7 @@ class TestAddBeerErrors:
 
     def test_errors_of_both_forms_are_reported_together(self, auth_client, beer):
         response = self.submit(auth_client, **{"beer-name": "test ipa", "drink-comment": ""})
-        assert set(response.context["beer_form"].errors) == {"name"}
+        assert set(response.context["beer_form"].errors) == {"__all__"}
         assert set(response.context["drink_form"].errors) == {"comment"}
 
     def test_selected_notebooks_stay_ticked(self, auth_client, user, beer):
@@ -128,9 +129,9 @@ class TestAddBeerErrors:
 
     def test_name_taken_between_validation_and_save_is_reported_without_crash(self, auth_client, monkeypatch, brewery):
         # Simule deux soumissions validées au même instant : seules les vérifications en base restent actives
-        monkeypatch.setattr(BeerForm, "clean_name", lambda form: form.cleaned_data["name"])
+        monkeypatch.setattr(BeerForm, "clean", lambda form: form.cleaned_data)
         monkeypatch.setattr(Beer, "validate_constraints", lambda self, exclude=None: None)
-        f.make_beer(name="Nouvelle Blonde")
+        f.make_beer(name="Nouvelle Blonde", brewery=brewery)
 
         response = self.submit(auth_client)
 

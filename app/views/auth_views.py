@@ -8,8 +8,10 @@ from django.core.exceptions import NON_FIELD_ERRORS
 from django.db import transaction
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from ..forms import UserRegisterForm, UserLoginForm, ProUserForm, BarProForm, BreweryProForm
+from ..forms import UserRegisterForm, UserLoginForm, ProUserForm
 from ..models import BeerUser
+from ..services import claims
+from ..services.places import PLACE_KINDS_BY_KEY
 from ..services.welcome import send_welcome
 from ..services.throttle import PRO_SIGNUP_BY_IP, SIGNUP_BY_IP
 from .utils import limit_posts
@@ -73,58 +75,57 @@ def logout_view(request):
     messages.info(request, "Vous avez été déconnecté.")
     return redirect('login')
 
+def _register_pending_manager(kind, user_form, pro_form, plan):
+    """Crée le compte et sa demande de gestion, ensemble ou pas du tout. Le membre n'est PAS ajouté aux gérants : l'équipe valide d'abord.
+
+    Fiche existante (`plan.place`) : la demande porte sur elle. Sinon la fiche est créée, sans SIRET (il reste sur la demande jusqu'à
+    l'acceptation, pour qu'on ne puisse pas « réserver » le SIRET d'un autre)."""
+    with transaction.atomic():
+        user = user_form.save()
+        place = plan.place
+        if place is None:
+            place = pro_form.save(commit=False)
+            place.siret = None
+            if hasattr(place, 'added_by'):
+                place.added_by = user
+            place.save()
+        claims.open_claim(user, kind, place, pro_form.cleaned_data['siret'], check=plan.check)
+    return user, place
+
+
 @limit_posts(PRO_SIGNUP_BY_IP)
 def register_pro_view(request, pro_type):
-    # Sécurité : n'accepte que ces deux types
-    if pro_type not in ['bar', 'brewery']:
+    kind = PLACE_KINDS_BY_KEY.get(pro_type)
+    if kind is None:  # sécurité : seuls les types connus
         return redirect('register')
 
+    claim_report = None
     if request.method == 'POST':
         user_form = ProUserForm(request.POST, prefix='user')
-        if pro_type == 'bar':
-            pro_form = BarProForm(request.POST, request.FILES, prefix='pro')
-        else:
-            pro_form = BreweryProForm(request.POST, request.FILES, prefix='pro')
+        pro_form = kind.pro_form(request.POST, request.FILES, prefix='pro')
 
         if user_form.is_valid() and pro_form.is_valid():
+            data = pro_form.cleaned_data
             try:
-                # La transaction atomique garantit que tout est sauvegardé en même temps, ou rien du tout.
-                with transaction.atomic():
-                    # 1. Création du compte utilisateur (Manager)
-                    user = user_form.save()
-
-                    # 2. Création de l'établissement lié
-                    pro_instance = pro_form.save(commit=False)
-                    
-                    # On garde la trace du créateur initial
-                    if pro_type == 'bar':
-                        pro_instance.added_by = user 
-                    elif pro_type == 'brewery':
-                        # Si tu as ajouté un added_by à Brewery aussi, tu peux le mettre ici
-                        pass 
-                    
-                    # Il faut d'abord sauvegarder l'instance pour générer son ID
-                    pro_instance.save()
-                    
-                    # 3. On ajoute l'utilisateur à la liste des gérants (droits de modification futurs)
-                    pro_instance.managers.add(user)
-                    
-                send_welcome(user)
-                messages.success(request, f"L'établissement {pro_instance.name} a été créé ! Connectez-vous.")
-                return redirect('login')
-                
+                plan = claims.plan_registration(kind, data['name'], data['postal_code'], data['city'], data['siret'], request.POST.get('pro-claim_choice', ''))
+                user, place = _register_pending_manager(kind, user_form, pro_form, plan)
+            except claims.ChoiceRequired as choice:
+                claim_report = choice.report
+                messages.warning(request, "Des fiches existent déjà avec ce nom : indiquez laquelle est la vôtre.")
+            except claims.ClaimError as error:
+                pro_form.add_error(error.field if error.field in pro_form.fields else None, str(error))
+                messages.error(request, str(error))
             except Exception:
-                logger.exception("Création d'un établissement impossible")
+                logger.exception("Inscription d'un gérant impossible")
                 messages.error(request, "Erreur lors de la création. Réessayez plus tard.")
+            else:
+                send_welcome(user)
+                messages.success(request, f"Compte créé. Votre demande de gestion de {place.name} est en cours d'examen : vous recevrez la réponse par e-mail et par notification. Connectez-vous.")
+                return redirect('login')
         else:
             messages.error(request, "Veuillez corriger les erreurs dans le formulaire.")
     else:
         user_form = ProUserForm(prefix='user')
-        pro_form = BarProForm(prefix='pro') if pro_type == 'bar' else BreweryProForm(prefix='pro')
+        pro_form = kind.pro_form(prefix='pro')
 
-    context = {
-        'user_form': user_form,
-        'pro_form': pro_form,
-        'pro_type': pro_type,
-    }
-    return render(request, 'register_pro.html', context)
+    return render(request, 'register_pro.html', {'user_form': user_form, 'pro_form': pro_form, 'pro_type': pro_type, 'claim_report': claim_report})
