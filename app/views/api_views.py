@@ -1,7 +1,7 @@
 import json
 import logging
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST, require_http_methods
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.db.models import Q
 from django.db.models.functions import Greatest, Left, Length
 from django.utils.text import slugify
@@ -12,8 +12,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 
 from ..models import Beer, Brewery
+from ..services.match_keys import MAX_NAME_LENGTH
 from .utils import get_blocked_users
-from ..services import ean, label_scan, product_lookup
+from django.template.loader import render_to_string
+
+from ..services import catalog_matching, ean, label_scan, postal_codes, product_lookup, upstream
+from ..services.throttle import CATALOG_CHECK_BY_USER, POSTAL_LOOKUP_BY_IP, client_ip
 from ..services.ai import ask_zythologue, config_client
 from ..services.images import MIME_TYPES, open_image
 from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota
@@ -130,6 +134,47 @@ def lookup_ean(request):
     if beer is None:
         return JsonResponse({"success": False, "not_found": True, "error": "Code-barres inconnu."})
     return JsonResponse({"success": True, "source": "openfoodfacts", "ean": code, "data": beer})
+
+@login_required(login_url='login')
+@require_GET
+def check_catalog(request):
+    """Doublons possibles pendant la saisie : le panneau HTML (même gabarit que le formulaire) et la brasserie à utiliser telle quelle."""
+    if CATALOG_CHECK_BY_USER.exceeded(request.user.pk):
+        return JsonResponse({"error": "Trop de vérifications, réessayez dans un moment."}, status=429)
+    CATALOG_CHECK_BY_USER.record(request.user.pk)
+    name = request.GET.get('name', '').strip()[:MAX_NAME_LENGTH]
+    brewery_name = request.GET.get('brewery', '').strip()[:MAX_NAME_LENGTH]
+    postal_code = request.GET.get('postal', '').strip()
+    postal_code = postal_code if postal_codes.is_valid_format(postal_code) else ''
+    city = ' '.join(request.GET.get('city', '').split())[:100]
+    if len(name) < 2 and len(brewery_name) < 2:
+        return JsonResponse({"html": "", "apply_brewery": None})
+    inspection = catalog_matching.inspect(name, brewery_name, postal_code=postal_code, city=city)
+    same = inspection.reusable_brewery
+    return JsonResponse({
+        "html": render_to_string('partials/duplicate_panel.html', {
+            'inspection': inspection, 'confirm_brewery_name': 'beer-confirm_brewery', 'confirm_beer_name': 'beer-confirm_beer', 'typed_postal_code': postal_code,
+        }),
+        # Nom exact de la brasserie déjà connue : le formulaire l'adopte, la saisie (ou l'IA) ne crée pas de variante
+        "apply_brewery": same.name if same else None,
+    })
+
+@require_GET
+def postal_code_lookup(request):
+    """Communes d'un code postal (données publiques), pour remplir la ville d'un formulaire d'établissement. Ouvert sans connexion : l'inscription
+    d'un gérant en a besoin ; limité par adresse IP."""
+    ip = client_ip(request)
+    if POSTAL_LOOKUP_BY_IP.exceeded(ip):
+        return JsonResponse({"error": "Trop de recherches, réessayez dans un moment."}, status=429)
+    POSTAL_LOOKUP_BY_IP.record(ip)
+    code = request.GET.get('code', '').strip()
+    if not postal_codes.is_valid_format(code):
+        return JsonResponse({"cities": [], "known": False, "available": True})
+    try:
+        cities = postal_codes.communes(code)
+    except upstream.UpstreamUnavailable:
+        return JsonResponse({"cities": [], "known": False, "available": False})  # l'annuaire ne répond pas : la saisie n'est pas bloquée
+    return JsonResponse({"cities": cities, "known": bool(cities), "available": True})
 
 @login_required(login_url='login')
 def search_brewery(request):

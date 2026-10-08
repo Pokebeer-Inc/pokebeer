@@ -1,11 +1,15 @@
 """Logique commune aux établissements (brasseries et bars) : édition et gestion de l'équipe."""
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
-from ..models import BeerUser
+from ..forms import ClaimForm
+from ..models import BeerUser, EstablishmentClaim
+from ..services import claims
 from ..services.notifications import notify
-from ..services.places import BAR, BREWERY, PlaceKind  # noqa: F401  (réexportés pour les vues bar/brasserie)
+from ..services.places import BAR, BREWERY, PlaceKind, kind_of  # noqa: F401  (réexportés pour les vues bar/brasserie)
 
 
 def is_manager(place, user):
@@ -87,10 +91,45 @@ def search_users_for_manager(request, kind, slug):
     return JsonResponse({'users': [{'username': u.username, 'avatar_url': u.avatar_url} for u in users]})
 
 
+@login_required(login_url='login')
+@require_POST
+def cancel_claim(request, claim_id):
+    """Le demandeur retire sa demande en attente."""
+    claim = get_object_or_404(EstablishmentClaim, pk=claim_id, claimant=request.user)
+    try:
+        claims.cancel(claim, request.user)
+        messages.success(request, "Votre demande a été retirée.")
+    except claims.ClaimError as error:
+        messages.error(request, str(error))
+    return redirect('account')
+
+
 def place_context(place, user):
-    """Contexte commun aux pages de détail : droits de l'utilisateur et équipe visible des managers."""
+    """Contexte commun aux pages de détail : droits de l'utilisateur, équipe visible des managers, demande de gestion possible ou en cours."""
     manager = is_manager(place, user)
+    kind = kind_of(place)
+    pending = None if manager else claims.pending_claim(user, kind, place)
     return {
         'is_manager': manager,
         'current_managers': place.managers.all() if manager else [],
+        'can_claim': not manager and pending is None and user.is_active,
+        'pending_claim': pending,
     }
+
+
+def claim_place(request, kind, slug):
+    """Demande de gestion d'une fiche existante par un membre connecté : SIRET contrôlé, puis examen par l'équipe."""
+    place = kind.get(slug)
+    if is_manager(place, request.user):
+        messages.info(request, "Vous gérez déjà cette fiche.")
+        return kind.redirect_to_detail(place)
+    form = ClaimForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            claims.open_claim(request.user, kind, place, form.cleaned_data['siret'], form.cleaned_data['message'])
+        except claims.ClaimError as error:
+            form.add_error(error.field if error.field in form.fields else None, str(error))
+        else:
+            messages.success(request, "Demande envoyée. L'équipe vérifie le SIRET puis vous répond par notification et par e-mail.")
+            return kind.redirect_to_detail(place)
+    return render(request, 'claim_place.html', {'form': form, 'place': place, 'place_type': kind.key, 'back_url': kind.detail_path(place)})

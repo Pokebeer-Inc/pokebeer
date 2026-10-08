@@ -18,9 +18,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.static import static
 from django.conf import settings
+from django.views.decorators.http import require_GET
+
+from app.admin.duplicates import duplicates_view
 
 urlpatterns = [
     path(f'{settings.ADMIN_URL}analytics/', include('app.admin.analytics_urls')),
+    path(f'{settings.ADMIN_URL}duplicates/', admin.site.admin_view(require_GET(duplicates_view)), name='admin_duplicates'),
     path(settings.ADMIN_URL, admin.site.urls),
     path('', include("app.urls"))
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

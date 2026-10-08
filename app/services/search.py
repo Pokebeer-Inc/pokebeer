@@ -86,11 +86,11 @@ def beers(queryset, query):
 
 
 def breweries(queryset, query):
-    return search(queryset, query, 'name', 'address')
+    return search(queryset, query, 'name', 'city', 'postal_code', 'street')
 
 
 def bars(queryset, query):
-    return search(queryset, query, 'name', 'address')
+    return search(queryset, query, 'name', 'city', 'postal_code', 'street')
 
 
 def members(queryset, query):

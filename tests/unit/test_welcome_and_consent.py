@@ -73,10 +73,12 @@ class TestSignupTriggers:
     def test_professional_registration_sends_it(self, client):
         data = {
             "user-username": "patron", "user-email": "patron@example.test", "user-password": f.PASSWORD,
-            "pro-name": "Chez Patron", "pro-siret": "73282932000074", "pro-description": "Un lieu",
+            "pro-name": "Chez Patron", "pro-siret": "73282932000074", "pro-description": "Un lieu", "pro-postal_code": "44000",
         }
         client.post(reverse("register_pro", args=["bar"]), data)
-        assert [m.to[0] for m in mail.outbox] == ["patron@example.test"]
+        # bienvenue + accusé de réception de la demande de gestion
+        assert [m.to[0] for m in mail.outbox] == ["patron@example.test", "patron@example.test"]
+        assert any("Bienvenue" in m.subject for m in mail.outbox)
 
     def test_google_signup_sends_it_once_the_account_is_committed(self):
         member = f.make_user(username="googler")

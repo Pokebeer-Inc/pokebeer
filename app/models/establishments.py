@@ -6,10 +6,15 @@ from ..validators import MAX_TEXT_LENGTH, plain_text_validator
 from ..fields import PublicSlugField
 from ..services.official_images import bar_image_path, brewery_image_path
 
-from .mixins import GeocodableMixin, OfficialImageMixin, VerifiableMixin
+from django.contrib.postgres.indexes import GinIndex
+
+from ..services import match_keys
+from .mixins import GeocodableMixin, MatchKeyMixin, OfficialImageMixin, PostalAddressMixin, VerifiableMixin
 
 
-class Brewery(OfficialImageMixin, GeocodableMixin, VerifiableMixin):
+class Brewery(OfficialImageMixin, PostalAddressMixin, GeocodableMixin, VerifiableMixin, MatchKeyMixin):
+    MATCH_KIND = match_keys.BREWERY
+
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom", validators=[plain_text_validator])
     slug = PublicSlugField(source='name')
     description = models.TextField(max_length=MAX_TEXT_LENGTH, verbose_name="Description")
@@ -18,7 +23,6 @@ class Brewery(OfficialImageMixin, GeocodableMixin, VerifiableMixin):
     managers = models.ManyToManyField('BeerUser', blank=True, related_name='managed_breweries', verbose_name="Gérants")
     
     # champs de contact
-    address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Adresse complète")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Téléphone")
     email = models.EmailField(blank=True, null=True, verbose_name="Email")
     website = models.URLField(blank=True, null=True, verbose_name="Site web")
@@ -36,11 +40,14 @@ class Brewery(OfficialImageMixin, GeocodableMixin, VerifiableMixin):
     class Meta:
         verbose_name = "Brasserie"
         ordering = ['name']
+        indexes = [GinIndex(fields=['match_key'], name='brewery_match_key_trgm', opclasses=['gin_trgm_ops'])]
 
     def __str__(self):
         return self.name
     
-class Bar(OfficialImageMixin, GeocodableMixin, VerifiableMixin):
+class Bar(OfficialImageMixin, PostalAddressMixin, GeocodableMixin, VerifiableMixin, MatchKeyMixin):
+    MATCH_KIND = match_keys.BAR
+
     name = models.CharField(max_length=150, blank=False, verbose_name="Nom", validators=[plain_text_validator])
     slug = PublicSlugField(source='name')
     description = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, null=True, verbose_name="Description")
@@ -49,7 +56,6 @@ class Bar(OfficialImageMixin, GeocodableMixin, VerifiableMixin):
     managers = models.ManyToManyField('BeerUser', blank=True, related_name='managed_bars', verbose_name="Gérants")
     
     # Localisation et Contact
-    address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Adresse complète")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Téléphone")
     email = models.EmailField(blank=True, null=True, verbose_name="Email")
     website = models.URLField(blank=True, null=True, verbose_name="Site web")
@@ -69,6 +75,7 @@ class Bar(OfficialImageMixin, GeocodableMixin, VerifiableMixin):
         verbose_name = "Bar"
         verbose_name_plural = "Bars"
         ordering = ['name']
+        indexes = [GinIndex(fields=['match_key'], name='bar_match_key_trgm', opclasses=['gin_trgm_ops'])]
 
     def __str__(self):
         return self.name

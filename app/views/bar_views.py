@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 
 from ..models import Bar
 from .place_views import (
-    BAR, add_manager, edit_place, place_context, remove_manager, search_users_for_manager,
+    BAR, add_manager, claim_place, edit_place, place_context, remove_manager, search_users_for_manager,
 )
 
 
@@ -18,6 +18,12 @@ def bar_detail_view(request, bar_slug):
 def edit_bar_view(request, bar_slug):
     """Permet aux managers de modifier les informations du bar."""
     return edit_place(request, BAR, bar_slug)
+
+
+@login_required(login_url='login')
+def claim_bar_view(request, bar_slug):
+    """Demande de gestion d'un bar."""
+    return claim_place(request, BAR, bar_slug)
 
 
 @login_required(login_url='login')

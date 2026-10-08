@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
+{% load static %}
+
 {% block content %}
+<link rel="stylesheet" href="{% static 'style/duplicate_panel.css' %}">
 
 {% url 'beer_detail' beer.slug as beer_detail_url %}
 {% include "partials/page_header.html" with title="Modifier la bière" subtitle=beer.name back_url=beer_detail_url %}
@@ -8,7 +11,8 @@
 <div class="card-body bg-white p-4 rounded-xl border border-base-300 space-y-2">
     <form method="post" autocomplete="off" class="flex flex-col gap-3" enctype="multipart/form-data">
         {% csrf_token %}
-        
+        {% include "partials/duplicate_panel.html" with inspection=form.inspection confirm_brewery_name=form.confirm_brewery.html_name confirm_beer_name=form.confirm_beer.html_name %}
+
         <div class="form-control w-full">
             <label class="label py-1"><span class="label-text font-bold text-xs">{{ form.name.label }}</span></label>
             {{ form.name }}
@@ -17,6 +21,20 @@
         <div class="form-control w-full relative">
             <label class="label py-1"><span class="label-text font-bold text-xs">{{ form.brewery_name.label }}</span></label>
             {{ form.brewery_name }}
+        </div>
+
+        <div class="flex gap-2">
+            <div class="form-control flex-1">
+                <label class="label py-1"><span class="label-text font-bold text-xs">{{ form.brewery_postal_code.label }}</span></label>
+                {{ form.brewery_postal_code }}
+                {% include "partials/field_errors.html" with field=form.brewery_postal_code %}
+            </div>
+            <div class="form-control flex-1">
+                <label class="label py-1"><span class="label-text font-bold text-xs">{{ form.brewery_city.label }}</span></label>
+                {{ form.brewery_city }}
+                {% include "partials/field_errors.html" with field=form.brewery_city %}
+            </div>
+            <datalist id="cities-beer"></datalist>
         </div>
 
         <div class="form-control w-full">
@@ -50,4 +68,5 @@
         </button>
     </form>
 </div>
+<script src="{% static 'script/postal_code.js' %}"></script>
 {% endblock %}

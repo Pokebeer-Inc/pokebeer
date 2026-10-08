@@ -327,8 +327,9 @@ CHAT_MESSAGE_MAX_LENGTH = 5000
 LABEL_DAILY_LIMIT = 20
 # Recherche par code-barres (Open Food Facts) : plafond quotidien par membre, délai et identification de l'application
 EAN_DAILY_LIMIT = 60
-OPEN_FOOD_FACTS_TIMEOUT = 4
-OPEN_FOOD_FACTS_USER_AGENT = f'Pokebeer/1.0 ({os.getenv("EMAIL_HOST_USER", "pokebeer.assistance@gmail.com")})'
+# Services publics extérieurs (Open Food Facts, annuaire des entreprises, communes) : délai et identification de l'application
+UPSTREAM_TIMEOUT = 4
+UPSTREAM_USER_AGENT = f'Pokebeer/1.0 ({os.getenv("EMAIL_HOST_USER", "pokebeer.assistance@gmail.com")})'
 LABEL_MAX_UPLOAD_BYTES = 4 * 1024 * 1024  # Vercel refuse de toute façon les requêtes de plus de 4,5 Mo
 REPORT_DAILY_LIMIT = 10
 
@@ -410,6 +411,19 @@ UNFOLD = {
                         "icon": "fact_check",
                         "link": reverse_lazy("admin:app_moderationentry_changelist"),
                         "badge": "app.admin.moderation.pending_count",
+                        "permission": lambda request: request.user.is_staff,
+                    },
+                    {
+                        "title": _("Demandes de gestion"),
+                        "icon": "storefront",
+                        "link": reverse_lazy("admin:app_establishmentclaim_changelist"),
+                        "badge": "app.admin.pending.pending_claims_count",
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": _("Doublons probables"),
+                        "icon": "content_copy",
+                        "link": reverse_lazy("admin_duplicates"),
                         "permission": lambda request: request.user.is_staff,
                     },
                     {

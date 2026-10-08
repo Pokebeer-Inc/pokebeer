@@ -1,0 +1,7 @@
+{% extends "emails/_layout.html" %}
+{% block content %}
+<p>Bonjour {{ user.username }},</p>
+<p>Bonne nouvelle : votre demande est acceptée. Vous gérez désormais <strong>{{ place_name }}</strong> sur Pokebeer : vous pouvez modifier la fiche, ajouter vos bières et inviter votre équipe.</p>
+<p style="margin:24px 0;"><a href="{{ place_url }}" style="background:#facc15;color:#1c1917;font-weight:bold;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;">Ouvrir ma fiche</a></p>
+<p style="font-size:13px;color:#57534e;">Pensez à compléter l'adresse complète : sans rue, la fiche n'apparaît pas encore sur la carte.</p>
+{% endblock %}

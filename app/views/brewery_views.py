@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from ..forms import DrinkForm
 from ..models import Beer, Drinks, Brewery
 from .place_views import (
-    BREWERY, add_manager, edit_place, place_context, remove_manager, search_users_for_manager,
+    BREWERY, add_manager, claim_place, edit_place, place_context, remove_manager, search_users_for_manager,
 )
 
 @login_required(login_url='login')
@@ -37,6 +37,12 @@ def brewery_detail_view(request, brewery_slug):
 def edit_brewery_view(request, brewery_slug):
     """Permet aux managers de modifier les informations de la brasserie."""
     return edit_place(request, BREWERY, brewery_slug)
+
+
+@login_required(login_url='login')
+def claim_brewery_view(request, brewery_slug):
+    """Demande de gestion d'une brasserie."""
+    return claim_place(request, BREWERY, brewery_slug)
 
 
 @login_required(login_url='login')

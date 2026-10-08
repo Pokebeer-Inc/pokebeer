@@ -1,0 +1,77 @@
+{% extends 'admin/base.html' %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}{% include "unfold/helpers/site_branding.html" %}{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 lg:px-8">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">Doublons probables</h1>
+    <p class="mt-1 text-sm text-font-subtle-light dark:text-font-subtle-dark">
+      Brasseries, bars et bières du catalogue dont les noms se confondent (accents, mots génériques comme « Microbrasserie », ordre des mots,
+      quantités, fautes de frappe). Deux établissements de même nom dans deux villes ne sont pas des doublons. Une bière n'est comparée qu'aux bières de sa brasserie. Cet écran détecte : ouvrez les deux fiches pour décider.
+      {{ limit }} paires au plus.
+    </p>
+  </div>
+
+  <h2 class="mb-2 text-lg font-semibold">Brasseries ({{ breweries|length }})</h2>
+  <div class="mb-8 overflow-x-auto rounded-default bg-white shadow-xs dark:bg-base-800">
+    <table class="w-full text-sm">
+      <thead><tr class="text-left"><th class="p-3">Verdict</th><th class="p-3">Première</th><th class="p-3">Seconde</th><th class="p-3">Proximité</th></tr></thead>
+      <tbody>
+        {% for pair in breweries %}
+        <tr class="border-t border-base-200 dark:border-base-700">
+          <td class="p-3">{% if pair.level == 3 %}Identiques{% else %}Proches{% endif %}</td>
+          <td class="p-3"><a class="text-primary-600" href="{% url 'admin:app_brewery_change' pair.first.pk %}">{{ pair.first.name }}</a>{% if pair.first.address %}<br><span class="text-xs opacity-70">{{ pair.first.address }}</span>{% endif %}</td>
+          <td class="p-3"><a class="text-primary-600" href="{% url 'admin:app_brewery_change' pair.second.pk %}">{{ pair.second.name }}</a>{% if pair.second.address %}<br><span class="text-xs opacity-70">{{ pair.second.address }}</span>{% endif %}</td>
+          <td class="p-3">{{ pair.score|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td class="p-6 text-center opacity-70" colspan="4">Aucun doublon probable.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="mb-2 text-lg font-semibold">Bars ({{ bars|length }})</h2>
+  <div class="mb-8 overflow-x-auto rounded-default bg-white shadow-xs dark:bg-base-800">
+    <table class="w-full text-sm">
+      <thead><tr class="text-left"><th class="p-3">Verdict</th><th class="p-3">Premier</th><th class="p-3">Second</th><th class="p-3">Proximité</th></tr></thead>
+      <tbody>
+        {% for pair in bars %}
+        <tr class="border-t border-base-200 dark:border-base-700">
+          <td class="p-3">{% if pair.level == 3 %}Identiques{% else %}Proches{% endif %}</td>
+          <td class="p-3"><a class="text-primary-600" href="{% url 'admin:app_bar_change' pair.first.pk %}">{{ pair.first.name }}</a>{% if pair.first.address %}<br><span class="text-xs opacity-70">{{ pair.first.address }}</span>{% endif %}</td>
+          <td class="p-3"><a class="text-primary-600" href="{% url 'admin:app_bar_change' pair.second.pk %}">{{ pair.second.name }}</a>{% if pair.second.address %}<br><span class="text-xs opacity-70">{{ pair.second.address }}</span>{% endif %}</td>
+          <td class="p-3">{{ pair.score|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td class="p-6 text-center opacity-70" colspan="4">Aucun doublon probable.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="mb-2 text-lg font-semibold">Bières ({{ beers|length }})</h2>
+  <div class="overflow-x-auto rounded-default bg-white shadow-xs dark:bg-base-800">
+    <table class="w-full text-sm">
+      <thead><tr class="text-left"><th class="p-3">Verdict</th><th class="p-3">Brasserie</th><th class="p-3">Première</th><th class="p-3">Seconde</th><th class="p-3">Proximité</th></tr></thead>
+      <tbody>
+        {% for pair in beers %}
+        <tr class="border-t border-base-200 dark:border-base-700">
+          <td class="p-3">{% if pair.level == 3 %}Identiques{% else %}Proches{% endif %}</td>
+          <td class="p-3">{{ pair.first.brewery_id.name }}</td>
+          <td class="p-3"><a class="text-primary-600" href="{% url 'admin:app_beer_change' pair.first.pk %}">{{ pair.first.name }}</a></td>
+          <td class="p-3"><a class="text-primary-600" href="{% url 'admin:app_beer_change' pair.second.pk %}">{{ pair.second.name }}</a></td>
+          <td class="p-3">{{ pair.score|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td class="p-6 text-center opacity-70" colspan="5">Aucun doublon probable.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

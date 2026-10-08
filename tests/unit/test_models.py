@@ -131,9 +131,13 @@ class TestUniqueness:
         with pytest.raises(IntegrityError), transaction.atomic():
             f.make_user(email=user.email)
 
-    def test_two_active_beers_cannot_share_a_name(self, beer):
+    def test_two_active_beers_of_a_brewery_cannot_share_a_name(self, beer):
         with pytest.raises(IntegrityError), transaction.atomic():
-            f.make_beer(name=beer.name)
+            f.make_beer(name=beer.name, brewery=beer.brewery_id)
+
+    def test_two_breweries_can_each_have_their_own_beer_of_the_same_name(self, beer):
+        other = f.make_beer(name=beer.name, brewery=f.make_brewery(name="Autre Brasserie"))
+        assert other.pk != beer.pk and Beer.objects.filter(name=beer.name, is_deleted=False).count() == 2
 
     def test_soft_deleted_beer_frees_its_name_but_keeps_its_slug(self, beer):
         Beer.objects.filter(pk=beer.pk).update(is_deleted=True)
@@ -142,7 +146,7 @@ class TestUniqueness:
 
     def test_restoring_a_beer_whose_name_was_reused_is_refused(self, beer):
         Beer.objects.filter(pk=beer.pk).update(is_deleted=True)
-        f.make_beer(name=beer.name)
+        f.make_beer(name=beer.name, brewery=beer.brewery_id)
         beer.refresh_from_db()
         beer.is_deleted = False
         with pytest.raises(ValidationError):

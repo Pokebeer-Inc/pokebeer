@@ -104,7 +104,10 @@ _TYPES = (
     NotificationType('beer_added_to_brewery', 'Bière ajoutée à votre brasserie', ESTABLISHMENT, target=_beer),
     NotificationType('beer_updated_by_manager', 'Bière modifiée par la brasserie', ESTABLISHMENT, target=_beer),
     NotificationType('beer_deleted_by_manager', 'Bière retirée par la brasserie', ESTABLISHMENT),
+    NotificationType('claim_received', "Demande de gestion de votre établissement", ESTABLISHMENT, toast='warning', target=_place),
     # Messages système : ignorent les préférences
+    NotificationType('claim_approved', "Gestion de l'établissement accordée", toast='success', target=_place, visual=SYSTEM),
+    NotificationType('claim_rejected', "Demande de gestion refusée", toast='warning', target=_place, visual=SYSTEM),
     NotificationType('report_updated', 'Signalement mis à jour', toast='warning', target=_page('my_reports'), visual=SYSTEM),
     NotificationType('feedback_replied', 'Réponse à votre feedback', toast='success', target=_feedback_thread, visual=SYSTEM),
     NotificationType('content_removed', 'Contenu retiré par la modération', visual=SYSTEM),

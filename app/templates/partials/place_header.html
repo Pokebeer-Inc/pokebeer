@@ -48,6 +48,16 @@
                             </a>
                         </li>
                     {% else %}
+                        {% if can_claim %}
+                        <li>
+                            <a href="{% if place_type == 'bar' %}{% url 'claim_bar' place.slug %}{% else %}{% url 'claim_brewery' place.slug %}{% endif %}" class="font-semibold text-primary">
+                                {% include "partials/icon.html" with name="check" size="16" cls="mr-1" %}
+                                Revendiquer cette fiche
+                            </a>
+                        </li>
+                        {% elif pending_claim %}
+                        <li class="disabled"><span class="font-semibold opacity-70">Demande de gestion en cours</span></li>
+                        {% endif %}
                         <li>
                             <a onclick="modal_report_place.showModal()" class="text-error font-semibold">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>

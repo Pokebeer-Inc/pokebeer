@@ -1,0 +1,11 @@
+{% autoescape off %}Bonjour {{ user.username }},
+
+Nous avons bien reçu votre demande de gestion de {{ place_name }}. L'équipe Pokebeer vérifie le SIRET et l'établissement, puis vous répond par notification et par e-mail.
+
+En attendant, vous gardez votre compte de membre. Les droits de gestion (modifier la fiche, gérer l'équipe) ne sont accordés qu'après validation.
+
+La fiche : {{ place_url }}
+
+Vous n'êtes pas à l'origine de cette demande ? Écrivez-nous à {{ support_email }}.
+
+L'équipe Pokebeer{% endautoescape %}

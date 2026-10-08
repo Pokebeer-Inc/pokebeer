@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 
-from ..forms import BarEditForm, BreweryEditForm
+from ..forms import BarEditForm, BarProForm, BreweryEditForm, BreweryProForm
 from ..models import Bar, Brewery
 
 
@@ -14,6 +14,7 @@ class PlaceKind:
     key: str  # 'brewery' | 'bar' : nom du champ FK de Notification et préfixe des URLs
     model: type
     edit_form: type
+    pro_form: type  # fiche saisie à l'inscription d'un gérant
     noun: str  # « la brasserie » / « le bar »
     label: str  # « Brasserie » / « Bar »
 
@@ -54,10 +55,15 @@ class PlaceKind:
         return get_object_or_404(self.model, slug=slug)
 
 
-BREWERY = PlaceKind('brewery', Brewery, BreweryEditForm, 'la brasserie', 'Brasserie')
-BAR = PlaceKind('bar', Bar, BarEditForm, 'le bar', 'Bar')
+BREWERY = PlaceKind('brewery', Brewery, BreweryEditForm, BreweryProForm, 'la brasserie', 'Brasserie')
+BAR = PlaceKind('bar', Bar, BarEditForm, BarProForm, 'le bar', 'Bar')
 PLACE_KINDS = (BREWERY, BAR)
 PLACE_KINDS_BY_KEY = {kind.key: kind for kind in PLACE_KINDS}
+
+
+def kind_of(place):
+    """Type (PlaceKind) d'une fiche : brasserie ou bar."""
+    return next(kind for kind in PLACE_KINDS if isinstance(place, kind.model))
 
 
 def with_targets(places, kind):

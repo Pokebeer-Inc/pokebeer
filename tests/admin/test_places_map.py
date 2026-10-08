@@ -30,7 +30,7 @@ class TestPlacesForMap:
         f.make_bar(address="Paris", siret="73282932000074", managers=[user])
         place = places_for_map()[0]
         assert "siret" not in place and "alice" not in json.dumps(place) and "managers" not in place
-        assert set(place) <= {*PUBLIC_FIELDS, "type", "type_label", "url", "managers_count"}
+        assert set(place) <= {*PUBLIC_FIELDS, "address", "type", "type_label", "url", "managers_count"}
 
     def test_counts_managers_and_verification(self, geocoder, user, other_user, superuser):
         f.make_brewery(address="Lyon", managers=[user, other_user], is_verified=True, verified_by=superuser)

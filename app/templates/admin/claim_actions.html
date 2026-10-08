@@ -1,0 +1,41 @@
+{% if claim %}
+<div class="mt-6 rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <h2 class="mb-3 text-lg font-semibold">Contrôle automatique du SIRET</h2>
+    {% if not registry.available %}
+    <p class="mb-4 text-sm">L'annuaire des entreprises n'a pas répondu au moment de la demande : rien n'a pu être contrôlé automatiquement. Vérifiez le SIRET à la main avant d'accepter.</p>
+    {% else %}
+    <table class="mb-4 w-full text-sm">
+        <tbody>
+            <tr><td class="py-1 pr-4 opacity-70">Existe dans l'annuaire</td><td>{{ registry.found|yesno:"Oui,Non" }}</td></tr>
+            <tr><td class="py-1 pr-4 opacity-70">Établissement ouvert</td><td>{{ registry.active|yesno:"Oui,Non" }}</td></tr>
+            <tr><td class="py-1 pr-4 opacity-70">Raison sociale</td><td>{{ registry.name|default:"-" }} <span class="opacity-70">(ressemblance avec le nom de la fiche : {{ registry.name_score }})</span></td></tr>
+            <tr><td class="py-1 pr-4 opacity-70">Activité (NAF)</td><td>{{ registry.activity_code|default:"-" }} : {{ registry.activity_ok|yesno:"cohérente avec la fiche,à vérifier" }}</td></tr>
+            <tr><td class="py-1 pr-4 opacity-70">Localisation</td><td>{{ registry.postal_code }} {{ registry.city }} : {{ registry.postal_match|yesno:"même code postal que la fiche,code postal différent de la fiche" }}</td></tr>
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h2 class="mb-2 text-lg font-semibold">Fiche et gérants actuels</h2>
+    <p class="mb-1 text-sm"><a class="text-primary-600" href="{{ place_admin_url }}">{{ place.name }}</a>
+        {% if place.siret %}(SIRET de la fiche : {{ place.siret }}){% else %}(fiche sans SIRET){% endif %}
+        {% if place.is_verified %} - fiche vérifiée{% endif %}</p>
+    <p class="mb-1 text-sm">Gérants actuels : {% for manager in managers %}{{ manager.username }}{% if not forloop.last %}, {% endif %}{% empty %}aucun{% endfor %}.</p>
+    <p class="mb-4 text-sm">Demandeur : <a class="text-primary-600" href="{{ claimant_admin_url }}">{{ claim.claimant.username }}</a> ({{ claim.claimant.email }}).</p>
+    {% if claim.message %}<p class="mb-4 rounded-default bg-base-100 p-3 text-sm dark:bg-base-900">{{ claim.message }}</p>{% endif %}
+
+    {% if is_pending %}
+    <div class="flex flex-wrap items-end gap-3">
+        <form method="post" action="{% url 'admin:app_establishmentclaim_action' claim.pk 'approve' %}"
+              onsubmit="return confirm('Accepter ? {{ claim.claimant.username|escapejs }} deviendra gérant de {{ place.name|escapejs }} et pourra la modifier.');">{% csrf_token %}
+            <button type="submit" class="rounded-default bg-primary-600 px-4 py-2 text-sm font-semibold text-white">Accepter la demande</button>
+        </form>
+        <form method="post" action="{% url 'admin:app_establishmentclaim_action' claim.pk 'reject' %}" class="flex flex-wrap items-end gap-2">{% csrf_token %}
+            <label class="text-sm"><span class="mb-1 block opacity-70">Motif du refus (envoyé au demandeur)</span>
+                <input type="text" name="reason" maxlength="300" required class="w-80 rounded-default border border-base-200 bg-transparent px-3 py-2 dark:border-base-700">
+            </label>
+            <button type="submit" class="rounded-default border border-red-300 px-4 py-2 text-sm font-semibold text-red-600">Refuser</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

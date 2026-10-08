@@ -3,6 +3,7 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/label_scanner.css' %}">
+<link rel="stylesheet" href="{% static 'style/duplicate_panel.css' %}">
 
 {% include "partials/page_header.html" with title="Ajouter une bière" %}
 
@@ -22,6 +23,9 @@
     <form method="post" autocomplete="off" class="flex flex-col gap-5" enctype="multipart/form-data">
         {% csrf_token %}
         {{ beer_form.ean }}
+        <div id="duplicate-panel" class="flex flex-col gap-2" data-url="{% url 'check_catalog' %}" aria-live="polite">
+            {% include "partials/duplicate_panel.html" with inspection=beer_form.inspection confirm_brewery_name=beer_form.confirm_brewery.html_name confirm_beer_name=beer_form.confirm_beer.html_name %}
+        </div>
 
         {% if beer_form.non_field_errors or drink_form.non_field_errors %}
         <div class="alert alert-error text-sm" role="alert">
@@ -57,6 +61,21 @@
                 {% include "partials/field_errors.html" with field=beer_form.brewery_name %}
                 <div id="brewery-suggestions" class="absolute z-50 w-full bg-base-100 shadow-lg rounded-b-md border border-base-300 top-full hidden mt-1 max-h-40 overflow-y-auto"></div>
             </div>
+
+            <div class="flex gap-2 mb-3">
+                <div class="form-control flex-1">
+                    <label class="label py-1"><span class="label-text font-bold text-xs">{{ beer_form.brewery_postal_code.label }}</span></label>
+                    {{ beer_form.brewery_postal_code }}
+                    {% include "partials/field_errors.html" with field=beer_form.brewery_postal_code %}
+                </div>
+                <div class="form-control flex-1">
+                    <label class="label py-1"><span class="label-text font-bold text-xs">{{ beer_form.brewery_city.label }}</span></label>
+                    {{ beer_form.brewery_city }}
+                    {% include "partials/field_errors.html" with field=beer_form.brewery_city %}
+                </div>
+                <datalist id="cities-beer"></datalist>
+            </div>
+            <p class="text-[10px] text-gray-500 -mt-2 mb-3 italic">{{ beer_form.brewery_postal_code.help_text }}</p>
             
             <div class="form-control w-full mb-3">
                 <label class="label py-1">
@@ -159,6 +178,8 @@
 </div>
 
 <script src="{% static 'script/add_beer.js' %}"></script>
+<script src="{% static 'script/catalog_check.js' %}"></script>
+<script src="{% static 'script/postal_code.js' %}"></script>
 <script src="{% static 'script/frame_metrics.js' %}"></script>
 <script src="{% static 'script/ean_decoder.js' %}"></script>
 <script src="{% static 'script/barcode_reader.js' %}"></script>

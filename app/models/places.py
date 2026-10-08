@@ -2,6 +2,7 @@
 
 from datetime import date
 from django.db import models
+from django.utils import timezone
 
 from ..validators import MAX_TEXT_LENGTH
 from ..fields import PublicSlugField
@@ -69,3 +70,14 @@ class ReverseGeocode(models.Model):
 
     def __str__(self):
         return f"{self.lat_e4 / 10_000:.4f}, {self.lon_e4 / 10_000:.4f} - {self.city or '?'}"
+
+
+class PostalCode(models.Model):
+    """Communes d'un code postal, mémorisées pour ne pas interroger l'annuaire des communes à chaque saisie (voir services/postal_codes.py).
+    Une ligne sans ville signifie « code postal inconnu » (réponse négative mémorisée)."""
+    code = models.CharField(max_length=5, db_index=True)
+    city = models.CharField(max_length=100, blank=True)
+    fetched_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['code', 'city'], name='unique_postal_code_city')]

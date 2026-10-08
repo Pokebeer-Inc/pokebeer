@@ -77,5 +77,14 @@ WELCOME_EMAIL_GLOBAL = Rule('welcome-email', 100, timedelta(days=1))
 CAMPAIGN_EMAIL_GLOBAL = Rule('campaign-email', settings.CAMPAIGN_EMAIL_DAILY_LIMIT, timedelta(days=1))
 CAMPAIGN_LAUNCH = Rule('campaign-launch', 5, timedelta(days=1))
 
+# Vérification des doublons pendant la saisie d'une bière (une requête après chaque pause de frappe)
+CATALOG_CHECK_BY_USER = Rule('catalog-check', 600, timedelta(hours=1))
+
+# Recherche des communes d'un code postal (formulaires d'établissement, y compris à l'inscription : sans connexion, donc par adresse IP)
+POSTAL_LOOKUP_BY_IP = Rule('postal-ip', 120, timedelta(hours=1))
+
+# Demandes de gestion d'un établissement : quelques-unes par jour et par membre (chacune est examinée à la main par l'équipe)
+CLAIM_BY_USER = Rule('claim-user', 5, timedelta(days=1))
+
 # Page publique de choix des e-mails (lien signé reçu par e-mail)
 EMAIL_PREFERENCES_BY_IP = Rule('email-prefs-ip', 30, timedelta(hours=1))

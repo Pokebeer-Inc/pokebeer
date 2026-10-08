@@ -12,6 +12,6 @@ def directory():
     places = []
     for kind in PLACE_KINDS:
         geocoded = kind.model.objects.filter(latitude__isnull=False, longitude__isnull=False).order_by('name')
-        fields = ('slug', 'name', 'address', 'image', 'latitude', 'longitude', 'is_verified')
+        fields = ('slug', 'name', 'street', 'postal_code', 'city', 'image', 'latitude', 'longitude', 'is_verified')
         places.extend(kind.public(place) for place in geocoded.only(*fields)[:MAX_PLACES])
     return places[:MAX_PLACES]

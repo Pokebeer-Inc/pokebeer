@@ -50,6 +50,10 @@ class DevDatabaseSeeder:
     # ------------------------------------------------------------------ helpers
 
     def _bulk(self, model, objs):
+        for obj in objs:  # bulk_create n'appelle pas save() : les clés de détection de doublons se calculent ici
+            refresh = getattr(obj, 'refresh_match_keys', None)
+            if refresh:
+                refresh()
         created = model.objects.bulk_create(objs)
         self.counts[model.__name__] += len(created)
         return created

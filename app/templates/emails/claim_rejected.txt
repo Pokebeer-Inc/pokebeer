@@ -1,0 +1,9 @@
+{% autoescape off %}Bonjour {{ user.username }},
+
+Nous n'avons pas pu accepter votre demande de gestion de {{ place_name }}.
+
+Motif : {{ reason }}
+
+Si vous pensez qu'il s'agit d'une erreur, répondez à cet e-mail ou écrivez-nous à {{ support_email }} avec les éléments utiles (SIRET, justificatif) : nous réexaminerons la demande.
+
+L'équipe Pokebeer{% endautoescape %}
