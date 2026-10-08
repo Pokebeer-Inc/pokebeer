@@ -20,7 +20,6 @@ from ..services import catalog_matching, ean, label_scan, postal_codes, product_
 from ..services.throttle import CATALOG_CHECK_BY_USER, CHAT_BURST_BY_USER, CHAT_GLOBAL, CHAT_GLOBAL_KEY, POSTAL_LOOKUP_BY_IP, client_ip
 from ..services.ai import ask_zythologue, config_client
 from ..services.chat import ChatUnavailable, payload as chat_payload
-from ..services.images import MIME_TYPES, open_image
 from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota, refund_quota
 from ..services.slugs import SUFFIX_LENGTH
 
@@ -78,18 +77,14 @@ def analyze_beer_label(request):
     if 'image' not in request.FILES:
         return JsonResponse({"error": "Aucune image reçue."}, status=400)
 
-    image_file = request.FILES['image']
     try:
-        # Le format réel est lu dans le fichier : le type déclaré par le navigateur n'est jamais cru
-        mime_type = MIME_TYPES[open_image(image_file, settings.LABEL_MAX_UPLOAD_BYTES).format]
+        # L'IA ne reçoit que l'image ré-encodée : le type déclaré par le navigateur n'est jamais cru, les métadonnées sont retirées
+        image_bytes = label_scan.prepare_image(request.FILES['image'], settings.LABEL_MAX_UPLOAD_BYTES)
     except ValidationError as error:
         return JsonResponse({"error": error.messages[0]}, status=400)
 
     if not consume_quota(request.user, settings.LABEL_DAILY_LIMIT, LABEL_SCAN):
         return JsonResponse({"error": "Limite quotidienne d'analyses atteinte, revenez demain !"}, status=429)
-
-    image_file.seek(0)
-    image_bytes = image_file.read()
 
     try:
         client = config_client()
@@ -99,7 +94,7 @@ def analyze_beer_label(request):
                 label_scan.PROMPT,
                 types.Part.from_bytes(
                     data=image_bytes,
-                    mime_type=mime_type,
+                    mime_type=label_scan.MIME_TYPE,
                 )
             ],
             config=types.GenerateContentConfig(
@@ -116,6 +111,7 @@ def analyze_beer_label(request):
     except Exception:
         # Le détail (réponse de l'IA, message du SDK) reste dans les journaux : il ne doit jamais atteindre le client
         logger.exception("Analyse d'étiquette impossible")
+        refund_quota(request.user, LABEL_SCAN)  # une panne de l'IA ne coûte pas son essai au membre
         return JsonResponse({"error": "L'analyse de l'étiquette a échoué. Réessayez plus tard."}, status=500)
 
 @login_required(login_url='login')

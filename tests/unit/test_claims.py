@@ -115,7 +115,7 @@ class TestOpenClaim:
 
     def test_a_siret_already_held_by_another_fiche_points_to_it(self, user, coin):
         f.make_brewery(name="Autre fiche", siret=SIRET)
-        with pytest.raises(claims.ClaimError, match="Autre fiche"):
+        with pytest.raises(claims.ClaimError, match="Erreur de SIRET"):
             claims.open_claim(user, BREWERY, coin, SIRET)
 
     def test_claims_are_limited_per_member_per_day(self, user, coin, monkeypatch):

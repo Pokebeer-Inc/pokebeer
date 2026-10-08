@@ -5,6 +5,8 @@ from unfold.decorators import display
 
 from ..models import AccountDeletion, BeerUser
 from ..services import inactivity
+from ..services.profile_pictures import process_profile_picture
+from .images import ProcessedImageAdminMixin
 from .roles import RoleManagementMixin
 
 
@@ -25,7 +27,8 @@ class InactivityFilter(admin.SimpleListFilter):
 
 
 @admin.register(BeerUser)
-class BeerUserAdmin(RoleManagementMixin, ModelAdmin):
+class BeerUserAdmin(ProcessedImageAdminMixin, RoleManagementMixin, ModelAdmin):
+    image_processors = {'avatar': process_profile_picture}
 
     list_display = (
         "username",

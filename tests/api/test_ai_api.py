@@ -192,11 +192,32 @@ class TestAnalyzeLabel:
         self.upload(auth_client)
         assert '"found"' in label_client.models.generate_content.call_args.kwargs["contents"][0]
 
-    def test_image_is_sent_with_its_mime_type(self, auth_client, label_client):
+    def test_the_ai_receives_a_reencoded_webp_never_the_original_file(self, auth_client, label_client):
         label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
         self.upload(auth_client)
         image_part = label_client.models.generate_content.call_args.kwargs["contents"][1]
-        assert image_part.inline_data.mime_type == "image/png"
+        assert image_part.inline_data.mime_type == "image/webp"
+        assert image_part.inline_data.data[:4] == b"RIFF" and image_part.inline_data.data[8:12] == b"WEBP"
+
+    def test_metadata_never_reaches_the_ai(self, auth_client, label_client):
+        from io import BytesIO
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        exif = Image.Exif()
+        exif[0x010E] = "SECRET-GPS-MARKER"
+        buffer = BytesIO()
+        Image.new("RGB", (4, 4), "orange").save(buffer, "JPEG", exif=exif)
+        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        auth_client.post(LABEL_URL, {"image": SimpleUploadedFile("x.jpg", buffer.getvalue(), content_type="image/jpeg")})
+        assert b"SECRET-GPS-MARKER" not in label_client.models.generate_content.call_args.kwargs["contents"][1].inline_data.data
+
+    def test_ai_failure_gives_the_attempt_back(self, auth_client, label_client, settings):
+        settings.LABEL_DAILY_LIMIT = 1
+        label_client.models.generate_content.side_effect = RuntimeError("down")
+        assert self.upload(auth_client).status_code == 500
+        label_client.models.generate_content.side_effect = None
+        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        assert self.upload(auth_client).status_code == 200
 
     def test_unparseable_ai_answer_is_a_server_error(self, auth_client, label_client):
         label_client.models.generate_content.return_value = SimpleNamespace(text="Je ne sais pas")
@@ -207,7 +228,7 @@ class TestAnalyzeLabel:
         upload = f.make_image_upload()
         upload.content_type = "application/x-evil"
         auth_client.post(LABEL_URL, {"image": upload})
-        assert label_client.models.generate_content.call_args.kwargs["contents"][1].inline_data.mime_type == "image/png"
+        assert label_client.models.generate_content.call_args.kwargs["contents"][1].inline_data.mime_type == "image/webp"
 
     @pytest.mark.parametrize("payload", [b"<svg onload=alert(1)>", b"GIF89a....", b"not an image", b""])
     def test_non_images_are_refused_before_the_ai_is_called(self, auth_client, label_client, payload):

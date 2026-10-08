@@ -7,6 +7,7 @@ import json
 import re
 
 from . import beer_fields
+from .images import reencode_as_webp, shrink_to_fit
 
 PROMPT = """
 Tu es un expert zythologue de la bière.
@@ -25,6 +26,9 @@ Les clés doivent être exactement :
 - "bitterness" : L'amertume IBU en nombre entier (déduis-le si possible, sinon null).
 """
 
+MAX_SIDE = 1280  # largeur suffisante pour lire une étiquette, et moins de données envoyées à l'IA
+MIME_TYPE = 'image/webp'
+
 _FENCE = re.compile(r'```(?:json)?', re.IGNORECASE)
 
 
@@ -40,3 +44,12 @@ def parse(raw):
     if data.get('found') is not True or not label['name']:
         return None
     return label
+
+
+def prepare_image(upload, max_bytes):
+    """Octets WebP de l'étiquette à envoyer à l'IA (ValidationError si l'envoi n'est pas une image acceptable).
+
+    Comme toute image reçue, l'étiquette est ré-encodée : l'IA (service tiers) ne reçoit jamais le fichier d'origine, ni ses
+    métadonnées (position GPS comprise).
+    """
+    return reencode_as_webp(upload, max_bytes, lambda image: shrink_to_fit(image, MAX_SIDE), name='label.webp', quality=80).read()
