@@ -12,3 +12,8 @@ def supabase_config(request):
     if request.user.is_authenticated:
         context['WS_CHANNEL_NAME'] = get_secure_channel_name(request.user.id)
     return context
+
+
+def chat_config(request):
+    """Limite de longueur d'un message : le champ de saisie du chat et le serveur lisent la même valeur."""
+    return {'CHAT_MESSAGE_MAX_LENGTH': settings.CHAT_MESSAGE_MAX_LENGTH}

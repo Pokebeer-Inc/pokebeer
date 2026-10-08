@@ -55,13 +55,22 @@
             <div id="chat-messages" class="p-4 h-80 overflow-y-auto bg-base-200 flex flex-col gap-3">
                 <div class="chat chat-start">
                     <div class="chat-bubble bg-primary text-black shadow-sm text-sm markdown-content">
-                        Bonjour ! Dites-moi ce que vous aimez (amertume, alcool, fruits...) et je vous trouve la pépite parfaite ! 
+                        Bonjour ! Dites-moi ce que vous aimez (amertume, alcool, fruits...) et je vous trouve la pépite parfaite, ou le bar où la boire ! 
                     </div>
+                </div>
+                <div class="flex flex-wrap gap-2" id="chat-suggestions">
+                    <button type="button" class="btn btn-xs btn-outline" data-chat-suggestion="Que me conseillez-vous de boire ?">Que boire ?</button>
+                    <button type="button" class="btn btn-xs btn-outline" data-chat-suggestion="Où boire une bonne bière près de moi ?">Où boire près de moi ?</button>
+                    <button type="button" class="btn btn-xs btn-outline" data-chat-suggestion="Quelles brasseries sont proches de moi ?">Brasseries proches</button>
+                    <button type="button" class="btn btn-xs btn-outline" data-chat-suggestion="Quelle bière choisir pour accompagner mon repas ?">Bière pour mon repas</button>
                 </div>
             </div>
             <div class="p-3 bg-base-100 border-t border-base-300 flex gap-2">
-                <input type="text" id="chat-input" maxlength="5000" placeholder="Je cherche une bière douce..." class="input input-bordered input-primary w-full input-sm" onkeypress="handleEnter(event)">
-                <button id="chat-send" class="btn btn-primary btn-sm" onclick="sendMessage()">
+                <button id="chat-location" type="button" class="btn btn-sm btn-square btn-outline" aria-pressed="false" aria-label="Utiliser ma position pour trouver des bars proches" title="Utiliser ma position (jamais enregistrée)">
+                    {% include "partials/icon.html" with name="location" %}
+                </button>
+                <input type="text" id="chat-input" maxlength="{{ CHAT_MESSAGE_MAX_LENGTH }}" placeholder="Je cherche une bière douce..." class="input input-bordered input-primary w-full input-sm" autocomplete="off">
+                <button id="chat-send" type="button" class="btn btn-primary btn-sm" aria-label="Envoyer">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                 </button>
             </div>

@@ -17,55 +17,60 @@ from .utils import get_blocked_users
 from django.template.loader import render_to_string
 
 from ..services import catalog_matching, ean, label_scan, postal_codes, product_lookup, upstream
-from ..services.throttle import CATALOG_CHECK_BY_USER, POSTAL_LOOKUP_BY_IP, client_ip
+from ..services.throttle import CATALOG_CHECK_BY_USER, CHAT_BURST_BY_USER, CHAT_GLOBAL, CHAT_GLOBAL_KEY, POSTAL_LOOKUP_BY_IP, client_ip
 from ..services.ai import ask_zythologue, config_client
+from ..services.chat import ChatUnavailable, payload as chat_payload
 from ..services.images import MIME_TYPES, open_image
-from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota
+from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota, refund_quota
 from ..services.slugs import SUFFIX_LENGTH
 
 logger = logging.getLogger(__name__)
 
+CHAT_UNAVAILABLE = "Désolé, j'ai eu un coup de chaud en cave. Pouvez-vous revenir plus tard s'il vous plaît ?"
+
+
+def _chat_error(message, status):
+    return JsonResponse({"response": message}, status=status)
+
+
+def _post_chat_message(request):
+    """Nouveau message : validation, limites (rafale, budget global, quota du membre), réponse, historique."""
+    try:
+        chat_request = chat_payload.parse(request.body)
+    except chat_payload.InvalidChatRequest as error:
+        return _chat_error(str(error), 400)
+
+    user_id = request.user.pk
+    if CHAT_GLOBAL.exceeded(CHAT_GLOBAL_KEY):
+        return _chat_error("Gaétan est très sollicité aujourd'hui, revenez demain !", 503)
+    if CHAT_BURST_BY_USER.exceeded(user_id):
+        return _chat_error("Doucement, Gaétan reprend son souffle : réessayez dans une minute.", 429)
+    CHAT_BURST_BY_USER.record(user_id)
+    if not consume_quota(request.user, settings.CHAT_DAILY_LIMIT, CHAT, settings.CHAT_WEEKLY_LIMIT):
+        return _chat_error("Gaétan a assez parlé pour le moment, revenez demain !", 429)
+    CHAT_GLOBAL.record(CHAT_GLOBAL_KEY)
+
+    history = request.session.get('chat_history', [])
+    try:
+        response_text = ask_zythologue(chat_request.message, history, chat_request.location)
+    except ChatUnavailable:
+        # Rien n'est enregistré et le membre récupère sa question
+        refund_quota(request.user, CHAT)
+        return _chat_error(CHAT_UNAVAILABLE, 503)
+
+    history = [*history, {'role': 'user', 'text': chat_request.message}, {'role': 'model', 'text': response_text}]
+    # Seuls les derniers messages sont gardés : la session reste légère et la conversation courte
+    request.session['chat_history'] = history[-settings.CHAT_HISTORY_LIMIT:]
+    return JsonResponse({"response": response_text})
+
+
 @require_http_methods(["GET", "POST"])
 @login_required(login_url='login')
 def chat_api(request):
-    """Endpoint API : Gère l'historique et la discussion avec l'IA."""
-    
-    # 1. Requête GET : Le frontend demande l'historique au chargement de la page
+    """Endpoint API : historique de la discussion avec Gaétan (GET) et nouveau message (POST)."""
     if request.method == 'GET':
-        history = request.session.get('chat_history', [])
-        return JsonResponse({"history": history})
-
-    # 2. Requête POST : Nouveau message de l'utilisateur
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            user_message = data.get('message', '')
-        except (json.JSONDecodeError, AttributeError):
-            return JsonResponse({"response": "Format JSON invalide."}, status=400)
-
-        if not isinstance(user_message, str) or not user_message.strip():
-            return JsonResponse({"response": "Message vide."}, status=400)
-
-        if len(user_message) > settings.CHAT_MESSAGE_MAX_LENGTH:
-            return JsonResponse({"response": f"Message trop long ({settings.CHAT_MESSAGE_MAX_LENGTH} caractères maximum)."}, status=400)
-
-        if not consume_quota(request.user, settings.CHAT_DAILY_LIMIT, CHAT):
-            return JsonResponse({"response": "Gaétan a assez parlé pour aujourd'hui, revenez demain !"}, status=429)
-
-        # On récupère l'historique existant
-        history = request.session.get('chat_history', [])
-        
-        # On passe le message et l'historique au service IA
-        response_text = ask_zythologue(user_message, history)
-        
-        # On sauvegarde le nouvel échange dans la session
-        history.append({'role': 'user', 'text': user_message})
-        history.append({'role': 'model', 'text': response_text})
-        
-        # On ne garde que les 10 derniers messages (5 échanges) pour ne pas surcharger la session
-        request.session['chat_history'] = history[-10:]
-        
-        return JsonResponse({"response": response_text})
+        return JsonResponse({"history": request.session.get('chat_history', [])})
+    return _post_chat_message(request)
 
 @require_POST
 @login_required(login_url='login')

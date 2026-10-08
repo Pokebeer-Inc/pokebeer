@@ -88,3 +88,9 @@ CLAIM_BY_USER = Rule('claim-user', 5, timedelta(days=1))
 
 # Page publique de choix des e-mails (lien signé reçu par e-mail)
 EMAIL_PREFERENCES_BY_IP = Rule('email-prefs-ip', 30, timedelta(hours=1))
+
+# Assistant Gaétan : rafale par membre (en plus du quota quotidien) et budget d'appels au modèle pour toute l'application, afin de
+# rester dans le quota gratuit de Gemini
+CHAT_BURST_BY_USER = Rule('chat-burst', 5, timedelta(minutes=1))
+CHAT_GLOBAL = Rule('chat-global', settings.CHAT_GLOBAL_DAILY_LIMIT, timedelta(days=1))
+CHAT_GLOBAL_KEY = 'all'

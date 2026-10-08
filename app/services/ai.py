@@ -1,8 +1,14 @@
+import logging
+
 from google import genai
 from google.genai import types
 from django.conf import settings
 from pgvector.django import CosineDistance
 from ..models import Beer
+from .chat import ChatUnavailable, engine, prompt, sanitize
+from .chat.tools import build_tools
+
+logger = logging.getLogger(__name__)
 
 CONTEXT_SIZE = 10
 # Appelé depuis des requêtes web (Beer.save) : on abandonne vite plutôt que de bloquer la fonction serverless
@@ -15,7 +21,7 @@ def config_client():
 def get_embedding(text):
     """Transforme un texte en vecteur mathématique (3072 dimensions, comme `Beer.embedding`) avec Gemini."""
     if not settings.GEMINI_API_KEY:
-        print("ERREUR : La clé GEMINI_API_KEY est introuvable.")
+        logger.error("GEMINI_API_KEY est introuvable.")
         return None
         
     try:
@@ -28,7 +34,7 @@ def get_embedding(text):
         return response.embeddings[0].values
         
     except Exception as e:
-        print(f"ERREUR Embedding Gemini : {e}")
+        logger.warning("Embedding Gemini en échec : %s", type(e).__name__)
         return None
 
 def _select_beers(user_message, limit=CONTEXT_SIZE):
@@ -48,60 +54,36 @@ def _select_beers(user_message, limit=CONTEXT_SIZE):
 
 def _format_beers_context(user_message):
     beers = _select_beers(user_message)
-    
+
     if not beers:
         return None
-        
-    context_list = []
+
+    # Noms et descriptions sont saisis par les membres : réduits à du texte brut court avant d'atteindre le modèle
+    lines = []
     for b in beers:
-        style = b.style if b.style else "Style inconnu"
+        style = sanitize.clean_text(b.style, 60) or "Style inconnu"
         ibu_text = f"{b.bitterness} IBU" if b.bitterness is not None else "IBU inconnu"
-        line = f"- {b.name} ({b.brewery_id.name}): {style}, {b.degree}%, {ibu_text}. Profil: {b.description}"
-        context_list.append(line)
-        
-    return "\n".join(context_list)
+        lines.append(
+            f"- {sanitize.clean_text(b.name, 80)} ({sanitize.clean_text(b.brewery_id.name, 80)}): {style}, {b.degree}%, {ibu_text}. "
+            f"Profil: {sanitize.clean_text(b.description, 200)}"
+        )
+    return "\n".join(lines)
 
-def ask_zythologue(user_message, history=None):
-    if history is None:
-        history = []
-        
+
+def ask_zythologue(user_message, history=None, location=None):
+    """Réponse de Gaétan. `location` (Coordinates ou None) sert aux questions de lieux et n'est ni transmise à Google ni conservée.
+
+    Lève ChatUnavailable si le service ne peut pas répondre : l'appelant ne doit alors rien enregistrer.
+    """
     if not settings.GEMINI_API_KEY:
-        return "Le service est inactif (Clé Gemini manquante)."
+        raise ChatUnavailable("Clé Gemini manquante")
 
-    # Contexte RAG mis à jour dynamiquement selon le NOUVEAU message
-    beers_context = _format_beers_context(user_message) or "Aucune bière en stock actuellement."
-
-    # Séparation Clean Code : Instruction système (Le rôle strict)
-    sys_instruct = f"""Tu es Gaétan, un zythologue bière sympathique et expert.
-J'ai pré-sélectionné pour toi les bières les plus pertinentes :
-{beers_context}
-
-RÈGLES STRICTES :
-1. Tu ne recommandes QUE des bières de la liste ci-dessus.
-2. Si la demande du client ne correspond pas au stock, propose l'alternative la plus proche dans la liste.
-3. Attention : la propriété "Style" d'une bière peut contenir plusieurs styles séparés par des virgules. 
-4. Fais des réponses courtes, chaleureuses et en français."""
-
-    # Reconstruction propre de l'historique pour Gemini
-    contents = []
-    for msg in history:
-        contents.append(types.Content(role=msg['role'], parts=[types.Part.from_text(text=msg['text'])]))
-        
-    # Ajout du message actuel
-    contents.append(types.Content(role="user", parts=[types.Part.from_text(text=user_message)]))
-
+    message = sanitize.clean_text(user_message, settings.CHAT_MESSAGE_MAX_LENGTH)
+    turns = sanitize.clean_history(history, settings.CHAT_HISTORY_LIMIT, settings.CHAT_MESSAGE_MAX_LENGTH)
+    system_prompt = prompt.build_system_prompt(_format_beers_context(message))
     try:
         client = config_client()
-        # gemini-2.5-flash est parfait pour des réponses rapides et précises
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=sys_instruct,
-                temperature=0.4
-            )
-        )
-        return response.text
-    except Exception as e:
-        print(f"Erreur IA : {str(e)}")
-        return "Désolé, j'ai eu un coup de chaud en cave. Pouvez-vous revenir plus tard s'il vous plaît ?"
+    except Exception as error:
+        logger.warning("Client Gemini impossible à créer : %s", type(error).__name__)
+        raise ChatUnavailable from error
+    return engine.converse(client, system_prompt, turns, message, build_tools(location))

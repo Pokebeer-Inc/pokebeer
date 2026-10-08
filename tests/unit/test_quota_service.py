@@ -41,3 +41,20 @@ def test_usage_is_deleted_with_the_account():
     consume_quota(member, LIMIT)
     member.delete()
     assert not ChatUsage.objects.exists()
+
+
+class TestWeeklyLimit:
+    def test_weekly_limit_applies_across_days_and_is_not_charged_when_refused(self, user):
+        today = timezone.localdate()
+        for days_ago in (1, 2):
+            ChatUsage.objects.create(user=user, day=today - timedelta(days=days_ago), count=LIMIT)
+        assert [consume_quota(user, LIMIT, weekly_limit=8) for _ in range(3)] == [True, True, False]
+        assert ChatUsage.objects.get(user=user, day=today).count == 2
+
+    def test_usage_older_than_seven_days_is_forgotten(self, user):
+        ChatUsage.objects.create(user=user, day=timezone.localdate() - timedelta(days=7), count=50)
+        assert consume_quota(user, LIMIT, weekly_limit=1)
+
+    def test_weekly_limit_is_per_scope(self, user):
+        ChatUsage.objects.create(user=user, day=timezone.localdate(), scope="label", count=2)
+        assert consume_quota(user, LIMIT, weekly_limit=1)
