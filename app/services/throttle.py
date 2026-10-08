@@ -93,4 +93,5 @@ EMAIL_PREFERENCES_BY_IP = Rule('email-prefs-ip', 30, timedelta(hours=1))
 # rester dans le quota gratuit de Gemini
 CHAT_BURST_BY_USER = Rule('chat-burst', 5, timedelta(minutes=1))
 CHAT_GLOBAL = Rule('chat-global', settings.CHAT_GLOBAL_DAILY_LIMIT, timedelta(days=1))
+CHAT_MODEL_CALLS = Rule('chat-model-calls', settings.CHAT_MODEL_CALLS_PER_MINUTE, timedelta(minutes=1))
 CHAT_GLOBAL_KEY = 'all'

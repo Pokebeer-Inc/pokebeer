@@ -12,6 +12,7 @@ from .geo import Coordinates
 from .sanitize import clean_text
 
 KINDS = ('bar', 'brewery', 'any')
+NEEDS_LOCATION_KEY = 'needs_location'  # présent dans le résultat d'un outil qui n'a pas pu travailler faute de position
 
 
 class Tool(ABC):
@@ -52,8 +53,13 @@ class FindPlacesTool(Tool):
         kind = args.get('kind') if args.get('kind') in KINDS else 'any'
         place_name = clean_text(args.get('place_name'), geocoding.MAX_QUERY_LENGTH)
         origin = geocoding.geocode(place_name) if place_name else self.origin
+        if origin is None and place_name:
+            return {'error': "Lieu introuvable : demande au membre de préciser la ville."}
         if origin is None:
-            return {'error': "Position inconnue : demande au membre d'activer le bouton de localisation du chat ou de citer une ville."}
+            return {
+                'error': "Position inconnue : demande au membre d'activer le bouton de localisation du chat ou de citer une ville.",
+                NEEDS_LOCATION_KEY: True,
+            }
         keyword = places.clean_keyword(args.get('keyword'))
         result = places.find_nearby(origin, kind, keyword, self._radius(args.get('radius_km')))
         return {

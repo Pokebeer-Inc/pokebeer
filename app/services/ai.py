@@ -5,8 +5,9 @@ from google.genai import types
 from django.conf import settings
 from pgvector.django import CosineDistance
 from ..models import Beer
-from .chat import ChatUnavailable, engine, prompt, sanitize
+from .chat import ChatBusy, ChatUnavailable, engine, prompt, sanitize
 from .chat.tools import build_tools
+from .throttle import CHAT_GLOBAL_KEY, CHAT_MODEL_CALLS
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,13 @@ def _format_beers_context(user_message):
     return "\n".join(lines)
 
 
+def _reserve_model_call():
+    """Chaque appel à Gemini compte dans le budget par minute de toute l'application : au-delà, mieux vaut répondre « occupé » que subir un refus."""
+    if CHAT_MODEL_CALLS.exceeded(CHAT_GLOBAL_KEY):
+        raise ChatBusy
+    CHAT_MODEL_CALLS.record(CHAT_GLOBAL_KEY)
+
+
 def ask_zythologue(user_message, history=None, location=None):
     """Réponse de Gaétan. `location` (Coordinates ou None) sert aux questions de lieux et n'est ni transmise à Google ni conservée.
 
@@ -86,4 +94,4 @@ def ask_zythologue(user_message, history=None, location=None):
     except Exception as error:
         logger.warning("Client Gemini impossible à créer : %s", type(error).__name__)
         raise ChatUnavailable from error
-    return engine.converse(client, system_prompt, turns, message, build_tools(location))
+    return engine.converse(client, system_prompt, turns, message, build_tools(location), _reserve_model_call)

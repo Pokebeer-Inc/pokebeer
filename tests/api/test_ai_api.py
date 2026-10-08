@@ -6,7 +6,7 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 
-from app.services.chat import ChatUnavailable
+from app.services.chat import ChatReply, ChatUnavailable
 from app.services.throttle import Rule
 
 from tests import factories as f
@@ -21,7 +21,7 @@ HISTORY_LIMIT = 10
 
 @pytest.fixture
 def zythologue(monkeypatch):
-    ask = mock.Mock(side_effect=lambda message, history, location=None: f"Réponse à {message}")
+    ask = mock.Mock(side_effect=lambda message, history, location=None: ChatReply(f"Réponse à {message}"))
     monkeypatch.setattr("app.views.api_views.ask_zythologue", ask)
     return ask
 
@@ -44,10 +44,14 @@ class TestChat:
         assert auth_client.get(CHAT_URL).json() == {"history": []}
 
     def test_exchange_is_answered_and_stored_in_session(self, auth_client, zythologue):
-        assert post_json(auth_client, CHAT_URL, {"message": "Une stout ?"}).json() == {"response": "Réponse à Une stout ?"}
+        assert post_json(auth_client, CHAT_URL, {"message": "Une stout ?"}).json() == {"response": "Réponse à Une stout ?", "needs_location": False}
         assert auth_client.get(CHAT_URL).json()["history"] == [
             {"role": "user", "text": "Une stout ?"}, {"role": "model", "text": "Réponse à Une stout ?"},
         ]
+
+    def test_missing_position_is_reported_so_the_browser_can_resume(self, auth_client, monkeypatch):
+        monkeypatch.setattr("app.views.api_views.ask_zythologue", mock.Mock(return_value=ChatReply("Activez votre position", needs_location=True)))
+        assert post_json(auth_client, CHAT_URL, {"message": "Un bar ?"}).json()["needs_location"] is True
 
     def test_history_is_capped(self, auth_client, zythologue):
         for i in range(HISTORY_LIMIT):
@@ -73,6 +77,13 @@ class TestChat:
         response = post_json(auth_client, CHAT_URL, {"message": "Bonjour"})
         assert response.status_code == 503 and response.json()["response"].startswith("Désolé")
         assert auth_client.get(CHAT_URL).json() == {"history": []}
+        assert not user.chat_usages.filter(count__gt=0).exists()
+
+    def test_busy_model_asks_to_retry_and_refunds_the_question(self, auth_client, monkeypatch, user):
+        from app.services.chat import ChatBusy
+        monkeypatch.setattr("app.views.api_views.ask_zythologue", mock.Mock(side_effect=ChatBusy))
+        response = post_json(auth_client, CHAT_URL, {"message": "Bonjour"})
+        assert response.status_code == 503 and "minute" in response.json()["response"]
         assert not user.chat_usages.filter(count__gt=0).exists()
 
     def test_location_is_validated_rounded_and_never_stored(self, auth_client, zythologue):
