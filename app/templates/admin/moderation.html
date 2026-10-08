@@ -75,7 +75,7 @@
       </dl>
 
       <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-base-100 pt-4 dark:border-base-700">
-        {% if card.url %}<a href="{{ card.url }}" target="_blank" rel="noopener noreferrer" class="text-sm text-primary-600">Voir la page publique ↗</a>{% endif %}
+        {% if card.url %}<a href="{{ card.url }}" target="_blank" rel="noopener noreferrer" class="text-sm text-primary-600">Voir la page publique {% include "partials/icon.html" with name="external" size="14" %}</a>{% endif %}
         {% if card.target_missing %}<span class="text-sm text-red-600">Contenu introuvable (déjà supprimé ?)</span>{% endif %}
 
         {% if done %}
@@ -112,7 +112,7 @@
             <input name="note" maxlength="{{ note_max }}" class="mt-1 block w-72 rounded-default border border-base-200 px-2 py-1.5 dark:border-base-700 dark:bg-base-900">
           </label>
           <button class="rounded-default bg-red-600 px-4 py-2 text-sm font-medium text-white">{{ card.remove_label }} &amp; notifier</button>
-          {% if card.cascade_warning %}<p class="w-full text-sm text-red-600">⚠ {{ card.cascade_warning }}</p>{% endif %}
+          {% if card.cascade_warning %}<p class="w-full text-sm text-red-600">{% include "partials/icon.html" with name="warning" size="16" cls="align-text-bottom" %} {{ card.cascade_warning }}</p>{% endif %}
         </form>
       </details>
       {% elif not done and not card.target_missing and entry.kind == 'user' %}
@@ -121,15 +121,15 @@
     </div>
     {% endwith %}
     {% empty %}
-    <div class="rounded-default bg-white p-8 text-center shadow-xs dark:bg-base-800">Rien à relire 🎉</div>
+    <div class="rounded-default bg-white p-8 text-center shadow-xs dark:bg-base-800">Rien à relire</div>
     {% endfor %}
   </div>
 
   {% if page.has_other_pages %}
   <div class="mt-4 flex items-center gap-4 text-sm">
-    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&state={% if done %}done{% else %}pending{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if action %}&action={{ action }}{% endif %}">← Précédent</a>{% endif %}
+    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&state={% if done %}done{% else %}pending{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if action %}&action={{ action }}{% endif %}">{% include "partials/icon.html" with name="arrow-left" size="14" %} Précédent</a>{% endif %}
     <span>Page {{ page.number }} / {{ page.paginator.num_pages }}</span>
-    {% if page.has_next %}<a href="?page={{ page.next_page_number }}&state={% if done %}done{% else %}pending{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if action %}&action={{ action }}{% endif %}">Suivant →</a>{% endif %}
+    {% if page.has_next %}<a href="?page={{ page.next_page_number }}&state={% if done %}done{% else %}pending{% endif %}{% if kind %}&kind={{ kind }}{% endif %}{% if action %}&action={{ action }}{% endif %}">Suivant {% include "partials/icon.html" with name="arrow-right" size="14" %}</a>{% endif %}
   </div>
   {% endif %}
 </div>

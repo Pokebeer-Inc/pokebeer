@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'app',
     'django.contrib.sites',
+    'django.contrib.postgres',  # recherche : opérateurs trigramme (voir app/services/search.py)
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -231,6 +232,14 @@ SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', EMAIL_HOST_USER)
 DEFAULT_FROM_EMAIL = f'Pokebeer <{EMAIL_HOST_USER}>'
 # Les liens des e-mails partent de cette adresse fixe, jamais de l'en-tête Host de la requête (empoisonnement de lien)
 PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', 'http://localhost:8000' if DEBUG else 'https://pokebeer.vercel.app').rstrip('/')
+# --- Application Android (liens d'e-mail ouverts directement dans l'application) ---
+# Les liens des e-mails sont de simples adresses https du site : Android les ouvre dans l'application installée si celle-ci est
+# « vérifiée » pour ce domaine (App Links), via /.well-known/assetlinks.json. Les empreintes SHA-256 sont celles du certificat qui
+# signe l'application distribuée par Google Play (Play Console > Intégrité de l'application), séparées par des virgules.
+ANDROID_PACKAGE_NAME = os.getenv('ANDROID_PACKAGE_NAME', 'com.scarone.pokebeer')
+ANDROID_CERT_FINGERPRINTS = [part.strip().upper() for part in os.getenv('ANDROID_CERT_FINGERPRINTS', '').split(',') if part.strip()]
+# Plafond quotidien des e-mails de campagne (Gmail : 500 messages par jour, partagés avec les autres e-mails du service)
+CAMPAIGN_EMAIL_DAILY_LIMIT = int(os.getenv('CAMPAIGN_EMAIL_DAILY_LIMIT', '60'))
 # Politique de confidentialité en vigueur : cible de la notification « politique mise à jour » (document hébergé hors du site)
 PRIVACY_POLICY_URL = os.getenv('PRIVACY_POLICY_URL', 'https://docs.google.com/document/u/1/d/e/2PACX-1vRUotydGSIazgqfyVaB-I-IdDaPGuWBv3zmNgEOHBYL7qn1eYfsZcd1i5dAU_MnRFs2TOLW8YcDLmV3/pub')
 # Validité d'un lien de réinitialisation (secondes) ; le lien ne sert qu'une fois (il dépend de l'ancien mot de passe)
@@ -316,6 +325,10 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 CHAT_DAILY_LIMIT = 10
 CHAT_MESSAGE_MAX_LENGTH = 5000
 LABEL_DAILY_LIMIT = 20
+# Recherche par code-barres (Open Food Facts) : plafond quotidien par membre, délai et identification de l'application
+EAN_DAILY_LIMIT = 60
+OPEN_FOOD_FACTS_TIMEOUT = 4
+OPEN_FOOD_FACTS_USER_AGENT = f'Pokebeer/1.0 ({os.getenv("EMAIL_HOST_USER", "pokebeer.assistance@gmail.com")})'
 LABEL_MAX_UPLOAD_BYTES = 4 * 1024 * 1024  # Vercel refuse de toute façon les requêtes de plus de 4,5 Mo
 REPORT_DAILY_LIMIT = 10
 
@@ -371,6 +384,12 @@ UNFOLD = {
                         "title": _("Annonces de politique"),
                         "icon": "policy",
                         "link": reverse_lazy("admin:app_policynotice_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": _("Campagnes e-mail"),
+                        "icon": "campaign",
+                        "link": reverse_lazy("admin:app_emailcampaign_changelist"),
                         "permission": lambda request: request.user.is_superuser,
                     },
                     {

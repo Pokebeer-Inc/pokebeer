@@ -66,7 +66,7 @@ class TestAllBeers:
     def test_first_page_is_capped_at_ten(self, auth_client):
         for _ in range(HOME_LIMIT + 1):
             f.make_beer()
-        assert len(auth_client.get(reverse("all_beers")).context["beers"]) == HOME_LIMIT
+        assert len(auth_client.get(reverse("all_beers"), {"tab": "bieres"}).context["beers"]) == HOME_LIMIT
 
     def test_hostile_search_input_is_escaped(self, auth_client):
         payload = "<script>alert(1)</script>"

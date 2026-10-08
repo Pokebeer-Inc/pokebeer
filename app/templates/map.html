@@ -27,7 +27,7 @@
         <!-- Barre de recherche flottante -->
         <div class="absolute top-3 left-1/2 -translate-x-1/2 w-[92%] max-w-sm z-[1000] flex flex-col gap-1">
             <div class="flex shadow-lg rounded-xl overflow-hidden border border-base-300 bg-base-100">
-                <input type="text" id="map-search-input" placeholder="Chercher un bar, une brasserie ou une adresse..." 
+                <input type="text" id="map-search-input" placeholder="Bar, brasserie, adresse..." 
                        class="input input-sm w-full rounded-none border-none focus:outline-none bg-white text-gray-800" 
                        onkeypress="if(event.key === 'Enter') searchLocation()">
                 <button onclick="searchLocation()" class="btn btn-sm btn-primary rounded-none border-none">
@@ -92,11 +92,11 @@
 </div>
 <div id="places-data-container" class="hidden">
     {% for bar in bars %}
-    <div class="place-data-item" data-type="bar" data-url="{% url 'bar_detail' bar.slug %}" data-lat="{{ bar.latitude|stringformat:'f' }}" data-lng="{{ bar.longitude|stringformat:'f' }}" data-name="{{ bar.name|escapejs }}"></div>
+    <div class="place-data-item" data-type="bar" data-slug="{{ bar.slug }}" data-url="{% url 'bar_detail' bar.slug %}" data-lat="{{ bar.latitude|stringformat:'f' }}" data-lng="{{ bar.longitude|stringformat:'f' }}" data-name="{{ bar.name|escapejs }}"></div>
     {% endfor %}
     
     {% for brewery in breweries %}
-    <div class="place-data-item" data-type="brewery" data-url="{% url 'brewery_detail' brewery.slug %}" data-lat="{{ brewery.latitude|stringformat:'f' }}" data-lng="{{ brewery.longitude|stringformat:'f' }}" data-name="{{ brewery.name|escapejs }}"></div>
+    <div class="place-data-item" data-type="brewery" data-slug="{{ brewery.slug }}" data-url="{% url 'brewery_detail' brewery.slug %}" data-lat="{{ brewery.latitude|stringformat:'f' }}" data-lng="{{ brewery.longitude|stringformat:'f' }}" data-name="{{ brewery.name|escapejs }}"></div>
     {% endfor %}
 </div>
 
@@ -105,7 +105,7 @@
 <dialog id="modal_add_spot" class="modal z-[9999]">
     <div class="modal-box custom-modal-form">
         
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-50 bg-base-100" onclick="modal_add_spot.close()">✕</button>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-50 bg-base-100" onclick="modal_add_spot.close()">{% include "partials/icon.html" with name="close" %}</button>
         <h3 id="modal-title" class="font-bold text-lg mb-4 text-center border-b border-primary pb-2 shrink-0">Ajouter un lieu</h3>
         
         <form method="post" class="flex flex-col gap-3">
@@ -222,7 +222,7 @@
 
 <dialog id="modal_place" class="modal modal-bottom sm:modal-middle z-[99999]">
     <div class="modal-box p-0 w-full max-w-2xl custom-modal-form overflow-y-auto relative bg-base-100">
-        <button type="button" class="btn btn-sm btn-circle btn-neutral absolute right-3 top-3 z-[100] shadow-md bg-black/50 border-none text-white backdrop-blur-sm" onclick="modal_place.close()">✕</button>
+        <button type="button" class="btn btn-sm btn-circle btn-neutral absolute right-3 top-3 z-[100] shadow-md bg-black/50 border-none text-white backdrop-blur-sm" onclick="modal_place.close()">{% include "partials/icon.html" with name="close" %}</button>
         
         <div id="modal_place_content" class="w-full min-h-[300px] flex flex-col p-4">
             <div class="flex justify-center p-20 w-full">

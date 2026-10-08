@@ -1,0 +1,31 @@
+/* Scanner d'étiquette en direct : plein écran, cadre guide, états. Feuille dédiée (aucune dépendance aux classes utilitaires compilées). */
+.label-scanner { position: fixed; inset: 0; z-index: 10000; display: none; background: #000; color: #fff; }
+.label-scanner.is-open { display: block; }
+.label-scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* Cadre : la zone analysée (76 % x 52 % de l'image) ; l'ombre portée assombrit tout le reste */
+.label-scanner__guide { position: absolute; left: 12%; top: 22%; width: 76%; height: 52%; border-radius: 1.25rem; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .55); pointer-events: none; }
+.label-scanner__corner { position: absolute; width: 2.25rem; height: 2.25rem; border: 0 solid var(--scanner-color, #fff); transition: border-color .2s; }
+.label-scanner__corner--tl { top: -3px; left: -3px; border-top-width: 4px; border-left-width: 4px; border-top-left-radius: 1.25rem; }
+.label-scanner__corner--tr { top: -3px; right: -3px; border-top-width: 4px; border-right-width: 4px; border-top-right-radius: 1.25rem; }
+.label-scanner__corner--bl { bottom: -3px; left: -3px; border-bottom-width: 4px; border-left-width: 4px; border-bottom-left-radius: 1.25rem; }
+.label-scanner__corner--br { bottom: -3px; right: -3px; border-bottom-width: 4px; border-right-width: 4px; border-bottom-right-radius: 1.25rem; }
+.label-scanner[data-state="holding"] { --scanner-color: #facc15; }
+.label-scanner[data-state="analyzing"] { --scanner-color: #facc15; }
+.label-scanner[data-state="found"] { --scanner-color: #22c55e; }
+.label-scanner[data-state="notfound"], .label-scanner[data-state="error"], .label-scanner[data-state="exhausted"] { --scanner-color: #f87171; }
+.label-scanner[data-state="analyzing"] .label-scanner__guide { animation: label-scanner-pulse 1s ease-in-out infinite; }
+@keyframes label-scanner-pulse { 50% { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .label-scanner[data-state="analyzing"] .label-scanner__guide { animation: none; } }
+
+/* Barre de progression sous le cadre : temps pendant lequel l'étiquette reste nette et immobile */
+.label-scanner__bar { position: absolute; left: 12%; top: calc(74% + .75rem); width: 76%; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .25); overflow: hidden; }
+.label-scanner__bar > span { display: block; width: 0; height: 100%; background: #facc15; transition: width .2s linear; }
+
+.label-scanner__top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: max(.75rem, env(safe-area-inset-top)) .75rem .75rem; }
+.label-scanner__message { flex: 1; text-align: center; font-weight: 700; font-size: .9rem; padding: .5rem .75rem; border-radius: 9999px; background: rgba(0, 0, 0, .6); }
+.label-scanner__bottom { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: .5rem; padding: .75rem .75rem max(1.25rem, env(safe-area-inset-bottom)); }
+.label-scanner__hint { font-size: .75rem; opacity: .85; text-align: center; }
+.label-scanner__shutter { width: 4rem; height: 4rem; border-radius: 9999px; border: 4px solid #fff; background: rgba(255, 255, 255, .25); color: #fff; display: flex; align-items: center; justify-content: center; }
+.label-scanner__shutter:disabled { opacity: .4; }
+.label-scanner__round { width: 2.75rem; height: 2.75rem; border-radius: 9999px; background: rgba(0, 0, 0, .6); color: #fff; display: flex; align-items: center; justify-content: center; }

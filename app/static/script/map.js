@@ -80,6 +80,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Chargement des Bars et Brasseries
     const placesContainer = document.getElementById('places-data-container');
+    const placeMarkers = {}; // « bar:slug » / « brewery:slug » -> marqueur, pour ouvrir un établissement depuis la recherche
     if (placesContainer) {
         document.querySelectorAll('.place-data-item').forEach(item => {
             const lat = parseFloat(item.dataset.lat);
@@ -91,6 +92,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const icon = type === 'bar' ? barIcon : breweryIcon;
             
             const marker = L.marker([lat, lng], {icon: icon, title: name}).addTo(map);
+            placeMarkers[type + ':' + item.dataset.slug] = marker;
             mapBounds.push([lat, lng]);
             
             // Événement au clic : Ouverture de la modale et chargement du contenu
@@ -139,6 +141,15 @@ document.addEventListener("DOMContentLoaded", function() {
     // Centrage automatique sur tous les points
     if (mapBounds.length > 0) {
         map.fitBounds(mapBounds, { maxZoom: 5, padding: [30, 30] }); 
+    }
+
+    // Arrivée depuis la recherche (?kind=bar&place=slug) : centre la carte et ouvre la fiche. Les paramètres ne servent qu'à
+    // retrouver un marqueur déjà présent (clé de dictionnaire) : ils ne sont jamais insérés dans la page.
+    const requested = new URLSearchParams(window.location.search);
+    const requestedMarker = placeMarkers[requested.get('kind') + ':' + requested.get('place')];
+    if (requestedMarker) {
+        map.setView(requestedMarker.getLatLng(), 16);
+        requestedMarker.fire('click');
     }
 
     // Gestion de l'ouverture de la modale d'édition

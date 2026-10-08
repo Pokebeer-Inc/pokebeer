@@ -1,0 +1,19 @@
+{% comment %}Carte d'un bar ou d'une brasserie, même présentation que les cartes de bières.
+Rendue par le serveur (place + place_kind) et réutilisée comme modèle vide par « Près de moi » : nearby.js remplit les éléments data-*.{% endcomment %}
+<a href="{{ place.target_url|default:'#' }}" data-place-card class="card bg-white shadow-sm p-3 flex-row items-center gap-3 hover:bg-base-200 active:scale-[0.98] transition-all">
+    <img data-image alt="" loading="lazy" decoding="async" {% if place.image_url %}src="{{ place.image_url }}"{% endif %}
+         class="pointer-events-none bg-base-200 object-cover aspect-square w-14 rounded-lg shrink-0 border border-base-200 {% if not place.image_url %}hidden{% endif %}">
+    <span data-placeholder class="pointer-events-none w-14 aspect-square rounded-lg shrink-0 border border-base-200 bg-base-200 text-gray-400 flex items-center justify-center {% if place.image_url %}hidden{% endif %}" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+    </span>
+    <div class="pointer-events-none flex-1 min-w-0 flex flex-col">
+        <h3 data-name class="font-bold text-md leading-tight truncate">{{ place.name }}</h3>
+        <p data-address class="text-xs text-gray-500 truncate">{{ place.address|default:"" }}</p>
+        <div class="flex flex-wrap gap-2 mt-1">
+            <span data-kind-label class="badge badge-outline badge-neutral badge-xs">{% if place_kind == 'brewery' %}Brasserie{% elif place_kind == 'bar' %}Bar{% endif %}</span>
+            <span data-count class="badge badge-outline badge-neutral badge-xs {% if place_kind != 'brewery' %}hidden{% endif %}">{% if place_kind == 'brewery' %}{{ place.beer_count }} bière{{ place.beer_count|pluralize }}{% endif %}</span>
+            <span data-verified class="badge badge-success badge-outline badge-xs {% if not place.is_verified %}hidden{% endif %}">Vérifié</span>
+        </div>
+    </div>
+    <span data-distance class="pointer-events-none badge badge-primary badge-sm shrink-0 hidden"></span>
+</a>

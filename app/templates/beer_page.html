@@ -259,7 +259,7 @@
 
                 <dialog id="modal_report_drink_{{ drink.slug }}" class="modal z-[99999]">
                     <div class="modal-box custom-modal-form">
-                        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="document.getElementById('modal_report_drink_{{ drink.slug }}').close()">✕</button>
+                        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="document.getElementById('modal_report_drink_{{ drink.slug }}').close()">{% include "partials/icon.html" with name="close" %}</button>
                         <h3 class="font-bold text-lg text-error mb-4">Signaler cet avis</h3>
                         
                         <form method="post" action="{% url 'submit_report' %}">
@@ -338,7 +338,7 @@
 
 <dialog id="modal_report_beer" class="modal z-[99999]">
     <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_report_beer.close()">✕</button>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_report_beer.close()">{% include "partials/icon.html" with name="close" %}</button>
         <h3 class="font-bold text-lg text-error mb-4">Signaler la bière</h3>
         <p class="text-xs text-gray-500 mb-3">S'agit-il d'un doublon, d'une erreur d'information ou d'un contenu inapproprié ?</p>
         

@@ -1,16 +1,22 @@
-from django.db.models import Case, When, Value, IntegerField, Q, Max, Prefetch
+from django.db.models import Case, When, Value, IntegerField, Q, Max, Prefetch, Count
 
-from ...models import Beer, Drinks, BeerUser
+from ...models import Bar, Beer, BeerUser, Brewery, Drinks
+from ...services import place_filters, search
+from ...services.places import BAR, BREWERY
 from ..utils import get_blocked_users, get_excluded_users
+
+
+def search_query(request):
+    """Texte de la barre de recherche unique (`q`) ; `uq` est l'ancien paramètre de la recherche de membres."""
+    return (request.GET.get('q') or request.GET.get('uq') or '').strip()
 
 def get_filtered_beers(request):
     """Extrait la logique de filtrage des bières pour la réutiliser."""
     # Bloqués seulement : le catalogue est partagé, les bières d'un compte suspendu restent visibles
     beers = Beer.objects.filter(is_deleted=False).exclude(added_by__in=get_blocked_users(request.user)).select_related('brewery_id')
 
-    query = request.GET.get('q')
-    if query:
-        beers = beers.filter(Q(name__icontains=query) | Q(brewery_id__name__icontains=query))
+    query = search_query(request)
+    beers = search.beers(beers, query)
 
     degree_filter = request.GET.get('degree')
     if degree_filter == 'light': beers = beers.filter(degree__lt=5)
@@ -25,7 +31,8 @@ def get_filtered_beers(request):
     style_filter = request.GET.get('style')
     if style_filter: beers = beers.filter(style__icontains=style_filter)
 
-    order_fields = []
+    # Avec une recherche et sans tri choisi, les meilleures correspondances passent d'abord
+    order_fields = [search.RANK_FIELD] if query and not request.GET.get('sort') else []
     
     # Logique de Tri
     sort_by = request.GET.get('sort', 'unrated_first')
@@ -65,7 +72,7 @@ def get_filtered_beers(request):
 
 def get_filtered_users(request):
     """Extrait la logique de filtrage des utilisateurs pour la réutiliser."""
-    user_query = request.GET.get('uq')
+    user_query = search_query(request)
     
     excluded_ids = get_excluded_users(request.user)
     if request.user.is_authenticated:
@@ -80,11 +87,22 @@ def get_filtered_users(request):
     users = BeerUser.objects.exclude(id__in=excluded_ids).prefetch_related(latest_beer_prefetch, 'socialaccount_set')
     
     if user_query:
-        users = users.filter(username__icontains=user_query)
+        users = search.members(users, user_query).order_by(search.RANK_FIELD, 'username')
     else:
         users = users.filter(added_beers__is_deleted=False).annotate(latest_beer_id=Max('added_beers__id')).order_by('-latest_beer_id')
         
     return users
+
+def get_filtered_breweries(request):
+    """Brasseries correspondant à la recherche et aux filtres (les plus pertinentes, puis les plus fournies en bières)."""
+    breweries = Brewery.objects.annotate(beer_count=Count('beer', filter=Q(beer__is_deleted=False), distinct=True))
+    breweries = place_filters.apply(search.breweries(breweries, search_query(request)), request.GET, BREWERY)
+    return breweries.order_by(*place_filters.ordering(request.GET, (search.RANK_FIELD, '-beer_count', 'name')))
+
+def get_filtered_bars(request):
+    """Bars correspondant à la recherche et aux filtres."""
+    bars = place_filters.apply(search.bars(Bar.objects.all(), search_query(request)), request.GET, BAR)
+    return bars.order_by(*place_filters.ordering(request.GET, (search.RANK_FIELD, 'name')))
 
 def get_filtered_notebook_drinks(request):
     """Extrait la logique de filtrage des dégustations du carnet."""

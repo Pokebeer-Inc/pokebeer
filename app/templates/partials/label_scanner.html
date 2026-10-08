@@ -1,0 +1,22 @@
+{% comment %}Scanner d'étiquette en direct (plein écran). Piloté par label_scanner.js ; masqué tant qu'il n'est pas ouvert.{% endcomment %}
+<div id="label-scanner" class="label-scanner" role="dialog" aria-modal="true" aria-labelledby="scanner-message" aria-hidden="true" data-state="searching">
+    <video data-scanner-video playsinline muted autoplay></video>
+
+    <div class="label-scanner__guide" aria-hidden="true">
+        <span class="label-scanner__corner label-scanner__corner--tl"></span>
+        <span class="label-scanner__corner label-scanner__corner--tr"></span>
+        <span class="label-scanner__corner label-scanner__corner--bl"></span>
+        <span class="label-scanner__corner label-scanner__corner--br"></span>
+    </div>
+    <div class="label-scanner__bar" aria-hidden="true"><span data-scanner-progress></span></div>
+
+    <div class="label-scanner__top">
+        <p id="scanner-message" class="label-scanner__message" data-scanner-message role="status" aria-live="polite">Présentez le code-barres, ou placez l'étiquette dans le cadre</p>
+        <button type="button" class="label-scanner__round" data-scanner-close aria-label="Fermer la caméra">{% include "partials/icon.html" with name="close" size="20" %}</button>
+    </div>
+
+    <div class="label-scanner__bottom">
+        <p class="label-scanner__hint">Astuce : le code-barres (EAN) est le plus rapide et le plus fiable. Sinon, l'étiquette est analysée toute seule quand elle est nette et immobile dans le cadre.</p>
+        <button type="button" class="label-scanner__shutter" data-scanner-capture aria-label="Analyser maintenant">{% include "partials/icon.html" with name="camera" size="28" %}</button>
+    </div>
+</div>

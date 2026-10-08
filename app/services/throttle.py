@@ -69,3 +69,13 @@ INACTIVITY_EMAIL_GLOBAL = Rule('inactivity-email', 100, timedelta(days=1))
 # quotidien qui laisse de la place aux mots de passe oubliés et aux avertissements d'inactivité (Gmail : 500 par jour)
 POLICY_NOTICE_PUBLISH = Rule('policy-notice', 2, timedelta(days=1))
 POLICY_EMAIL_GLOBAL = Rule('policy-email', 80, timedelta(days=1))
+
+# Bienvenue : e-mail envoyé à l'inscription, au-delà du plafond il est simplement omis (le compte est créé quoi qu'il arrive)
+WELCOME_EMAIL_GLOBAL = Rule('welcome-email', 100, timedelta(days=1))
+
+# Campagnes de l'administration : quota d'e-mails par jour (réglable, voir settings) et garde-fou contre les lancements répétés
+CAMPAIGN_EMAIL_GLOBAL = Rule('campaign-email', settings.CAMPAIGN_EMAIL_DAILY_LIMIT, timedelta(days=1))
+CAMPAIGN_LAUNCH = Rule('campaign-launch', 5, timedelta(days=1))
+
+# Page publique de choix des e-mails (lien signé reçu par e-mail)
+EMAIL_PREFERENCES_BY_IP = Rule('email-prefs-ip', 30, timedelta(hours=1))

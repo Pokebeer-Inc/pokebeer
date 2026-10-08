@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", function() {
+    // Icône SVG (constante du code) ajoutée au libellé du bouton
+    const EXTERNAL_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="inline-block ml-1"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>';
     
     // --- 1. LOGIQUE D'AUTOCOMPLÉTION (DRY) ---
     function setupAutocomplete(inputId, suggId, apiPath, renderItem, onSelect) {
@@ -60,7 +62,8 @@ document.addEventListener("DOMContentLoaded", function() {
             label.append(name, stock);
             const action = document.createElement("span");
             action.className = "btn btn-sm btn-error text-white shadow-sm";
-            action.textContent = "Aller la noter ↗";
+            action.textContent = "Aller la noter";
+            action.insertAdjacentHTML("beforeend", EXTERNAL_ICON);
             div.append(label, action);
         },
         (item) => window.location.href = `/beer/${item.slug}/`
@@ -83,104 +86,5 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     );
 
-    // --- 2. LOGIQUE DU SCANNER D'ÉTIQUETTE ---
-    const scanBtn = document.getElementById('scan-label-btn');
-    const cameraInput = document.getElementById('camera-input');
-    const scanLoader = document.getElementById('scan-loader');
-
-    if (scanBtn && cameraInput) {
-        // Récupération de l'URL passée depuis Django
-        const apiUrl = scanBtn.getAttribute('data-url');
-
-        scanBtn.addEventListener('click', () => cameraInput.click());
-
-        cameraInput.addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            scanLoader.classList.remove('hidden');
-            scanBtn.disabled = true;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    canvas.toBlob(function(blob) {
-                        const formData = new FormData();
-                        formData.append('image', blob, 'label.jpg');
-
-                        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-                        fetch(apiUrl, {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-CSRFToken': csrfToken
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(result => {
-                            if (result.success) {
-                                const data = result.data;
-                                
-                                // Utilitaire pour remplir et formater proprement un champ
-                                const fillField = (id, val, formatName = false) => {
-                                    if (val) {
-                                        const field = document.getElementById(id);
-                                        if (field) {
-                                            field.value = formatName ? val.charAt(0).toUpperCase() + val.slice(1).toLowerCase() : val;
-                                            field.dispatchEvent(new Event('input'));
-                                        }
-                                    }
-                                };
-
-                                fillField('id_beer-name', data.name, true);
-                                fillField('id_beer-brewery_name', data.brewery, true);
-                                fillField('id_beer-style', data.style);
-                                fillField('id_beer-degree', data.degree);
-                                fillField('id_beer-bitterness', data.bitterness);
-
-                                // La photo prise pour l'analyse illustre aussi l'avis ; le membre peut la changer ou la retirer
-                                window.ImageFields.preset(
-                                    document.getElementById('id_drink-photo'),
-                                    new File([blob], 'tasting.jpg', { type: 'image/jpeg' })
-                                );
-                                
-                            } else {
-                                alert("Erreur: " + result.error);
-                            }
-                        })
-                        .catch(error => {
-                            console.error("Erreur réseau:", error);
-                            alert("Impossible de joindre le serveur d'analyse.");
-                        })
-                        .finally(() => {
-                            scanLoader.classList.add('hidden');
-                            scanBtn.disabled = false;
-                            cameraInput.value = '';
-                        });
-
-                    }, 'image/jpeg', 0.8);
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
+    // Le scan d'étiquette (caméra en direct ou photo) vit dans label_scan_page.js et ses modules.
 });

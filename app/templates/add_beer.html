@@ -2,23 +2,26 @@
 {% load static %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'style/label_scanner.css' %}">
 
 {% include "partials/page_header.html" with title="Ajouter une bière" %}
 
 <div class="w-full mb-6">
-    <button type="button" id="scan-label-btn" data-url="{% url 'analyze_label' %}" class="btn btn-secondary w-full text-white flex items-center justify-center gap-2 h-auto min-h-[3rem] py-1 text-wrap text-center">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-        Prendre une photo avec l'IA
+    <button type="button" id="scan-label-btn" data-url="{% url 'analyze_label' %}" data-ean-url="{% url 'lookup_ean' %}" class="btn btn-secondary w-full text-white flex items-center justify-center gap-2 h-auto min-h-[3rem] py-1 text-wrap text-center">
+        {% include "partials/icon.html" with name="camera" size="24" %}
+        Scanner une bière avec l'IA
     </button>
+    <p class="text-center text-xs text-gray-500 mt-2">Astuce : le code-barres (EAN) de la bouteille ou de la canette est le plus rapide et le plus fiable. Sans lui, l'étiquette est analysée par l'IA.</p>
     <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
-    <div id="scan-loader" class="hidden text-center text-sm text-primary font-bold mt-2">
-        <span class="loading loading-spinner loading-sm"></span> Analyse de l'étiquette en cours...
-    </div>
+    <p class="text-center mt-2"><button type="button" id="scan-pick-photo" class="text-xs text-gray-500 underline hover:text-primary">Choisir une photo plutôt</button></p>
+    <p id="scan-status" class="hidden text-center text-sm font-bold mt-2" role="status" aria-live="polite"></p>
 </div>
+{% include "partials/label_scanner.html" %}
 
 <div class="card-body bg-white p-4 rounded-xl border border-base-300 space-y-2">
     <form method="post" autocomplete="off" class="flex flex-col gap-5" enctype="multipart/form-data">
         {% csrf_token %}
+        {{ beer_form.ean }}
 
         {% if beer_form.non_field_errors or drink_form.non_field_errors %}
         <div class="alert alert-error text-sm" role="alert">
@@ -156,4 +159,10 @@
 </div>
 
 <script src="{% static 'script/add_beer.js' %}"></script>
+<script src="{% static 'script/frame_metrics.js' %}"></script>
+<script src="{% static 'script/ean_decoder.js' %}"></script>
+<script src="{% static 'script/barcode_reader.js' %}"></script>
+<script src="{% static 'script/label_scan_client.js' %}"></script>
+<script src="{% static 'script/label_scanner.js' %}"></script>
+<script src="{% static 'script/label_scan_page.js' %}"></script>
 {% endblock %}

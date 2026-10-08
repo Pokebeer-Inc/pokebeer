@@ -3,7 +3,7 @@
 {% if not is_manager %}
 <dialog id="modal_report_place" class="modal z-[99999]">
     <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_report_place.close()">✕</button>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_report_place.close()">{% include "partials/icon.html" with name="close" %}</button>
         <h3 class="font-bold text-lg text-error mb-4">Signaler {% if place_type == 'bar' %}le bar{% else %}la brasserie{% endif %}</h3>
         
         <form method="post" action="{% url 'submit_report' %}">
@@ -35,7 +35,7 @@
 {% if is_manager %}
 <dialog id="modal_manage_collabs" class="modal z-[99999]">
     <div class="modal-box custom-modal-form max-w-lg h-[80vh] flex flex-col">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_manage_collabs.close()">✕</button>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_manage_collabs.close()">{% include "partials/icon.html" with name="close" %}</button>
         <h3 class="font-bold text-lg mb-4 text-primary shrink-0">Gérer les collaborateurs</h3>
         
         <div class="flex-1 overflow-y-auto pr-2">

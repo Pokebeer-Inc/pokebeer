@@ -1,0 +1,26 @@
+{% extends "password_reset/_layout.html" %}
+{% block heading %}Vos e-mails Pokebeer{% endblock %}
+{% block body %}
+{% if saved is not None %}
+<p class="text-sm text-gray-700" role="status">
+    {% if saved %}Merci ! Vous recevrez les nouveautés de Pokebeer par e-mail.{% else %}C'est noté : vous ne recevrez plus d'e-mails promotionnels.{% endif %}
+</p>
+{% else %}
+<p class="text-sm text-gray-700">
+    Bonjour {{ member.username }}. Actuellement, vous
+    <strong>{% if member.marketing_opt_in %}recevez{% else %}ne recevez pas{% endif %}</strong>
+    les nouveautés de Pokebeer par e-mail.
+</p>
+{% endif %}
+<p class="text-sm text-gray-600">Les e-mails indispensables (mot de passe, sécurité, informations sur votre compte) restent envoyés dans tous les cas.</p>
+<form method="post" class="flex flex-col gap-2 mt-4">
+    {% csrf_token %}
+    {% if saved is None and member.marketing_opt_in or saved %}
+    <button type="submit" name="choice" value="refuse" class="btn btn-outline w-full">Ne plus recevoir les nouveautés</button>
+    {% else %}
+    <button type="submit" name="choice" value="accept" class="btn btn-primary w-full">Oui, je veux recevoir les nouveautés</button>
+    {% if saved is None %}<button type="submit" name="choice" value="refuse" class="btn btn-ghost w-full">Non merci</button>{% endif %}
+    {% endif %}
+</form>
+<p class="text-center mt-6 text-sm text-gray-600"><a href="{% url 'index' %}" class="text-primary hover:underline font-bold">Retour à Pokebeer</a></p>
+{% endblock %}

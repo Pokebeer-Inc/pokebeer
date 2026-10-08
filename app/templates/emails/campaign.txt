@@ -1,0 +1,10 @@
+{% autoescape off %}Bonjour {{ user.username }},
+{% for paragraph in paragraphs %}
+{{ paragraph }}
+{% endfor %}{% if cta_url and cta_label %}
+{{ cta_label }} : {{ cta_url }}
+{% endif %}
+L'équipe Pokebeer
+
+--
+{% if promotional %}Vous recevez cet e-mail en tant que membre de Pokebeer. Ne plus recevoir ces e-mails : {{ preferences_url }}{% else %}Message important lié à votre compte ou au service Pokebeer, envoyé à tous les membres. Une question ? Écrivez à {{ support_email }}.{% endif %}{% endautoescape %}

@@ -5,6 +5,7 @@ from ..models import ChatUsage
 
 CHAT = 'chat'
 LABEL_SCAN = 'label'
+EAN_LOOKUP = 'ean'
 
 
 def consume_quota(user, daily_limit, scope=CHAT):

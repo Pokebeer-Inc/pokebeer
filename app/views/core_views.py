@@ -9,7 +9,8 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from ..forms import DrinkForm
 from ..models import Beer, Drinks, BeerUser, UserBlock
 from .services.recommendations import get_recommended_beers
-from .services.selectors import get_filtered_beers, get_filtered_users, get_filtered_notebook_drinks
+from .services.selectors import get_filtered_bars, get_filtered_beers, get_filtered_breweries, get_filtered_users, get_filtered_notebook_drinks
+from ..services.places import BAR, BREWERY, with_targets
 from .utils import parse_offset
 
 @ensure_csrf_cookie
@@ -108,6 +109,16 @@ def load_more_generic(request, item_type):
         context['users'] = items
         template_name = 'partials/search_users.html'
         
+    elif item_type == "search_breweries":
+        items = context['places'] = with_targets(get_filtered_breweries(request)[offset:offset+limit], BREWERY)
+        context['place_kind'] = 'brewery'
+        template_name = 'partials/search_places.html'
+
+    elif item_type == "search_bars":
+        items = context['places'] = with_targets(get_filtered_bars(request)[offset:offset+limit], BAR)
+        context['place_kind'] = 'bar'
+        template_name = 'partials/search_places.html'
+
     elif item_type == "notebook_drinks":
         items = get_filtered_notebook_drinks(request)[offset:offset+limit]
         context['my_drinks'] = items

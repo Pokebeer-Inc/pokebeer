@@ -1,6 +1,6 @@
-document.addEventListener('DOMContentLoaded', function() {
-    
-    const loadMoreButtons = document.querySelectorAll('.btn-load-more-generic');
+// Branche les boutons « Charger plus » présents dans `root` ; réutilisable quand un bloc est remplacé (recherche en direct).
+function initLoadMore(root) {
+    const loadMoreButtons = root.querySelectorAll('.btn-load-more-generic');
 
     // 1. Configuration de l'observateur (IntersectionObserver)
     const observerOptions = {
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
         threshold: 0.1
     };
 
-    const observer = new IntersectionObserver((entries, observer) => {
+    const observer = loadMoreObserver = loadMoreObserver || new IntersectionObserver((entries, observer) => {
         entries.forEach(entry => {
             // Si le bouton entre dans la zone ET qu'il n'est pas déjà en train de charger
             if (entry.isIntersecting && !entry.target.disabled) {
@@ -83,4 +83,9 @@ document.addEventListener('DOMContentLoaded', function() {
             observer.observe(btn);
         }
     });
-});
+}
+
+// Un seul observateur partagé, créé à la première utilisation
+var loadMoreObserver = null;
+
+document.addEventListener('DOMContentLoaded', function() { initLoadMore(document); });

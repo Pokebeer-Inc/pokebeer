@@ -341,6 +341,19 @@
         <button type="submit" name="btn_notifs" class="hidden">Enregistrer mes préférences</button>
     </form>
     
+    <form method="post" class="flex flex-col gap-3 mt-4">
+        {% csrf_token %}
+        <h3 class="text-sm font-bold border-b border-primary pb-1">E-mails</h3>
+        <label class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm cursor-pointer">
+            <span class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">{{ marketing_form.marketing_opt_in.label }}</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Nouveautés et offres de Pokebeer, activées par défaut ; vous pouvez vous désinscrire et revenir à tout moment. Les e-mails indispensables (mot de passe, sécurité, compte) sont toujours envoyés.</span>
+            </span>
+            {{ marketing_form.marketing_opt_in }}
+        </label>
+        <button type="submit" name="btn_marketing" class="hidden">Enregistrer</button>
+    </form>
+
     <!-- Confidentialité : visible uniquement dans l'application Android (le pont natif gère le choix) -->
     <section id="privacy-settings" class="hidden flex flex-col gap-3 mt-4" aria-labelledby="privacy-title">
         <h3 id="privacy-title" class="text-sm font-bold border-b border-primary pb-1">Confidentialité</h3>
@@ -381,7 +394,7 @@
 {% block modals %}
 <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_followers.close()">✕</button>
+        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_followers.close()">{% include "partials/icon.html" with name="close" %}</button>
         <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnés</h3>
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in followers %}
@@ -410,7 +423,7 @@
 
 <dialog id="modal_following" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_following.close()">✕</button>
+        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_following.close()">{% include "partials/icon.html" with name="close" %}</button>
         <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnements</h3>
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in following %}
@@ -458,7 +471,7 @@
 {% for item in top_beers_data %}
 <dialog id="modal_top_beer_{{ item.slot }}" class="modal">
     <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_top_beer_{{ item.slot }}.close()">✕</button>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_top_beer_{{ item.slot }}.close()">{% include "partials/icon.html" with name="close" %}</button>
         <h3 class="font-bold text-lg mb-4 text-center">Choix du Top {{ item.slot }}</h3>
         
         <form method="post" action="{% url 'update_top_beer' item.slot %}" class="flex flex-col gap-3">

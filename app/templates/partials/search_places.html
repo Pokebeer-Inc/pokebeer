@@ -1,0 +1,6 @@
+{% comment %}Cartes de brasseries ou de bars. Paramètres : places, place_kind ("brewery" ou "bar").{% endcomment %}
+{% for place in places %}
+{% include "partials/place_card.html" %}
+{% empty %}
+{% include "partials/empty_state.html" with title="Aucun résultat" description="Vérifiez l'orthographe ou essayez moins de mots." add_btn_text="Ajouter une bière" %}
+{% endfor %}

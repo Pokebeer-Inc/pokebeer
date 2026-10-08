@@ -7,6 +7,8 @@
 
     const TOAST_DURATION_MS = 4000;
     const POLL_INTERVAL_MS = 25000;
+    // Croix en SVG : constante du code, jamais une donnée venue du serveur
+    const CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 18L18 6M6 6l12 12"/></svg>';
 
     function getToastContainer() {
         let container = document.getElementById('toast-container');
@@ -104,7 +106,7 @@
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'shrink-0 btn btn-xs btn-circle btn-ghost text-white/80 hover:text-white hover:bg-white/20 border-0';
-        closeBtn.innerHTML = '✕';
+        closeBtn.innerHTML = CLOSE_ICON;
         closeBtn.ariaLabel = 'Fermer';
 
         const dismiss = () => {
