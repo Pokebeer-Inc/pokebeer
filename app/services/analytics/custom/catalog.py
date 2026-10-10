@@ -3,7 +3,7 @@
 Ajouter une donnée = ajouter une entrée ici. Aucune dimension ne permet d'identifier un membre (ni pseudo, ni e-mail) ;
 les regroupements non temporels sont soumis au k-anonymat (voir engine).
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Optional
 
 from django.db.models import Avg, Count, F

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<a href="{% url 'index' %}" class="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-black mb-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+    Recherche
+</a>
+<h1 class="pb-title text-2xl font-bold mb-3">{{ activity_title }}</h1>
+
+{% if activity %}
+<ul id="activity-feed" class="flex flex-col gap-2">
+    {% include "partials/activity_tastings.html" %}
+</ul>
+{% if page_full %}
+<button class="btn-load-more-generic btn btn-outline btn-sm w-full mt-3" data-offset="10" data-container="activity-feed" data-url="{% url 'load_more_generic' 'activity' %}" data-autoscroll="false">Charger plus</button>
+{% endif %}
+{% if activity_kind != 'friends' %}
+<p class="text-sm text-gray-600 mt-4">Suivez des membres pour voir ici ce que vos amis goûtent.</p>
+{% endif %}
+{% else %}
+<div class="pb-card p-4 text-sm text-gray-600">Aucune dégustation pour le moment. Soyez le premier à poser un tampon.</div>
+{% endif %}
+
+<script src="{% static 'script/load_more_generic.js' %}"></script>
+{% endblock %}

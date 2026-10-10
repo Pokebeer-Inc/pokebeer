@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const CLOSING_MESSAGES = {
-        found: 'Bière reconnue : vérifiez les informations ci-dessous.',
+        found: 'Bière reconnue : vérifiez le nom et la brasserie, puis touchez Suivant.',
         timeout: "La caméra s'est refermée. Touchez le bouton pour réessayer.",
         unavailable: "Caméra indisponible : choisissez une photo à la place.",
     };

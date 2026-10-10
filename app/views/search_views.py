@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.views.decorators.cache import cache_control
+from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_GET
 
 from ..forms import DrinkForm
@@ -19,18 +20,28 @@ from .services.selectors import (
 )
 
 PAGE = 10        # éléments d'un onglet avant « Charger plus »
-TABS = (('bieres', "Bières"), ('brasseries', "Brasseries"), ('bars', "Bars"), ('proche', "Près de moi"), ('membres', "Membres"))
-TAB_KEYS = {key for key, _ in TABS}
+PREVIEW = 3      # éléments de chaque rubrique dans l'onglet « Tout »
+TABS = (('all', "Tout"), ('beers', "Bières"), ('bars', "Bars"), ('breweries', "Brasseries"), ('members', "Membres"))
+TAB_KEYS = {key for key, _ in TABS} | {'nearby'}  # « Près de moi » n'est plus une puce : on y arrive par « Autour de vous"
 FILTER_PARAMS = ('degree', 'ibu', 'style', 'sort')  # filtres propres à l'onglet Bières
-PLACE_TABS = {'brasseries': BREWERY, 'bars': BAR}  # onglets d'établissements et leur type
+PLACE_TABS = {'breweries': BREWERY, 'bars': BAR}  # onglets d'établissements et leur type
 
 
-def active_tab(request):
-    """Onglet demandé ; `uq` (ancien paramètre de la recherche de membres) ouvre l'onglet Membres."""
-    tab = request.GET.get('tab')
+# Anciens noms français des onglets (adresses déjà enregistrées ou envoyées)
+LEGACY_TABS = {'tout': 'all', 'bieres': 'beers', 'brasseries': 'breweries', 'membres': 'members', 'proche': 'nearby'}
+
+
+def normalize_tab(value):
+    """Nom de l'onglet en anglais, que la demande utilise le nom actuel ou un ancien nom français."""
+    return LEGACY_TABS.get(value, value)
+
+
+def active_tab(request, default='beers'):
+    """Onglet demandé ; `uq` (ancien paramètre de la recherche de membres) ouvre l'onglet Members."""
+    tab = normalize_tab(request.GET.get('tab'))
     if tab in TAB_KEYS:
         return tab
-    return 'membres' if request.GET.get('uq') else 'bieres'
+    return 'members' if request.GET.get('uq') else default
 
 
 def beer_styles():
@@ -51,7 +62,7 @@ def _beer_context(request, beers):
 
 def _filter_context(request, tab):
     """Panneau de filtres de l'onglet : gabarit, valeurs proposées et état (les filtres appartiennent à l'onglet affiché)."""
-    if tab == 'bieres':
+    if tab == 'beers':
         return {
             'filter_template': 'partials/beer_filters_panel.html', 'styles': beer_styles(),
             'filtered': any(request.GET.get(param) for param in FILTER_PARAMS),
@@ -66,17 +77,38 @@ def _filter_context(request, tab):
     return {}
 
 
-def build_results(request):
-    """Contexte du bloc de résultats : onglets, et le contenu de l'onglet actif (une seule requête pour l'onglet affiché)."""
-    tab, query = active_tab(request), search_query(request)
+def _preview(request, getter, kind=None):
+    """Premiers résultats d'une rubrique pour l'onglet « Tout »."""
+    items = list(getter(request)[:PREVIEW])
+    return with_targets(items, kind) if kind else items
+
+
+def build_results(request, default_tab='beers'):
+    """Contexte du bloc de résultats : onglets, et le contenu de l'onglet actif (une seule requête pour l'onglet affiché).
+
+    L'onglet « Tout » regroupe les premiers résultats de chaque rubrique ; sans recherche il n'affiche rien (c'est l'accueil).
+    """
+    tab, query = active_tab(request, default_tab), search_query(request)
     context = {'tabs': TABS, 'active_tab': tab, 'query': query, 'has_query': bool(search.terms(query))}
     sections = {
-        'bieres': ('beers', get_filtered_beers),
-        'brasseries': ('breweries', get_filtered_breweries),
+        'beers': ('beers', get_filtered_beers),
+        'breweries': ('breweries', get_filtered_breweries),
         'bars': ('bars', get_filtered_bars),
-        'membres': ('users', get_filtered_users),
+        'members': ('users', get_filtered_users),
     }
-    if tab == 'proche':
+    if tab == 'all':
+        if context['has_query']:
+            beers = _preview(request, get_filtered_beers)
+            context['all_sections'] = [
+                ('beers', "Bières", 'beers', beers),
+                ('bars', "Bars", 'places', _preview(request, get_filtered_bars, BAR)),
+                ('breweries', "Brasseries", 'places', _preview(request, get_filtered_breweries, BREWERY)),
+                ('members', "Membres", 'users', _preview(request, get_filtered_users)),
+            ]
+            if beers:
+                context.update(_beer_context(request, beers))
+        return context
+    if tab == 'nearby':
         # Rien à chercher côté serveur : la page publie l'annuaire et le navigateur classe par distance (la position reste sur l'appareil)
         context['nearby'] = True
         return context
@@ -101,6 +133,7 @@ def all_beers_view(request):
 @login_required(login_url='login')
 @require_GET
 @cache_control(private=True, max_age=300)
+@gzip_page  # JSON public sans secret : la compression ne présente pas le risque BREACH des pages
 def places_directory(request):
     """Bars et brasseries localisés (données publiques des fiches) : la page « Près de moi » les classe selon la position de l'appareil."""
     return JsonResponse({'places': place_directory.directory()})

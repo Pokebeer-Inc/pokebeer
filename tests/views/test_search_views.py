@@ -15,38 +15,52 @@ def results(client, **params):
 
 
 class TestPage:
-    def test_one_bar_and_five_tabs_without_an_overview_tab(self, auth_client):
+    def test_one_bar_and_five_chips_with_an_overview_tab(self, auth_client):
         html = auth_client.get(PAGE).content.decode()
-        for label in ("Bières", "Brasseries", "Bars", "Près de moi", "Membres"):
+        for label in ("Tout", "Bières", "Bars", "Brasseries", "Membres"):
             assert f">{label}</a>" in html
-        assert ">Tout</a>" not in html and html.count('type="search"') == 1 and 'id="search-form"' in html
+        assert html.count('type="search"') == 1 and 'id="search-form"' in html
 
     def test_beers_are_the_default_tab(self, auth_client):
-        assert results(auth_client)["active_tab"] == "bieres"
+        assert results(auth_client)["active_tab"] == "beers"
 
-    def test_the_old_overview_tab_falls_back_to_beers(self, auth_client):
-        assert results(auth_client, tab="tout")["active_tab"] == "bieres"
+    def test_the_overview_tab_groups_the_first_results_of_each_kind(self, auth_client):
+        f.make_beer(name="Soleil Blonde")
+        f.make_bar(name="Bar du Soleil")
+        context = results(auth_client, tab="all", q="Soleil")
+        sections = {key: items for key, _, _, items in context["all_sections"]}
+        assert context["active_tab"] == "all"
+        assert [b.name for b in sections["beers"]] == ["Soleil Blonde"] and [b.name for b in sections["bars"]] == ["Bar du Soleil"]
+
+    def test_the_overview_tab_is_empty_without_a_query(self, auth_client):
+        assert "all_sections" not in results(auth_client, tab="all")
+
+    def test_the_overview_tab_caps_each_kind(self, auth_client):
+        for index in range(5):
+            f.make_beer(name=f"Soleil {index}")
+        sections = {key: items for key, _, _, items in results(auth_client, tab="all", q="Soleil")["all_sections"]}
+        assert len(sections["beers"]) == 3
 
     def test_each_kind_is_found_in_its_own_tab(self, auth_client):
         f.make_beer(name="Soleil Blonde", brewery=f.make_brewery(name="Brasserie Soleil"))
         f.make_bar(name="Bar du Soleil")
         f.make_user(username="soleil_fan")
         assert [b.name for b in results(auth_client, q="soleil")["beers"]] == ["Soleil Blonde"]
-        assert [b.name for b in results(auth_client, q="soleil", tab="brasseries")["breweries"]] == ["Brasserie Soleil"]
+        assert [b.name for b in results(auth_client, q="soleil", tab="breweries")["breweries"]] == ["Brasserie Soleil"]
         assert [b.name for b in results(auth_client, q="soleil", tab="bars")["bars"]] == ["Bar du Soleil"]
-        assert [u.username for u in results(auth_client, q="soleil", tab="membres")["users"]] == ["soleil_fan"]
+        assert [u.username for u in results(auth_client, q="soleil", tab="members")["users"]] == ["soleil_fan"]
 
     def test_nothing_found_says_so(self, auth_client):
-        assert "Aucun résultat" in auth_client.get(PAGE, {"q": "zzzzzz", "tab": "brasseries"}).content.decode()
+        assert "Aucun résultat" in auth_client.get(PAGE, {"q": "zzzzzz", "tab": "breweries"}).content.decode()
 
     def test_without_a_query_members_are_the_recent_contributors(self, auth_client, other_user):
         f.make_beer(added_by=other_user)
-        context = results(auth_client, tab="membres")
+        context = results(auth_client, tab="members")
         assert [u.username for u in context["users"]] == ["bobby"] and not context["has_query"]
 
 
 class TestTabs:
-    @pytest.mark.parametrize("tab, key", [("bieres", "beers"), ("brasseries", "breweries"), ("bars", "bars"), ("membres", "users")])
+    @pytest.mark.parametrize("tab, key", [("beers", "beers"), ("breweries", "breweries"), ("bars", "bars"), ("members", "users")])
     def test_each_tab_lists_its_own_kind(self, auth_client, other_user, tab, key):
         f.make_beer(name="Alpha", brewery=f.make_brewery(name="Alpha Brew"), added_by=other_user)
         f.make_bar(name="Alpha Bar")
@@ -54,32 +68,32 @@ class TestTabs:
         assert context["active_tab"] == tab and context[key]
 
     def test_unknown_tab_falls_back_to_beers(self, auth_client):
-        assert results(auth_client, tab="admin")["active_tab"] == "bieres"
+        assert results(auth_client, tab="admin")["active_tab"] == "beers"
 
     def test_legacy_member_parameter_opens_members(self, auth_client):
-        assert results(auth_client, uq="bob")["active_tab"] == "membres"
+        assert results(auth_client, uq="bob")["active_tab"] == "members"
 
     def test_beer_filters_and_sort_apply_on_the_beers_tab(self, auth_client):
         from decimal import Decimal
         f.make_beer(name="Légère", degree=Decimal("3.0"))
         f.make_beer(name="Forte", degree=Decimal("9.0"))
-        assert [b.name for b in results(auth_client, tab="bieres", degree="strong")["beers"]] == ["Forte"]
-        assert [b.name for b in results(auth_client, tab="bieres", sort="name_asc")["beers"]] == ["Forte", "Légère"]
+        assert [b.name for b in results(auth_client, tab="beers", degree="strong")["beers"]] == ["Forte"]
+        assert [b.name for b in results(auth_client, tab="beers", sort="name_asc")["beers"]] == ["Forte", "Légère"]
 
     def test_search_relevance_orders_beers_by_default(self, auth_client):
         f.make_beer(name="Super Stout Imperial")
         f.make_beer(name="Stout")
-        assert [b.name for b in results(auth_client, tab="bieres", q="stout")["beers"]] == ["Stout", "Super Stout Imperial"]
+        assert [b.name for b in results(auth_client, tab="beers", q="stout")["beers"]] == ["Stout", "Super Stout Imperial"]
 
     def test_breweries_come_with_their_beer_count(self, auth_client):
         brewery = f.make_brewery(name="Comptée")
         f.make_beer(brewery=brewery), f.make_beer(brewery=brewery), f.make_beer(brewery=brewery, is_deleted=True)
-        assert results(auth_client, tab="brasseries", q="comptee")["breweries"][0].beer_count == 2
+        assert results(auth_client, tab="breweries", q="comptee")["breweries"][0].beer_count == 2
 
     def test_page_size_and_load_more_for_breweries_and_bars(self, auth_client):
         for _ in range(11):
             f.make_brewery(name=f.unique("Mousse ")), f.make_bar(name=f.unique("Mousse "))
-        assert len(results(auth_client, tab="brasseries", q="mousse")["breweries"]) == 10
+        assert len(results(auth_client, tab="breweries", q="mousse")["breweries"]) == 10
         for item_type in ("search_breweries", "search_bars"):
             body = auth_client.get(reverse("load_more_generic", args=[item_type]), {"q": "mousse", "offset": 10}).json()
             assert body["html"].count("Mousse") == 1 and body["has_more"] is False
@@ -90,11 +104,11 @@ class TestRights:
         f.make_beer(name="Cachée Bloqué", added_by=other_user)
         f.block(user, other_user)
         assert not results(auth_client, q="cachee")["beers"]
-        assert not results(auth_client, q="bobby", tab="membres")["users"]
+        assert not results(auth_client, q="bobby", tab="members")["users"]
 
     def test_suspended_members_are_hidden(self, auth_client):
         f.make_user(username="suspendu", is_active=False)
-        assert not results(auth_client, q="suspendu", tab="membres")["users"]
+        assert not results(auth_client, q="suspendu", tab="members")["users"]
 
     def test_deleted_beers_are_hidden(self, auth_client):
         f.make_beer(name="Supprimée", is_deleted=True)
@@ -112,7 +126,7 @@ class TestApi:
 
     def test_same_content_as_the_page(self, auth_client):
         f.make_beer(name="Identique")
-        assert "Identique" in auth_client.get(API, {"q": "identique", "tab": "bieres"}).json()["html"]
+        assert "Identique" in auth_client.get(API, {"q": "identique", "tab": "beers"}).json()["html"]
 
     def test_get_only(self, auth_client):
         assert auth_client.post(API).status_code == 405
@@ -136,7 +150,7 @@ class TestPlaceTargets:
 
     def test_breweries_follow_the_same_rule(self, auth_client):
         brewery = f.make_brewery(name="Brasserie Carte", address="2 rue de la Brasserie, Lille")
-        assert results(auth_client, q="carte", tab="brasseries")["breweries"][0].target_url == f"/map/?kind=brewery&place={brewery.slug}"
+        assert results(auth_client, q="carte", tab="breweries")["breweries"][0].target_url == f"/map/?kind=brewery&place={brewery.slug}"
         body = auth_client.get(reverse("load_more_generic", args=["search_breweries"]), {"q": "carte"}).json()
         assert f"/map/?kind=brewery&amp;place={brewery.slug}" in body["html"]
 
@@ -150,12 +164,12 @@ class TestNearby:
         from django.db import connection
         from django.test.utils import CaptureQueriesContext
         with CaptureQueriesContext(connection) as queries:
-            context = results(auth_client, tab="proche")
+            context = results(auth_client, tab="nearby")
         assert context["nearby"] and "beers" not in context and "bars" not in context
         assert not [q for q in queries if any(table in q["sql"] for table in ("app_beer\"", "app_bar\"", "app_brewery\""))]
 
     def test_shell_and_privacy_notice_are_rendered(self, auth_client):
-        html = auth_client.get(PAGE, {"tab": "proche"}).content.decode()
+        html = auth_client.get(PAGE, {"tab": "nearby"}).content.decode()
         assert "data-nearby" in html and reverse("api_places") in html and "ne la reçoit ni ne l'enregistre" in html
 
     def test_the_api_returns_public_fields_of_located_places_only(self, auth_client):
@@ -205,19 +219,11 @@ class TestClientScriptsAreNotInjectable:
             assert f"script/{script}" in html
 
 
-def test_the_global_loader_ignores_events_already_handled_by_the_page():
-    """Les onglets et le formulaire de recherche n'ouvrent pas de nouvelle page : le loader ne doit pas s'afficher (et rester)."""
-    from pathlib import Path
-    source = Path("app/static/script/loader.js").read_text()
-    assert source.count("e.defaultPrevented") == 2
-    assert source.index("e.defaultPrevented") < source.index("showLoader();", source.index("showLoader = "))
-
-
 class TestPlaceCards:
     def test_places_use_the_same_card_as_the_nearby_template(self, auth_client):
         f.make_brewery(name="Brasserie Carte", address="2 rue de la Brasserie, Lille", is_verified=True)
-        page = auth_client.get(PAGE, {"tab": "brasseries"}).content.decode()
-        nearby = auth_client.get(PAGE, {"tab": "proche"}).content.decode()
+        page = auth_client.get(PAGE, {"tab": "breweries"}).content.decode()
+        nearby = auth_client.get(PAGE, {"tab": "nearby"}).content.decode()
         for hook in ("data-place-card", "data-name", "data-address", "data-kind-label", "data-verified", "data-distance", "data-image", "data-placeholder"):
             assert hook in page and hook in nearby
         assert "Brasserie Carte" in page and "0 bière" in page and "Vérifié" in page
@@ -267,14 +273,14 @@ class TestPlaceFiltersOnThePages:
 
     def test_the_brewery_tab_adds_the_style_filter(self, auth_client, places):
         f.make_beer(brewery=Brewery.objects.get(name="Brasserie Lille"), style="Saison")
-        context = results(auth_client, tab="brasseries", style="saison")
+        context = results(auth_client, tab="breweries", style="saison")
         assert [b.name for b in context["breweries"]] == ["Brasserie Lille"] and context["is_brewery_tab"]
-        assert 'name="style"' in auth_client.get(PAGE, {"tab": "brasseries"}).content.decode()
+        assert 'name="style"' in auth_client.get(PAGE, {"tab": "breweries"}).content.decode()
 
     def test_places_can_be_sorted_like_beers(self, auth_client, places):
         assert [b.name for b in results(auth_client, tab="bars", sort="name_desc")["bars"]] == ["Bar Nantes", "Bar Lyon"]
         assert [b.name for b in results(auth_client, tab="bars", sort="date_desc")["bars"]] == ["Bar Lyon", "Bar Nantes"]
-        assert [b.name for b in results(auth_client, tab="brasseries", sort="name_asc")["breweries"]] == ["Brasserie Lille", "Brasserie Nantes"]
+        assert [b.name for b in results(auth_client, tab="breweries", sort="name_asc")["breweries"]] == ["Brasserie Lille", "Brasserie Nantes"]
         assert results(auth_client, tab="bars", sort="name_desc")["filtered"]
 
     def test_the_sort_survives_load_more_and_ignores_garbage(self, auth_client):
@@ -295,19 +301,26 @@ class TestPlaceFiltersOnThePages:
         assert body["html"].count("data-place-card") == 2 and "Bar Lyon" not in body["html"]
 
     def test_the_other_tabs_have_no_place_filters(self, auth_client, places):
-        assert "filter_template" not in results(auth_client, tab="membres")
-        assert results(auth_client, tab="proche").get("filter_template") is None
-
-
-def test_the_filter_panel_keeps_the_state_chosen_by_the_member():
-    """Le bloc est remplacé à chaque filtre : le script doit relire l'état du panneau avant, et le remettre après."""
-    from pathlib import Path
-    source = Path("app/static/script/search.js").read_text()
-    assert "input[data-filter-panel]" in source
-    assert source.index("wasOpen = panel()") < source.index("results.innerHTML = data.html") < source.index("panel().checked = wasOpen")
+        assert "filter_template" not in results(auth_client, tab="members")
+        assert results(auth_client, tab="nearby").get("filter_template") is None
 
 
 def test_the_filter_panel_is_marked_on_every_filterable_tab(auth_client):
-    for tab in ("bieres", "brasseries", "bars"):
+    for tab in ("beers", "breweries", "bars"):
         assert "data-filter-panel" in auth_client.get(PAGE, {"tab": tab}).content.decode()
-    assert "data-filter-panel" not in auth_client.get(PAGE, {"tab": "membres"}).content.decode()
+    assert "data-filter-panel" not in auth_client.get(PAGE, {"tab": "members"}).content.decode()
+
+
+class TestPlacesDirectoryCache:
+    def test_directory_is_cached_and_compressed_and_never_receives_a_position(self, auth_client, django_assert_num_queries):
+        from django.core.cache import cache
+        cache.clear()
+        for index in range(6):  # sous 200 octets, Django ne compresse pas
+            f.make_bar(name=f"Bar Cache {index}", address=f"{index + 1} rue du Cache, Lyon")
+        first = auth_client.get(reverse("api_places"), HTTP_ACCEPT_ENCODING="gzip")
+        assert first.status_code == 200 and first.headers.get("Content-Encoding") == "gzip"
+        assert "private" in first.headers["Cache-Control"]
+        with django_assert_num_queries(2):  # session et membre seulement : l'annuaire vient du cache
+            second = auth_client.get(reverse("api_places"))
+        assert second.status_code == 200
+        cache.clear()

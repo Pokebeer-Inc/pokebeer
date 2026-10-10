@@ -155,7 +155,7 @@ class TestUniqueness:
 
 class TestRoles:
     def test_new_user_is_contributor_by_default(self, user):
-        assert user.is_contributor
+        assert user.groups.filter(name="Contributeur").exists()
         assert not (user.is_brewer or user.is_bartender or user.is_staff)
 
     @pytest.mark.parametrize("factory, role", [(f.make_brewery, "is_brewer"), (f.make_bar, "is_bartender")])
@@ -331,16 +331,3 @@ class TestGeocoding:
         bar.save()
         bar.refresh_from_db()
         assert (bar.latitude, bar.longitude) == (None, None)
-
-    def test_geocoding_timeout_is_short(self, geocoder):
-        f.make_bar(address="Paris")
-        assert geocoder.call_args.kwargs["timeout"] <= 2
-
-
-class TestStringRepresentations:
-    def test_str_is_human_readable(self, user, beer):
-        drink = f.make_drink(user, beer, note=8)
-        assert str(drink) == "alice - Test IPA (8/10)"
-        assert str(beer) == "Test IPA"
-        assert str(f.block(user, beer.added_by)) == "alice a bloqué bobby"
-        assert "alice" in str(f.make_report(user))

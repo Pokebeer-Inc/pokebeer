@@ -86,6 +86,7 @@ class DevDatabaseSeeder:
                 bio=spec["bio"],
                 is_superuser=spec.get("is_superuser", False),
                 password=self.password_hash,
+                onboarding_done=True,
             )
             for spec in data.USERS
         ])

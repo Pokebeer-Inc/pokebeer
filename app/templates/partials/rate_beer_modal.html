@@ -16,8 +16,9 @@
                 {{ rating_form.comment }}
             </div>
             {% include "partials/image_field.html" with name="photo" field_id="photo-rate-"|add:beer.slug %}
+            {% include "partials/tasting_context_inputs.html" with uid=beer.slug %}
             {% include "partials/notebook_selector.html" %}
-            <button type="submit" class="btn btn-success w-full text-white">Enregistrer mon avis</button>
+            <button type="submit" class="btn btn-primary w-full text-black border-secondary">Enregistrer mon avis</button>
         </form>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>

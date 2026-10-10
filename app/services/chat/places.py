@@ -14,7 +14,6 @@ from django.core.cache import cache
 
 from .. import match_keys, upstream
 from ..places import BAR, BREWERY, PLACE_KINDS
-from .geo import Coordinates
 from .sanitize import clean_text
 
 logger = logging.getLogger(__name__)

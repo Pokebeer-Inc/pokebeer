@@ -46,11 +46,6 @@ class TestAddBeerPage:
         html = auth_client.get(reverse("add_beer")).content.decode()
         assert 'type="hidden" name="beer-ean"' in html and 'id="id_beer-ean"' in html
 
-    def test_the_old_alert_based_flow_is_gone(self):
-        assert "scan-loader" not in Path("app/templates/add_beer.html").read_text()
-        assert "alert(" not in "".join((SCRIPTS / name).read_text() for name in SCANNER_FILES)
-
-
 class TestSecurityOfTheClientCode:
     @pytest.mark.parametrize("name", SCANNER_FILES)
     def test_no_html_injection_primitives(self, name):

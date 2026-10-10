@@ -22,8 +22,9 @@
                     <textarea name="comment" class="textarea textarea-bordered w-full h-20 text-xs bg-white">{{ drink.comment }}</textarea>
                 </div>
                 {% include "partials/image_field.html" with name="photo" field_id="photo-edit-"|add:drink.slug photo_url=drink.photo_url remove_name="remove_photo" %}
+                {% include "partials/tasting_context_inputs.html" with uid=drink.slug venue_type=drink.venue_type company=drink.company serving_format=drink.serving_format price=drink.price %}
                 {% include "partials/notebook_selector.html" with current_drink=drink %}
-                <button type="submit" class="btn btn-success btn-sm w-full text-white">Enregistrer</button>
+                <button type="submit" class="btn btn-primary btn-sm w-full text-black border-secondary">Enregistrer</button>
             </form>
             
             <form id="form-delete-drink-{{ drink.slug }}" method="post" action="{% url 'delete_drink' drink.slug %}" class="mt-2 pt-2 border-t border-base-200">

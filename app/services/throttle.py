@@ -55,6 +55,16 @@ LOGIN_BY_ACCOUNT = Rule('login-account', 20, timedelta(minutes=15))
 SIGNUP_BY_IP = Rule('signup-ip', 10, timedelta(hours=1))
 PRO_SIGNUP_BY_IP = Rule('pro-signup-ip', 5, timedelta(hours=1))
 
+# Changement de pseudo, par membre : essais plafonnés (on ne sonde pas les pseudos libres) et changements réellement effectués
+USERNAME_ATTEMPTS = Rule('username-attempts', 10, timedelta(hours=1))
+USERNAME_CHANGES = Rule('username-changes', 3, timedelta(days=1))
+
+# Pages qui suivent l'inscription : essais de date de naissance par membre
+ONBOARDING_ATTEMPTS = Rule('onboarding-birth', 20, timedelta(hours=1))
+
+# Enregistrements du brouillon d'ajout de bière (une validation par étape, plus l'enregistrement en quittant la page)
+BEER_DRAFT_SAVES = Rule('beer-draft', 200, timedelta(hours=1))
+
 # Réinitialisation du mot de passe : par IP (refus explicite), par adresse et au total (silencieux, pour ne rien révéler).
 # Le plafond quotidien protège le quota d'envoi du compte Gmail (500 messages par jour).
 PASSWORD_RESET_BY_IP = Rule('reset-ip', 5, timedelta(hours=1))

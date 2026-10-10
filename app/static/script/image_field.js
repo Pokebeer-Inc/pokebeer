@@ -58,11 +58,14 @@
         if (remove) remove.checked = false;
         if (hint) hint.classList.add('hidden');
         show(input, URL.createObjectURL(reduced));
+        input.dispatchEvent(new CustomEvent('imagefield:set', { bubbles: true, detail: { file: reduced } }));
     }
 
     document.addEventListener('change', event => {
         const input = event.target.closest('[data-image-input]');
-        if (input && input.files[0]) setFile(input, input.files[0]);
+        if (!input) return;
+        delete input.dataset.fromScan; // choisie à la main : un nouveau scan n'y touchera plus
+        if (input.files[0]) setFile(input, input.files[0]);
     });
 
     document.addEventListener('click', event => {
@@ -70,16 +73,20 @@
         if (!button) return;
         const input = button.closest('[data-image-field]').querySelector('[data-image-input]');
         const { root, remove, hint } = parts(input);
+        delete input.dataset.fromScan;
         input.value = '';
         if (hint) hint.classList.add('hidden');
         if (remove) remove.checked = Boolean(root.dataset.originalUrl);
         show(input, '');
+        input.dispatchEvent(new CustomEvent('imagefield:clear', { bubbles: true }));
     });
 
-    // Prérempli une photo (ex. celle prise pour l'analyse IA) ; sans effet si le membre en a déjà choisi une
+    // Prérempli une photo (ex. celle prise pour l'analyse IA) ; sans effet si le membre en a choisi une lui-même.
+    // Une photo qui vient d'un scan précédent est remplacée : elle appartenait à une autre bière.
     window.ImageFields = {
         preset(input, file) {
-            if (!input || input.files.length) return;
+            if (!input || (input.files.length && input.dataset.fromScan !== '1')) return;
+            input.dataset.fromScan = '1';
             setFile(input, file).then(() => {
                 const { hint } = parts(input);
                 if (hint && input.files.length) hint.classList.remove('hidden');

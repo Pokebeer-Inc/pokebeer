@@ -6,6 +6,8 @@
     let directory = null; // une seule requête par visite de la page
     let current = null;   // l'onglet affiché (celui-ci est remplacé quand on change d'onglet)
 
+    const DENIED = "Position refusée : autorisez la localisation pour Pokebeer dans les réglages, puis réessayez.";
+
     const rad = degrees => degrees * Math.PI / 180;
 
     // Distance en mètres entre deux points (formule de haversine)
@@ -69,10 +71,16 @@
         const more = root.querySelector('[data-nearby-more]');
         const retry = root.querySelector('[data-nearby-retry]');
         const cardTemplate = root.querySelector('template[data-nearby-row]');
-        const state = { kind: '', shown: PAGE, places: null, position: null };
+        // Accueil : seulement les lieux dans le rayon ; s'il n'y en a aucun, les plus proches (en nombre limité)
+        const radiusMeters = (Number(root.dataset.radiusKm) || 0) * 1000;
+        const fallback = Number(root.dataset.fallback) || 3;
+        const page = Number(root.dataset.page) || PAGE;
+        const state = { kind: '', shown: page, places: null, position: null };
 
         function visible() {
-            const words = normalize(document.getElementById('search-input').value).split(/\s+/).filter(Boolean);
+            // Sur l'accueil la liste ne dépend pas de la barre de recherche ; l'onglet « Près de moi » la filtre par la saisie
+            const typed = radiusMeters ? '' : document.getElementById('search-input').value;
+            const words = normalize(typed).split(/\s+/).filter(Boolean);
             return state.places
                 .filter(place => !state.kind || place.kind === state.kind)
                 .filter(place => { const text = normalize(place.name + ' ' + place.address); return words.every(word => text.includes(word)); });
@@ -85,10 +93,17 @@
                 .filter(place => Number.isFinite(place.lat) && Number.isFinite(place.lng))
                 .map(place => ({ place, meters: distance(latitude, longitude, place.lat, place.lng) }))
                 .sort((a, b) => a.meters - b.meters);
+            let shown = ranked;
+            let note = '';
+            if (radiusMeters && ranked.length) {
+                const near = ranked.filter(item => item.meters <= radiusMeters);
+                if (near.length) shown = near;
+                else { shown = ranked.slice(0, fallback); note = 'Rien à moins de ' + root.dataset.radiusKm + ' km : voici les lieux les plus proches.'; }
+            }
             list.replaceChildren();
-            ranked.slice(0, state.shown).forEach(({ place, meters }) => list.appendChild(card(cardTemplate, place, meters)));
-            more.classList.toggle('hidden', ranked.length <= state.shown);
-            status.textContent = ranked.length ? '' : 'Aucun lieu localisé ne correspond.';
+            shown.slice(0, state.shown).forEach(({ place, meters }) => list.appendChild(card(cardTemplate, place, meters)));
+            more.classList.toggle('hidden', shown.length <= state.shown);
+            status.textContent = shown.length ? note : 'Aucun lieu localisé ne correspond.';
         }
 
         function fail(message) {
@@ -100,21 +115,30 @@
             retry.classList.add('hidden');
             status.textContent = 'Recherche de votre position…';
             if (!navigator.geolocation) return fail("La localisation n'est pas disponible sur cet appareil.");
+            // Si l'accès est déjà refusé, inutile de redemander : on l'explique tout de suite
+            if (navigator.permissions && navigator.permissions.query) {
+                navigator.permissions.query({ name: 'geolocation' })
+                    .then(permission => permission.state === 'denied' ? fail(DENIED) : requestPosition())
+                    .catch(requestPosition);
+            } else {
+                requestPosition();
+            }
+        }
+
+        function requestPosition() {
             navigator.geolocation.getCurrentPosition(position => {
                 state.position = { latitude: position.coords.latitude, longitude: position.coords.longitude };
                 loadDirectory(root.dataset.url)
                     .then(places => { state.places = places; render(); })
                     .catch(() => fail('Impossible de charger les lieux. Réessayez.'));
             }, error => {
-                fail(error.code === 1
-                    ? "Position refusée : autorisez la localisation pour Pokebeer dans les réglages, puis réessayez."
-                    : "Position introuvable. Réessayez.");
+                fail(error.code === 1 ? DENIED : "Position introuvable. Réessayez.");
             }, { enableHighAccuracy: false, maximumAge: 60000, timeout: 15000 });
         }
 
         root.querySelectorAll('[data-nearby-kind]').forEach(button => button.addEventListener('click', () => {
             state.kind = button.dataset.nearbyKind;
-            state.shown = PAGE;
+            state.shown = page;
             root.querySelectorAll('[data-nearby-kind]').forEach(other => {
                 const active = other === button;
                 other.setAttribute('aria-pressed', String(active));
@@ -123,10 +147,10 @@
             });
             render();
         }));
-        more.addEventListener('click', () => { state.shown += PAGE; render(); });
+        more.addEventListener('click', () => { state.shown += page; render(); });
         retry.addEventListener('click', locate);
 
-        current = { render: () => { state.shown = PAGE; render(); } };
+        current = { render: () => { state.shown = page; render(); } };
         locate();
     }
 

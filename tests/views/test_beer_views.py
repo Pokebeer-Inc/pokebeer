@@ -31,8 +31,9 @@ class TestAddBeer:
         assert response.context["beer_form"].initial["brewery_name"] == "Mont Blanc"
 
     def test_creates_beer_and_first_tasting(self, auth_client, user, brewery):
-        assert_redirects(auth_client.post(self.URL, add_beer_data()), reverse("index"))
+        response = auth_client.post(self.URL, add_beer_data())
         beer = Beer.objects.get(name="Nouvelle Blonde")
+        assert_redirects(response, reverse("add_beer_done", args=[beer.slug]))
         assert (beer.added_by, beer.brewery_id, beer.style) == (user, brewery, "Blonde")
         assert Drinks.objects.get().drinker_id == user
 
@@ -73,8 +74,9 @@ class TestReAddSoftDeletedBeer:
         return beer
 
     def test_can_be_added_again_as_a_new_beer(self, auth_client, user, deleted):
-        assert_redirects(auth_client.post(self.URL, add_beer_data(name="Test IPA")), reverse("index"))
+        response = auth_client.post(self.URL, add_beer_data(name="Test IPA"))
         new = Beer.objects.get(name="Test IPA", is_deleted=False)
+        assert_redirects(response, reverse("add_beer_done", args=[new.slug]))
         assert new.pk != deleted.pk and new.slug.startswith("test-ipa-") and new.slug != deleted.slug and new.added_by == user
 
     def test_deleted_beer_keeps_its_url_and_tastings(self, auth_client, deleted):

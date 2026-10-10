@@ -44,7 +44,7 @@ class TestUserManager:
     def test_create_user_builds_a_plain_contributor(self):
         user = BeerUser.objects.create_user("managed", email="managed@EXAMPLE.test", password="x")
         assert user.check_password("x") and user.email == "managed@example.test"
-        assert user.is_contributor and not (user.is_staff or user.is_superuser)
+        assert user.groups.filter(name="Contributeur").exists() and not (user.is_staff or user.is_superuser)
 
     def test_create_superuser_joins_the_staff_group(self):
         user = BeerUser.objects.create_superuser("root", email="root@example.test", password="x")

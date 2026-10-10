@@ -148,3 +148,12 @@ def brewery(db):
 @pytest.fixture
 def beer(brewery, other_user):
     return factories.make_beer(name="Test IPA", brewery=brewery, added_by=other_user, style="IPA")
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    """Le cache en mémoire (annuaire des lieux) ne doit pas passer d'un test à l'autre."""
+    from django.core.cache import cache
+    cache.clear()
+    yield
+    cache.clear()

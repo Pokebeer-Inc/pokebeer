@@ -65,7 +65,7 @@
         }
     }
 
-    /** Remplit le formulaire d'ajout avec une bière reconnue ; la photo (si elle existe) illustre aussi l'avis, le code-barres est mémorisé. */
+    /** Remplit le formulaire d'ajout avec une bière reconnue ; la photo (si elle existe) illustre la fiche et l'avis, le code-barres est mémorisé. */
     function fillForm(data, blob, ean) {
         FIELDS.forEach(({ id, key, capitalize }) => {
             const value = data[key];
@@ -77,9 +77,11 @@
         });
         const eanField = document.getElementById('id_beer-ean');
         if (eanField) eanField.value = ean || '';
-        const photo = document.getElementById('id_drink-photo');
-        if (blob && photo && window.ImageFields) {
-            window.ImageFields.preset(photo, new File([blob], 'tasting.jpg', { type: 'image/jpeg' }));
+        // La photo du scan illustre à la fois la fiche de la bière et l'avis : le membre ne la reprend pas une seconde fois
+        if (blob && window.ImageFields) {
+            [['id_beer-image', 'beer.jpg'], ['id_drink-photo', 'tasting.jpg']].forEach(([id, name]) => {
+                window.ImageFields.preset(document.getElementById(id), new File([blob], name, { type: 'image/jpeg' }));
+            });
         }
     }
 

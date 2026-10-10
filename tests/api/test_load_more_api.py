@@ -59,12 +59,6 @@ class TestItemTypes:
         response = load(auth_client, "passwords")
         assert response.status_code == 400
 
-    def test_wishlist_source_restricts_search(self, auth_client, user, beer):
-        f.make_beer(name="Autre")
-        user.wishlist_beers.add(beer)
-        html = load(auth_client, "search_beers", source="wishlist").json()["html"]
-        assert "Test IPA" in html and "Autre" not in html
-
     def test_notebook_drinks_never_leak_other_users_tastings(self, auth_client, other_user):
         f.make_drink(other_user, f.make_beer(name="Secret"))
         assert load(auth_client, "notebook_drinks").json()["html"] == ""

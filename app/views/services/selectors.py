@@ -1,4 +1,4 @@
-from django.db.models import Case, When, Value, IntegerField, Q, Max, Prefetch, Count
+from django.db.models import Case, When, Value, IntegerField, OuterRef, Q, Max, Prefetch, Count, Subquery
 
 from ...models import Bar, Beer, BeerUser, Brewery, Drinks
 from ...services import place_filters, search
@@ -131,12 +131,11 @@ def get_filtered_notebook_drinks(request):
     if style_filter: 
         drinks = drinks.filter(beer_id__style__icontains=style_filter)
 
-    rating_min = request.GET.get('rating_min')
-    if rating_min and rating_min.isdigit():
-        drinks = drinks.filter(note__gte=int(rating_min))
-        
-    rating_max = request.GET.get('rating_max')
-    if rating_max and rating_max.isdigit():
+    # Fourchette de notes : appliquée seulement si elle restreint (0-10 laisserait de côté les avis sans note)
+    rating_min, rating_max = request.GET.get('rating_min', ''), request.GET.get('rating_max', '')
+    if rating_min.isdigit() and int(rating_min) > 0:
+        drinks = drinks.filter(note__gte=min(10, int(rating_min)))
+    if rating_max.isdigit() and int(rating_max) < 10:
         drinks = drinks.filter(note__lte=int(rating_max))
 
     # Logique de Tri Fusionnée
@@ -151,6 +150,8 @@ def get_filtered_notebook_drinks(request):
         drinks = drinks.order_by('beer_id__name', '-date')
     elif sort_by == 'name_desc':
         drinks = drinks.order_by('-beer_id__name', '-date')
+    elif sort_by == 'style_asc':
+        drinks = drinks.order_by('beer_id__style', 'beer_id__name')
     elif sort_by == 'degree_desc':
         drinks = drinks.order_by('-beer_id__degree', 'beer_id__name')
     elif sort_by == 'degree_asc':
@@ -163,3 +164,81 @@ def get_filtered_notebook_drinks(request):
         drinks = drinks.order_by('-date', '-id')
 
     return drinks
+
+ACTIVITY_FRIENDS = 'friends'
+ACTIVITY_MIXED = 'mixed'
+ACTIVITY_COMMUNITY = 'community'
+
+
+def _visible_tastings(user):
+    """Dégustations notées, hors bières retirées, blocages et comptes suspendus ; visuels et auteurs préchargés (pas de requête par ligne)."""
+    return (
+        Drinks.objects.filter(beer_id__is_deleted=False, note__isnull=False)
+        .exclude(drinker_id__in=get_excluded_users(user))
+        .select_related('drinker_id', 'beer_id', 'beer_id__brewery_id')
+        .prefetch_related('drinker_id__socialaccount_set')
+        .order_by('-date', '-created_at', '-id')
+    )
+
+
+def _followed_ids(user):
+    return user.following.values_list('followed_id', flat=True)
+
+
+def _friends_tastings(user):
+    return _visible_tastings(user).filter(drinker_id__in=_followed_ids(user))
+
+
+def _community_tastings(user):
+    """Tout le monde sauf moi et mes amis (les amis passent avant, sans doublon)."""
+    return _visible_tastings(user).exclude(drinker_id=user).exclude(drinker_id__in=_followed_ids(user))
+
+
+def get_activity(user, limit=5, offset=0):
+    """Fil d'activité : les dégustations des amis d'abord (les plus récentes), puis celles de la communauté pour compléter.
+
+    Chaque dégustation reçoit `is_friend`. Au premier chargement : une requête pour les amis, une seconde seulement s'il faut
+    compléter. Pour les pages suivantes, un comptage des dégustations d'amis place la frontière entre les deux listes.
+    """
+    friends_qs = _friends_tastings(user)
+    if offset == 0:
+        friends = list(friends_qs[:limit])
+        community_offset = 0
+    else:
+        friends_count = friends_qs.count()
+        friends = list(friends_qs[offset:offset + limit]) if offset < friends_count else []
+        community_offset = max(0, offset - friends_count)
+    missing = limit - len(friends)
+    community = list(_community_tastings(user)[community_offset:community_offset + missing]) if missing > 0 else []
+    for tasting in friends:
+        tasting.is_friend = True
+    for tasting in community:
+        tasting.is_friend = False
+    return friends + community
+
+
+def activity_kind(tastings):
+    """« friends » si tout vient d'amis, « community » si rien, « mixed » sinon."""
+    friends = sum(1 for tasting in tastings if tasting.is_friend)
+    if friends == len(tastings) and friends:
+        return ACTIVITY_FRIENDS
+    return ACTIVITY_MIXED if friends else ACTIVITY_COMMUNITY
+
+
+ACTIVITY_TITLES = {
+    ACTIVITY_FRIENDS: "Vos amis ont goûté",
+    ACTIVITY_MIXED: "Vos amis et la communauté",
+    ACTIVITY_COMMUNITY: "La communauté a goûté",
+}
+
+
+def get_wishlist_beers(request):
+    """Liste « À goûter » du membre, avec la même recherche et les mêmes tris que le catalogue.
+
+    « Récentes » (défaut) classe selon la date d'ajout à la liste, pas selon la création de la bière.
+    """
+    beers = get_filtered_beers(request).filter(wishlisted_by=request.user)
+    if request.GET.get('sort', 'date_desc') == 'date_desc':
+        wished = BeerUser.wishlist_beers.through.objects.filter(beer_id=OuterRef('pk'), beeruser_id=request.user.pk)
+        beers = beers.annotate(wished_id=Subquery(wished.values('id')[:1])).order_by('-wished_id', '-id')
+    return beers

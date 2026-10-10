@@ -9,7 +9,7 @@ Chaque fonction affine un queryset déjà restreint par l'appelant (droits, bloc
 """
 import unicodedata
 
-from django.db.models import Case, F, Func, IntegerField, Q, TextField, Value, When
+from django.db.models import Case, Func, IntegerField, Q, TextField, Value, When
 from django.db.models.functions import Lower
 
 MAX_TERMS = 5

@@ -113,6 +113,7 @@ MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'app.middleware.SecurityHeadersMiddleware',
+    'app.middleware.OnboardingMiddleware',
     'app.middleware.ActivityMiddleware',
 ]
 

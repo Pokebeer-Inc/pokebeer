@@ -4,6 +4,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils import timezone
 
+MIN_AGE = 18  # âge légal pour consommer de l'alcool en France
+OLDEST_BIRTH_YEAR = 1900
 USERNAME_MIN_LENGTH = 3
 USERNAME_MAX_LENGTH = 30
 
@@ -17,6 +19,19 @@ username_validator = RegexValidator(
     ),
     code='invalid_username',
 )
+
+# Pseudos que personne ne doit pouvoir prendre : ils laisseraient croire qu'on parle au nom de Pokebeer ou de son équipe.
+RESERVED_USERNAMES = frozenset({
+    'admin', 'administrator', 'administrateur', 'root', 'support', 'staff', 'moderator', 'moderateur', 'equipe',
+    'team', 'system', 'systeme', 'null', 'none', 'undefined', 'anonymous', 'anonyme', 'gaetan', 'bot',
+})
+
+
+def is_reserved_username(username):
+    """Pseudo réservé (casse ignorée) ou contenant le nom du produit."""
+    lowered = (username or '').lower()
+    return lowered in RESERVED_USERNAMES or 'pokebeer' in lowered
+
 
 # Liste attendue par ACCOUNT_USERNAME_VALIDATORS (allauth) : l'inscription Google génère des pseudos conformes
 USERNAME_VALIDATORS = [username_validator]
@@ -60,3 +75,17 @@ def validate_tasting_date(value):
         raise ValidationError("La date ne peut pas être dans le futur.", code='future_date')
     if value.year < TASTING_EARLIEST_YEAR:
         raise ValidationError("Cette date est trop ancienne.", code='date_too_old')
+
+
+def age_on(birth_date, today):
+    """Âge en années révolues à la date `today` (le 29 février compte au 1er mars les années non bissextiles)."""
+    return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+
+
+def validate_adult_birth_date(birth_date, today=None):
+    """Une date de naissance plausible (ni dans le futur, ni avant 1900) qui fait de la personne un adulte (MIN_AGE ans révolus)."""
+    today = today or timezone.localdate()
+    if birth_date > today or birth_date.year < OLDEST_BIRTH_YEAR:
+        raise ValidationError("Cette date de naissance n'est pas valide.", code='invalid_birth_date')
+    if age_on(birth_date, today) < MIN_AGE:
+        raise ValidationError(f"Pokebeer est réservé aux personnes majeures ({MIN_AGE} ans révolus).", code='underage')

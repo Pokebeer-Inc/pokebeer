@@ -1,0 +1,3 @@
+{% comment %}Réponse htmx de la liste d'un carnet : la liste, plus (hors bande) le compteur de filtres du bouton « Filtrer ».{% endcomment %}
+{% include "partials/notebook_drinks_list.html" %}
+<span id="filter-count" hx-swap-oob="true" class="{% if filter_count %}inline-flex{% else %}hidden{% endif %} min-w-5 h-5 px-1 rounded-full bg-primary text-black text-xs font-bold items-center justify-center">{{ filter_count }}</span>

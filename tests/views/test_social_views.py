@@ -209,19 +209,47 @@ class TestTopBeers:
     def test_unknown_beer_is_404(self, auth_client):
         assert self.update(auth_client, 1, "unknown-slug").status_code == 404
 
-    def test_swap(self, auth_client, user, beer):
+    def test_reorder_moves_a_beer_and_shifts_the_others(self, auth_client, user, beer):
+        second, third = f.make_beer(name="Deuxième"), f.make_beer(name="Troisième")
+        user.top_beer_1, user.top_beer_2, user.top_beer_3 = beer, second, third
+        user.save()
+        assert post_json(auth_client, reverse("reorder_top_beers"), {"order": [2, 3, 1]}).json() == {"success": True}
+        user.refresh_from_db()
+        assert (user.top_beer_1, user.top_beer_2, user.top_beer_3) == (second, third, beer)
+
+    def test_reorder_can_move_a_beer_into_an_empty_slot(self, auth_client, user, beer):
         user.top_beer_1 = beer
         user.save()
-        assert post_json(auth_client, reverse("swap_top_beers"), {"from_slot": 1, "to_slot": 3}).json() == {"success": True}
+        post_json(auth_client, reverse("reorder_top_beers"), {"order": [2, 3, 1]})
         user.refresh_from_db()
-        assert (user.top_beer_1, user.top_beer_3) == (None, beer)
+        assert (user.top_beer_1, user.top_beer_2, user.top_beer_3) == (None, None, beer)
 
-    @pytest.mark.parametrize("payload", [{"from_slot": 0, "to_slot": 1}, {"from_slot": 1, "to_slot": 4}, {"from_slot": "a", "to_slot": 1}, {}])
-    def test_swap_rejects_invalid_slots(self, auth_client, payload):
-        assert post_json(auth_client, reverse("swap_top_beers"), payload).status_code == 400
+    def test_reorder_only_touches_the_top_beer_columns(self, auth_client, user, beer):
+        user.top_beer_1 = beer
+        user.bio = "Intacte"
+        user.save()
+        BeerUser.objects.filter(pk=user.pk).update(bio="Modifiée ailleurs")
+        post_json(auth_client, reverse("reorder_top_beers"), {"order": [1, 3, 2]})
+        assert BeerUser.objects.get(pk=user.pk).bio == "Modifiée ailleurs"
 
-    def test_swap_rejects_malformed_json(self, auth_client):
-        assert post_json(auth_client, reverse("swap_top_beers"), raw="{oops").status_code == 400
+    @pytest.mark.parametrize("payload", [
+        {"order": [1, 1, 2]}, {"order": [1, 2]}, {"order": [1, 2, 3, 4]}, {"order": [0, 1, 2]}, {"order": ["1", "2", "3"]},
+        {"order": [True, 2, 3]}, {"order": [1.0, 2, 3]}, {"order": "123"}, {"order": None}, {},
+    ])
+    def test_reorder_rejects_anything_but_a_permutation_of_1_2_3(self, auth_client, user, beer, payload):
+        user.top_beer_1 = beer
+        user.save()
+        assert post_json(auth_client, reverse("reorder_top_beers"), payload).status_code == 400
+        user.refresh_from_db()
+        assert user.top_beer_1 == beer
+
+    def test_reorder_rejects_malformed_or_oversized_json(self, auth_client):
+        assert post_json(auth_client, reverse("reorder_top_beers"), raw="{oops").status_code == 400
+        assert post_json(auth_client, reverse("reorder_top_beers"), raw="[1,2,3]").status_code == 400
+        assert post_json(auth_client, reverse("reorder_top_beers"), raw='{"order": [1,2,3], "x": "' + "a" * 300 + '"}').status_code == 400
+
+    def test_reorder_is_post_only(self, auth_client):
+        assert auth_client.get(reverse("reorder_top_beers")).status_code == 405
 
 
 class TestWishlist:
@@ -240,13 +268,6 @@ class TestWishlist:
 
     def test_unknown_beer_is_404(self, auth_client):
         assert auth_client.post(reverse("toggle_wishlist", args=["unknown-slug"])).status_code == 404
-
-    def test_wishlist_page_lists_only_wishlisted_beers(self, auth_client, user, beer):
-        f.make_beer(name="Pas voulue")
-        user.wishlist_beers.add(beer)
-        response = auth_client.get(reverse("wishlist_view"))
-        assert [b.name for b in response.context["beers"]] == ["Test IPA"]
-        assert response.context["styles"] == ["IPA"]
 
 
 def test_achievements_page(auth_client):

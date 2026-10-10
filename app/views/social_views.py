@@ -1,27 +1,40 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.contrib import messages
 from django.db.models import Max, Q, Count
 from django.contrib.auth import logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 import json
+from urllib.parse import urlsplit
 
 from ..models import AccountDeletion, BeerUser, UserFollow, Beer, Drinks, UserBlock, DrinkReaction
-from ..forms import UserUpdateForm, DrinkForm, FeedbackForm, MarketingConsentForm, NotificationPreferenceForm, ProSettingsForm
+from ..forms import UsernameForm, UserUpdateForm, FeedbackForm, MarketingConsentForm, NotificationPreferenceForm, ProSettingsForm
 from .utils import get_user_achievements, check_and_notify_achievements, previous_page
 from .services.stats import get_user_statistics, get_top_beers_data
-from .services.selectors import get_filtered_beers
 from ..services.feedback import FeedbackError, open_thread
 from ..services import password_reset
 from ..services.inactivity import delete_account
 from ..services.notifications import notify
+from ..services.throttle import USERNAME_ATTEMPTS, USERNAME_CHANGES
+
+SETTINGS_SECTIONS = {
+    'profile': "Informations et bio",
+    'notifications': "Notifications et e-mails",
+    'privacy': "Visibilité et confidentialité",
+    'security': "Mot de passe",
+    'team': "Écrire à l'équipe",
+}
 
 @login_required(login_url='login')
-def account_view(request):
-    """Gère le profil ET le changement de mot de passe sur la même page."""
+def account_view(request, section=None):
+    """Profil (page unique) et réglages : chaque section de réglages a sa page, avec les mêmes formulaires qu'avant."""
+    if section is not None and section not in SETTINGS_SECTIONS:
+        raise Http404
     user = request.user
+    done = lambda: redirect('account_settings', section=section) if section else redirect('account')
     profile_form = UserUpdateForm(instance=user)
     password_form = PasswordChangeForm(user=user)
     feedback_form = FeedbackForm()
@@ -38,14 +51,14 @@ def account_view(request):
                 check_and_notify_achievements(request.user)
                 
                 messages.success(request, "Profil mis à jour.")
-                return redirect('account')
+                return done()
         
         elif 'btn_pro_settings' in request.POST:
             pro_settings_form = ProSettingsForm(request.POST, instance=user)
             if pro_settings_form.is_valid():
                 pro_settings_form.save()
                 messages.success(request, "Paramètres de confidentialité mis à jour.")
-                return redirect('account')
+                return done()
             else:
                 messages.error(request, "Erreur dans le changement de préférence de la visibilité.")
 
@@ -56,7 +69,7 @@ def account_view(request):
                 update_session_auth_hash(request, user)
                 password_reset.notify_password_changed(user)
                 messages.success(request, "Votre mot de passe a été changé avec succès !")
-                return redirect('account')
+                return done()
             else:
                 messages.error(request, "Erreur dans le changement de mot de passe.")
                 
@@ -80,7 +93,7 @@ def account_view(request):
             if notif_form.is_valid():
                 notif_form.save()
                 messages.success(request, "Préférences de notifications mises à jour.")
-                return redirect('account')
+                return done()
             else:
                 messages.error(request, "Erreur dans le changement de préférence des notifications.")
 
@@ -90,7 +103,15 @@ def account_view(request):
             if marketing_form.is_valid():
                 marketing_form.save()
                 messages.success(request, "Préférence d'e-mails mise à jour.")
-                return redirect('account')
+                return done()
+
+    if section:
+        return render(request, 'account_settings.html', {
+            'section': section, 'section_title': SETTINGS_SECTIONS[section],
+            'profile_form': profile_form, 'password_form': password_form, 'feedback_form': feedback_form,
+            'notif_form': notif_form, 'marketing_form': marketing_form, 'pro_settings_form': pro_settings_form,
+            'feedback_threads_count': user.feedbacks.count(),
+        })
 
     # 2. Requêtes de base
     my_drinks = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
@@ -107,7 +128,12 @@ def account_view(request):
     all_achievements, level_data = get_user_achievements(user)
     unlocked_achievements = [a for a in all_achievements if a['tier_level'] > 0]
         
+    managed_breweries = list(user.managed_breweries.all())
+    managed_bars = list(user.managed_bars.all())
     context = {
+        'managed_breweries': managed_breweries,
+        'managed_bars': managed_bars,
+        'show_establishments_section': bool(managed_breweries or managed_bars or user.is_bartender or user.is_brewer),
         'profile_form': profile_form,
         'password_form': password_form,
         'feedback_form': feedback_form,
@@ -159,38 +185,55 @@ def public_profile_view(request, username):
         messages.error(request, "Ce profil n'est pas accessible.")
         return redirect('index')
     
-    # Requêtes de base pour cet utilisateur
-    # Ne pas prendre les 10 premieres car on a besoin de toutes les bieres pour calculer les statistiques : filtrage dans le contexte
+    # Toutes les dégustations servent aux statistiques ; seule la liste de l'onglet affiché est chargée (10 premières)
     user_drinks = Drinks.objects.filter(drinker_id=profile_user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
-    user_added_beers = Beer.objects.filter(added_by=profile_user).annotate(
-        user_note=Max('drinks__note', filter=Q(drinks__drinker_id=profile_user)),
-        count_rating=Count('drinks')
-    ).order_by('-id')[:10]
-    
+
+    requested_tab = {'degustations': 'tastings', 'ajouts': 'additions'}.get(request.GET.get('tab'), request.GET.get('tab'))  # anciens noms français acceptés
+    active_tab = requested_tab if requested_tab in ('tastings', 'additions') else 'tastings'
+    shown_drinks, added_beers = [], []
+    if active_tab == 'tastings':
+        shown_drinks = list(user_drinks[:10])
+    else:
+        added_beers = list(Beer.objects.filter(added_by=profile_user).annotate(
+            user_note=Max('drinks__note', filter=Q(drinks__drinker_id=profile_user)),
+            count_rating=Count('drinks')
+        ).order_by('-id')[:10])
+
     # Social
     followers = UserFollow.objects.filter(followed=profile_user, follower__is_active=True).select_related('follower')
     following = UserFollow.objects.filter(follower=profile_user, followed__is_active=True).select_related('followed')
-    
+
     # Est-ce que JE (l'utilisateur connecté) suis cette personne ?
     is_following = followers.filter(follower=request.user).exists()
 
     # Calcul des Statistiques
     stats = get_user_statistics(user_drinks)
     top_beers_data = get_top_beers_data(profile_user, user_drinks, include_empty=False)
-            
+
     all_achievements, level_data = get_user_achievements(profile_user)
     unlocked_achievements = [a for a in all_achievements if a['tier_level'] > 0]
-            
+
+    # Retour vers la page d'origine ; si c'est ce profil lui-même (rechargé par les puces), vers la recherche
+    back_url = previous_page(request)
+    if urlsplit(back_url).path == request.path:
+        back_url = reverse('index')
+
+    show_establishments = profile_user.has_public_establishments
     context = {
         'profile_user': profile_user,
-        'user_drinks': user_drinks[:10],
-        'user_added_beers': user_added_beers,
+        'active_tab': active_tab,
+        'user_drinks': shown_drinks,
+        'user_added_beers': added_beers,
         'followers': followers,
         'following': following,
         'is_following': is_following,
         'top_beers_data': top_beers_data,
         'unlocked_achievements': unlocked_achievements,
         'level': level_data['current_level'],
+        'show_establishments': show_establishments,
+        'managed_breweries': list(profile_user.my_breweries) if show_establishments else [],
+        'managed_bars': list(profile_user.my_bars) if show_establishments else [],
+        'back_url': back_url,
         **stats
     }
     return render(request, 'public_profile.html', context)
@@ -317,40 +360,68 @@ def update_top_beer(request, slot):
     return redirect('account')
 
 @require_POST
-@login_required
-def swap_top_beers(request):
-    """API pour intervertir (drag & drop) deux bières dans le Top 3."""
-    try:
-        data = json.loads(request.body)
-        slot_from = int(data.get('from_slot'))
-        slot_to = int(data.get('to_slot'))
-        
-        if slot_from not in [1, 2, 3] or slot_to not in [1, 2, 3]:
-            return JsonResponse({'success': False, 'error': 'Emplacements invalides'}, status=400)
+@login_required(login_url='login')
+def reorder_top_beers(request):
+    """API du glisser-déposer du Top 3 : `order` donne, pour chaque position, l'ancien emplacement qui vient s'y placer.
 
-        user = request.user
-        
-        # Stockage temporaire des bières actuelles pour l'échange
-        top_beers = {
-            1: user.top_beer_1,
-            2: user.top_beer_2,
-            3: user.top_beer_3
-        }
-        
-        # Application de l'échange
-        if slot_from == 1: user.top_beer_1 = top_beers[slot_to]
-        elif slot_from == 2: user.top_beer_2 = top_beers[slot_to]
-        elif slot_from == 3: user.top_beer_3 = top_beers[slot_to]
-        
-        if slot_to == 1: user.top_beer_1 = top_beers[slot_from]
-        elif slot_to == 2: user.top_beer_2 = top_beers[slot_from]
-        elif slot_to == 3: user.top_beer_3 = top_beers[slot_from]
-        
-        user.save()
-        return JsonResponse({'success': True})
-        
-    except (ValueError, TypeError, json.JSONDecodeError):
+    Ex. [2, 3, 1] : la bière du 2 passe en 1, celle du 3 en 2, celle du 1 en 3. Seule une permutation de 1, 2, 3 est acceptée.
+    """
+    if len(request.body) > 200:
         return JsonResponse({'success': False, 'error': 'Requête invalide'}, status=400)
+    try:
+        order = json.loads(request.body).get('order')
+    except (ValueError, TypeError, AttributeError):
+        return JsonResponse({'success': False, 'error': 'Requête invalide'}, status=400)
+    if not (isinstance(order, list) and len(order) == 3 and all(type(slot) is int for slot in order) and sorted(order) == [1, 2, 3]):
+        return JsonResponse({'success': False, 'error': 'Emplacements invalides'}, status=400)
+
+    user = request.user
+    current = {1: user.top_beer_1_id, 2: user.top_beer_2_id, 3: user.top_beer_3_id}
+    user.top_beer_1_id, user.top_beer_2_id, user.top_beer_3_id = (current[slot] for slot in order)
+    user.save(update_fields=['top_beer_1', 'top_beer_2', 'top_beer_3'])
+    return JsonResponse({'success': True})
+
+
+@require_POST
+@login_required(login_url='login')
+def update_username_view(request):
+    """Change le pseudo du membre connecté (l'URL de son profil public change avec lui).
+
+    Validation côté serveur uniquement : format, unicité sans casse, pseudos réservés (UsernameForm). Deux plafonds par
+    membre : les essais (pour qu'on ne puisse pas sonder les pseudos libres) et les changements réellement faits.
+    Répond en JSON pour la fenêtre de la page profil, par redirection sinon.
+    """
+    wants_json = request.headers.get('X-Requested-With') == 'fetch'
+    key = f"user:{request.user.pk}"
+
+    def refuse(message, status):
+        if wants_json:
+            return JsonResponse({'success': False, 'error': message}, status=status)
+        messages.error(request, message)
+        return redirect('account')
+
+    if USERNAME_ATTEMPTS.exceeded(key) or USERNAME_CHANGES.exceeded(key):
+        return refuse("Trop de changements de pseudo. Réessayez plus tard.", 429)
+    USERNAME_ATTEMPTS.record(key)
+
+    form = UsernameForm(request.POST, instance=request.user)
+    if not form.is_valid():
+        return refuse(" ".join(form.errors['username']) if 'username' in form.errors else "Pseudo invalide.", 400)
+
+    if form.cleaned_data['username'] != form.initial['username']:
+        form.save()
+        USERNAME_CHANGES.record(key)
+    if wants_json:
+        return JsonResponse({'success': True, 'username': request.user.username})
+    messages.success(request, "Pseudo mis à jour.")
+    return redirect('account')
+
+
+@login_required(login_url='login')
+def settings_home_view(request):
+    """Page des réglages : toutes les rubriques (informations, notifications, aide) et la déconnexion."""
+    return render(request, 'account_settings_home.html', {'feedback_threads_count': request.user.feedbacks.count()})
+
 
 @require_POST
 @login_required(login_url='login')
@@ -371,39 +442,6 @@ def toggle_wishlist(request, beer_slug):
             notify('wishlist_added', [beer.added_by], sender=user, beer=beer)
         
     return JsonResponse({'success': True, 'is_in_wishlist': is_in_wishlist})
-
-@login_required(login_url='login')
-def wishlist_view(request):
-    """Page affichant la wishlist de l'utilisateur."""
-    # On réutilise le helper de filtrage des bières en restreignant à la wishlist
-    beers = get_filtered_beers(request).filter(wishlisted_by=request.user)[:10]
-    
-    # Récupération des styles présents UNIQUEMENT dans les bières de la wishlist
-    # Récupération et séparation des styles multiples
-    raw_styles = request.user.wishlist_beers.exclude(style__isnull=True).exclude(style='').values_list('style', flat=True)
-    unique_styles = set()
-    for rs in raw_styles:
-        # On découpe chaque chaîne et on ajoute les styles uniques au set
-        unique_styles.update([s.strip() for s in rs.split(',') if s.strip()])
-    
-    # On trie la liste alphabétiquement pour le menu déroulant
-    styles = sorted(list(unique_styles))
-    
-    rating_form = DrinkForm()
-    
-    # Optimisation des annotations (notes et wishlist) sur l'affichage actuel
-    displayed_ids = [b.id for b in beers]
-    rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user, beer_id__in=displayed_ids).values_list('beer_id', flat=True))
-    wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
-
-    context = {
-        'beers': beers,
-        'styles': styles,
-        'rating_form': rating_form,
-        'rated_beer_ids': rated_beer_ids,
-        'wishlist_beer_ids': wishlist_beer_ids,
-    }
-    return render(request, 'wishlist.html', context)
 
 @login_required(login_url='login')
 def achievements_view(request):

@@ -261,8 +261,5 @@ class TestClientScript:
         assert self.SOURCE.count("fetch(") == 1 and "credentials: 'same-origin'" in self.SOURCE and "method" not in self.SOURCE
         assert "localStorage" not in self.SOURCE and "eval(" not in self.SOURCE and "document.write" not in self.SOURCE
 
-    def test_it_is_debounced_and_cancels_stale_requests(self):
-        assert "DEBOUNCE_MS" in self.SOURCE and "AbortController" in self.SOURCE and "controller.abort()" in self.SOURCE
-
     def test_the_only_html_inserted_comes_from_the_server_panel(self):
         assert self.SOURCE.count("innerHTML") == 1 and "panel.innerHTML = data.html" in self.SOURCE

@@ -1,0 +1,13 @@
+{% comment %}Liste des dégustations d'un carnet : rendue par la page et par le fragment htmx. `querystring` reprend la recherche, les filtres et le tri en cours pour « Charger plus ».{% endcomment %}
+<div id="carnet-drinks-container" class="flex flex-col gap-2">
+    {% include "partials/notebook_drinks.html" %}
+</div>
+{% if page_full %}
+<button class="btn-load-more-generic btn btn-outline btn-sm w-full mt-3"
+        data-offset="10"
+        data-container="carnet-drinks-container"
+        data-url="{% url 'load_more_generic' 'notebook_drinks' %}?{{ querystring }}"
+        data-autoscroll="false">
+    Charger plus de dégustations
+</button>
+{% endif %}

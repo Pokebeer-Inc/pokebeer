@@ -9,63 +9,83 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from ..forms import DrinkForm
 from ..models import Beer, Drinks, BeerUser, UserBlock
 from .services.recommendations import get_recommended_beers
-from .services.selectors import get_filtered_bars, get_filtered_beers, get_filtered_breweries, get_filtered_users, get_filtered_notebook_drinks
+from .services.selectors import get_activity, activity_kind, ACTIVITY_TITLES, get_filtered_bars, get_filtered_beers, get_filtered_breweries, get_filtered_users, get_filtered_notebook_drinks, get_wishlist_beers
 from ..services.places import BAR, BREWERY, with_targets
 from .utils import parse_offset
+from .search_views import build_results, normalize_tab
+
+HOME_RECOMMENDATIONS = 6
+HOME_ACTIVITY = 5
+FEED_PAGE = 10
+
+
+def unrated_beers_for(user):
+    """Bières du catalogue que le membre n'a pas encore notées (sous-requête : rien n'est chargé en mémoire)."""
+    return (Beer.objects.filter(is_deleted=False)
+            .exclude(id__in=Drinks.objects.filter(drinker_id=user).values('beer_id'))
+            .select_related('brewery_id', 'added_by'))
+
 
 @ensure_csrf_cookie
 @login_required(login_url='login')
 def index(request):
-    # Bières non notées
-    unrated_beers = []
-    recommended_beers = []
-    rating_form = None
+    """Recherche = accueil : sans saisie, recommandations et fil des amis ; avec `q` ou un onglet, les résultats."""
+    user = request.user
+    # Sans paramètre (ou avec l'onglet « Tout » seul) on affiche l'accueil, sinon les résultats de recherche
+    searching = bool(request.GET.get('q') or request.GET.get('uq') or normalize_tab(request.GET.get('tab')) not in (None, '', 'all'))
 
-    if request.user.is_authenticated:
-        drunk_beer_ids = Drinks.objects.filter(drinker_id=request.user).values_list('beer_id', flat=True)
-        unrated_beers = Beer.objects.filter(is_deleted=False).exclude(id__in=drunk_beer_ids).select_related('brewery_id', 'added_by')
-        rating_form = DrinkForm()
-        
-        # ALGORITHME DE RECOMMANDATION
-        user_drinks = Drinks.objects.filter(drinker_id=request.user)
-        recommended_beers = get_recommended_beers(user_drinks, unrated_beers)
-            
-    # ALGORITHME DE CLASSEMENT
-    month = timezone.now().month
-    year = timezone.now().year
-    
-    top = Beer.objects.filter(is_deleted=False).annotate(
-        avg_rating=Avg('drinks__note'),
-        count_rating=Count('drinks')
-    ).filter(avg_rating__isnull=False).order_by('-avg_rating')[:10]
-    
-    topMonth = Beer.objects.filter(is_deleted=False).annotate(
-        avg_rating=Avg('drinks__note', filter=Q(drinks__date__year=year, drinks__date__month=month)),
-        count_rating=Count('drinks', filter=Q(drinks__date__year=year, drinks__date__month=month))
-    ).filter(avg_rating__isnull=False).order_by('-avg_rating')[:10]
-
-    unrated_beers_display = unrated_beers[:10] if unrated_beers else []
-    
-    # Wishlist limitée aux bières affichées sur la page d'accueil
-    wishlist_beer_ids = []
-    if request.user.is_authenticated:
-        displayed_ids = set()
-        displayed_ids.update([b.id for b in unrated_beers_display])
-        displayed_ids.update([b.id for b in recommended_beers])
-        displayed_ids.update([b.id for b in top])
-        displayed_ids.update([b.id for b in topMonth])
-        
-        wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
-
+    recommended = get_recommended_beers(Drinks.objects.filter(drinker_id=user), unrated_beers_for(user))
+    activity = get_activity(user, HOME_ACTIVITY)
+    kind = activity_kind(activity)
     context = {
-        "unrated_beers": unrated_beers_display,
-        "recommended_beers": recommended_beers,
-        "rating_form": rating_form,
-        "top": top,
-        "topMonth": topMonth,
-        "wishlist_beer_ids": wishlist_beer_ids,
+        'greeting': 'Bonjour' if timezone.localtime().hour < 18 else 'Bonsoir',  # le navigateur l'ajuste à l'heure de l'appareil
+        'searching': searching,
+        'recommended_beers': list(recommended)[:HOME_RECOMMENDATIONS],
+        'activity': activity,
+        'activity_kind': kind,
+        'activity_title': ACTIVITY_TITLES[kind],
     }
-    return render(request, "home.html", context)
+    context.update(build_results(request, default_tab='all'))
+    return render(request, 'home.html', context)
+
+
+@login_required(login_url='login')
+def discover_view(request):
+    """Découvrir : toutes les recommandations, les bières à noter et le classement de la communauté."""
+    user = request.user
+    unrated = unrated_beers_for(user)
+    recommended = list(get_recommended_beers(Drinks.objects.filter(drinker_id=user), unrated))
+    unrated_display = list(unrated[:10])
+
+    now = timezone.now()
+    rated = Beer.objects.filter(is_deleted=False)
+    top = list(rated.annotate(avg_rating=Avg('drinks__note'), count_rating=Count('drinks'))
+               .filter(avg_rating__isnull=False).order_by('-avg_rating')[:10])
+    top_month = list(rated.annotate(
+        avg_rating=Avg('drinks__note', filter=Q(drinks__date__year=now.year, drinks__date__month=now.month)),
+        count_rating=Count('drinks', filter=Q(drinks__date__year=now.year, drinks__date__month=now.month)),
+    ).filter(avg_rating__isnull=False).order_by('-avg_rating')[:10])
+
+    shown = {beer.id for group in (unrated_display, recommended, top, top_month) for beer in group}
+    return render(request, 'discover.html', {
+        'recommended_beers': recommended,
+        'unrated_beers': unrated_display,
+        'rating_form': DrinkForm(),
+        'top': top,
+        'topMonth': top_month,
+        'wishlist_beer_ids': list(user.wishlist_beers.filter(id__in=shown).values_list('id', flat=True)),
+    })
+
+
+@login_required(login_url='login')
+def activity_feed_view(request):
+    """Liste complète : les dégustations des amis puis celles de la communauté (chargement progressif)."""
+    tastings = get_activity(request.user, FEED_PAGE)
+    kind = activity_kind(tastings)
+    return render(request, 'activity_feed.html', {
+        'activity': tastings, 'activity_kind': kind, 'activity_title': ACTIVITY_TITLES[kind], 'page_full': len(tastings) == FEED_PAGE,
+    })
+
 
 @login_required(login_url='login')
 def load_more_generic(request, item_type):
@@ -91,11 +111,12 @@ def load_more_generic(request, item_type):
             context['wishlist_beer_ids'] = list(user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
         template_name = 'partials/unrated_beers.html'
         
+    elif item_type == "activity":
+        items = context['activity'] = get_activity(user, limit, offset)
+        template_name = 'partials/activity_tastings.html'
+
     elif item_type == "search_beers":
-        base_qs = get_filtered_beers(request)
-        if request.GET.get('source') == 'wishlist':
-            base_qs = base_qs.filter(wishlisted_by=user)
-        items = base_qs[offset:offset+limit]
+        items = get_filtered_beers(request)[offset:offset+limit]
         if items:
             displayed_ids = [b.id for b in items]
             context['beers'] = items
@@ -118,6 +139,11 @@ def load_more_generic(request, item_type):
         items = context['places'] = with_targets(get_filtered_bars(request)[offset:offset+limit], BAR)
         context['place_kind'] = 'bar'
         template_name = 'partials/search_places.html'
+
+    elif item_type == "wishlist_tiles":
+        items = context['wishlist_beers'] = list(get_wishlist_beers(request)[offset:offset+limit])
+        context['rating_form'] = DrinkForm()
+        template_name = 'partials/wishlist_tiles.html'
 
     elif item_type == "notebook_drinks":
         items = get_filtered_notebook_drinks(request)[offset:offset+limit]

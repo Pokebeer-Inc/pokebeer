@@ -8,16 +8,19 @@ urlpatterns = [
     # ==========================================
     path("", views.index, name="index"),
     path('beers/', views.all_beers_view, name='all_beers'),
+    path('discover/', views.discover_view, name='discover'),
+    path('activity/', views.activity_feed_view, name='activity_feed'),
     path('map/', views.map_view, name='map'),
-    path('trophees/', views.achievements_view, name='achievements'),
-    path('carnet/', views.notebook_view, name='notebook'),
-    # Les routes fixes précèdent carnet/<slug>/ : sinon le slug les capturerait
-    path('carnet/create/', views.create_custom_notebook, name='create_custom_notebook'),
-    path('carnet/all/', views.notebook_detail_view, name='notebook_all'),
-    path('carnet/wishlist/', views.wishlist_view, name='wishlist_view'),
-    path('carnet/<slug:notebook_slug>/', views.notebook_detail_view, name='notebook_detail'),
-    path('carnet/<slug:notebook_slug>/delete/', views.delete_custom_notebook, name='delete_custom_notebook'),
-    path('carnet/<slug:notebook_slug>/edit/', views.edit_custom_notebook, name='edit_custom_notebook'),
+    path('achievements/', views.achievements_view, name='achievements'),
+    path('notebook/', views.notebook_view, name='notebook'),
+    # Les routes fixes précèdent notebook/<slug>/ : sinon le slug les capturerait
+    path('notebook/to-taste/', views.notebook_wishlist_fragment, name='notebook_wishlist_fragment'),
+    path('notebook/tastings/', views.notebook_drinks_fragment, name='notebook_drinks_fragment'),
+    path('notebook/create/', views.create_custom_notebook, name='create_custom_notebook'),
+    path('notebook/all/', views.notebook_detail_view, name='notebook_all'),
+    path('notebook/<slug:notebook_slug>/', views.notebook_detail_view, name='notebook_detail'),
+    path('notebook/<slug:notebook_slug>/delete/', views.delete_custom_notebook, name='delete_custom_notebook'),
+    path('notebook/<slug:notebook_slug>/edit/', views.edit_custom_notebook, name='edit_custom_notebook'),
 
     # ==========================================
     # Authentification & Compte Utilisateur
@@ -25,7 +28,12 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
+    path('welcome/', views.onboarding_start_view, name='onboarding'),
+    path('welcome/birth-date/', views.onboarding_birth_view, name='onboarding_birth'),
+    path('welcome/gender/', views.onboarding_gender_view, name='onboarding_gender'),
     path('account/', views.account_view, name='account'),
+    path('account/settings/', views.settings_home_view, name='account_settings_home'),
+    path('account/settings/<slug:section>/', views.account_view, name='account_settings'),
     path('password-reset/', views.PasswordResetRequestView.as_view(), name='password_reset'),
     path('password-reset/sent/', views.PasswordResetDoneView.as_view(), name='password_reset_done'),
     path('password-reset/<uidb64>/<token>/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
@@ -33,7 +41,7 @@ urlpatterns = [
     path('emails/preferences/<str:token>/', views.email_preferences, name='email_preferences'),
     path('emails/unsubscribe/<str:token>/', views.email_unsubscribe, name='email_unsubscribe'),
     path('.well-known/assetlinks.json', views.assetlinks, name='assetlinks'),
-    path('confidentialite/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
+    path('privacy-policy/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
     path('delete-account/', views.delete_account_view, name='delete_account'),
     path('cron/purge-inactive-accounts/', views.purge_inactive_accounts_cron, name='cron_purge_inactive_accounts'),
     # Les pages de connexion et d'inscription d'allauth contourneraient nos protections : on les renvoie vers les nôtres
@@ -45,7 +53,8 @@ urlpatterns = [
     path('accounts/password/set/', RedirectView.as_view(pattern_name='account'), name='allauth_password_set_redirect'),
     path('accounts/', include('allauth.urls')),
     path('update-top-beer/<int:slot>/', views.update_top_beer, name='update_top_beer'),
-    path('swap-top-beers/', views.swap_top_beers, name='swap_top_beers'),
+    path('reorder-top-beers/', views.reorder_top_beers, name='reorder_top_beers'),
+    path('account/username/', views.update_username_view, name='update_username'),
     path('register/pro/<str:pro_type>/', views.register_pro_view, name='register_pro'),
     
     # ==========================================
@@ -82,6 +91,9 @@ urlpatterns = [
     # ==========================================
     path('beer/<slug:beer_slug>/', views.beer_detail_view, name='beer_detail'),
     path('add-beer/', views.add_beer_view, name='add_beer'),
+    path('add-beer/draft/', views.save_beer_draft_view, name='save_beer_draft'),
+    path('add-beer/draft/discard/', views.discard_beer_draft_view, name='discard_beer_draft'),
+    path('add-beer/done/<slug:beer_slug>/', views.add_beer_done_view, name='add_beer_done'),
     path('edit-beer/<slug:beer_slug>/', views.edit_beer_view, name='edit_beer'),
     path('delete-beer/<slug:beer_slug>/', views.delete_beer_view, name='delete_beer'),
     path('beer/<slug:beer_slug>/wishlist/', views.toggle_wishlist, name='toggle_wishlist'),
@@ -127,6 +139,6 @@ urlpatterns = [
     path('api/load-more/<str:item_type>/', views.load_more_generic, name='load_more_generic'),
     path('api/brewery/<slug:brewery_slug>/search-users/', views.api_search_users_for_manager, name='api_search_users_for_manager'),
     path('api/bar/<slug:bar_slug>/search-users/', views.api_search_users_for_bar_manager, name='api_search_users_for_bar_manager'),
-    path('api/update-fcm-token/', views.update_fcm_token, name="api_update_fcm_token")
+    path('api/update-fcm-token/', views.update_fcm_token, name="api_update_fcm_token"),
 
 ]

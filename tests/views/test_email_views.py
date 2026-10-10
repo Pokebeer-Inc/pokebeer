@@ -78,11 +78,11 @@ class TestOneClickUnsubscribe:
 class TestAccountPage:
     def toggle_tag(self, client):
         import re
-        return re.search(r'<input[^>]*name="marketing_opt_in"[^>]*>', client.get(reverse("account")).content.decode()).group(0)
+        return re.search(r'<input[^>]*name="marketing_opt_in"[^>]*>', client.get(reverse("account_settings", args=["notifications"])).content.decode()).group(0)
 
     def test_the_toggle_is_on_by_default_and_reflects_the_choice(self, auth_client, user):
         assert "checked" in self.toggle_tag(auth_client)
-        assert 'name="btn_marketing"' in auth_client.get(reverse("account")).content.decode()
+        assert 'name="btn_marketing"' in auth_client.get(reverse("account_settings", args=["notifications"])).content.decode()
         marketing.set_consent(user, False, "account")
         assert "checked" not in self.toggle_tag(auth_client)
 

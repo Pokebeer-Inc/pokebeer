@@ -6,7 +6,7 @@ pytestmark = pytest.mark.django_db
 
 
 def test_account_page_ships_the_hidden_privacy_section_and_script(auth_client):
-    html = auth_client.get(reverse("account")).content.decode()
+    html = auth_client.get(reverse("account_settings", args=["privacy"])).content.decode()
     assert 'id="privacy-settings" class="hidden' in html  # masquée tant que le pont Android n'existe pas
     assert 'id="analytics-consent"' in html and "script/analytics_consent.js" in html
     assert "Mesure d'audience" in html

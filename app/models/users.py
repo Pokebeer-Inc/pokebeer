@@ -22,6 +22,7 @@ class BeerUserManager(UserManager):
 
     def create_superuser(self, username, email=None, password=None, **extra_fields):
         # Sans le groupe Staff, is_staff vaut False et l'admin Django refuse l'accès au superuser
+        extra_fields.setdefault('onboarding_done', True)  # un compte créé en ligne de commande n'a pas de page d'inscription à passer
         user = super().create_superuser(username, email, password, **extra_fields)
         user.groups.add(Group.objects.get_or_create(name=STAFF_GROUP)[0])
         return user
@@ -58,6 +59,18 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     marketing_consent_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="Choix enregistré le")
     marketing_consent_source = models.CharField(max_length=20, blank=True, default='', editable=False, verbose_name="Origine du choix")
     welcome_sent_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name="E-mail de bienvenue envoyé le")
+    # Inscription : date de naissance (obligatoire, pour vérifier la majorité) et genre (facultatif) sont demandés juste après la création du
+    # compte, quelle que soit la voie (formulaire ou Google). Ces données ne sont jamais montrées aux autres membres.
+    class Gender(models.TextChoices):
+        FEMALE = 'femme', "Femme"
+        MALE = 'homme', "Homme"
+        OTHER = 'autre', "Autre"
+        UNDISCLOSED = 'nsp', "Je préfère ne pas dire"
+
+    birth_date = models.DateField(null=True, blank=True, verbose_name="Date de naissance")
+    gender = models.CharField(max_length=5, choices=Gender.choices, blank=True, default='', verbose_name="Genre")
+    onboarding_done = models.BooleanField(default=False, verbose_name="Inscription terminée",
+                                          help_text="Faux tant que le membre n'a pas passé les pages qui suivent l'inscription ; les comptes existants sont considérés terminés.")
 
     USERNAME_FIELD = "username"
     EMAIL_FIELD = "email"
@@ -117,11 +130,6 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
         """Vérifie si l'utilisateur a le rôle Bartender."""
         return any(group.name == 'Bartender' for group in self.groups.all())
 
-    @property
-    def is_contributor(self):
-        """Vérifie si l'utilisateur a le rôle Contributeur."""
-        return any(group.name == 'Contributeur' for group in self.groups.all())
-    
     @property
     def is_staff(self):
         """Vérifie si l'utilisateur a le rôle Staff."""

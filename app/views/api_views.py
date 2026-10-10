@@ -1,11 +1,9 @@
-import json
 import logging
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.db.models import Q
 from django.db.models.functions import Greatest, Left, Length
 from django.utils.text import slugify
-from google import genai
 from google.genai import types
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
