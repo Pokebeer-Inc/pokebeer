@@ -5,51 +5,50 @@
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
 <link rel="stylesheet" href="{% static 'style/map.css' %}">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-<div class="fixed top-0 left-0 w-full bottom-16 z-0 bg-base-200 flex flex-col">
-    
-    <div class="h-16 shrink-0 w-full bg-base-100 p-3 shadow-md z-10 flex justify-between items-center relative">
-        <h2 class="text-lg font-castoro font-bold flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            Ajouter un souvenir houblonné
-        </h2>
-        <button id="geoloc-btn" class="btn btn-sm btn-primary">Me localiser</button>
-        <div id="move-overlay" class="fixed top-0 left-0 w-full h-16 bg-primary text-white z-[10000] flex items-center justify-between px-4 shadow-lg transition-transform -translate-y-full">
-            <span class="text-sm font-bold">Faites glisser le marqueur</span>
-            <div class="flex gap-2">
-                <button type="button" onclick="cancelMoveMode()" class="btn btn-sm btn-ghost text-white">Annuler</button>
-                <button type="button" onclick="finishMoveMode()" class="btn btn-sm bg-white text-primary border-none">Valider ici</button>
-            </div>
+<div class="pb-frame-fixed fixed top-0 left-0 w-full bottom-[4.5rem] z-0 bg-base-100">
+    <div id="map" class="absolute inset-0 z-0" role="application" aria-label="Carte des bars, des brasseries et de vos souvenirs"></div>
+
+    {# Haut de la carte : recherche, couches à afficher et rappel du geste pour ajouter un souvenir #}
+    <div class="absolute top-3 left-1/2 -translate-x-1/2 w-[92%] max-w-md z-[1000] flex flex-col gap-2">
+        <div class="flex items-center gap-2 h-14 pl-4 pr-2 rounded-2xl border-2 border-secondary bg-base-200 shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input type="search" id="map-search-input" placeholder="Bar, brasserie, adresse…" aria-label="Chercher un lieu sur la carte" autocomplete="off" enterkeyhint="search"
+                   class="grow min-w-0 bg-transparent text-base outline-none border-0 shadow-none" style="border:0;box-shadow:none;outline:none"
+                   onkeypress="if(event.key === 'Enter') searchLocation()">
+            <button type="button" onclick="searchLocation()" class="btn btn-primary btn-sm border-secondary text-black normal-case">Chercher</button>
+        </div>
+
+        <div class="pb-chips" role="group" aria-label="Couches affichées sur la carte">
+            <button type="button" class="pb-chip is-on shadow" data-layer="bar" aria-pressed="true">Bars</button>
+            <button type="button" class="pb-chip is-on shadow" data-layer="brewery" aria-pressed="true">Brasseries</button>
+            <button type="button" class="pb-chip is-on shadow" data-layer="spot" aria-pressed="true">Mes souvenirs</button>
+        </div>
+
+        <ul id="map-search-results" class="pb-card shadow-xl max-h-48 overflow-y-auto hidden p-1" role="listbox" aria-label="Résultats de la recherche"></ul>
+    </div>
+
+    <p class="absolute left-3 bottom-3 z-[999] pb-chip shadow text-xs pointer-events-none" style="max-width: calc(100% - 6.5rem); white-space: normal;">Touchez la carte pour ajouter un souvenir</p>
+
+    <button type="button" id="geoloc-btn" class="absolute right-2 bottom-[4.5rem] z-[1000] btn btn-circle btn-lg bg-base-200 border-2 border-secondary text-black shadow-xl" aria-label="Me localiser" title="Me localiser">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3M12 8a4 4 0 100 8 4 4 0 000-8z" /></svg>
+    </button>
+
+    {# Déplacement d'un point : bandeau en haut, avec les mêmes boutons et fonctions qu'avant #}
+    <div id="move-overlay" class="fixed top-0 left-0 w-full h-16 bg-primary text-black z-[10000] flex items-center justify-between px-4 shadow-lg transition-transform -translate-y-full" role="status">
+        <span class="text-sm font-bold">Faites glisser le marqueur</span>
+        <div class="flex gap-2">
+            <button type="button" onclick="cancelMoveMode()" class="btn btn-sm btn-ghost normal-case">Annuler</button>
+            <button type="button" onclick="finishMoveMode()" class="btn btn-sm bg-secondary text-base-200 border-none normal-case">Valider ici</button>
         </div>
     </div>
-    
-    <div class="flex-1 w-full z-0 relative flex flex-col">
-        
-        <!-- Barre de recherche flottante -->
-        <div class="absolute top-3 left-1/2 -translate-x-1/2 w-[92%] max-w-sm z-[1000] flex flex-col gap-1">
-            <div class="flex shadow-lg rounded-xl overflow-hidden border border-base-300 bg-base-100">
-                <input type="text" id="map-search-input" placeholder="Bar, brasserie, adresse..." 
-                       class="input input-sm w-full rounded-none border-none focus:outline-none bg-white text-gray-800" 
-                       onkeypress="if(event.key === 'Enter') searchLocation()">
-                <button onclick="searchLocation()" class="btn btn-sm btn-primary rounded-none border-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                </button>
-            </div>
-            <!-- Conteneur dynamique des résultats -->
-            <ul id="map-search-results" class="menu bg-white/95 backdrop-blur-md w-full rounded-box shadow-xl max-h-48 overflow-y-auto hidden border border-base-200 p-1"></ul>
-        </div>
-        
-        <div id="map" class="w-full flex-1 z-0 relative"></div>
-        
-    </div>
-    
 </div>
 
 <div id="spots-data-container" class="hidden">
     {% for spot in user_spots %}
     <div class="spot-data-item"
     data-slug="{{ spot.slug }}"
-    data-title="{{ spot.title|escapejs }}"
-    data-desc="{{ spot.description|escapejs }}"
+    data-title="{{ spot.title }}"
+    data-desc="{{ spot.description }}"
     data-date-val="{{ spot.date|date:'Y-m-d' }}"
     data-lat="{{ spot.latitude|stringformat:'f' }}"
     data-lng="{{ spot.longitude|stringformat:'f' }}"
@@ -60,24 +59,24 @@
     
     <div class="popup-template">
         <div class="text-sm font-montserrat relative pr-5 min-w-40">
-            <button onclick="openEditModal('{{ spot.slug }}')" class="absolute top-0 right-0 text-gray-500 hover:text-primary z-50 p-1" title="Modifier">
+            <button onclick="openEditModal('{{ spot.slug }}')" class="absolute top-0 right-0 text-gray-600 hover:text-black z-50 p-1" title="Modifier">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             </button>
             
-            <strong class="text-primary block text-base">{{ spot.title }}</strong>
+            <strong class="pb-title block text-base">{{ spot.title }}</strong>
             <span class="text-[10px] text-gray-500 block mb-1">{{ spot.date|date:"d M Y" }}</span>
             <span class="text-[10px] text-gray-500 block mb-1">
                 {% if spot.user == request.user %}Créé par vous{% else %}Partagé par {{ spot.user.username }}{% endif %}
             </span>
             
-            {% if spot.description %}<p class="italic text-xs text-gray-600 mb-2 border-l-2 border-primary pl-2">{{ spot.description }}</p>{% endif %}
+            {% if spot.description %}<p class="italic text-xs text-gray-600 mb-2 border-l-2 border-secondary pl-2">{{ spot.description }}</p>{% endif %}
             
             {% if spot.drinks.count > 0 %}
             <strong class="text-[10px] uppercase block border-t border-base-200 pt-1 mt-1">Bières bues ici :</strong>
             <ul class="text-xs list-disc pl-4 mt-1 text-gray-700">
                 {% for drink in spot.drinks.all %}
                 <li>
-                    <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="font-bold text-primary hover:text-primary hover:underline transition-colors">
+                    <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="font-bold underline hover:no-underline transition-colors">
                         {{ drink.beer_id.name }}
                     </a> 
                     <span class="text-[9px] text-gray-400">({{ drink.drinker_id.username }})</span>
@@ -92,11 +91,11 @@
 </div>
 <div id="places-data-container" class="hidden">
     {% for bar in bars %}
-    <div class="place-data-item" data-type="bar" data-slug="{{ bar.slug }}" data-url="{% url 'bar_detail' bar.slug %}" data-lat="{{ bar.latitude|stringformat:'f' }}" data-lng="{{ bar.longitude|stringformat:'f' }}" data-name="{{ bar.name|escapejs }}"></div>
+    <div class="place-data-item" data-type="bar" data-slug="{{ bar.slug }}" data-url="{% url 'bar_detail' bar.slug %}" data-lat="{{ bar.latitude|stringformat:'f' }}" data-lng="{{ bar.longitude|stringformat:'f' }}" data-name="{{ bar.name }}"></div>
     {% endfor %}
     
     {% for brewery in breweries %}
-    <div class="place-data-item" data-type="brewery" data-slug="{{ brewery.slug }}" data-url="{% url 'brewery_detail' brewery.slug %}" data-lat="{{ brewery.latitude|stringformat:'f' }}" data-lng="{{ brewery.longitude|stringformat:'f' }}" data-name="{{ brewery.name|escapejs }}"></div>
+    <div class="place-data-item" data-type="brewery" data-slug="{{ brewery.slug }}" data-url="{% url 'brewery_detail' brewery.slug %}" data-lat="{{ brewery.latitude|stringformat:'f' }}" data-lng="{{ brewery.longitude|stringformat:'f' }}" data-name="{{ brewery.name }}"></div>
     {% endfor %}
 </div>
 
@@ -106,7 +105,7 @@
     <div class="modal-box custom-modal-form">
         
         <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-50 bg-base-100" onclick="modal_add_spot.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 id="modal-title" class="font-bold text-lg mb-4 text-center border-b border-primary pb-2 shrink-0">Ajouter un lieu</h3>
+        <h3 id="modal-title" class="pb-title text-xl font-bold mb-4 text-center shrink-0">Ajouter un lieu</h3>
         
         <form method="post" class="flex flex-col gap-3">
             {% csrf_token %}
@@ -128,11 +127,11 @@
                 <label class="label py-1"><span class="label-text text-xs font-bold">Emplacement du point</span></label>
                 <div class="flex flex-col gap-2">
                     <div class="flex gap-2">
-                        <button type="button" onclick="startMoveMode()" class="btn btn-sm btn-outline btn-primary flex-1 gap-2">
+                        <button type="button" onclick="startMoveMode()" class="btn btn-sm btn-outline border-secondary flex-1 gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
                             Déplacer sur la carte
                         </button>
-                        <button type="button" onclick="updateToCurrentLocation()" class="btn btn-sm btn-outline btn-secondary gap-2">
+                        <button type="button" onclick="updateToCurrentLocation()" class="btn btn-sm btn-outline border-secondary gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                             GPS
                         </button>
@@ -170,7 +169,7 @@
                 {% empty %}
                 <div class="flex flex-col items-center justify-center flex-1 h-full text-center py-2">
                     <p class="text-[10px] text-gray-500 italic mb-2">Vous n'avez noté aucune bière.</p>
-                    <a href="{% url 'add_beer' %}" class="btn btn-primary btn-xs text-white">Ajouter une bière</a>
+                    <a href="{% url 'add_beer' %}" class="btn btn-primary btn-xs text-black border-secondary">Ajouter une bière</a>
                 </div>
                 {% endfor %}
             </div>
@@ -191,7 +190,7 @@
             <label class="label items-start"><span class="label-text text-xs whitespace-normal break-words text-left leading-tight">Ils pourront aussi ajouter leurs bières à ce point.</span></label>
         </div>
         
-        <button type="submit" class="btn btn-success btn-sm w-full text-white mt-4 shadow-md shrink-0">Sauvegarder</button>
+        <button type="submit" class="btn btn-primary w-full text-black border-secondary mt-4 shrink-0">Sauvegarder</button>
         
     </form>
     <form id="form-delete-spot" method="post" action="" class="mt-4 pt-4 border-t border-base-200" style="display: none;">
@@ -214,7 +213,7 @@
         <p class="text-sm text-gray-600">Voulez-vous vraiment supprimer ce lieu et les souvenirs associés ?</p>
         <div class="flex justify-center gap-3 mt-4 w-full">
             <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
-            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick="this.disabled=true; document.getElementById('form-delete-spot').submit();">Oui, supprimer</button>
+            <button type="button" class="btn btn-sm btn-error text-white flex-1" onclick=\"Pending.submitForm(this, 'form-delete-spot')\">Oui, supprimer</button>
         </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
@@ -222,7 +221,7 @@
 
 <dialog id="modal_place" class="modal modal-bottom sm:modal-middle z-[99999]">
     <div class="modal-box p-0 w-full max-w-2xl custom-modal-form overflow-y-auto relative bg-base-100">
-        <button type="button" class="btn btn-sm btn-circle btn-neutral absolute right-3 top-3 z-[100] shadow-md bg-black/50 border-none text-white backdrop-blur-sm" onclick="modal_place.close()">{% include "partials/icon.html" with name="close" %}</button>
+        <button type="button" class="btn btn-sm btn-circle absolute right-3 top-3 z-[100] shadow-md bg-base-200/90 border border-secondary/20 text-black backdrop-blur-sm" onclick="modal_place.close()">{% include "partials/icon.html" with name="close" %}</button>
         
         <div id="modal_place_content" class="w-full min-h-[300px] flex flex-col p-4">
             <div class="flex justify-center p-20 w-full">
@@ -234,6 +233,7 @@
 </dialog>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="{% static 'script/pins.js' %}"></script>
 <script src="{% static 'script/map.js' %}"></script>
 <script src="{% static 'script/wishlist.js' %}"></script>
 {% endblock %}

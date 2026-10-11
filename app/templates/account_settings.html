@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<a href="{% url 'account_settings_home' %}" class="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-black mb-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+    Réglages
+</a>
+<h1 class="pb-title text-2xl font-bold mb-3">{{ section_title }}</h1>
+
+<div class="pb-card p-4 flex flex-col gap-5">
+{% if section == 'profile' %}
+    <form method="post" class="flex flex-col gap-3 [&_input]:font-normal [&_textarea]:font-normal">
+        {% csrf_token %}
+        <h3 class="text-sm font-bold border-b border-primary pb-1">Modifier mon profil</h3>
+        
+        {% for field in profile_form %}
+        {% if user.socialaccount_set.all and field.name == 'email' %}
+        <div class="hidden">{{ field }}</div>
+        {% else %}
+        <div class="form-control w-full">
+            <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
+            {{ field }} 
+        </div>
+        {% endif %}
+        {% endfor %}
+        <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-2 text-white">Valider</button>
+    </form>
+    {% if user.is_bartender or user.is_brewer %}
+    <form method="post" class="flex flex-col gap-3">
+        <h3 class="text-sm font-bold border-b border-primary pb-1">Visibilité publique</h3>
+        {% csrf_token %}
+        <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm">
+            <div class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">Mes établissements</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Les afficher sur mon profil public</span>
+            </div>
+            {{ pro_settings_form.show_establishments }}
+        </div>
+        <button type="submit" name="btn_pro_settings" class="hidden">
+            Sauvegarder l'affichage
+        </button>
+    </form>
+    {% endif %}
+{% elif section == 'notifications' %}
+    <form method="post" class="flex flex-col gap-3">
+        {% csrf_token %}
+        <h3 class="text-sm font-bold border-b border-primary pb-1">Notifications</h3>
+        
+        <!-- Toggle Global -->
+        <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm">
+            <div class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">{{ notif_form.notif_global.label }}</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Activer/désactiver toutes les alertes (hors messages de l'équipe).</span>
+            </div>
+            {{ notif_form.notif_global }}
+        </div>
+        
+        <!-- Sous-catégories dynamiques -->
+        <div id="notif-categories" class="flex flex-col gap-2 mt-1 pl-4 border-l-2 border-base-200 transition-all duration-300 {% if not user.notif_global %}opacity-50 pointer-events-none{% endif %}">
+            {% for field in notif_form %}
+            {% if field.name != 'notif_global' %}
+            <div class="form-control w-full flex-row justify-between items-center">
+                <span class="label-text text-[11px] font-medium">{{ field.label }}</span>
+                {{ field }}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        
+        <button type="submit" name="btn_notifs" class="hidden">Enregistrer mes préférences</button>
+    </form>
+    <form method="post" class="flex flex-col gap-3 mt-4">
+        {% csrf_token %}
+        <h3 class="text-sm font-bold border-b border-primary pb-1">E-mails</h3>
+        <label class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm cursor-pointer">
+            <span class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">{{ marketing_form.marketing_opt_in.label }}</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Nouveautés et offres de Pokebeer, activées par défaut ; vous pouvez vous désinscrire et revenir à tout moment. Les e-mails indispensables (mot de passe, sécurité, compte) sont toujours envoyés.</span>
+            </span>
+            {{ marketing_form.marketing_opt_in }}
+        </label>
+        <button type="submit" name="btn_marketing" class="hidden">Enregistrer</button>
+    </form>
+{% elif section == 'privacy' %}
+    <p class="text-sm text-gray-600">Pokebeer ne reçoit jamais votre position : elle sert uniquement à classer les lieux près de vous, sur votre appareil.</p>
+    <a href="{% url 'privacy_policy' %}" target="_blank" rel="noopener noreferrer" class="btn btn-outline w-full h-auto min-h-12 py-2 border-secondary justify-between text-left normal-case">
+        <span>Lire notre politique de confidentialité</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+    </a>
+    {% if user.is_bartender or user.is_brewer %}
+    <form method="post" class="flex flex-col gap-3">
+        <h3 class="text-sm font-bold border-b border-primary pb-1">Visibilité publique</h3>
+        {% csrf_token %}
+        <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm">
+            <div class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">Mes établissements</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Les afficher sur mon profil public</span>
+            </div>
+            {{ pro_settings_form.show_establishments }}
+        </div>
+        <button type="submit" name="btn_pro_settings" class="hidden">
+            Sauvegarder l'affichage
+        </button>
+    </form>
+    {% endif %}
+    <!-- Confidentialité : visible uniquement dans l'application Android (le pont natif gère le choix) -->
+    <section id="privacy-settings" class="hidden flex flex-col gap-3 mt-4" aria-labelledby="privacy-title">
+        <h3 id="privacy-title" class="text-sm font-bold border-b border-primary pb-1">Confidentialité</h3>
+        <label class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm cursor-pointer">
+            <span class="flex flex-col pr-4">
+                <span class="label-text font-bold text-xs">Mesure d'audience (Firebase Analytics)</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Statistiques d'usage de l'application, avec votre accord. Refuser n'a aucune incidence sur votre accès à Pokebeer. Désactiver efface l'identifiant d'instance de l'appareil.</span>
+            </span>
+            <input type="checkbox" id="analytics-consent" class="toggle toggle-primary toggle-sm">
+        </label>
+    </section>
+{% elif section == 'security' %}
+    {% if not user.socialaccount_set.all %}
+    
+    
+    <form method="post" class="flex flex-col gap-3 [&_input]:font-normal">
+        {% csrf_token %}
+        <h3 class="font-bold text-error text-sm border-b pb-1">Mot de passe</h3>
+        
+        {% for field in password_form %}
+        <div class="form-control w-full">
+            <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
+            {{ field }}
+        </div>
+        {% endfor %}
+        
+        <button type="submit" name="btn_password" class="btn btn-outline btn-error btn-sm mt-2">Changer</button>
+    </form>
+    {% endif %}
+{% elif section == 'team' %}
+    <div class="flex flex-col items-center text-center mb-4 mt-2">
+        <div class="bg-primary/20 p-3 rounded-full text-primary mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+        </div>
+        <h3 class="text-sm font-bold">Un mot pour l'équipe ?</h3>
+        <p class="text-[11px] text-gray-500 mt-1">Une suggestion d'amélioration, un bug ou juste un mot doux ? Nous lisons tout avec attention.</p>
+    </div>
+    
+    <form method="post" class="flex flex-col gap-2 [&_input]:font-normal [&_textarea]:font-normal">
+        {% csrf_token %}
+        {% for field in feedback_form %}
+        <div class="form-control w-full">
+            <label class="label py-0 hidden"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
+            {{ field }} 
+        </div>
+        {% endfor %}
+        <button type="submit" name="btn_feedback" class="btn btn-primary btn-sm mt-1">Envoyer le message</button>
+    </form>
+    {% if feedback_threads_count %}
+    <a href="{% url 'team_messages' %}" class="btn btn-ghost btn-sm mt-2 w-full">Voir mes échanges avec l'équipe ({{ feedback_threads_count }})</a>
+    {% endif %}
+
+{% endif %}
+</div>
+
+<script src="{% static 'script/notif_preferences.js' %}"></script>
+<script src="{% static 'script/analytics_consent.js' %}"></script>
+<script src="{% static 'script/auto_checkbox.js' %}"></script>
+{% endblock %}

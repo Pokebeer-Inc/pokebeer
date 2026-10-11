@@ -5,6 +5,7 @@
     const results = document.getElementById('search-results');
     const input = document.getElementById('search-input');
     const clear = document.getElementById('search-clear');
+    const home = document.getElementById('home-sections'); // présent seulement sur la page d'accueil (Recherche)
     if (!form || !results || !input) return;
 
     const DEBOUNCE_MS = 250;
@@ -23,10 +24,22 @@
     // (ouvert tant qu'il règle ses filtres, fermé s'il l'a refermé) au lieu de se refermer à chaque case cochée.
     const panel = () => results.querySelector('input[data-filter-panel]');
 
+    // Accueil : tant que la barre est vide et qu'aucun onglet ou filtre n'a été choisi, on montre l'accueil et non des résultats
+    function showHome() {
+        if (controller) controller.abort();
+        results.replaceChildren();
+        Pending.region(results, false);
+        form.removeAttribute('aria-busy');
+        home.classList.remove('hidden');
+        history.replaceState(null, '', location.pathname);
+    }
+
     function refresh() {
         clearTimeout(timer);
+        if (home && input.value.trim() === '' && form.elements.tab.value === 'all') return showHome();
+        if (home) home.classList.add('hidden');
         // « Près de moi » filtre sa liste sur place : pas de nouvelle requête, la position déjà obtenue est conservée
-        if (form.elements.tab.value === 'proche' && results.querySelector('[data-nearby]')) {
+        if (form.elements.tab.value === 'nearby' && results.querySelector('[data-nearby]')) {
             history.replaceState(null, '', '?' + params().toString());
             document.dispatchEvent(new CustomEvent('search:filter'));
             return;
@@ -35,8 +48,8 @@
         controller = new AbortController();
         const query = params();
         const wasOpen = panel() ? panel().checked : null;
-        results.setAttribute('aria-busy', 'true');
-        results.classList.add('opacity-60');
+        Pending.region(results, true);
+        form.setAttribute('aria-busy', 'true');  // l'icône de la barre devient un cercle (ui.css)
         fetch(results.dataset.url + '?' + query.toString(), { signal: controller.signal, headers: { 'X-Requested-With': 'fetch' } })
             .then(res => { if (!res.ok) throw new Error('Erreur réseau'); return res.json(); })
             .then(data => {
@@ -45,8 +58,8 @@
                 history.replaceState(null, '', '?' + query.toString());
                 if (typeof initLoadMore === 'function') initLoadMore(results);
                 if (typeof initNearby === 'function') initNearby(results);
-                results.removeAttribute('aria-busy');
-                results.classList.remove('opacity-60');
+                Pending.region(results, false);
+                form.removeAttribute('aria-busy');
             })
             .catch(err => {
                 if (err.name === 'AbortError') return;
@@ -62,10 +75,10 @@
     });
     form.addEventListener('submit', event => { event.preventDefault(); refresh(); });
     // L'événement « input » met à jour le bouton, les recherches récentes et relance la recherche : un seul chemin
-    clear.addEventListener('click', () => { input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus(); });
+    clear.addEventListener('click', () => { input.value = ''; if (home) form.elements.tab.value = 'all'; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus(); });
 
     // Onglets et liens « Voir tout » : même page, autre rubrique (la recherche en cours est conservée)
-    results.addEventListener('click', event => {
+    function onTabClick(event) {
         const link = event.target.closest('a[data-tab]');
         if (!link || event.metaKey || event.ctrlKey || event.shiftKey) return;
         event.preventDefault();
@@ -77,7 +90,9 @@
             else field.value = '';
         });
         refresh();
-    });
+    }
+    results.addEventListener('click', onTabClick);
+    if (home) home.addEventListener('click', onTabClick); // puces de l'accueil
 
     if (typeof initNearby === 'function') initNearby(results); // page ouverte directement sur « Près de moi »
 

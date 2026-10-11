@@ -1,0 +1,7 @@
+{% comment %}Ligne de réglage : url_name (+ url_arg), label, d (tracé de l'icône), danger (optionnel).{% endcomment %}
+{% if url_arg %}{% url url_name url_arg as href %}{% else %}{% url url_name as href %}{% endif %}
+<a href="{{ href }}" class="pb-set {% if danger %}is-danger{% endif %}">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="{{ d }}" /></svg>
+    <span>{{ label }}</span>
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+</a>

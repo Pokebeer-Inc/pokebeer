@@ -20,9 +20,9 @@ class TestRegister:
         return client.post(reverse("register"), data)
 
     def test_registration_creates_contributor_and_logs_in(self, client, google_app):
-        assert_redirects(self.post(client), reverse("index"))
+        assert_redirects(self.post(client), reverse("onboarding"))
         member = BeerUser.objects.get(username="newbie")
-        assert member.is_contributor and member.check_password(f.PASSWORD)
+        assert member.groups.filter(name="Contributeur").exists() and member.check_password(f.PASSWORD)
         assert is_authenticated(client)
 
     def test_invalid_registration_creates_nothing(self, client, google_app, user):

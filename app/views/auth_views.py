@@ -31,7 +31,7 @@ def register_view(request):
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             send_welcome(user)
             messages.success(request, f"Bienvenue, {user.username} ! Votre compte a été créé.")
-            return redirect('index')
+            return redirect('onboarding')  # deux pages avant l'accueil : date de naissance puis genre
         else:
             messages.error(request, "Erreur lors de l'inscription. Vérifiez les champs.")
     else:

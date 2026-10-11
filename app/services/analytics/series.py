@@ -1,5 +1,5 @@
 """Séries temporelles : agrégation alignée sur la période, moyenne mobile, tendance et prévision indicative."""
-from datetime import date, datetime
+from datetime import datetime
 
 from django.db.models import Count
 

@@ -25,8 +25,9 @@ def get_user_achievements(user):
     has_picon = 1 if user.bio and 'picon' in user.bio.lower() else 0
     
     # Brasserie Ours doré
-    has_ours = 1 if Drinks.objects.filter(drinker_id=user, beer_id__brewery_id__name__icontains='ours dor').exists() else 0
-    ours_brewery = Brewery.objects.filter(name__icontains='ours dor').first()
+    # Clé de comparaison (sans accents, ponctuation ni mots creux) : « L'Ours-Doré » ou « Ours  doré » sont reconnus comme « Ours Doré »
+    has_ours = 1 if Drinks.objects.filter(drinker_id=user, beer_id__brewery_id__match_key__contains='ours').filter(beer_id__brewery_id__match_key__contains='dore').exists() else 0
+    ours_brewery = Brewery.objects.filter(match_key__contains='ours').filter(match_key__contains='dore').order_by('id').first()
     ours_url = reverse('brewery_detail', args=[ours_brewery.slug]) if ours_brewery else None
     
     # Brasserie ...

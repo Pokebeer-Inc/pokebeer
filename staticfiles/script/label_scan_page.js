@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const CLOSING_MESSAGES = {
-        found: 'Bière reconnue : vérifiez les informations ci-dessous.',
+        found: "Bière reconnue : vérifiez bien le nom, la brasserie et le reste (l'IA peut se tromper), puis touchez Suivant.",
         timeout: "La caméra s'est refermée. Touchez le bouton pour réessayer.",
         unavailable: "Caméra indisponible : choisissez une photo à la place.",
     };
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const file = fileInput.files[0];
         if (!file) return;
         say("Analyse de l'étiquette en cours...", false);
-        button.disabled = true;
+        Pending.start(button);  // cercle sur le bouton pendant l'analyse (plusieurs secondes)
         try {
             const bitmap = await createImageBitmap(file);
             const blob = await LabelScan.Client.toJpeg(bitmap, bitmap.width, bitmap.height);
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             say(error.message || "L'analyse de l'étiquette a échoué.", true);
         } finally {
-            button.disabled = false;
+            Pending.stop(button);
             fileInput.value = '';
         }
     });

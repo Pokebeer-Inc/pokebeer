@@ -5,6 +5,7 @@ from django.db import transaction
 from django.urls import reverse
 
 from app.models import Bar, Beer, BeerUser, Brewery, Drinks, ModerationEntry, Notification
+from app.services import catalog_matching
 from app.services.achievements import check_and_notify_achievements
 from app.services.drinks import delete_drink
 from app.services.profile_pictures import delete_stored_picture
@@ -30,6 +31,7 @@ class ModeratedContent:
     staff_reviews_creation = False    # si certifiable : le staff peut quand même marquer la création comme vue (sans certifier)
     superuser_only = False            # actions réservées aux superusers (impact fort)
     remove_label = "Supprimer"
+    suggest_fields = ()               # champs texte qu'un membre peut proposer de modifier (jamais d'image) ; vide : pas de suggestion
 
     def title(self, obj):
         return str(obj)
@@ -55,6 +57,28 @@ class ModeratedContent:
 
     def remove(self, obj, entry):
         raise NotImplementedError
+
+    # --- suggestions de modification ---
+    def can_edit(self, obj, user):
+        """Le membre peut-il déjà modifier directement cette fiche ? Alors inutile de lui proposer une suggestion."""
+        return False
+
+    def can_suggest(self, obj, user):
+        return bool(self.suggest_fields) and user.is_authenticated and user.is_active and self.is_public(obj) and not self.can_edit(obj, user)
+
+    def suggestion_errors(self, target, cleaned):
+        """Règles propres au type de contenu, au-delà de celles du modèle (liste de messages ; vide si tout va bien)."""
+        return []
+
+    def can_amend(self, user):
+        """Le membre de l'équipe peut-il modifier les champs de ce type de contenu (suggestions, retouches à la validation) ?
+        Mêmes droits que pour le retirer."""
+        return self._staff_allowed(user)
+
+    def find(self, slug):
+        """Contenu public portant ce slug (None s'il n'existe pas ou n'est plus public)."""
+        obj = self.model.objects.filter(slug=slug).first()
+        return obj if obj is not None and self.is_public(obj) else None
 
     # Libellés propres à l'entrée (un même type peut retirer des éléments différents)
     def remove_label_for(self, entry):
@@ -95,6 +119,19 @@ class BeerContent(ModeratedContent):
         FieldSpec('name', 'Nom'), FieldSpec('description', 'Description'),
         FieldSpec('style', 'Style'), FieldSpec('image', 'Image', is_image=True),
     )
+    suggest_fields = ('name', 'description', 'style', 'degree', 'bitterness')
+
+    def can_edit(self, obj, user):
+        # Même règle que la page de modification : le gérant de la brasserie, ou le créateur tant que la fiche n'est pas vérifiée
+        is_manager = obj.brewery_id.managers.filter(pk=user.pk).exists()
+        return is_manager or (obj.added_by_id == user.pk and not obj.is_verified)
+
+    def suggestion_errors(self, target, cleaned):
+        # Le modèle ne contrôle pas le nom d'une bière au sein de sa brasserie (champ hors formulaire) : même règle que la modification directe
+        name = cleaned.get('name')
+        if name and name != target.name and catalog_matching.inspect(name, target.brewery_id.name, exclude_beer_pk=target.pk, brewery_confirmed=True).beer.same:
+            return ["Nom : une bière de ce nom existe déjà dans cette brasserie."]
+        return []
 
     def context(self, obj):
         return f"Brasserie : {obj.brewery_id.name}"
@@ -151,6 +188,13 @@ class EstablishmentContent(ModeratedContent):
         FieldSpec('instagram', 'Instagram'), FieldSpec('facebook', 'Facebook'),
         FieldSpec('image', 'Image', is_image=True),
     )
+
+    suggest_fields = (
+        'name', 'description', 'street', 'postal_code', 'city', 'phone', 'email', 'website', 'instagram', 'facebook',
+    )
+
+    def can_edit(self, obj, user):
+        return obj.managers.filter(pk=user.pk).exists()
 
     def authors(self, obj):
         return list(obj.managers.all())

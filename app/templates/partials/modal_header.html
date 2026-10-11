@@ -1,0 +1,5 @@
+{% comment %}En-tête commun des fenêtres : titre et croix de fermeture (toujours présente). Paramètres : title, title_suffix (facultatif, ajouté au titre), title_id (lie le titre à la fenêtre, aria-labelledby).{% endcomment %}
+<div class="pb-modal-head">
+    <h3 {% if title_id %}id="{{ title_id }}"{% endif %} class="pb-title text-lg font-bold leading-tight">{{ title }}{% if title_suffix %} {{ title_suffix }}{% endif %}</h3>
+    <button type="button" class="btn btn-sm btn-circle btn-ghost shrink-0" aria-label="Fermer" onclick="this.closest('dialog').close()">{% include "partials/icon.html" with name="close" %}</button>
+</div>

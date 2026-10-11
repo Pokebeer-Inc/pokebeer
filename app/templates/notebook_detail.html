@@ -14,9 +14,9 @@
             <div tabindex="0" role="button" class="btn btn-sm btn-ghost btn-circle text-gray-500">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
             </div>
-            <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-lg bg-base-100 rounded-box w-40 border border-base-200">
+            <ul tabindex="0" class="dropdown-content menu pb-menu z-[50] w-40">
                 <li>
-                    <a onclick="modal_edit_notebook.showModal()" class="font-semibold text-primary">
+                    <a onclick="modal_edit_notebook.showModal()" class="font-semibold">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         Modifier
                     </a>
@@ -34,133 +34,96 @@
     {% endif %}
 </div>
 
-<!-- LE FORMULAIRE DE FILTRE -->
-<form method="get" class="mb-6">
-    {% if notebook %}
-    <input type="hidden" name="notebook_slug" value="{{ notebook.slug }}">
-    {% endif %}
-    
-    <div class="join w-full mb-2">
-        <input type="text" name="q" placeholder="Bière, brasserie..." value="{{ request.GET.q|default_if_none:'' }}" class="input input-sm input-bordered join-item w-full bg-white">
-        <button type="submit" class="btn btn-sm btn-primary join-item">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+{# Recherche en direct, un seul bouton « Filtrer » (feuille : tri, note, alcool, amertume, style) et les filtres actifs en pastilles retirables #}
+<form id="carnet-form" hx-get="{% url 'notebook_drinks_fragment' %}" hx-trigger="input delay:250ms from:#carnet-q, change" hx-target="#carnet-list" hx-swap="innerHTML" hx-sync="this:replace" role="search" onsubmit="return false">
+    {% if notebook %}<input type="hidden" name="notebook_slug" value="{{ notebook.slug }}">{% endif %}
+
+    <div class="flex gap-2">
+        <label class="pb-card flex items-center gap-2 px-3 h-11 flex-1 min-w-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input id="carnet-q" type="search" name="q" value="{{ query }}" maxlength="100" autocomplete="off" enterkeyhint="search" placeholder="Bière, brasserie, style…" aria-label="Chercher dans ce carnet" class="grow bg-transparent text-sm outline-none border-0 shadow-none min-w-0" style="border:0;box-shadow:none;outline:none">
+        </label>
+        <button type="button" data-open-filters class="pb-card h-11 px-3 flex items-center gap-1.5 text-sm font-medium shrink-0 hover:bg-base-300" aria-haspopup="dialog">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M6 12h12m-9 6h6" /></svg>
+            Filtrer
+            <span id="filter-count" class="{% if filter_count %}inline-flex{% else %}hidden{% endif %} min-w-5 h-5 px-1 rounded-full bg-primary text-black text-xs font-bold items-center justify-center">{{ filter_count }}</span>
         </button>
     </div>
-    
-    <div class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-box">
-        <input type="checkbox" {% if request.GET.degree or request.GET.ibu or request.GET.style or request.GET.rating_min and request.GET.rating_min != '0' or request.GET.rating_max and request.GET.rating_max != '10' %}checked{% endif %} />
-        <div class="collapse-title text-sm font-medium flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-            Filtres avancés
-        </div>
-        <div class="collapse-content text-sm overflow-visible">
-            <div class="flex flex-col gap-4 mt-2">
-                <!-- Filtre Note -->
+
+    <dialog id="filters-sheet" class="modal modal-bottom" aria-label="Filtrer et trier">
+        <div class="modal-box bg-base-100 max-h-[85vh] p-0 flex flex-col">
+            <div class="flex items-center justify-between px-4 pt-4 pb-2">
+                <h2 class="pb-title text-xl font-bold">Filtrer et trier</h2>
+                <button type="button" data-close-filters class="btn btn-sm btn-circle btn-ghost" aria-label="Fermer">{% include "partials/icon.html" with name="close" %}</button>
+            </div>
+
+            <div class="overflow-y-auto px-4 pb-4 flex flex-col gap-5">
+                <fieldset>
+                    <legend class="font-semibold mb-2">Trier par</legend>
+                    {% for group, options in sort_groups %}
+                    <p class="text-xs text-gray-600 mt-2 mb-1">{{ group }}</p>
+                    <div class="flex flex-wrap gap-2">
+                        {% for value, label in options %}<label class="pb-choice"><input type="radio" name="sort" value="{{ value }}" {% if value == sort %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+                    </div>
+                    {% endfor %}
+                </fieldset>
+
                 <div>
                     <div class="flex justify-between items-end mb-3">
-                        <h4 class="font-bold text-[10px] text-gray-500 uppercase tracking-wider">Note de dégustation</h4>
-                        <span id="rating-display" class="badge badge-primary badge-sm font-bold shadow-sm"></span>
+                        <h3 class="font-semibold">Note</h3>
+                        <span id="rating-display" class="pb-chip is-primary !py-0.5"></span>
                     </div>
                     <div class="relative w-full h-6 flex items-center mb-2">
                         <div class="absolute w-full h-2 bg-base-300 rounded-full"></div>
                         <div id="rating-track" class="absolute h-2 bg-primary rounded-full pointer-events-none"></div>
-                        <input type="range" name="rating_min" id="rating_min" min="0" max="10" value="{{ request.GET.rating_min|default:'0' }}" class="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer">
-                        <input type="range" name="rating_max" id="rating_max" min="0" max="10" value="{{ request.GET.rating_max|default:'10' }}" class="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer">
+                        <input type="range" name="rating_min" id="rating_min" min="0" max="10" value="{{ rating_min }}" aria-label="Note minimale" class="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer">
+                        <input type="range" name="rating_max" id="rating_max" min="0" max="10" value="{{ rating_max }}" aria-label="Note maximale" class="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer">
                     </div>
                 </div>
 
-                {% include "partials/beer_filters.html" %}
-                
+                <fieldset>
+                    <legend class="font-semibold mb-2">Alcool</legend>
+                    <div class="flex flex-wrap gap-2">
+                        <label class="pb-choice"><input type="radio" name="degree" value="" {% if not selected_degree %}checked{% endif %}><span>Tous</span></label>
+                        {% for value, label in degree_options %}<label class="pb-choice"><input type="radio" name="degree" value="{{ value }}" {% if value == selected_degree %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend class="font-semibold mb-2">Amertume (IBU)</legend>
+                    <div class="flex flex-wrap gap-2">
+                        <label class="pb-choice"><input type="radio" name="ibu" value="" {% if not selected_ibu %}checked{% endif %}><span>Toutes</span></label>
+                        {% for value, label in ibu_options %}<label class="pb-choice"><input type="radio" name="ibu" value="{{ value }}" {% if value == selected_ibu %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+                    </div>
+                </fieldset>
+
+                {% if styles %}
+                <div>
+                    <label for="filter-style" class="font-semibold block mb-2">Style</label>
+                    <select id="filter-style" name="style" class="pb-input">
+                        <option value="">Tous les styles</option>
+                        {% for style_name in styles %}<option value="{{ style_name }}" {% if style_name == selected_style %}selected{% endif %}>{{ style_name }}</option>{% endfor %}
+                    </select>
+                </div>
+                {% endif %}
             </div>
-            <button type="submit" class="btn btn-neutral btn-sm w-full mt-4">Appliquer les filtres</button>
-        </div>
-    </div>
 
-    <!-- Tri -->
-    <div class="flex justify-end mt-4 mb-1">
-        <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Trier par :</span>
-            <select name="sort" onchange="this.form.submit()" class="h-8 px-2 border border-base-300 rounded bg-white text-xs font-medium outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
-                <optgroup label="Votre avis">
-                    <option value="date_desc" {% if request.GET.sort == 'date_desc' or not request.GET.sort %}selected{% endif %}>Dégustation (Récente en 1er)</option>
-                    <option value="date_asc" {% if request.GET.sort == 'date_asc' %}selected{% endif %}>Dégustation (Ancienne en 1er)</option>
-                    <option value="note_desc" {% if request.GET.sort == 'note_desc' %}selected{% endif %}>Note (Décroissante)</option>
-                    <option value="note_asc" {% if request.GET.sort == 'note_asc' %}selected{% endif %}>Note (Croissante)</option>
-                </optgroup>
-                <optgroup label="Attributs de la bière">
-                    <option value="name_asc" {% if request.GET.sort == 'name_asc' %}selected{% endif %}>Nom (A-Z)</option>
-                    <option value="name_desc" {% if request.GET.sort == 'name_desc' %}selected{% endif %}>Nom (Z-A)</option>
-                    <option value="degree_desc" {% if request.GET.sort == 'degree_desc' %}selected{% endif %}>Alcool (Fort à Léger)</option>
-                    <option value="degree_asc" {% if request.GET.sort == 'degree_asc' %}selected{% endif %}>Alcool (Léger à Fort)</option>
-                    <option value="ibu_desc" {% if request.GET.sort == 'ibu_desc' %}selected{% endif %}>Amertume (Forte à Douce)</option>
-                    <option value="ibu_asc" {% if request.GET.sort == 'ibu_asc' %}selected{% endif %}>Amertume (Douce à Forte)</option>
-                </optgroup>
-            </select>
+            <div class="flex gap-2 px-4 py-3 border-t border-base-300 bg-base-100">
+                <button type="button" id="filters-reset" class="btn btn-ghost flex-1">Réinitialiser</button>
+                <button type="button" data-close-filters class="btn btn-primary flex-[2] text-black border-secondary">Voir les résultats</button>
+            </div>
         </div>
-    </div>
-
-    {% if request.GET.q or request.GET.degree or request.GET.ibu or request.GET.style or request.GET.rating_min and request.GET.rating_min != '0' or request.GET.rating_max and request.GET.rating_max != '10' or request.GET.sort and request.GET.sort != 'date_desc' %}
-    <div class="mt-3">
-        <a href="{% if notebook %}{% url 'notebook_detail' notebook.slug %}{% else %}{% url 'notebook_all' %}{% endif %}" class="btn btn-outline btn-error btn-sm w-full">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            Réinitialiser la recherche
-        </a>
-    </div>
-    {% endif %}
+        <button type="button" data-close-filters class="modal-backdrop" aria-label="Fermer"></button>
+    </dialog>
 </form>
 
-<div id="notebook-drinks-container" class="flex flex-col gap-3">
-    {% include "partials/notebook_drinks.html" %}
+<div id="carnet-list" class="mt-3" aria-live="polite">
+    {% include "partials/notebook_drinks_list.html" %}
 </div>
 
-{% if my_drinks|length == 10 %}
-<button class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3"
-        data-offset="10" 
-        data-container="notebook-drinks-container" 
-        data-url="{% url 'load_more_generic' 'notebook_drinks' %}{% if notebook %}?notebook_slug={{ notebook.slug }}{% endif %}">
-    Charger plus de dégustations
-</button>
-{% endif %}
-
 {% if notebook %}
-<!-- Modale de modification du carnet -->
-<dialog id="modal_edit_notebook" class="modal z-[99999]">
-    <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_edit_notebook.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg text-primary mb-4 border-b border-primary pb-2">Modifier le carnet</h3>
-        
-        <form method="post" action="{% url 'edit_custom_notebook' notebook.slug %}">
-            {% csrf_token %}
-            <div class="form-control w-full mb-3">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Titre du carnet *</span></label>
-                <input type="text" name="title" value="{{ notebook.title }}" class="input input-sm input-bordered w-full bg-white" placeholder="Ex: Bières d'été..." required maxlength="150">
-            </div>
-            
-            <div class="form-control w-full mb-3">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Description (Optionnel)</span></label>
-                <textarea name="description" class="textarea textarea-bordered h-16 bg-white text-xs" placeholder="Une petite note...">{% if notebook.description %}{{ notebook.description }}{% endif %}</textarea>
-            </div>
-            
-            <div class="form-control w-full mb-4">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Modifier les dégustations</span></label>
-                <div class="h-40 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box flex flex-col gap-1">
-                    {% for drink in user_drinks_all %}
-                        <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-2 transition-colors">
-                            <input type="checkbox" name="drinks" value="{{ drink.slug }}" class="checkbox checkbox-sm checkbox-primary shrink-0" {% if drink.slug in notebook_drink_slugs %}checked{% endif %} />
-                            <span class="label-text text-xs font-semibold truncate flex-1">
-                                {{ drink.beer_id.name }} 
-                                {% if drink.note is not null %}<span class="text-[10px] text-gray-500 font-normal ml-1">({{ drink.note }}/10)</span>{% endif %}
-                            </span>
-                        </label>
-                    {% endfor %}
-                </div>
-            </div>
-            
-            <button type="submit" class="btn btn-primary btn-sm w-full text-white">Enregistrer les modifications</button>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-</dialog>
+{% url 'edit_custom_notebook' notebook.slug as edit_url %}
+{% include "partials/notebook_form_modal.html" with modal_id="modal_edit_notebook" heading="Modifier le carnet" action=edit_url submit_label="Enregistrer les modifications" picker_label="Modifier les dégustations" drinks=user_drinks_all selected=notebook_drink_slugs notebook=notebook %}
 
 <dialog id="modal_confirm_delete_notebook" class="modal z-[99999]">
     <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center">
@@ -186,4 +149,5 @@
 
 <script src="{% static 'script/load_more_generic.js' %}"></script>
 <script src="{% static 'script/double_slider.js' %}"></script>
+<script src="{% static 'script/notebook_filters.js' %}"></script>
 {% endblock %}

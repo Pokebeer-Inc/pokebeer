@@ -1,0 +1,64 @@
+{% load tasting l10n %}{% tasting_limits as limits %}
+{% comment %}Fenêtre de modification d'un avis existant (un nouvel avis passe par partials/tasting_wizard_modal.html, étape par étape).
+Paramètres : modal_id, title, action (adresse d'envoi), photo_prefix (préfixe d'id des champs photo), uid (identifiant unique),
+drink (l'avis), delete_url, delete_form_id, confirm_modal_id (suppression).
+Deux étapes sans rechargement (static/script/modal_steps.js) : l'essentiel (date, note, avis, photo, carnets), puis le contexte facultatif
+(lieu, compagnie, format, prix). Sans JavaScript les deux parties sont affichées l'une sous l'autre.{% endcomment %}
+<dialog id="{{ modal_id }}" class="modal modal-bottom sm:modal-middle" aria-labelledby="{{ modal_id }}-title">
+    <div class="modal-box custom-modal-form">
+        {% include "partials/modal_header.html" with title=title title_id=modal_id|add:"-title" %}
+        <form method="post" action="{{ action }}" enctype="multipart/form-data" data-steps>
+            {% csrf_token %}
+            <div data-step="1">
+                <div class="mb-3">
+                    <label class="pb-label" for="date-{{ uid }}">Date de dégustation</label>
+                    <input id="date-{{ uid }}" type="date" name="date" value="{{ drink.date|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" required class="pb-input">
+                </div>
+                <div class="mb-3">
+                    <label class="pb-label" for="note-{{ uid }}">Note (sur 10) <span class="font-normal text-[#6b625a]">(facultatif)</span></label>
+                    <input id="note-{{ uid }}" type="number" name="note" min="0" max="10" inputmode="numeric" value="{% if drink.note is not None %}{{ drink.note }}{% endif %}" class="pb-input">
+                </div>
+                <div class="mb-3">
+                    <label class="pb-label" for="comment-{{ uid }}">Mon avis personnel <span class="font-normal text-[#6b625a]">(facultatif)</span></label>
+                    <textarea id="comment-{{ uid }}" name="comment" rows="3" maxlength="{{ limits.comment }}" placeholder="Votre expérience, vos impressions en toute subjectivité..." class="pb-input">{{ drink.comment|default_if_none:'' }}</textarea>
+                </div>
+                {% include "partials/image_field.html" with name="photo" field_id=photo_prefix|add:uid photo_url=drink.photo_url remove_name="remove_photo" %}
+                {% include "partials/notebook_selector.html" with current_drink=drink %}
+
+                <button type="button" data-step-go="2" class="pb-card w-full flex items-center justify-between gap-3 p-3 mb-4 text-left hover:bg-base-300 transition-colors">
+                    <span class="min-w-0">
+                        <span class="block text-sm font-semibold">Lieu, compagnie, format et prix</span>
+                        {% if drink.venue_type or drink.company or drink.serving_format or drink.price %}
+                        <span class="flex flex-wrap gap-1 mt-1">
+                            {% if drink.venue_type %}<span class="pb-pill">{{ drink.get_venue_type_display }}</span>{% endif %}
+                            {% if drink.company %}<span class="pb-pill">{{ drink.get_company_display }}</span>{% endif %}
+                            {% if drink.serving_format %}<span class="pb-pill">{{ drink.get_serving_format_display }}</span>{% endif %}
+                            {% if drink.price %}<span class="pb-pill">{{ drink.price|unlocalize }} €</span>{% endif %}
+                        </span>
+                        {% else %}
+                        <span class="block text-xs text-[#6b625a]">Facultatif : le contexte de cette dégustation</span>
+                        {% endif %}
+                    </span>
+                    {% include "partials/icon.html" with name="chevron-down" cls="-rotate-90" %}
+                </button>
+            </div>
+
+            <div data-step="2">
+                <button type="button" data-step-back class="inline-flex items-center gap-1 text-sm text-[#6b625a] hover:text-black mb-2">
+                    {% include "partials/icon.html" with name="arrow-left" %} Retour à mon avis
+                </button>
+                <h4 class="text-sm font-bold">Lieu, compagnie, format et prix <span class="font-normal text-[#6b625a]">(facultatif)</span></h4>
+                {% include "partials/tasting_context_inputs.html" with uid=uid venue_type=drink.venue_type company=drink.company serving_format=drink.serving_format price=drink.price %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full mt-4 text-black border-secondary">Enregistrer mon avis</button>
+        </form>
+        {% if delete_url %}
+        <form id="{{ delete_form_id }}" method="post" action="{{ delete_url }}" class="mt-4 pt-4 border-t border-[#d9cfc5]" data-hide-on-step-2>
+            {% csrf_token %}
+            <button type="button" class="btn btn-outline btn-error btn-sm w-full" onclick="document.getElementById('{{ confirm_modal_id }}').showModal()">Supprimer mon avis</button>
+        </form>
+        {% endif %}
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>

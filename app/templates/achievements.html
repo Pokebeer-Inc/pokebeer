@@ -4,7 +4,8 @@
 
 {% block content %}
 
-{% include "partials/page_header.html" with title="Hauts Faits" subtitle="Dégustez, notez et explorez pour débloquer de nouveaux paliers !" %}
+{% url 'account' as profile_url %}
+{% include "partials/page_header.html" with title="Hauts Faits" subtitle="Dégustez, notez et explorez pour débloquer de nouveaux paliers !" back_url=profile_url %}
 
 <div class="p-1 pb-6">
 

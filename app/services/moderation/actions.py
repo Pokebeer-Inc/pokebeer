@@ -1,5 +1,5 @@
 """Actions du staff sur une entrée : valider (« vu ») ou retirer le contenu et prévenir son auteur."""
-from django.contrib.admin.models import DELETION, LogEntry
+from django.contrib.admin.models import CHANGE, DELETION, LogEntry
 from django.db import transaction
 from django.utils import timezone
 
@@ -8,7 +8,9 @@ from app.services.notifications import create_notifications
 from app.services.realtime_service import broadcast_notifications
 from app.services.verification import certify
 
+from .capture import SKIP_ATTR
 from .content import CONTENT_TYPES
+from .editing import edit_form, plain_values, problems
 
 NOTE_MAX_LENGTH = 150
 NOTIFICATION_MAX_LENGTH = 255
@@ -37,19 +39,53 @@ def _locked_entry(entry_id):
     return entry, CONTENT_TYPES[entry.kind]
 
 
+def _review(entry, content, user):
+    """Marque l'entrée comme vue ; si le contenu est certifiable, la validation d'une création par un admin pose la coche « vérifié »."""
+    entry.reviewed_by, entry.reviewed_at = user, timezone.now()
+    entry.save(update_fields=['reviewed_by', 'reviewed_at'])
+
+    if content.certifies(entry, user):
+        target = content.model.objects.select_for_update().filter(pk=entry.object_id).first()
+        if target and not target.is_verified:
+            certify(target, user)
+
+
 def validate_entry(entry_id, user):
     """Marque l'entrée comme vue. Si le contenu est certifiable, la validation d'une création par un admin pose la coche « vérifié »."""
     with transaction.atomic():
         entry, content = _locked_entry(entry_id)
         if not content.can_validate(entry, user):
             raise ModerationError("Seuls les admins peuvent valider la création de ce type de contenu.")
-        entry.reviewed_by, entry.reviewed_at = user, timezone.now()
-        entry.save(update_fields=['reviewed_by', 'reviewed_at'])
+        _review(entry, content, user)
+    return entry
 
-        if content.certifies(entry, user):
-            target = content.model.objects.select_for_update().filter(pk=entry.object_id).first()
-            if target and not target.is_verified:
-                certify(target, user)
+
+def amend_and_validate(entry_id, user, data):
+    """Retouche les champs publics du contenu avec le formulaire de l'équipe, puis valide l'entrée (création ou modification).
+
+    Mêmes droits que la validation et que la retouche ; l'enregistrement de l'équipe n'est pas re-relu (pas de nouvelle entrée)."""
+    with transaction.atomic():
+        entry, content = _locked_entry(entry_id)
+        if entry.action == ModerationEntry.Action.SUGGESTED:
+            raise ModerationError("Une suggestion s'applique ou se refuse : utilisez ses boutons.")
+        if not content.suggest_fields:
+            raise ModerationError("Ce type de contenu ne se retouche pas ici.")
+        if not (content.can_validate(entry, user) and content.can_amend(user)):
+            raise ModerationError("Vous ne pouvez pas retoucher ni valider ce contenu.")
+        target = content.model.objects.select_for_update().filter(pk=entry.object_id).first()
+        if target is None:
+            raise ModerationError("Ce contenu n'existe plus.")
+        form = edit_form(content, instance=target, data=plain_values(content, data))
+        errors = problems(content, form, target)
+        if errors:
+            raise ModerationError(" ; ".join(errors))
+        setattr(target, SKIP_ATTR, True)
+        form.save()
+        LogEntry.objects.log_actions(
+            user.pk, [target], CHANGE, single_object=True,
+            change_message=f"Modération : retouché avant validation ({', '.join(form.changed_data) or 'aucun champ'})",
+        )
+        _review(entry, content, user)
     return entry
 
 

@@ -16,7 +16,7 @@ from django.db.models import Count
 from django.utils import timezone
 
 from ..models import BeerUser, CampaignRecipient, EmailCampaign
-from . import app_links, mailer, marketing
+from . import mailer, marketing
 from .throttle import CAMPAIGN_EMAIL_GLOBAL, CAMPAIGN_LAUNCH
 
 Kind, Audience, Status = EmailCampaign.Kind, EmailCampaign.Audience, EmailCampaign.Status

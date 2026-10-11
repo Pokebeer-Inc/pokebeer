@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/wizard.css' %}">
+<main class="max-w-md mx-auto pt-4">
+    <header>
+        <p class="text-sm text-gray-600">Étape <b>{{ step }}</b> sur {{ total }}</p>
+        <h1 class="pb-title text-2xl font-bold">Votre genre</h1>
+        <div class="wizard-progress mt-2" role="progressbar" aria-valuemin="1" aria-valuemax="{{ total }}" aria-valuenow="{{ step }}" aria-label="Progression de l'inscription"><i style="width: {% widthratio step total 100 %}%"></i></div>
+    </header>
+
+    <form method="post" novalidate class="wizard-step is-current mt-4" style="display:block; animation: wizard-in 0.25s ease">
+        {% csrf_token %}
+        <p class="text-base text-gray-700">Comment souhaitez-vous vous décrire ? Cette réponse est <b>facultative</b> : elle nous aide à mieux comprendre la communauté et n'est jamais affichée aux autres membres.</p>
+
+        <fieldset class="mt-4">
+            <legend class="sr-only">Genre</legend>
+            <div class="flex flex-wrap gap-2">
+                {% for radio in form.gender %}<label class="pb-choice">{{ radio.tag }}<span class="!py-3 !px-5 !text-base">{{ radio.choice_label }}</span></label>{% endfor %}
+            </div>
+            {% for error in form.gender.errors %}<p class="text-sm font-semibold text-error mt-2" role="alert">{{ error }}</p>{% endfor %}
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary w-full mt-5 h-auto min-h-12 border-2 border-secondary text-black text-base normal-case">Suivant</button>
+        <div class="flex items-center justify-between mt-3">
+            <a href="{% url 'onboarding_birth' %}" class="text-sm text-gray-600 underline">Retour</a>
+            <button type="submit" name="skip" value="1" class="text-xs text-gray-600 underline">Passer</button>
+        </div>
+    </form>
+</main>
+{% endblock %}

@@ -63,6 +63,18 @@ class TestAchievementTiers:
         assert ach["is_maxed"]
         assert ach["url"] == f"/brewery/{ours.slug}/"
 
+    @pytest.mark.parametrize("name", ["L'Ours-Doré", "OURS  DORE", "Brasserie de l'Ours doré SAS"])
+    def test_the_ours_dore_brewery_is_found_whatever_its_spelling(self, user, name):
+        ours = f.make_brewery(name=name)
+        f.make_drink(user, f.make_beer(brewery=ours))
+        ach = achievement(user, "ours")
+        assert ach["is_maxed"] and ach["url"] == f"/brewery/{ours.slug}/"
+
+    def test_without_that_brewery_the_achievement_has_no_link(self, user):
+        f.make_brewery(name="Brasserie du Port")
+        ach = achievement(user, "ours")
+        assert ach["url"] is None and not ach["is_maxed"]
+
     def test_deleted_beers_do_not_count_as_additions(self, user):
         f.make_beer(added_by=user, is_deleted=True)
         assert achievement(user, "poche")["tier_level"] == 0

@@ -97,7 +97,7 @@ class TestBeerCertification:
         client_for(superuser).post(validate_url(entries("beer", "modified").get(object_id=beer.pk)))
         assert not Beer.objects.get(pk=beer.pk).is_verified
 
-    def test_certifying_does_not_log_a_new_moderation_entry_nor_call_gemini(self, client_for, superuser, monkeypatch):
+    def test_certifying_does_not_log_a_new_moderation_entry_nor_call_mistral(self, client_for, superuser, monkeypatch):
         beer = f.make_beer()
         calls = []
         monkeypatch.setattr("app.services.ai.get_embedding", lambda text: calls.append(text))

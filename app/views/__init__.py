@@ -1,5 +1,6 @@
 from .core_views import *
 from .auth_views import *
+from .onboarding_views import *
 from .social_views import *
 from .avatar_views import *
 from .moderation_views import *
@@ -14,8 +15,10 @@ from .search_views import *
 from .map_views import *
 from .bar_views import *
 from .brewery_views import *
+from .suggestion_views import *
 from .cron_views import *
 from .password_reset_views import *
 from .privacy_views import *
 from .email_views import *
 from .place_views import cancel_claim
+from .suggestion_views import *

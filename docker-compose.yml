@@ -16,6 +16,13 @@ services:
       timeout: 5s
       retries: 10
 
+  adminer:
+    image: adminer
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - db
+
   web:
     build: .
     command: >

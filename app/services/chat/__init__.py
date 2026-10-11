@@ -1,7 +1,7 @@
-"""Assistant bière « Gaétan » : garde-fous, outils (lieux proches) et boucle de conversation avec Gemini.
+"""Assistant bière « Gaétan » : garde-fous, outils (lieux proches) et boucle de conversation avec Mistral.
 
 Chaque module n'a qu'une responsabilité : `sanitize` (texte entrant et sortant), `geo` (position), `places` (sources de lieux),
-`tools` (ce que le modèle peut appeler), `prompt` (consignes), `engine` (dialogue avec Gemini), `payload` (requête HTTP).
+`tools` (ce que le modèle peut appeler), `prompt` (consignes), `engine` (dialogue avec Mistral), `payload` (requête HTTP).
 """
 from dataclasses import dataclass
 
@@ -17,4 +17,4 @@ class ChatUnavailable(Exception):
 
 
 class ChatBusy(ChatUnavailable):
-    """Le quota du modèle est atteint pour le moment (le nôtre ou celui de Gemini) : réessayer dans une minute suffit."""
+    """Le quota du modèle est atteint pour le moment (le nôtre ou celui du fournisseur) : réessayer dans une minute suffit."""

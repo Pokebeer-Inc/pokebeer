@@ -1,0 +1,17 @@
+{% comment %}Onglet « Tout » : les premiers résultats de chaque rubrique, avec un lien vers la rubrique complète.{% endcomment %}
+{% for key, label, kind, items in all_sections %}
+{% if items %}
+<section class="mb-5" aria-label="{{ label }}">
+    <h2 class="pb-section !mt-0"><span>{{ label }}</span><a href="?q={{ query|urlencode }}&tab={{ key }}" data-tab="{{ key }}">Voir tout</a></h2>
+    <div class="flex flex-col gap-3">
+        {% if kind == 'beers' %}{% include "partials/search_beers.html" with beers=items %}
+        {% elif kind == 'users' %}{% include "partials/search_users.html" with users=items %}
+        {% elif key == 'bars' %}{% include "partials/search_places.html" with places=items place_kind="bar" %}
+        {% else %}{% include "partials/search_places.html" with places=items place_kind="brewery" %}{% endif %}
+    </div>
+</section>
+{% endif %}
+{% endfor %}
+{% if has_query and not all_sections.0.3 and not all_sections.1.3 and not all_sections.2.3 and not all_sections.3.3 %}
+{% include "partials/empty_state.html" with title="Aucun résultat" description="Vérifiez l'orthographe ou essayez moins de mots." %}
+{% endif %}

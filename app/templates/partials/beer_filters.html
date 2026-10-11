@@ -1,5 +1,5 @@
 <div>
-    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Alcool</h4>
+    <h4 class="font-bold text-[10px] text-[#6b625a] mb-2 uppercase tracking-wider">Alcool</h4>
     <div class="flex flex-wrap items-center gap-3">
         <label class="flex items-center gap-1 cursor-pointer"><input type="radio" {% if form_id %}form="{{ form_id }}"{% endif %} name="degree" value="" class="radio radio-xs radio-primary" {% if not request.GET.degree %}checked{% endif %} /><span class="text-xs">Toutes</span></label>
         <label class="flex items-center gap-1 cursor-pointer"><input type="radio" {% if form_id %}form="{{ form_id }}"{% endif %} name="degree" value="light" class="radio radio-xs radio-primary" {% if request.GET.degree == 'light' %}checked{% endif %} /><span class="text-xs">Légère (<5%)</span></label>
@@ -9,7 +9,7 @@
 </div>
 
 <div>
-    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Amertume (IBU)</h4>
+    <h4 class="font-bold text-[10px] text-[#6b625a] mb-2 uppercase tracking-wider">Amertume (IBU)</h4>
     <div class="flex flex-wrap items-center gap-3">
         <label class="flex items-center gap-1 cursor-pointer"><input type="radio" {% if form_id %}form="{{ form_id }}"{% endif %} name="ibu" value="" class="radio radio-xs radio-secondary" {% if not request.GET.ibu %}checked{% endif %} /><span class="text-xs">Toutes</span></label>
         <label class="flex items-center gap-1 cursor-pointer"><input type="radio" {% if form_id %}form="{{ form_id }}"{% endif %} name="ibu" value="low" class="radio radio-xs radio-secondary" {% if request.GET.ibu == 'low' %}checked{% endif %} /><span class="text-xs">Douce (<20)</span></label>
@@ -19,8 +19,8 @@
 </div>
 
 <div>
-    <h4 class="font-bold text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Style</h4>
-    <select {% if form_id %}form="{{ form_id }}"{% endif %} name="style" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+    <h4 class="font-bold text-[10px] text-[#6b625a] mb-2 uppercase tracking-wider">Style</h4>
+    <select {% if form_id %}form="{{ form_id }}"{% endif %} name="style" class="pb-select">
         <option value="">Tous les styles</option>
         {% for style_name in styles %}
             <option value="{{ style_name }}" {% if request.GET.style == style_name %}selected{% endif %}>{{ style_name }}</option>

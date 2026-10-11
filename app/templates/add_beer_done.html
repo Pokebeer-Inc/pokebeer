@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/celebration.css' %}">
+
+<section class="celebration" aria-labelledby="celebration-title">
+    {% include "partials/celebration_glass.html" %}
+
+    <h1 id="celebration-title" class="pb-title text-3xl font-bold text-center celebration-title">Bravo {{ user.username }} !</h1>
+    <p class="text-center text-gray-700 mt-2 celebration-line">
+        <b>{{ beer.name }}</b> ({{ beer.brewery_id.name }}) est maintenant au catalogue, et votre avis est dans votre carnet.
+    </p>
+    <p class="text-center text-sm text-gray-600 mt-1 celebration-line">
+        {% if beers_added == 1 %}Votre toute première bière ajoutée : merci de faire grandir Pokebeer.
+        {% else %}{{ beers_added }} bières ajoutées par vous : merci de faire grandir Pokebeer.{% endif %}
+    </p>
+
+    <div class="flex flex-col gap-2 mt-6 w-full max-w-sm celebration-line">
+        <a href="{% url 'beer_detail' beer.slug %}" class="btn btn-primary border-2 border-secondary text-black normal-case h-auto min-h-12">Voir ma bière</a>
+        <a href="{% url 'add_beer' %}" class="btn btn-outline border-secondary normal-case h-auto min-h-12">Ajouter une autre bière</a>
+        <a href="{% url 'index' %}" class="btn btn-ghost normal-case">Retour à la recherche</a>
+        <button type="button" id="celebrate-again" class="text-sm text-gray-600 underline mx-auto mt-1">Rejouer la fête</button>
+    </div>
+</section>
+
+<script src="{% static 'script/celebration.js' %}"></script>
+{% endblock %}

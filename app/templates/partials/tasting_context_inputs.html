@@ -1,0 +1,36 @@
+{% load tasting l10n %}{% tasting_choices as ch %}
+{% comment %}Champs du contexte facultatif d'une dégustation (deuxième étape de partials/tasting_modal.html). Paramètres : uid, venue_type, company, serving_format, price (valeurs actuelles, vides pour un nouvel avis) ; part facultatif : « place » (lieu et compagnie) ou « format » (format et prix) pour n'afficher qu'une étape, sans cadre.
+Un « Non précisé » permet d'effacer une valeur ; les champs gardent les noms du formulaire de dégustation.{% endcomment %}
+<div class="{% if not part %}pb-card p-3 mt-2{% endif %}">
+    <div class="flex flex-col gap-3">
+        {% if part != 'format' %}
+        <fieldset>
+            <legend class="pb-label">Lieu</legend>
+            <div class="flex flex-wrap gap-2">
+                <label class="pb-choice"><input type="radio" name="venue_type" value="" {% if not venue_type %}checked{% endif %}><span>Non précisé</span></label>
+                {% for value, label in ch.venue %}<label class="pb-choice"><input type="radio" name="venue_type" value="{{ value }}" {% if venue_type == value %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend class="pb-label">Avec qui</legend>
+            <div class="flex flex-wrap gap-2">
+                <label class="pb-choice"><input type="radio" name="company" value="" {% if not company %}checked{% endif %}><span>Non précisé</span></label>
+                {% for value, label in ch.company %}<label class="pb-choice"><input type="radio" name="company" value="{{ value }}" {% if company == value %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+            </div>
+        </fieldset>
+        {% endif %}
+        {% if part != 'place' %}
+        <fieldset>
+            <legend class="pb-label">Format</legend>
+            <div class="flex flex-wrap gap-2">
+                <label class="pb-choice"><input type="radio" name="serving_format" value="" {% if not serving_format %}checked{% endif %}><span>Non précisé</span></label>
+                {% for value, label in ch.format %}<label class="pb-choice"><input type="radio" name="serving_format" value="{{ value }}" {% if serving_format == value %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+            </div>
+        </fieldset>
+        <div>
+            <label class="pb-label" for="price-{{ uid|default:'x' }}">Prix payé (€)</label>
+            <input id="price-{{ uid|default:'x' }}" type="number" name="price" min="0" max="999" step="0.01" inputmode="decimal" placeholder="Prix en €" value="{% if price %}{{ price|unlocalize }}{% endif %}" class="pb-input">
+        </div>
+        {% endif %}
+    </div>
+</div>

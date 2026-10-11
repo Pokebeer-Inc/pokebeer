@@ -1,0 +1,65 @@
+{% load tasting %}{% my_notebooks as notebooks %}{% tasting_limits as limits %}
+{% comment %}Notation d'une nouvelle bière, étape par étape (static/script/stepper.js) : une question à la fois, sans tout afficher d'un coup.
+Paramètres : beer. Les champs gardent les noms du formulaire de dégustation (DrinkForm) : la validation reste celle du serveur.
+Étapes : note et date, avis et photo, lieu et compagnie, format et prix, carnets (si le membre en a). L'envoi mène à la page de félicitations.
+Sans JavaScript, toutes les étapes sont affichées l'une sous l'autre et le formulaire s'envoie comme d'habitude.{% endcomment %}
+{% url 'rate_beer' beer.slug as rate_url %}
+<dialog id="modalRate-{{ beer.slug }}" class="modal modal-bottom sm:modal-middle" aria-labelledby="modalRate-{{ beer.slug }}-title">
+    <div class="modal-box custom-modal-form">
+        {% include "partials/modal_header.html" with title="Noter : "|add:beer.name title_id="modalRate-"|add:beer.slug|add:"-title" %}
+        <form method="post" action="{{ rate_url }}" enctype="multipart/form-data" data-stepper data-current="1">
+            {% csrf_token %}
+            <header class="mb-3">
+                <p class="text-xs text-[#6b625a]">Étape <b data-stepper-number>1</b> sur <span data-stepper-total>{% if notebooks %}5{% else %}4{% endif %}</span> · <span data-stepper-title>Votre note</span></p>
+                <div class="wizard-progress mt-2" role="progressbar" aria-valuemin="1" aria-valuemax="{% if notebooks %}5{% else %}4{% endif %}" aria-valuenow="1" aria-label="Progression"><i data-stepper-bar style="width: {% if notebooks %}20{% else %}25{% endif %}%"></i></div>
+            </header>
+
+            <section data-stepper-step="1" data-title="Votre note" class="pb-stepper-step">
+                <fieldset>
+                    <legend class="pb-label">Quelle note donnez-vous ? <span class="font-normal text-[#6b625a]">(sur 10, facultatif)</span></legend>
+                    <div class="flex flex-wrap gap-2">
+                        <label class="pb-choice"><input type="radio" name="note" value="" checked><span>Sans note</span></label>
+                        {% for value in "0123456789" %}<label class="pb-choice"><input type="radio" name="note" value="{{ value }}"><span>{{ value }}</span></label>{% endfor %}
+                        <label class="pb-choice"><input type="radio" name="note" value="10"><span>10</span></label>
+                    </div>
+                </fieldset>
+                <div class="mt-4">
+                    <label class="pb-label" for="date-{{ beer.slug }}">Date de dégustation</label>
+                    <input id="date-{{ beer.slug }}" type="date" name="date" value="{% now 'Y-m-d' %}" max="{% now 'Y-m-d' %}" required class="pb-input">
+                </div>
+            </section>
+
+            <section data-stepper-step="2" data-title="Votre avis" class="pb-stepper-step">
+                <div>
+                    <label class="pb-label" for="comment-{{ beer.slug }}">Mon avis personnel <span class="font-normal text-[#6b625a]">(facultatif)</span></label>
+                    <textarea id="comment-{{ beer.slug }}" name="comment" rows="4" maxlength="{{ limits.comment }}" placeholder="Votre expérience, vos impressions en toute subjectivité..." class="pb-input"></textarea>
+                </div>
+                <div class="mt-3">
+                    {% include "partials/image_field.html" with name="photo" field_id="photo-rate-"|add:beer.slug %}
+                </div>
+            </section>
+
+            <section data-stepper-step="3" data-title="Le contexte" class="pb-stepper-step">
+                {% include "partials/tasting_context_inputs.html" with uid=beer.slug part="place" %}
+            </section>
+
+            <section data-stepper-step="4" data-title="Format et prix" class="pb-stepper-step">
+                {% include "partials/tasting_context_inputs.html" with uid=beer.slug part="format" %}
+            </section>
+
+            {% if notebooks %}
+            <section data-stepper-step="5" data-title="Carnets" class="pb-stepper-step">
+                <div>{% include "partials/notebook_selector.html" %}</div>
+            </section>
+            {% endif %}
+
+
+            <div class="pb-stepper-nav flex gap-2 mt-4">
+                <button type="button" data-stepper-back class="btn btn-ghost flex-1">Retour</button>
+                <button type="button" data-stepper-next class="btn btn-primary flex-1 text-black border-secondary">Suivant</button>
+                <button type="submit" data-stepper-submit class="btn btn-primary flex-[2] text-black border-secondary">Enregistrer mon avis</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>

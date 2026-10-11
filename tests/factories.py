@@ -1,7 +1,7 @@
 """Constructeurs d'objets métier pour les tests.
 
 Chaque fonction crée un objet valide avec des valeurs par défaut uniques ; tout champ
-peut être surchargé par mot-clé. Les appels réseau déclenchés par les save() (Gemini,
+peut être surchargé par mot-clé. Les appels réseau déclenchés par les save() (Mistral,
 Nominatim) sont neutralisés par les fixtures autouse de conftest.py.
 """
 from decimal import Decimal
@@ -29,6 +29,7 @@ def unique(prefix):
 def make_user(username=None, password=PASSWORD, groups=(), **fields):
     username = username or unique("member")
     fields.setdefault("email", f"{username}@example.test")
+    fields.setdefault("onboarding_done", True)  # un membre de test a déjà passé les pages qui suivent l'inscription
     user = BeerUser.objects.create_user(username, password=password, **fields)
     if groups:
         user.groups.add(*(Group.objects.get_or_create(name=name)[0] for name in groups))

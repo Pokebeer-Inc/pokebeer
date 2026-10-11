@@ -3,7 +3,6 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
-<link rel="stylesheet" href="{% static 'style/switch.css' %}">
 
 {% for claim in pending_claims %}
 <div class="mb-3 rounded-box border border-warning/50 bg-warning/10 p-3 text-xs text-gray-800" role="status">
@@ -13,50 +12,18 @@
 </div>
 {% endfor %}
 
-<div class="flex flex-col items-center bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200 relative">
-    
-    <div class="absolute top-2 left-2 z-10">
-        <a href="{% url 'notifications' %}" class="btn btn-xs btn-ghost btn-circle text-gray-500 indicator">
-            <span class="indicator-item badge badge-error badge-xs w-2.5 h-2.5 p-0 mt-1 mr-1 border border-white {% if not user.has_unread_notifications %}hidden{% endif %}" data-notification-dot></span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-        </a>
-    </div>
-    
-    <div class="absolute top-2 right-2 flex gap-1 items-center">
-        <div class="dropdown dropdown-end">
-            <div tabindex="0" role="button" class="btn btn-xs btn-ghost btn-circle text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-            </div>
-            <ul tabindex="0" class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-box w-52 right-0 gap-1">                
-                {% if user.is_staff %}
-                <li>
-                    <a href="{% url 'admin:index' %}" class="flex items-center gap-2 font-medium">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        Administration
-                    </a>
-                </li>
-                {% endif %}
-                <li>
-                    <a href="{% url 'my_reports' %}" class="flex items-center gap-2 font-medium">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                        Suivi Signalements
-                    </a>
-                </li>
-                <li>
-                    <a href="{% url 'blocked_users' %}" class="flex items-center gap-2 font-medium">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                        Personnes bloquées
-                    </a>
-                </li>
-            </ul>
-        </div>
-        <a href="{% url 'logout' %}" class="btn btn-xs btn-ghost btn-circle text-error">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-        </a>
-    </div>
-    
+
+<div class="flex justify-end gap-1 -mb-2">
+    <a href="{% url 'notifications' %}" class="btn btn-sm btn-ghost btn-circle indicator" aria-label="Notifications">
+        <span class="indicator-item badge badge-error badge-xs w-2.5 h-2.5 p-0 mt-1 mr-1 border border-white {% if not user.has_unread_notifications %}hidden{% endif %}" data-notification-dot></span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+    </a>
+    <a href="{% url 'account_settings_home' %}" class="btn btn-sm btn-ghost btn-circle" aria-label="Réglages">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+    </a>
+</div>
+
+<header class="flex flex-col items-center text-center">
     <div class="avatar-wrapper mb-2">
         <div class="avatar">
             <div class="w-20 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
@@ -76,337 +43,135 @@
     </div>
     <link rel="stylesheet" href="{% static 'style/avatar_edit.css' %}">
     <script src="{% static 'script/avatar_upload.js' %}"></script>
-    <h2 class="text-xl font-bold font-castoro">{{ user.username }}</h2>
-    <p class="text-xs text-gray-500 italic mt-1 text-center">
-        {% if user.bio %}"{{ user.bio }}"{% endif %}
-    </p>
-    
-    <div class="mt-2 text-center">
-        <span class="badge badge-sm font-bold shadow-sm border-none {{ user.primary_role_badge.color }}">
-            {{ user.primary_role_badge.name }}
-        </span>
-        <a href="{% url 'achievements' %}" class="badge badge-sm font-bold shadow-sm border-none {{ user.primary_role_badge.color }}">Niv {{ level }}</a>
+    <script src="{% static 'script/avatar_upload.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'style/avatar_edit.css' %}">
+    <h1 class="pb-title text-2xl font-bold mt-1">
+        <button type="button" data-username-open class="inline-flex items-center gap-2 rounded-lg px-2 -mx-2 hover:bg-base-300" aria-label="Modifier mon pseudo : {{ user.username }}" aria-haspopup="dialog">
+            <span data-username>{{ user.username }}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+        </button>
+    </h1>
+    {% if user.bio %}<p class="text-sm text-gray-600 italic mt-1">"{{ user.bio }}"</p>{% endif %}
+    <div class="mt-2 flex gap-2">
+        <span class="pb-chip is-primary">{{ user.primary_role_badge.name }}</span>
+        <a href="{% url 'achievements' %}" class="pb-chip is-primary">Niv {{ level }}</a>
     </div>
-    
+    <div class="flex justify-center gap-8 mt-4">
+        <button type="button" class="text-center hover:opacity-70" onclick="modal_followers.showModal()">
+            <div class="font-bold text-lg">{{ followers|length }}</div><div class="text-xs text-gray-600">Abonnés</div>
+        </button>
+        <button type="button" class="text-center hover:opacity-70" onclick="modal_following.showModal()">
+            <div class="font-bold text-lg">{{ following|length }}</div><div class="text-xs text-gray-600">Abonnements</div>
+        </button>
+        <a href="{% url 'notebook' %}" class="text-center hover:opacity-70">
+            <div class="font-bold text-lg">{{ total_drinks }}</div><div class="text-xs text-gray-600">Dégustées</div>
+        </a>
+    </div>
+</header>
+
+{% if show_establishments_section %}
+<section aria-labelledby="establishments-title">
+    <h2 id="establishments-title" class="pb-section"><span>Mes établissements</span></h2>
+    {% if managed_breweries or managed_bars %}
+    <ul class="pb-card overflow-hidden">
+        {% for brewery in managed_breweries %}
+        <li><a href="{% url 'brewery_detail' brewery.slug %}" class="pb-set">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-5 0h5" /></svg>
+            <span><span class="font-semibold">{{ brewery.name }}</span> <span class="text-xs text-gray-600">Brasserie</span></span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+        </a></li>
+        {% endfor %}
+        {% for bar in managed_bars %}
+        <li><a href="{% url 'bar_detail' bar.slug %}" class="pb-set">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <span><span class="font-semibold">{{ bar.name }}</span> <span class="text-xs text-gray-600">Bar</span></span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+        </a></li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="pb-card p-3 text-sm text-gray-600">Vous ne gérez aucun établissement pour l'instant.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+<section class="mt-2" aria-labelledby="succes-title">
+    <h2 id="succes-title" class="pb-section"><span>Mes succès</span><a href="{% url 'achievements' %}">Tout voir</a></h2>
     {% if unlocked_achievements %}
-    <div class="flex flex-wrap justify-center gap-2 mt-3">
-        {% for ach in unlocked_achievements %}
-        <div class="tooltip tooltip-bottom z-50" data-tip="{{ ach.name }} ({{ ach.tier_name }})">
-            <a href="{% url 'achievements' %}" class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm border hover:scale-110 transition-transform cursor-pointer block
-            {% if ach.tier_slug == 'bronze' %}bg-gradient-to-br from-[#CD7F32] to-[#8C5722] border-[#CD7F32]/50 text-white shine-effect
-            {% elif ach.tier_slug == 'silver' %}bg-gradient-to-br from-[#F8F8F8] to-[#C0C0C0] border-[#C0C0C0]/50 text-gray-900 shine-effect
-            {% elif ach.tier_slug == 'gold' %}bg-gradient-to-br from-[#FFF080] to-[#FFD700] border-[#FFD700]/50 text-gray-900 shine-effect
-            {% elif ach.tier_slug == 'platinum' %}bg-gradient-to-br from-[#FFFFFF] to-[#E5E4E2] border-[#E5E4E2]/50 text-gray-900 shine-effect{% endif %}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                {% include "partials/achievement_icon.html" with slug=ach.slug %}
-            </svg>
-        </a>
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
+    {% url 'achievements' as achievements_url %}
+    {% include "partials/achievement_badges.html" with link_url=achievements_url %}
+    {% else %}
+    <a href="{% url 'achievements' %}" class="pb-card block p-3 text-sm text-gray-600">Aucun succès débloqué pour l'instant. Découvrez ce qui vous attend.</a>
+    {% endif %}
+</section>
 
-<div class="flex gap-4 mt-3 border-t border-base-200 pt-2 w-full justify-center">
-    <button class="text-center hover:opacity-70" onclick="modal_followers.showModal()">
-        <div class="font-bold text-primary">{{ followers|length }}</div>
-        <div class="text-[10px] text-gray-500 uppercase tracking-wide">Abonnés</div>
-    </button>
-    <div class="divider divider-horizontal mx-0"></div>
-    <button class="text-center hover:opacity-70" onclick="modal_following.showModal()">
-        <div class="font-bold text-primary">{{ following|length }}</div>
-        <div class="text-[10px] text-gray-500 uppercase tracking-wide">Abonnements</div>
-    </button>
-</div>
-</div>
-
-{% if user.is_bartender or user.is_brewer %}
-<div class="flex flex-col bg-white shadow-sm rounded-box p-4 mb-4 border border-base-200">
-    <h3 class="font-castoro text-xl font-bold mb-4 flex items-center gap-2 border-b border-primary pb-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-        Mes Établissements
-    </h3>
-    
-    <div class="flex flex-col gap-3">
-        {% for brewery in user.my_breweries %}
-        <a href="{% url 'brewery_detail' brewery.slug %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-            <span class="font-semibold">{{ brewery.name }}</span>
-        </a>
-        {% endfor %}
-        
-        {% for bar in user.my_bars %}
-        <a href="{% url 'bar_detail' bar.slug %}" class="btn bg-white border border-base-200 text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary justify-start shadow-sm w-full transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 7v3m0 0v3m0-3h3m-3 0H9" /></svg>
-            <span class="font-semibold">{{ bar.name }}</span>
-        </a>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-<div class="w-full mt-4">
-    <!-- Onglets -->
-    <div class="flex bg-base-200 p-1 rounded-full gap-1 text-[11px] font-bold text-center">
-        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all bg-white text-gray-900 shadow-sm focus:outline-none" onclick="switchTab(this, 'tab-stats')">Stats</button>
-        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-feedback')">Nous contacter</button>
-        <button type="button" class="tab-btn flex-1 py-2 px-2 rounded-full transition-all text-gray-500 hover:text-gray-700 hover:bg-base-300 focus:outline-none" onclick="switchTab(this, 'tab-infos')">Infos</button>
-    </div>
-    
-    <!-- Contenu des onglets -->
-    <div id="tab-stats" class="tab-panel bg-base-200 border-base-300 rounded-box p-3 mt-2 block">
-        <a href="{% url 'notebook' %}" class="grid grid-cols-2 gap-3 hover:scale-[0.99] hover:opacity-80 active:scale-95 transition-all cursor-pointer">
-            
-            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center shadow-sm">
-                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Dégustées</span>
-                <span class="text-xl font-bold text-primary">{{ total_drinks }}</span>
-                <span class="text-[9px] text-gray-400 mt-1">{{ drinks_last_month }} ce mois</span>
-            </div>
-            
-            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center shadow-sm">
-                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Note Moyenne</span>
-                <div class="flex items-center gap-1 text-warning text-xl font-bold">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                    {{ avg_note|floatformat:1 }}
-                </div>
-            </div>
-            
-            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center shadow-sm">
-                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Alcool Moy.</span>
-                <span class="text-sm font-bold text-gray-800">{{ avg_abv|floatformat:1 }} %</span>
-            </div>
-            
-            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center shadow-sm">
-                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Amertume Moy.</span>
-                <span class="text-sm font-bold text-gray-800">{{ avg_ibu|floatformat:0 }} IBU</span>
-            </div>
-            
-            <div class="flex flex-col items-center justify-center bg-white rounded-box p-3 text-center col-span-2 shadow-sm">
-                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Style Préféré (Notes >= 7)</span>
-                <span class="text-sm font-bold text-secondary mt-1">{{ pref_style|default:"Pas assez de données" }}</span>
-            </div>
-        </a>
-        
-        <div class="flex flex-col mt-4">
-            <h3 class="text-[10px] text-gray-500 font-bold uppercase tracking-wider text-center mb-2">Mon Top 3 personnel</h3>
-            <div id="top-beers-container" class="grid grid-cols-1 gap-2" data-url="{% url 'swap_top_beers' %}">
-                {% for item in top_beers_data %}
-                {% if item.beer %}
-                <div class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-primary/30 cursor-move hover:bg-base-200 transition-colors"
-                draggable="true" 
-                data-slot="{{ item.slot }}"
-                ondragstart="dragStart(event)"
-                ondragover="dragOver(event)"
-                ondragleave="dragLeave(event)"
-                ondrop="drop(event)"
-                ondragend="dragEnd(event)"
-                onclick="modal_top_beer_{{ item.slot }}.showModal()">
-                <div class="flex items-center gap-3 overflow-hidden pointer-events-none">
-                    <div class="font-bold text-primary italic w-4 text-center shrink-0">#{{ item.slot }}</div>
-                    <div class="flex flex-col text-left truncate">
-                        <span class="font-bold text-sm text-gray-900 truncate">{{ item.beer.name }}</span>
-                        <span class="text-[10px] text-gray-500 truncate">{{ item.beer.brewery_id.name }}</span>
-                    </div>
-                </div>
-                <div class="shrink-0 ml-2 pointer-events-none">
-                    {% if item.note is not null %}
-                    <span class="badge badge-warning badge-sm gap-1 font-bold">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                        {{ item.note }}
-                    </span>
-                    {% endif %}
-                </div>
-            </div>
+<section aria-labelledby="top3-title">
+    <h2 id="top3-title" class="pb-section"><span>Mon top 3</span></h2>
+    {# Glisser la poignée (ou flèches haut et bas au clavier) pour réordonner ; toucher une ligne pour choisir ou changer la bière #}
+    <ol id="top-beers-container" class="flex flex-col gap-2" data-url="{% url 'reorder_top_beers' %}">
+        {% for item in top_beers_data %}
+        <li data-slot="{{ item.slot }}" class="pb-card flex items-center gap-2 p-2 {% if not item.beer %}!border-dashed !bg-transparent{% endif %}">
+            <span data-rank class="w-7 text-center font-bold italic text-gray-600 shrink-0">#{{ forloop.counter }}</span>
+            {% if item.beer %}
+            <button type="button" data-open-top class="flex-1 min-w-0 text-left py-1" aria-label="Changer la bière n°{{ forloop.counter }} : {{ item.beer.name }}">
+                <span class="block font-semibold leading-tight truncate">{{ item.beer.name }}</span>
+                <span class="block text-sm text-gray-600 truncate">{{ item.beer.brewery_id.name }}</span>
+            </button>
+            {% if item.note is not null %}<span class="pb-chip is-primary !py-0.5 shrink-0">{{ item.note }}/10</span>{% endif %}
+            <button type="button" data-drag-handle class="touch-none cursor-grab active:cursor-grabbing p-2 -mr-1 text-gray-500 hover:text-black shrink-0 rounded-lg" aria-label="Déplacer {{ item.beer.name }} (glisser, ou flèches haut et bas)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h16M4 16h16" /></svg>
+            </button>
             {% else %}
-            <div class="flex items-center justify-center bg-base-100 p-2 rounded-lg border-2 border-dashed border-base-300 cursor-move hover:bg-base-200 hover:border-primary/50 transition-colors h-14"
-            draggable="true" 
-            data-slot="{{ item.slot }}"
-            ondragstart="dragStart(event)"
-            ondragover="dragOver(event)"
-            ondragleave="dragLeave(event)"
-            ondrop="drop(event)"
-            ondragend="dragEnd(event)"
-            onclick="modal_top_beer_{{ item.slot }}.showModal()">
-            <span class="text-[11px] font-bold text-gray-400 flex items-center gap-1 pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                Définir le Top {{ item.slot }}
-            </span>
-        </div>
-        {% endif %}
-        {% endfor %}
-    </div>
-</div>
-
-</div>
-</div>
-
-<div id="tab-feedback" class="tab-panel bg-white border-base-300 rounded-box p-3 mt-2 hidden">
-    <div class="flex flex-col items-center text-center mb-4 mt-2">
-        <div class="bg-primary/20 p-3 rounded-full text-primary mb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-        </div>
-        <h3 class="text-sm font-bold">Un mot pour l'équipe ?</h3>
-        <p class="text-[11px] text-gray-500 mt-1">Une suggestion d'amélioration, un bug ou juste un mot doux ? Nous lisons tout avec attention.</p>
-    </div>
-    
-    <form method="post" class="flex flex-col gap-2 [&_input]:font-normal [&_textarea]:font-normal">
-        {% csrf_token %}
-        {% for field in feedback_form %}
-        <div class="form-control w-full">
-            <label class="label py-0 hidden"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
-            {{ field }} 
-        </div>
-        {% endfor %}
-        <button type="submit" name="btn_feedback" class="btn btn-primary btn-sm mt-1">Envoyer le message</button>
-    </form>
-    {% if feedback_threads_count %}
-    <a href="{% url 'team_messages' %}" class="btn btn-ghost btn-sm mt-2 w-full">Voir mes échanges avec l'équipe ({{ feedback_threads_count }})</a>
-    {% endif %}
-</div>
-
-<div id="tab-infos" class="tab-panel bg-white border-base-300 rounded-box p-3 mt-2 hidden">
-    
-    <form method="post" class="flex flex-col gap-3 [&_input]:font-normal [&_textarea]:font-normal">
-        {% csrf_token %}
-        <h3 class="text-sm font-bold border-b border-primary pb-1">Modifier mon profil</h3>
-        
-        {% for field in profile_form %}
-        {% if user.socialaccount_set.all and field.name == 'email' %}
-        <div class="hidden">{{ field }}</div>
-        {% else %}
-        <div class="form-control w-full">
-            <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
-            {{ field }} 
-        </div>
-        {% endif %}
-        {% endfor %}
-        <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-2 text-white">Valider</button>
-    </form>
-    
-    {% if not user.socialaccount_set.all %}
-    <div class="divider my-2"></div>
-    
-    <form method="post" class="flex flex-col gap-3 [&_input]:font-normal">
-        {% csrf_token %}
-        <h3 class="font-bold text-error text-sm border-b pb-1">Mot de passe</h3>
-        
-        {% for field in password_form %}
-        <div class="form-control w-full">
-            <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
-            {{ field }}
-        </div>
-        {% endfor %}
-        
-        <button type="submit" name="btn_password" class="btn btn-outline btn-error btn-sm mt-2">Changer</button>
-    </form>
-    {% endif %}
-    
-    <div class="divider my-4"></div>
-    
-    {% if user.is_bartender or user.is_brewer %}
-    <form method="post" class="flex flex-col gap-3">
-        <h3 class="text-sm font-bold border-b border-primary pb-1">Visibilité publique</h3>
-        {% csrf_token %}
-        <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm">
-            <div class="flex flex-col pr-4">
-                <span class="label-text font-bold text-xs">Mes établissements</span>
-                <span class="text-[9px] text-gray-500 mt-0.5">Les afficher sur mon profil public</span>
-            </div>
-            {{ pro_settings_form.show_establishments }}
-        </div>
-        <button type="submit" name="btn_pro_settings" class="hidden">
-            Sauvegarder l'affichage
-        </button>
-    </form>
-    {% endif %}
-    
-    <div class="divider my-4"></div>
-    
-    <form method="post" class="flex flex-col gap-3">
-        {% csrf_token %}
-        <h3 class="text-sm font-bold border-b border-primary pb-1">Notifications</h3>
-        
-        <!-- Toggle Global -->
-        <div class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm">
-            <div class="flex flex-col pr-4">
-                <span class="label-text font-bold text-xs">{{ notif_form.notif_global.label }}</span>
-                <span class="text-[9px] text-gray-500 mt-0.5">Activer/désactiver toutes les alertes (hors messages de l'équipe).</span>
-            </div>
-            {{ notif_form.notif_global }}
-        </div>
-        
-        <!-- Sous-catégories dynamiques -->
-        <div id="notif-categories" class="flex flex-col gap-2 mt-1 pl-4 border-l-2 border-base-200 transition-all duration-300 {% if not user.notif_global %}opacity-50 pointer-events-none{% endif %}">
-            {% for field in notif_form %}
-            {% if field.name != 'notif_global' %}
-            <div class="form-control w-full flex-row justify-between items-center">
-                <span class="label-text text-[11px] font-medium">{{ field.label }}</span>
-                {{ field }}
-            </div>
+            <button type="button" data-open-top class="flex-1 text-left py-2 text-gray-600 flex items-center gap-1.5" aria-label="Choisir la bière n°{{ forloop.counter }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                Choisir une bière
+            </button>
             {% endif %}
-            {% endfor %}
-        </div>
-        
-        <button type="submit" name="btn_notifs" class="hidden">Enregistrer mes préférences</button>
-    </form>
-    
-    <form method="post" class="flex flex-col gap-3 mt-4">
-        {% csrf_token %}
-        <h3 class="text-sm font-bold border-b border-primary pb-1">E-mails</h3>
-        <label class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm cursor-pointer">
-            <span class="flex flex-col pr-4">
-                <span class="label-text font-bold text-xs">{{ marketing_form.marketing_opt_in.label }}</span>
-                <span class="text-[9px] text-gray-500 mt-0.5">Nouveautés et offres de Pokebeer, activées par défaut ; vous pouvez vous désinscrire et revenir à tout moment. Les e-mails indispensables (mot de passe, sécurité, compte) sont toujours envoyés.</span>
-            </span>
-            {{ marketing_form.marketing_opt_in }}
-        </label>
-        <button type="submit" name="btn_marketing" class="hidden">Enregistrer</button>
-    </form>
+        </li>
+        {% endfor %}
+    </ol>
+    <p id="top-status" class="sr-only" role="status" aria-live="polite"></p>
+</section>
 
-    <!-- Confidentialité : visible uniquement dans l'application Android (le pont natif gère le choix) -->
-    <section id="privacy-settings" class="hidden flex flex-col gap-3 mt-4" aria-labelledby="privacy-title">
-        <h3 id="privacy-title" class="text-sm font-bold border-b border-primary pb-1">Confidentialité</h3>
-        <label class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm cursor-pointer">
-            <span class="flex flex-col pr-4">
-                <span class="label-text font-bold text-xs">Mesure d'audience (Firebase Analytics)</span>
-                <span class="text-[9px] text-gray-500 mt-0.5">Statistiques d'usage de l'application, avec votre accord. Refuser n'a aucune incidence sur votre accès à Pokebeer. Désactiver efface l'identifiant d'instance de l'appareil.</span>
-            </span>
-            <input type="checkbox" id="analytics-consent" class="toggle toggle-primary toggle-sm">
-        </label>
-    </section>
 
-    <div class="divider my-4 before:bg-error/30 after:bg-error/30 text-error font-bold text-xs uppercase">Zone de danger</div>
-    
-    <div class="flex flex-col gap-2 bg-error/10 p-3 rounded-box border border-error/30">
-        <h3 class="font-bold text-error text-sm">Supprimer mon compte</h3>
-        <p class="text-[10px] text-gray-600 leading-tight">Attention, action irréversible. Vos dégustations, notes et lieux seront effacés. Vos bières ajoutées au catalogue seront conservées anonymement.</p>
-        <button type="button" class="btn btn-error btn-sm text-white mt-2 w-full" onclick="modal_delete_account.showModal()">
-            Supprimer définitivement
-        </button>
-    </div>
-    
-</div>
+
+
+
 <div class="w-full text-center p-4 opacity-60">
     <p class="text-[9px] text-gray-500 uppercase tracking-widest leading-relaxed font-bold">
         L'abus d'alcool est dangereux pour la santé.<br>À consommer avec modération.
     </p>
 </div>
-</div>
 
-<script src="{% static 'script/tab_bar.js' %}"></script>
-<script src="{% static 'script/drag_drop.js' %}"></script>
-<script src="{% static 'script/notif_preferences.js' %}"></script>
-<script src="{% static 'script/analytics_consent.js' %}"></script>
-<script src="{% static 'script/auto_checkbox.js' %}"></script>
+<script src="{% static 'script/top3_sort.js' %}"></script>
+<script src="{% static 'script/username_edit.js' %}"></script>
 {% endblock %}
 
 {% block modals %}
+<dialog id="modal_username" class="modal modal-bottom sm:modal-middle" aria-labelledby="username-title">
+    <div class="modal-box custom-modal-form">
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" data-username-close aria-label="Fermer">{% include "partials/icon.html" with name="close" %}</button>
+        <h3 id="username-title" class="font-bold text-lg mb-1">Changer de pseudo</h3>
+        <p class="text-sm text-gray-600 mb-3">Votre pseudo apparaît sur votre profil et dans l'adresse de votre page publique.</p>
+        <form id="username-form" method="post" action="{% url 'update_username' %}" class="flex flex-col gap-2" novalidate>
+            {% csrf_token %}
+            <label for="username-input" class="text-sm font-semibold">Nouveau pseudo</label>
+            <input id="username-input" name="username" type="text" value="{{ user.username }}" minlength="3" maxlength="30" required
+                   pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,29}" autocomplete="off" autocapitalize="none" spellcheck="false" class="pb-input" aria-describedby="username-help username-error">
+            <p id="username-help" class="text-xs text-gray-600">3 à 30 caractères : lettres sans accent, chiffres, point, tiret ou underscore. Trois changements par jour au maximum.</p>
+            <p id="username-error" class="text-sm text-error min-h-5" role="alert"></p>
+            <button type="submit" class="btn btn-primary w-full text-black border-secondary">Enregistrer</button>
+        </form>
+    </div>
+    <button type="button" data-username-close class="modal-backdrop" aria-label="Fermer"></button>
+</dialog>
+
 <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_followers.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnés</h3>
+        {% include "partials/modal_header.html" with title="Abonnés" %}
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in followers %}
-            <li class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-base-200">
+            <li class="pb-card flex items-center justify-between p-2">
                 <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
@@ -422,7 +187,7 @@
                 </form>
             </li>
             {% empty %}
-            <li class="text-gray-500 text-xs italic text-center">Personne ne vous suit pour le moment.</li>
+            <li class="text-[#6b625a] text-xs italic text-center">Personne ne vous suit pour le moment.</li>
             {% endfor %}
         </ul>
     </div>
@@ -431,11 +196,10 @@
 
 <dialog id="modal_following" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_following.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnements</h3>
+        {% include "partials/modal_header.html" with title="Abonnements" %}
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in following %}
-            <li class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-base-200">
+            <li class="pb-card flex items-center justify-between p-2">
                 <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
@@ -451,42 +215,24 @@
                 </form>
             </li>
             {% empty %}
-            <li class="text-gray-500 text-xs italic text-center">Vous ne suivez personne.</li>
+            <li class="text-[#6b625a] text-xs italic text-center">Vous ne suivez personne.</li>
             {% endfor %}
         </ul>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
 
-<dialog id="modal_delete_account" class="modal z-[99999]">
-    <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center border-2 border-error">
-        <div class="bg-error/10 p-3 rounded-full text-error mb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-        </div>
-        <h3 class="font-bold text-lg text-error">Suppression du compte</h3>
-        <p class="text-sm text-gray-600">Voulez-vous vraiment nous quitter ?<br>Toutes vos données personnelles seront détruites.</p>
-        <div class="flex justify-center gap-3 mt-4 w-full">
-            <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
-            <form method="post" action="{% url 'delete_account' %}" class="flex-1">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-error text-white w-full">Oui, supprimer</button>
-            </form>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-</dialog>
 
 {% for item in top_beers_data %}
 <dialog id="modal_top_beer_{{ item.slot }}" class="modal">
     <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_top_beer_{{ item.slot }}.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg mb-4 text-center">Choix du Top {{ item.slot }}</h3>
+        {% include "partials/modal_header.html" with title="Choix du Top" title_suffix=item.slot %}
         
         <form method="post" action="{% url 'update_top_beer' item.slot %}" class="flex flex-col gap-3">
             {% csrf_token %}
             <div class="form-control w-full">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Sélectionnez une bière dégustée</span></label>
-                <select name="beer_slug" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+                <label class="pb-label" for="top-select-{{ item.slot }}">Sélectionnez une bière dégustée</label>
+                <select id="top-select-{{ item.slot }}" name="beer_slug" class="pb-select">
                     <option value="">-- Vider l'emplacement --</option>
                     {% for drink in my_drinks %}
                     <option value="{{ drink.beer_id.slug }}" 
@@ -500,7 +246,7 @@
                 {% endfor %}
             </select>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm w-full mt-3 text-white">Enregistrer</button>
+        <button type="submit" class="btn btn-primary w-full mt-3 text-black border-secondary">Enregistrer</button>
     </form>
 </div>
 <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>

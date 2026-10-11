@@ -17,32 +17,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     mapInstance = map;
 
-    const brownIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-    });
-
-    const breweryIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-    });
-
-    const barIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-    });
+    // Repères aux couleurs du thème (scripts/pins.js) ; chaque famille a sa couche, que les puces du haut affichent ou masquent
+    const layers = { bar: L.layerGroup().addTo(map), brewery: L.layerGroup().addTo(map), spot: L.layerGroup().addTo(map) };
 
     // 2. Extraction des données préparées par Django dans le HTML caché
     const spotsContainer = document.getElementById('spots-data-container');
@@ -72,7 +48,7 @@ document.addEventListener("DOMContentLoaded", function() {
             };
 
             // Ajout direct du marqueur sur la carte
-            const marker = L.marker([lat, lng], {icon: brownIcon}).addTo(map);
+            const marker = L.marker([lat, lng], {icon: PokebeerPins.spot(), title: item.dataset.title}).addTo(layers.spot);
             marker.bindPopup(popupHtml);
             mapBounds.push([lat, lng]);
         });
@@ -89,9 +65,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const url = item.dataset.url;
             const name = item.dataset.name;
 
-            const icon = type === 'bar' ? barIcon : breweryIcon;
-            
-            const marker = L.marker([lat, lng], {icon: icon, title: name}).addTo(map);
+            const marker = L.marker([lat, lng], {icon: PokebeerPins.forPlace(type), title: name}).addTo(type === 'bar' ? layers.bar : layers.brewery);
             placeMarkers[type + ':' + item.dataset.slug] = marker;
             mapBounds.push([lat, lng]);
             
@@ -101,7 +75,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 const contentDiv = document.getElementById('modal_place_content');
                 
                 // Affiche le loader
-                contentDiv.innerHTML = '<div class="flex justify-center p-20"><span class="loading loading-spinner text-primary loading-lg"></span></div>';
+                contentDiv.innerHTML = '<div class="flex justify-center p-20"><span class="loading loading-spinner loading-lg"></span></div>';
                 modal.showModal();
 
                 // Aspire la page ciblée
@@ -206,20 +180,18 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById('modal_add_spot').showModal();
     };
 
-    // 4. Clique sur la carte (Création d'un NOUVEAU point)
-    map.on('click', function(e) {
-        if (isMovingMode) return;
-
+    // 4. Création d'un NOUVEAU point : clic sur la carte, ou bouton « Ajouter une dégustation ici » d'un résultat de recherche
+    function openNewSpotModal(latlng, title) {
         document.getElementById('modal-title').innerText = "Ajouter un lieu";
         document.getElementById('spot-slug').value = ""; 
-        document.getElementById('spot-title').value = "";
+        document.getElementById('spot-title').value = title || "";
         document.getElementById('spot-desc').value = "";
         
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('spot-date').value = today;
         
-        document.getElementById('spot-lat').value = e.latlng.lat.toFixed(6);
-        document.getElementById('spot-lng').value = e.latlng.lng.toFixed(6);
+        document.getElementById('spot-lat').value = latlng.lat.toFixed(6);
+        document.getElementById('spot-lng').value = latlng.lng.toFixed(6);
 
         // Remise à zéro des champs
         document.querySelectorAll('.friend-checkbox').forEach(cb => cb.checked = false);
@@ -236,23 +208,18 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById('friends-section').style.display = 'block';
 
         document.getElementById('modal_add_spot').showModal();
+    }
+
+    map.on('click', function(e) {
+        if (isMovingMode) return;
+        openNewSpotModal(e.latlng);
     });
 
     // 5. Gestion de la géolocalisation
     let userMarker = null;
     let geoWatchId = null;
 
-    const userIcon = L.divIcon({
-        className: 'custom-user-icon',
-        html: `<div class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-md">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-                </svg>
-               </div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-        popupAnchor: [0, -16]
-    });
+    const userIcon = PokebeerPins.user();
 
     const geolocBtn = document.getElementById('geoloc-btn');
     if (geolocBtn) {
@@ -286,7 +253,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             icon: userIcon, 
                             zIndexOffset: 9999 // S'assure qu'il passe au-dessus des autres points
                         }).addTo(map);
-                        userMarker.bindPopup("<div class='text-center font-bold text-primary mb-0'>Vous êtes ici</div>");
+                        userMarker.bindPopup("<div class='text-center font-bold mb-0'>Vous êtes ici</div>");
                     } else {
                         userMarker.setLatLng([lat, lng]);
                     }
@@ -330,12 +297,12 @@ document.addEventListener("DOMContentLoaded", function() {
         mapInstance.setView([lat, lng], 17);
 
         movingMarker = L.marker([lat, lng], {
-            icon: brownIcon,
+            icon: PokebeerPins.spot(),
             draggable: true,
             zIndexOffset: 1000
         }).addTo(mapInstance);
 
-        movingMarker.bindTooltip("Faites-moi glisser !", {permanent: true, direction: 'top', offset: [0,-40]}).openTooltip();
+        movingMarker.bindTooltip("Faites-moi glisser !", {permanent: true, direction: 'top', offset: [0,-34]}).openTooltip();
     };
 
     window.finishMoveMode = function() {
@@ -363,8 +330,20 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById('move-overlay').classList.add('-translate-y-full');
     }
 
+    // Puces du haut : affichent ou masquent les bars, les brasseries et les souvenirs
+    document.querySelectorAll('[data-layer]').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const layer = layers[chip.dataset.layer];
+            const visible = map.hasLayer(layer);
+            if (visible) map.removeLayer(layer); else map.addLayer(layer);
+            chip.classList.toggle('is-on', !visible);
+            chip.setAttribute('aria-pressed', String(!visible));
+        });
+    });
+
     // --- MOTEUR DE RECHERCHE DE LIEUX (Nominatim) ---
     let searchMarker = null;
+    let searchTitle = '';
 
     window.searchLocation = async function() {
         const query = document.getElementById('map-search-input').value.trim();
@@ -377,7 +356,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         // Affichage du loader pendant la recherche
-        resultsContainer.innerHTML = '<li class="p-2 flex justify-center"><span class="loading loading-spinner text-primary loading-sm"></span></li>';
+        resultsContainer.innerHTML = '<li class="p-2 flex justify-center"><span class="loading loading-spinner loading-sm"></span></li>';
         resultsContainer.classList.remove('hidden');
 
         try {
@@ -396,7 +375,8 @@ document.addEventListener("DOMContentLoaded", function() {
             // Construction de la liste des résultats
             data.forEach(place => {
                 const li = document.createElement('li');
-                li.innerHTML = `<a class="text-xs py-2 border-b border-base-200 last:border-none cursor-pointer block w-full hover:bg-base-200 font-medium">
+                li.setAttribute('role', 'option');
+                li.innerHTML = `<a class="text-sm py-2 border-b border-base-300 last:border-none cursor-pointer block w-full hover:bg-primary/30 font-medium">
                                     <span class="truncate block w-full"></span>
                                 </a>`;
                 // Texte renvoyé par un service tiers : jamais interprété comme du HTML
@@ -411,13 +391,19 @@ document.addEventListener("DOMContentLoaded", function() {
                             mapInstance.removeLayer(searchMarker);
                         }
                         
-                        searchMarker = L.marker([place.lat, place.lon]).addTo(mapInstance);
+                        searchTitle = place.display_name.split(',')[0].trim().slice(0, 150);
+                        searchMarker = L.marker([place.lat, place.lon], {icon: PokebeerPins.search()}).addTo(mapInstance);
                         
+                        // Le bouton lit la position du repère de recherche : aucune valeur du service tiers n'est copiée dans un attribut
                         const popupContent = `
-                            <div class="flex flex-col gap-2 max-w-[200px]">
-                                <span class="text-xs font-bold leading-tight">${escapeHtml(place.display_name)}</span>
-                                <button onclick="clearSearchMarker()" class="btn btn-xs btn-error btn-outline flex gap-1 w-full mt-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            <div class="flex flex-col gap-2 max-w-[220px]">
+                                <span class="text-sm font-bold leading-tight">${escapeHtml(place.display_name)}</span>
+                                <button type="button" onclick="addSpotAtSearchResult()" class="btn btn-sm btn-primary border-secondary text-black normal-case w-full mt-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                    Ajouter une dégustation ici
+                                </button>
+                                <button type="button" onclick="clearSearchMarker()" class="btn btn-xs btn-outline border-error text-error flex gap-1 w-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                                     Effacer
                                 </button>
                             </div>
@@ -436,10 +422,19 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     };
 
+    // Depuis la bulle d'un résultat : ouvre la fenêtre d'ajout, positionnée sur le résultat et nommée d'après lui
+    window.addSpotAtSearchResult = function() {
+        if (!searchMarker) return;
+        const position = searchMarker.getLatLng();
+        searchMarker.closePopup();
+        openNewSpotModal(position, searchTitle);
+    };
+
     window.clearSearchMarker = function() {
         if (searchMarker && mapInstance) {
             mapInstance.removeLayer(searchMarker);
             searchMarker = null; // On réinitialise la variable
+            searchTitle = '';
         }
         document.getElementById('map-search-input').value = ''; // On vide la barre de recherche
     };

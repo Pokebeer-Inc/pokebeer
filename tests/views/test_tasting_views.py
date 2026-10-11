@@ -16,9 +16,14 @@ class TestRateBeer:
     def rate(self, client, beer, **data):
         return client.post(reverse("rate_beer", args=[beer.slug]), rating(**data), HTTP_REFERER="/beers/")
 
-    def test_rating_is_saved_and_returns_to_referer(self, auth_client, user, beer):
-        assert_redirects(self.rate(auth_client, beer), "/beers/")
+    def test_rating_is_saved_and_leads_to_the_thank_you_page_that_returns_to_the_referer(self, auth_client, user, beer):
+        assert_redirects(self.rate(auth_client, beer), reverse("rate_beer_done", args=[beer.slug]))
         assert Drinks.objects.get(drinker_id=user, beer_id=beer).note == 8
+        page = auth_client.get(reverse("rate_beer_done", args=[beer.slug])).content.decode()
+        assert 'href="/beers/"' in page and "Merci" in page and beer.name in page and "8/10" in page
+
+    def test_a_refused_rating_goes_back_without_celebrating(self, auth_client, beer):
+        assert_redirects(self.rate(auth_client, beer, note="11"), "/beers/")
 
     def test_second_rating_is_refused(self, auth_client, user, beer):
         self.rate(auth_client, beer)
@@ -105,3 +110,40 @@ class TestDeleteDrink:
         drink = f.make_drink(user, beer)
         assert other_client.post(reverse("delete_drink", args=[drink.slug])).status_code == 404
         assert Drinks.objects.filter(pk=drink.pk).exists()
+
+
+class TestRateBeerDone:
+    def test_the_page_celebrates_the_members_own_rating(self, auth_client, user, beer):
+        f.make_drink(user, beer, note=9)
+        response = auth_client.get(reverse("rate_beer_done", args=[beer.slug]))
+        html = response.content.decode()
+        assert response.status_code == 200 and "celebration-glass" in html and 'id="confetti"' in html and "script/celebration.js" in html
+        assert "Votre toute première dégustation" in html and "9/10" in html
+
+    def test_the_count_of_tastings_is_shown(self, auth_client, user, beer):
+        f.make_drink(user, f.make_beer())
+        f.make_drink(user, beer)
+        assert "2 dégustations" in auth_client.get(reverse("rate_beer_done", args=[beer.slug])).content.decode()
+
+    def test_a_beer_the_member_did_not_rate_is_a_404(self, auth_client, other_user, beer):
+        f.make_drink(other_user, beer)
+        assert auth_client.get(reverse("rate_beer_done", args=[beer.slug])).status_code == 404
+
+    def test_a_removed_beer_is_a_404(self, auth_client, user):
+        removed = f.make_beer(is_deleted=True)
+        f.make_drink(user, removed)
+        assert auth_client.get(reverse("rate_beer_done", args=[removed.slug])).status_code == 404
+
+    def test_without_a_remembered_page_the_back_link_is_the_beer_page(self, auth_client, user, beer):
+        f.make_drink(user, beer)
+        assert f'href="{reverse("beer_detail", args=[beer.slug])}"' in auth_client.get(reverse("rate_beer_done", args=[beer.slug])).content.decode()
+
+    @pytest.mark.parametrize("referer", ["https://evil.test/phish", "//evil.test", "javascript:alert(1)"])
+    def test_a_foreign_referer_is_never_offered_as_a_way_back(self, auth_client, beer, referer):
+        auth_client.post(reverse("rate_beer", args=[beer.slug]), rating(), HTTP_REFERER=referer)
+        page = auth_client.get(reverse("rate_beer_done", args=[beer.slug])).content.decode()
+        assert "evil.test" not in page and "javascript:alert" not in page and f'href="{reverse("index")}"' in page
+
+    def test_anonymous_visitors_are_sent_to_login(self, client, beer):
+        assert client.get(reverse("rate_beer_done", args=[beer.slug])).status_code == 302
+

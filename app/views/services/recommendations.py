@@ -1,13 +1,13 @@
 from django.db.models import Avg, Count, Case, When, Value, IntegerField
 
-def get_recommended_beers(user_drinks, unrated_beers):
-    """Calcule et retourne les 5 meilleures recommandations de bières."""
+def get_recommended_beers(user_drinks, unrated_beers, limit=10):
+    """Calcule et retourne les `limit` meilleures recommandations de bières."""
     liked_drinks = user_drinks.filter(note__gte=7)
     
     if not liked_drinks.exists():
         return unrated_beers.annotate(
             global_rating=Avg('drinks__note')
-        ).exclude(global_rating__isnull=True).order_by('-global_rating')[:5]
+        ).exclude(global_rating__isnull=True).order_by('-global_rating')[:limit]
 
     style_counts = {}
     valid_drinks = liked_drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='')
@@ -40,11 +40,11 @@ def get_recommended_beers(user_drinks, unrated_beers):
     
     recommended_beers = recommendations.filter(match_score__gt=0).annotate(
         global_rating=Avg('drinks__note')
-    ).order_by('-match_score', '-global_rating')[:5]
+    ).order_by('-match_score', '-global_rating')[:limit]
     
     if not recommended_beers:
         recommended_beers = unrated_beers.annotate(
             global_rating=Avg('drinks__note')
-        ).exclude(global_rating__isnull=True).order_by('-global_rating')[:5]
+        ).exclude(global_rating__isnull=True).order_by('-global_rating')[:limit]
         
     return recommended_beers

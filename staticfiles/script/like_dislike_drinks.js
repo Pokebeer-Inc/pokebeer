@@ -70,6 +70,8 @@ function react(event, drinkSlug, isLike) {
     
     hideAllReactions();
     
+    const busyCard = document.getElementById('drink-card-' + drinkSlug);
+    Pending.region(busyCard, true);  // la carte est estompée le temps de la requête
     fetch(`/drink/${drinkSlug}/react/`, {
         method: 'POST',
         headers: {
@@ -167,5 +169,7 @@ function react(event, drinkSlug, isLike) {
         } else {
             alert(data.error);
         }
-    });
+    })
+    .catch(error => console.error("Erreur réaction:", error))
+    .finally(() => Pending.region(busyCard, false));
 }

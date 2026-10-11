@@ -1,7 +1,8 @@
 """Bières, dégustations, réactions et carnets."""
 
 from django.core.validators import MaxValueValidator, MinValueValidator
-from pgvector.django import VectorField
+from django.conf import settings
+from pgvector.django import HnswIndex, VectorField
 from datetime import date
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models, transaction
@@ -33,12 +34,16 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     # Code-barres EAN lu à l'ajout : une prochaine lecture retrouve la bière dans le catalogue, sans service extérieur
     ean = models.CharField(max_length=13, null=True, blank=True, editable=False, verbose_name="Code-barres EAN")
 
-    embedding = VectorField(dimensions=3072, null=True, blank=True)
+    embedding = VectorField(dimensions=settings.EMBEDDING_DIMENSIONS, null=True, blank=True)
 
     class Meta:
         verbose_name = "Bière"
         ordering = ['name']
-        indexes = [GinIndex(fields=['match_key'], name='beer_match_key_trgm', opclasses=['gin_trgm_ops'])]
+        indexes = [
+            GinIndex(fields=['match_key'], name='beer_match_key_trgm', opclasses=['gin_trgm_ops']),
+            # Recherche sémantique du chat : possible depuis que les vecteurs font 1024 dimensions (pgvector n'indexe pas au-delà de 2000)
+            HnswIndex(name='beer_embedding_hnsw', fields=['embedding'], m=16, ef_construction=64, opclasses=['vector_cosine_ops']),
+        ]
         constraints = [
             # Un nom par brasserie (deux brasseries peuvent avoir chacune leur « Blonde »). Une bière retirée du catalogue libère son
             # nom ; le slug reste unique pour garder ses anciennes URLs. Les noms proches sont traités par services/catalog_matching.py.
@@ -97,7 +102,7 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
         if needs_embedding:
             self._embedded_sources = self._embedding_sources()
             # Après la validation de la transaction en cours : jamais d'appel réseau pendant qu'elle est ouverte.
-            # En cas d'échec Gemini, le vecteur reste absent : `embed_beers` ou le prochain save le rattrape.
+            # En cas d'échec de l'embedding, le vecteur reste absent : `embed_beers` ou le prochain save le rattrape.
             transaction.on_commit(self._refresh_embedding)
 
 class Drinks(models.Model):
@@ -107,6 +112,34 @@ class Drinks(models.Model):
     comment = models.TextField(max_length=MAX_TEXT_LENGTH, verbose_name="Commentaire")
     photo = models.ImageField(upload_to=tasting_photo_path, blank=True, null=True, verbose_name="Photo")
     
+    # Contexte de la dégustation (facultatif) : choisi à la main, jamais déduit de la position de l'appareil
+    class VenueType(models.TextChoices):
+        BAR = 'bar', "Bar"
+        HOME = 'home', "Maison"
+        RESTAURANT = 'restaurant', "Restaurant"
+        EVENT = 'event', "Événement"
+        BREWERY = 'brewery', "Brasserie"
+        OTHER = 'other', "Autre"
+
+    class Company(models.TextChoices):
+        ALONE = 'alone', "Seul"
+        FRIENDS = 'friends', "Amis"
+        COUPLE = 'couple', "Couple"
+        FAMILY = 'family', "Famille"
+        WORK = 'work', "Collègues"
+
+    class ServingFormat(models.TextChoices):
+        PINT = 'pint', "Pinte 50 cl"
+        HALF = 'half', "Demi 25 cl"
+        BOTTLE = 'bottle', "Bouteille 75 cl"
+        CAN = 'can', "Canette 33 cl"
+        OTHER = 'other', "Autre"
+
+    venue_type = models.CharField(max_length=12, choices=VenueType.choices, blank=True, default='', verbose_name="Lieu")
+    company = models.CharField(max_length=10, choices=Company.choices, blank=True, default='', verbose_name="Avec qui")
+    serving_format = models.CharField(max_length=10, choices=ServingFormat.choices, blank=True, default='', verbose_name="Format")
+    price = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, default=None, validators=[MinValueValidator(0), MaxValueValidator(999)], verbose_name="Prix payé (€)")
+
     drinker_id = models.ForeignKey(BeerUser, on_delete=models.CASCADE)
     beer_id = models.ForeignKey(Beer, on_delete=models.CASCADE)
     
@@ -116,6 +149,10 @@ class Drinks(models.Model):
     class Meta:
         verbose_name = "Dégustation"
         ordering = ['-date']
+        indexes = [
+            models.Index(fields=['drinker_id', '-date'], name='drinks_drinker_date_idx'),  # fil des amis, carnet
+            models.Index(fields=['-date', '-created_at'], name='drinks_recent_idx'),  # fil de la communauté
+        ]
 
     def __str__(self):
         return f"{self.drinker_id.username} - {self.beer_id.name} ({self.note}/10)"
@@ -149,3 +186,24 @@ class CustomNotebook(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.user.username}"
+
+
+class BeerDraft(models.Model):
+    """Brouillon de l'ajout d'une bière : une étape validée = des données conservées si le membre quitte avant la fin.
+
+    Un seul brouillon par membre. Il ne contient que du texte (les photos ne sont pas conservées) et disparaît dès que la bière est
+    ajoutée, ou avec le compte. Les brouillons abandonnés depuis longtemps sont effacés (services/beer_drafts.py).
+    """
+    user = models.OneToOneField('BeerUser', on_delete=models.CASCADE, related_name='beer_draft')
+    data = models.JSONField(default=dict, blank=True)
+    current_step = models.PositiveSmallIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Brouillon de bière"
+        verbose_name_plural = "Brouillons de bière"
+        indexes = [models.Index(fields=['updated_at'], name='beerdraft_updated_idx')]
+
+    def __str__(self):
+        return f"Brouillon de {self.user.username} (étape {self.current_step})"

@@ -19,12 +19,11 @@ class TestNotebookPages:
         mine = f.make_notebook(user)
         f.make_notebook(other_user)
         f.make_beer(added_by=user, is_deleted=True)
-        context = auth_client.get(reverse("notebook")).context
-        assert list(context["custom_notebooks"]) == [mine]
-        assert len(context["my_deleted_beers"]) == 1
+        assert list(auth_client.get(reverse("notebook")).context["custom_notebooks"]) == [mine]
+        assert len(auth_client.get(reverse("notebook"), {"tab": "additions"}).context["my_deleted_beers"]) == 1
 
     def test_active_tab_comes_from_query_string(self, auth_client):
-        assert auth_client.get(reverse("notebook"), {"tab": "ajouts"}).context["active_tab"] == "ajouts"
+        assert auth_client.get(reverse("notebook"), {"tab": "additions"}).context["active_tab"] == "additions"
 
     def test_detail_shows_only_the_notebook_drinks(self, auth_client, user):
         inside, outside = f.make_drink(user, f.make_beer(style="Stout, IPA")), f.make_drink(user)

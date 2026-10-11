@@ -1,13 +1,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_POST
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q, F
+from django.db.models import Avg, Count, Q, F
 
 from ..forms import BeerForm, DrinkForm, clear_invalid_fields, error_summary
-from ..models import Beer, Drinks, Notification, UserFollow, DrinkReaction
+from ..models import Beer, BeerDraft, Drinks, Notification, UserFollow, DrinkReaction
 from .utils import get_excluded_users, check_and_notify_achievements, posted_notebooks
+from ..services import beer_drafts
 from ..services.notifications import notify
+from ..services.throttle import BEER_DRAFT_SAVES
+from ..services.moderation.content import CONTENT_TYPES
+from ..services.moderation.suggestions import menu_context as suggestion_menu
 
 def _save_new_beer(user, beer_form, drink_form):
     """Enregistre la bière et sa première note ensemble. Renvoie False si le nom a été pris entre-temps."""
@@ -23,9 +29,21 @@ def _save_new_beer(user, beer_form, drink_form):
         return False
     return True
 
+def _draft_initial(draft):
+    """Valeurs de départ des deux formulaires, tirées du brouillon (clés sans préfixe, comme les champs)."""
+    beer_initial, drink_initial = {}, {}
+    for key, value in (draft.data if draft else {}).items():
+        prefix, _, name = key.partition('-')
+        (beer_initial if prefix == 'beer' else drink_initial)[name] = value
+    return beer_initial, drink_initial
+
+
 @login_required(login_url='login')
 def add_beer_view(request):
-    """Crée une bière ET ajoute une première note automatiquement."""
+    """Ajoute une bière ET sa première note, par étapes : chaque étape validée est conservée dans un brouillon.
+
+    L'envoi final est exactement celui d'avant (mêmes formulaires, mêmes champs obligatoires) ; les étapes n'existent que dans la page.
+    """
     if request.method == 'POST':
         beer_form = BeerForm(request.POST, request.FILES, prefix='beer', user=request.user)
         drink_form = DrinkForm(request.POST, request.FILES, prefix='drink', user=request.user)
@@ -54,31 +72,86 @@ def add_beer_view(request):
                 notify('beer_added_to_brewery', new_beer.brewery_id.managers.all(), sender=request.user, beer=new_beer)
             
             check_and_notify_achievements(request.user)
-            
-            messages.success(request, f"Bière ajoutée et notée ! Merci {request.user.username}.")
-            return redirect('index')
+            BeerDraft.objects.filter(user=request.user).delete()  # la bière existe : le brouillon n'a plus lieu d'être
+            return redirect('add_beer_done', beer_slug=new_beer.slug)
 
         messages.error(request, "La bière n'a pas pu être ajoutée. Les champs en rouge ont été vidés : " + " ; ".join(error_summary(beer_form, drink_form)))
+        start_step = beer_drafts.first_step_with_errors(beer_form, drink_form)  # on rouvre l'étape à corriger
         clear_invalid_fields(beer_form)
         clear_invalid_fields(drink_form)
         return render(request, 'add_beer.html', {
             'beer_form': beer_form,
             'drink_form': drink_form,
             'current_drink': {'notebook_slugs': [notebook.slug for notebook in notebooks]},
+            'start_step': start_step, 'steps': beer_drafts.STEPS,
         })
-    else:
-        # On lit le paramètre dans l'URL ?brewery=
-        initial_brewery = request.GET.get('brewery', '')
-        
-        # On l'injecte dans le champ 'brewery_name' du formulaire
-        beer_form = BeerForm(prefix='beer', initial={'brewery_name': initial_brewery}, user=request.user)
-        drink_form = DrinkForm(prefix='drink')
 
+    # Une bière demandée depuis la page d'une brasserie (?brewery=) repart de zéro ; sinon on reprend le brouillon du membre
+    draft = None if request.GET.get('brewery') else beer_drafts.get_draft(request.user)
+    beer_initial, drink_initial = _draft_initial(draft)
+    if not draft:
+        beer_initial['brewery_name'] = request.GET.get('brewery', '')
     context = {
-        'beer_form': beer_form, 
-        'drink_form': drink_form
+        'beer_form': BeerForm(prefix='beer', initial=beer_initial, user=request.user),
+        'drink_form': DrinkForm(prefix='drink', initial=drink_initial),
+        'current_drink': {'notebook_slugs': draft.data.get('notebooks', [])} if draft else None,
+        'start_step': draft.current_step if draft else 1,
+        'resumed': bool(draft and draft.data),
+        'draft_name': draft.data.get('beer-name', '') if draft else '',
+        'steps': beer_drafts.STEPS,
     }
     return render(request, 'add_beer.html', context)
+
+
+@require_POST
+@login_required(login_url='login')
+def save_beer_draft_view(request):
+    """Enregistre une étape du brouillon.
+
+    `strict=1` (bouton Suivant) : l'étape est validée par les formulaires de la page, rien n'est conservé si elle est refusée ;
+    `strict=0` (retour, fermeture de la page) : on conserve ce qui est là sans rien valider. Réponse JSON, sauf 204 sans contenu en mode souple.
+    """
+    # Taille annoncée du corps (le corps lui-même n'est plus lisible une fois le formulaire analysé)
+    declared = request.META.get('CONTENT_LENGTH', '')
+    if not declared.isdecimal() or int(declared) > 20000:
+        return JsonResponse({'ok': False, 'errors': ["Envoi trop volumineux."]}, status=413)
+    if BEER_DRAFT_SAVES.exceeded(request.user.pk):
+        return JsonResponse({'ok': False, 'errors': ["Trop d'enregistrements. Réessayez dans quelques minutes."]}, status=429)
+    BEER_DRAFT_SAVES.record(request.user.pk)
+
+    step = request.POST.get('step', '')
+    if not step.isdecimal() or not 1 <= int(step) <= beer_drafts.LAST_STEP:
+        return JsonResponse({'ok': False, 'errors': ["Étape inconnue."]}, status=400)
+    step = int(step)
+
+    if request.POST.get('strict') != '1':
+        beer_drafts.save_lenient(request.user, request.POST, step)
+        return HttpResponse(status=204)
+
+    draft = beer_drafts.get_draft(request.user)
+    result = beer_drafts.validate_step(request.user, step, request.POST, draft)
+    if result['errors']:
+        return JsonResponse({'ok': False, **result}, status=400)
+    beer_drafts.save_lenient(request.user, request.POST, min(step + 1, beer_drafts.LAST_STEP))
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+@login_required(login_url='login')
+def discard_beer_draft_view(request):
+    """Recommencer : efface le brouillon du membre."""
+    BeerDraft.objects.filter(user=request.user).delete()
+    return redirect('add_beer')
+
+
+@login_required(login_url='login')
+def add_beer_done_view(request, beer_slug):
+    """Page de félicitations après l'ajout d'une bière (réservée à la personne qui vient de l'ajouter)."""
+    beer = get_object_or_404(Beer.objects.select_related('brewery_id'), slug=beer_slug, added_by=request.user, is_deleted=False)
+    return render(request, 'add_beer_done.html', {
+        'beer': beer,
+        'beers_added': Beer.objects.filter(added_by=request.user, is_deleted=False).count(),
+    })
 
 @login_required(login_url='login')
 def beer_detail_view(request, beer_slug):
@@ -115,7 +188,14 @@ def beer_detail_view(request, beer_slug):
             'slug': user_drink.slug,
             'likes': getattr(user_drink, 'likes', 0),
             'dislikes': getattr(user_drink, 'dislikes', 0),
-            'notebook_slugs': list(user_drink.notebooks.values_list('slug', flat=True))
+            'notebook_slugs': list(user_drink.notebooks.values_list('slug', flat=True)),
+            'venue_type': user_drink.venue_type,
+            'company': user_drink.company,
+            'serving_format': user_drink.serving_format,
+            'price': user_drink.price,
+            'context': ' · '.join(part for part in (
+                user_drink.get_venue_type_display(), user_drink.get_company_display(), user_drink.get_serving_format_display(),
+                f"{user_drink.price:.2f} €".replace('.', ',') if user_drink.price is not None else '') if part),
         }
         rating_from = DrinkForm()
         rating_from.fields['date'].initial = user_drink.date
@@ -135,13 +215,18 @@ def beer_detail_view(request, beer_slug):
         if beer.brewery_id:
             is_brewery_manager = beer.brewery_id.managers.filter(id=request.user.id).exists()
 
+    average = Drinks.objects.filter(beer_id=beer, note__isnull=False).exclude(drinker_id__in=get_excluded_users(request.user)).aggregate(average=Avg('note'), count=Count('id'))
+
     context = {
         'beer': beer,
         'drinks': drinks,
+        'average_note': average['average'],
+        'rating_count': average['count'],
         'is_brewery_manager': is_brewery_manager,
         'user_rating': user_rating,
         'rating_form': rating_from,
         'wishlist_beer_ids': wishlist_beer_ids,
+        **suggestion_menu(CONTENT_TYPES['beer'], beer, request.user),
     }
     return render(request, 'beer_page.html', context)
 

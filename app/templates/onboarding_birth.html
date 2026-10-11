@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/wizard.css' %}">
+<main class="max-w-md mx-auto pt-4">
+    <header>
+        <p class="text-sm text-gray-600">Étape <b>{{ step }}</b> sur {{ total }}</p>
+        <h1 class="pb-title text-2xl font-bold">Votre date de naissance</h1>
+        <div class="wizard-progress mt-2" role="progressbar" aria-valuemin="1" aria-valuemax="{{ total }}" aria-valuenow="{{ step }}" aria-label="Progression de l'inscription"><i style="width: {% widthratio step total 100 %}%"></i></div>
+    </header>
+
+    <form method="post" novalidate class="wizard-step is-current mt-4" style="display:block; animation: wizard-in 0.25s ease">
+        {% csrf_token %}
+        <p class="text-base text-gray-700">Pokebeer parle de bière : nous devons nous assurer que vous êtes <b>majeur(e)</b>, c'est-à-dire que vous avez au moins <b>18 ans révolus</b>.</p>
+        <p class="text-sm text-gray-600 mt-2">Votre date de naissance reste privée : elle n'est jamais affichée aux autres membres. <a href="{% url 'privacy_policy' %}" target="_blank" rel="noopener noreferrer" class="underline">Politique de confidentialité</a></p>
+
+        <div class="mt-4">
+            <label for="{{ form.birth_date.id_for_label }}" class="text-sm font-bold">Date de naissance <span class="text-error">*</span></label>
+            {{ form.birth_date }}
+            {% for error in form.birth_date.errors %}<p class="text-sm font-semibold text-error mt-2" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full mt-5 h-auto min-h-12 border-2 border-secondary text-black text-base normal-case">Suivant</button>
+        <p class="text-xs text-gray-600 text-center mt-3">Cette étape est obligatoire.</p>
+    </form>
+</main>
+{% endblock %}

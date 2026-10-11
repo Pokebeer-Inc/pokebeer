@@ -57,5 +57,5 @@ def test_seeder_fills_every_domain():
     assert Beer.objects.filter(embedding__isnull=True).count() == Beer.objects.count() > 0
     assert Drinks.objects.exists()
     brewer = BeerUser.objects.get(username="brasseur_dev")
-    assert brewer.is_brewer and brewer.is_contributor
+    assert brewer.is_brewer and brewer.groups.filter(name="Contributeur").exists()
     assert BeerUser.objects.get(username="admin_dev").check_password("test-password")

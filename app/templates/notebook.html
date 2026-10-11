@@ -3,144 +3,102 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
-<link rel="stylesheet" href="{% static 'style/switch.css' %}">
 
-<div class="flex bg-base-200 p-1 rounded-full gap-1 text-[11px] font-bold text-center mb-4">
-    <button type="button" 
-            class="tab-btn flex-1 py-2 px-2 rounded-full transition-all focus:outline-none {% if active_tab == 'carnet' or not active_tab %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700 hover:bg-base-300{% endif %}" 
-            onclick="switchTab(this, 'tab-carnet')">
-        Mes Carnets
-    </button>
-    <button type="button" 
-            class="tab-btn flex-1 py-2 px-2 rounded-full transition-all focus:outline-none {% if active_tab == 'ajouts' %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700 hover:bg-base-300{% endif %}" 
-            onclick="switchTab(this, 'tab-ajouts')">
-        Mes Ajouts
-    </button>
-</div>
+<h1 class="pb-title text-2xl font-bold">Mon carnet</h1>
 
-<div id="tab-carnet" class="tab-panel {% if active_tab == 'carnet' or not active_tab %}block{% else %}hidden{% endif %}">
-    
-    {% if not has_drinks %}
-        <!-- EMPTY STATE : Panneau d'incitation -->
-        {% include "partials/empty_state.html" with show_icon=True title="Votre carnet de dégustation est vide" description="Vous n'avez pas encore noté de bière. Commencez votre aventure zythologique !" show_browse=True %}
+{# Mon goût : quelques chiffres lisibles d'un coup d'œil #}
+<section class="pb-card p-4 mt-3" aria-label="Mon goût">
+    {% if total_drinks %}
+    <div class="flex items-end justify-between gap-4">
+        <div>
+            <div class="pb-title text-4xl leading-none pb-stat">{{ avg_note|floatformat:1 }}</div>
+            <div class="text-xs text-gray-600 mt-1">note moyenne</div>
+        </div>
+        <div class="text-right text-xs text-gray-600">
+            <b class="text-base pb-stat">{{ total_drinks }}</b> dégustée{{ total_drinks|pluralize }}<br>
+            dont <b class="pb-stat">{{ drinks_last_month }}</b> ce mois-ci
+        </div>
+    </div>
+    <dl class="mt-4 flex flex-col gap-1 text-sm">
+        <div class="flex justify-between"><dt class="text-gray-600">Alcool</dt><dd class="font-semibold pb-stat">{{ avg_abv|floatformat:1 }} %</dd></div>
+        <div class="flex justify-between"><dt class="text-gray-600">Amertume</dt><dd class="font-semibold pb-stat">{{ avg_ibu|floatformat:0 }} IBU</dd></div>
+        <div class="flex justify-between"><dt class="text-gray-600">Style préféré</dt><dd class="font-semibold">{{ pref_style }}</dd></div>
+    </dl>
+    {% else %}
+    <p class="text-sm text-gray-600">Vos statistiques apparaîtront après votre première dégustation.</p>
     {% endif %}
+</section>
 
-    <!-- GRILLE DE TUILES -->
-    <div class="grid grid-cols-2 gap-3 p-1">
-        
-        <!-- Tuile: Toutes les bières -->
-        {% if user_drinks_all.count > 0 %}
-        <a href="{% url 'notebook_all' %}" class="card shadow-md border-2 border-primary bg-primary transition-all flex flex-col group hover:scale-[1.02] min-h-[150px]">
-        {% else %}
-        <div class="card shadow-sm border-2 border-base-300 bg-base-200 opacity-60 cursor-not-allowed transition-all flex flex-col min-h-[150px]">
+<nav class="pb-chips mt-4" aria-label="Sections du carnet">
+    <a href="{% url 'notebook' %}" class="pb-chip {% if active_tab == 'tastings' %}is-on{% endif %}" {% if active_tab == 'tastings' %}aria-current="true"{% endif %}>Dégustations</a>
+    <a href="{% url 'notebook' %}?tab=to-taste" class="pb-chip {% if active_tab == 'to-taste' %}is-on{% endif %}" {% if active_tab == 'to-taste' %}aria-current="true"{% endif %}>À goûter{% if wishlist_count %} ({{ wishlist_count }}){% endif %}</a>
+    <a href="{% url 'notebook' %}?tab=additions" class="pb-chip {% if active_tab == 'additions' %}is-on{% endif %}" {% if active_tab == 'additions' %}aria-current="true"{% endif %}>Mes ajouts</a>
+</nav>
+
+{% if active_tab == 'tastings' %}
+{# Les collections : « Toutes les bières » et chaque carnet ouvrent la liste des dégustations (recherche, filtres et tri) #}
+<div id="tab-degustations" class="mt-4">
+    {% if not has_drinks and not custom_notebooks %}
+        {% include "partials/empty_state.html" with show_icon=True title="Votre carnet est vide" description="Ajoutez ou notez votre première bière pour commencer votre carnet de dégustation." show_browse=True %}
+    {% else %}
+    <div class="grid grid-cols-2 gap-3">
+        {% if has_drinks %}
+        <a href="{% url 'notebook_all' %}" class="pb-card is-general p-4 flex flex-col items-center justify-center text-center min-h-[130px] hover:scale-[1.02] transition-transform">
+            <h3 class="font-bold text-base leading-tight">Toutes les bières</h3>
+            <p class="text-xs mt-1">{{ drink_total }} bière{{ drink_total|pluralize }}</p>
+        </a>
         {% endif %}
-            <div class="card-body p-3 flex flex-col justify-center items-center text-center relative z-10 w-full h-full {% if user_drinks_all.count > 0 %}text-white{% else %}text-gray-400{% endif %}">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center {% if user_drinks_all.count > 0 %}bg-white text-primary{% else %}bg-base-300 text-gray-400{% endif %} shadow-sm shrink-0 mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-                </div>
-                <h3 class="font-bold text-base leading-tight mb-0.5 w-full">Toutes les bières</h3>
-                <p class="text-[10px] leading-snug font-medium">{{ user_drinks_all.count }} bière{{ user_drinks_all.count|pluralize }}</p>
-            </div>
-        {% if user_drinks_all.count > 0 %}</a>{% else %}</div>{% endif %}
-
-        <!-- Tuile Wishlist -->
-        {% with wishlist_count=request.user.wishlist_beers.count %}
-        {% if wishlist_count > 0 %}
-        <a href="{% url 'wishlist_view' %}" class="card shadow-md border-2 border-[#CD7F32]/50 bg-gradient-to-br from-[#CD7F32] to-[#8C5722] transition-all flex flex-col group hover:scale-[1.02] min-h-[150px]">
-        {% else %}
-        <div class="card shadow-sm border-2 border-base-300 bg-base-200 opacity-60 cursor-not-allowed transition-all flex flex-col min-h-[150px]">
-        {% endif %}
-            <div class="card-body p-3 flex flex-col justify-center items-center text-center relative z-10 w-full h-full {% if wishlist_count > 0 %}text-white{% else %}text-gray-400{% endif %}">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center {% if wishlist_count > 0 %}bg-white text-[#CD7F32]{% else %}bg-base-300 text-gray-400{% endif %} shadow-sm shrink-0 mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
-                </div>
-                <h3 class="font-bold text-base leading-tight mb-0.5 w-full">Ma liste de souhaits</h3>
-                <p class="text-[10px] leading-snug font-medium">{{ wishlist_count }} bière{{ wishlist_count|pluralize }}</p>
-            </div>
-        {% if wishlist_count > 0 %}</a>{% else %}</div>{% endif %}
-        {% endwith %}
-
-        <!-- Tuiles: Carnets Custom -->
         {% for notebook in custom_notebooks %}
-        <a href="{% url 'notebook_detail' notebook.slug %}" class="card shadow-sm border border-base-200 bg-white transition-all flex flex-col group hover:scale-[1.02] min-h-[150px]">
-            <div class="card-body p-3 flex flex-col justify-center items-center text-center relative z-10 w-full h-full text-gray-900">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center bg-base-200 group-hover:bg-primary/10 transition-colors shadow-sm shrink-0 mb-2 text-gray-500 group-hover:text-primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                </div>
-                <h3 class="font-bold text-base leading-tight mb-0.5 w-full text-gray-900">{{ notebook.title }}</h3>
-                <p class="text-[10px] leading-snug text-gray-500">{{ notebook.drinks.count }} bière{{ notebook.drinks.count|pluralize }}</p>
-            </div>
+        <a href="{% url 'notebook_detail' notebook.slug %}" class="pb-card p-4 flex flex-col items-center justify-center text-center min-h-[130px] hover:scale-[1.02] transition-transform">
+            <h3 class="font-bold text-base leading-tight">{{ notebook.title }}</h3>
+            <p class="text-xs text-gray-600 mt-1">{{ notebook.drink_count }} bière{{ notebook.drink_count|pluralize }}</p>
         </a>
         {% endfor %}
-
-        <!-- Tuile: Créer un carnet (+) -->
-        {% if custom_notebooks.count < 50 %}
-        <button onclick="modal_create_notebook.showModal()" class="card shadow-md border-2 border-dashed border-base-300 bg-base-100 hover:bg-base-200 transition-all flex flex-col group hover:scale-[1.02] min-h-[150px] cursor-pointer">
-            <div class="card-body p-3 flex flex-col justify-center items-center text-center relative z-10 w-full h-full">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center bg-base-200 shadow-sm shrink-0 mb-2 text-gray-400 group-hover:text-primary transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-                </div>
-                <h3 class="font-bold text-sm leading-tight w-full text-gray-500 group-hover:text-primary transition-colors">Créer un carnet</h3>
-            </div>
+        {% if custom_notebooks|length < 50 %}
+        <button type="button" onclick="modal_create_notebook.showModal()" class="rounded-xl border-2 border-dashed border-gray-400 p-4 flex flex-col items-center justify-center text-center min-h-[130px] text-gray-600 hover:border-black hover:text-black transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+            <span class="font-bold text-sm">Créer une collection</span>
         </button>
         {% endif %}
     </div>
+    {% endif %}
 </div>
 
-<!-- Modal de création -->
-<dialog id="modal_create_notebook" class="modal z-[99999]">
-    <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_create_notebook.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg text-primary mb-4 border-b border-primary pb-2">Nouveau carnet</h3>
-        
-        <form method="post" action="{% url 'create_custom_notebook' %}">
-            {% csrf_token %}
-            <div class="form-control w-full mb-3">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Titre du carnet *</span></label>
-                <input type="text" name="title" class="input input-sm input-bordered w-full bg-white" placeholder="Ex: Bières d'été..." required maxlength="150">
-            </div>
-            
-            <div class="form-control w-full mb-3">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Description (Optionnel)</span></label>
-                <textarea name="description" class="textarea textarea-bordered h-16 bg-white text-xs" placeholder="Une petite note..."></textarea>
-            </div>
-
-            <div class="form-control w-full mb-4">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Ajouter des dégustations</span></label>
-                <div class="h-40 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box flex flex-col gap-1">
-                    {% for drink in user_drinks_all %}
-                        <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-2 transition-colors">
-                            <input type="checkbox" name="drinks" value="{{ drink.slug }}" class="checkbox checkbox-sm checkbox-primary shrink-0" />
-                            <span class="label-text text-xs font-semibold truncate flex-1">
-                                {{ drink.beer_id.name }} 
-                                {% if drink.note is not null %}<span class="text-[10px] text-gray-500 font-normal ml-1">({{ drink.note }}/10)</span>{% endif %}
-                            </span>
-                        </label>
-                    {% endfor %}
-                </div>
-            </div>
-            
-            <button type="submit" class="btn btn-success btn-sm w-full text-white">Créer le carnet</button>
-        </form>
+{% elif active_tab == 'to-taste' %}
+<div id="tab-gouter" class="mt-4">
+    {% if not wishlist_count %}
+        {% include "partials/empty_state.html" with show_icon=True title="Rien à goûter pour l'instant" description="Ajoutez des bières à votre liste depuis la recherche : elles apparaîtront ici." show_browse=True %}
+    {% else %}
+    <form id="carnet-form" hx-get="{% url 'notebook_wishlist_fragment' %}" hx-trigger="input delay:250ms from:#carnet-q, change" hx-target="#carnet-list" hx-swap="innerHTML" hx-sync="this:replace" role="search" onsubmit="return false">
+        <label class="pb-card flex items-center gap-2 px-3 h-11">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input id="carnet-q" type="search" name="q" maxlength="100" autocomplete="off" enterkeyhint="search" placeholder="Chercher dans ma liste" aria-label="Chercher dans ma liste" class="grow bg-transparent text-sm outline-none border-0 shadow-none min-w-0" style="border:0;box-shadow:none;outline:none">
+        </label>
+        <fieldset class="pb-chips mt-3 items-center">
+            <legend class="sr-only">Trier par</legend>
+            <span class="text-xs text-gray-600 self-center shrink-0">Trier par</span>
+            {% for value, label in sort_options %}
+            <label class="pb-choice shrink-0"><input type="radio" name="sort" value="{{ value }}" {% if value == sort %}checked{% endif %}><span>{{ label }}</span></label>
+            {% endfor %}
+        </fieldset>
+    </form>
+    <div id="carnet-list" class="mt-3" aria-live="polite">
+        {% include "partials/wishlist_list.html" %}
     </div>
-    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-</dialog>
+    {% endif %}
+</div>
+{% endif %}
 
-<div id="tab-ajouts" class="tab-panel {% if active_tab == 'ajouts' %}block{% else %}hidden{% endif %}">
+{% url 'create_custom_notebook' as create_url %}
+{% include "partials/notebook_form_modal.html" with modal_id="modal_create_notebook" heading="Nouveau carnet" action=create_url submit_label="Créer le carnet" picker_label="Ajouter des dégustations" drinks=user_drinks_all %}
+
+
+{% if active_tab == 'additions' %}
+<div class="mt-4">
+<div id="tab-ajouts">
     
     <div class="mb-4">
-        <h4 class="font-castoro text-xl font-bold mb-4 flex items-center gap-2 border-b border-primary pb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 11h1a3 3 0 0 1 0 6h-1"/>
-                <path d="M9 12v6"/>
-                <path d="M13 12v6"/>
-                <path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 2 11 2s2 1.5 3 1.5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5Z"/>
-                <path d="M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/>
-            </svg>
-            Bières que j'ai proposées
-        </h4>
+        <h2 class="pb-section !mt-0"><span>Bières que j'ai proposées</span></h2>
         <div id="notebook-added-beers-container" class="flex flex-col gap-2">
             {% include "partials/notebook_added_beers.html" %}
         </div>
@@ -157,10 +115,7 @@
     </div>
 
     <div class="mb-4">
-        <h4 class="font-castoro text-xl font-bold mb-4 flex items-center gap-2 border-b border-primary pb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
-            Avis sur mes ajouts
-        </h4>
+        <h2 class="pb-section"><span>Avis sur mes ajouts</span></h2>
         <div id="notebook-feedback-container" class="flex flex-col gap-2">
             {% include "partials/notebook_feedback.html" %}
         </div>
@@ -177,7 +132,7 @@
     </div>
 
     <div class="mb-4">
-        <details class="group bg-white rounded-box shadow-sm border border-base-200">
+        <details class="group pb-card">
             <summary class="text-sm p-3 cursor-pointer list-none flex justify-between items-center font-medium hover:opacity-70 transition-opacity">
                 <span>Bières retirées du catalogue</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
@@ -185,7 +140,7 @@
             
             <div class="flex flex-col gap-2 p-3 border-t border-base-200">
                 {% for beer in my_deleted_beers %}
-                <div class="flex items-center justify-between bg-base-100 p-3 rounded-lg border border-base-200 gap-3 relative overflow-hidden">
+                <div class="flex items-center justify-between bg-base-100 p-3 rounded-xl border border-[#d9cfc5] gap-3 relative overflow-hidden">
                     <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
                     {% include "partials/beer_thumb.html" with beer=beer %}
                     <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
@@ -197,9 +152,9 @@
                         </div>
                         <div class="flex gap-1 mt-0.5">
                             {% if beer.style %}
-                            <span class="badge badge-secondary badge-outline badge-xs h-auto text-center text-[9px]">{{ beer.style }}</span>
+                            <span class="pb-pill">{{ beer.style }}</span>
                             {% endif %}
-                            <span class="badge badge-neutral badge-outline badge-xs text-[9px]">Alc. {{ beer.degree }}%</span>
+                            <span class="pb-pill">Alc. {{ beer.degree }}%</span>
                         </div>
                     </div>
                     <div class="shrink-0 flex items-center pointer-events-none relative z-10">
@@ -207,14 +162,22 @@
                     </div>
                 </div>
                 {% empty %}
-                <p class="text-[10px] text-gray-500 text-center">Aucune bière retirée.</p>
+                <p class="text-[10px] text-[#6b625a] text-center">Aucune bière retirée.</p>
                 {% endfor %}
             </div>
         </details>
     </div>
 </div>
 
-<script src="{% static 'script/tab_bar.js' %}"></script>
+</div>
+{% endif %}
+
+<script>
+document.body.addEventListener('htmx:afterSwap', function (event) {
+    if (event.detail.target.id === 'carnet-list' && typeof initLoadMore === 'function') initLoadMore(event.detail.target);
+});
+</script>
 <script src="{% static 'script/load_more_generic.js' %}"></script>
 <script src="{% static 'script/double_slider.js' %}"></script>
+<script src="{% static 'script/wishlist.js' %}"></script>
 {% endblock %}

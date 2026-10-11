@@ -1,12 +1,10 @@
-import json
 import logging
+import time
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.db.models import Q
 from django.db.models.functions import Greatest, Left, Length
 from django.utils.text import slugify
-from google import genai
-from google.genai import types
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -18,7 +16,7 @@ from django.template.loader import render_to_string
 
 from ..services import catalog_matching, ean, label_scan, postal_codes, product_lookup, upstream
 from ..services.throttle import CATALOG_CHECK_BY_USER, CHAT_BURST_BY_USER, CHAT_GLOBAL, CHAT_GLOBAL_KEY, POSTAL_LOOKUP_BY_IP, client_ip
-from ..services.ai import ask_zythologue, config_client
+from ..services.ai import analyze_label, ask_zythologue
 from ..services.chat import ChatBusy, ChatUnavailable, payload as chat_payload
 from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota, refund_quota
 from ..services.slugs import SUFFIX_LENGTH
@@ -26,11 +24,21 @@ from ..services.slugs import SUFFIX_LENGTH
 logger = logging.getLogger(__name__)
 
 CHAT_BUSY = "Gaétan a beaucoup de monde au comptoir : réessayez dans une minute."
+CHAT_PENDING_KEY = 'chat_pending_location'
+CHAT_PENDING_SECONDS = 600  # délai laissé au membre pour activer sa position
 CHAT_UNAVAILABLE = "Désolé, j'ai eu un coup de chaud en cave. Pouvez-vous revenir plus tard s'il vous plaît ?"
 
 
 def _chat_error(message, status):
     return JsonResponse({"response": message}, status=status)
+
+
+def _take_pending_location(request, message):
+    """Vrai si ce message est la reprise, avec position, d'une demande qui en manquait (déjà comptée dans le quota du membre).
+
+    Le serveur est seul à savoir qu'une demande attend : le navigateur ne peut pas se déclarer « reprise » pour échapper au quota."""
+    pending = request.session.pop(CHAT_PENDING_KEY, None)
+    return bool(pending) and pending.get('message') == message and time.time() - pending.get('at', 0) < CHAT_PENDING_SECONDS and pending
 
 
 def _post_chat_message(request):
@@ -46,7 +54,8 @@ def _post_chat_message(request):
     if CHAT_BURST_BY_USER.exceeded(user_id):
         return _chat_error("Doucement, Gaétan reprend son souffle : réessayez dans une minute.", 429)
     CHAT_BURST_BY_USER.record(user_id)
-    if not consume_quota(request.user, settings.CHAT_DAILY_LIMIT, CHAT, settings.CHAT_WEEKLY_LIMIT):
+    pending = chat_request.location and _take_pending_location(request, chat_request.message)
+    if not pending and not consume_quota(request.user, settings.CHAT_DAILY_LIMIT, CHAT, settings.CHAT_WEEKLY_LIMIT):
         return _chat_error("Gaétan a assez parlé pour le moment, revenez demain !", 429)
     CHAT_GLOBAL.record(CHAT_GLOBAL_KEY)
 
@@ -54,22 +63,35 @@ def _post_chat_message(request):
     try:
         reply = ask_zythologue(chat_request.message, history, chat_request.location)
     except ChatUnavailable as error:
-        # Rien n'est enregistré et le membre récupère sa question
-        refund_quota(request.user, CHAT)
+        # Rien n'est enregistré et le membre récupère sa question (une reprise reste possible)
+        if pending:
+            request.session[CHAT_PENDING_KEY] = pending
+        else:
+            refund_quota(request.user, CHAT)
         return _chat_error(CHAT_BUSY if isinstance(error, ChatBusy) else CHAT_UNAVAILABLE, 503)
+
+    if reply.needs_location:
+        # La demande n'est pas conservée dans l'historique : le navigateur la renverra telle quelle avec la position, sans second quota
+        request.session[CHAT_PENDING_KEY] = {'message': chat_request.message, 'at': time.time()}
+        return JsonResponse({"response": reply.text, "needs_location": True})
 
     history = [*history, {'role': 'user', 'text': chat_request.message}, {'role': 'model', 'text': reply.text}]
     # Seuls les derniers messages sont gardés : la session reste légère et la conversation courte
     request.session['chat_history'] = history[-settings.CHAT_HISTORY_LIMIT:]
-    return JsonResponse({"response": reply.text, "needs_location": reply.needs_location})
+    return JsonResponse({"response": reply.text, "needs_location": False})
 
 
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "POST", "DELETE"])
 @login_required(login_url='login')
 def chat_api(request):
-    """Endpoint API : historique de la discussion avec Gaétan (GET) et nouveau message (POST)."""
+    """Endpoint API : historique de la discussion avec Gaétan (GET), nouveau message (POST), nouvelle conversation (DELETE)."""
     if request.method == 'GET':
         return JsonResponse({"history": request.session.get('chat_history', [])})
+    if request.method == 'DELETE':
+        # Repart de zéro : ni historique, ni demande en attente de position (le quota déjà utilisé n'est pas rendu)
+        request.session.pop('chat_history', None)
+        request.session.pop(CHAT_PENDING_KEY, None)
+        return JsonResponse({"history": []})
     return _post_chat_message(request)
 
 @require_POST
@@ -88,26 +110,15 @@ def analyze_beer_label(request):
         return JsonResponse({"error": "Limite quotidienne d'analyses atteinte, revenez demain !"}, status=429)
 
     try:
-        client = config_client()
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[
-                label_scan.PROMPT,
-                types.Part.from_bytes(
-                    data=image_bytes,
-                    mime_type=label_scan.MIME_TYPE,
-                )
-            ],
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())]
-            )
-        )
-        
-        label = label_scan.parse(response.text)
-        if label is None:
+        reading = analyze_label(image_bytes)
+        if reading is None:
             # Image sans bière identifiable : réponse normale (le scanner continue de chercher), pas une erreur
             return JsonResponse({"success": False, "not_found": True, "error": "Aucune étiquette de bière reconnue."})
-        return JsonResponse({"success": True, "data": label})
+        # Origine de ce qui n'était pas imprimé sur l'étiquette (catalogue, web) et de ce que le web a corrigé : à faire vérifier par le membre
+        return JsonResponse({
+            "success": True, "data": reading.label, "from_catalogue": reading.from_catalogue,
+            "from_web": reading.from_web, "corrected_by_web": reading.corrected_by_web,
+        })
 
     except Exception:
         # Le détail (réponse de l'IA, message du SDK) reste dans les journaux : il ne doit jamais atteindre le client

@@ -1,12 +1,16 @@
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.urls import reverse
 
 from ..forms import DrinkForm, error_summary
 from ..models import Beer, Drinks
 from .utils import check_and_notify_achievements, posted_notebooks, previous_page
 from ..services.drinks import delete_drink
 from ..services.notifications import notify
+
+RATE_RETURN_KEY = 'rate_return_url'  # page d'où le membre a noté (déjà contrôlée par previous_page : jamais une adresse étrangère)
+
 
 @login_required(login_url='login')
 def rate_beer_view(request, beer_slug):
@@ -38,12 +42,26 @@ def rate_beer_view(request, beer_slug):
             
             notify('beer_shared', other_drinkers, sender=request.user, beer=beer)
             
-            messages.success(request, f"Votre avis sur {beer.name} a été enregistré !")
-        else:
-            messages.error(request, "Erreur dans le formulaire de notation : " + " ; ".join(error_summary(form)))
-            
+            check_and_notify_achievements(request.user)
+            # Page de félicitations, comme après l'ajout d'une bière ; la page d'origine est gardée côté serveur pour le bouton « Retour »
+            request.session[RATE_RETURN_KEY] = previous_url
+            return redirect('rate_beer_done', beer_slug=beer.slug)
+        messages.error(request, "Erreur dans le formulaire de notation : " + " ; ".join(error_summary(form)))
+
     check_and_notify_achievements(request.user)
     return redirect(previous_url)
+
+
+@login_required(login_url='login')
+def rate_beer_done_view(request, beer_slug):
+    """Page de félicitations après une notation (réservée à la personne qui vient de noter cette bière)."""
+    drink = get_object_or_404(Drinks.objects.select_related('beer_id', 'beer_id__brewery_id'), beer_id__slug=beer_slug, drinker_id=request.user, beer_id__is_deleted=False)
+    return render(request, 'rate_beer_done.html', {
+        'drink': drink,
+        'beer': drink.beer_id,
+        'drinks_count': Drinks.objects.filter(drinker_id=request.user).count(),
+        'return_url': request.session.get(RATE_RETURN_KEY) or reverse('beer_detail', args=[beer_slug]),
+    })
 
 @login_required(login_url='login')
 def modify_rate_beer_view(request, drink_slug):

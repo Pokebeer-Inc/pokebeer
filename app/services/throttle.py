@@ -55,6 +55,16 @@ LOGIN_BY_ACCOUNT = Rule('login-account', 20, timedelta(minutes=15))
 SIGNUP_BY_IP = Rule('signup-ip', 10, timedelta(hours=1))
 PRO_SIGNUP_BY_IP = Rule('pro-signup-ip', 5, timedelta(hours=1))
 
+# Changement de pseudo, par membre : essais plafonnés (on ne sonde pas les pseudos libres) et changements réellement effectués
+USERNAME_ATTEMPTS = Rule('username-attempts', 10, timedelta(hours=1))
+USERNAME_CHANGES = Rule('username-changes', 3, timedelta(days=1))
+
+# Pages qui suivent l'inscription : essais de date de naissance par membre
+ONBOARDING_ATTEMPTS = Rule('onboarding-birth', 20, timedelta(hours=1))
+
+# Enregistrements du brouillon d'ajout de bière (une validation par étape, plus l'enregistrement en quittant la page)
+BEER_DRAFT_SAVES = Rule('beer-draft', 200, timedelta(hours=1))
+
 # Réinitialisation du mot de passe : par IP (refus explicite), par adresse et au total (silencieux, pour ne rien révéler).
 # Le plafond quotidien protège le quota d'envoi du compte Gmail (500 messages par jour).
 PASSWORD_RESET_BY_IP = Rule('reset-ip', 5, timedelta(hours=1))
@@ -90,7 +100,10 @@ CLAIM_BY_USER = Rule('claim-user', 5, timedelta(days=1))
 EMAIL_PREFERENCES_BY_IP = Rule('email-prefs-ip', 30, timedelta(hours=1))
 
 # Assistant Gaétan : rafale par membre (en plus du quota quotidien) et budget d'appels au modèle pour toute l'application, afin de
-# rester dans le quota gratuit de Gemini
+# rester dans les limites du plan gratuit de Mistral
+# Suggestions de modification d'une fiche : quelques-unes par jour et par membre (chacune est relue par l'équipe)
+SUGGESTION_BY_USER = Rule('suggestion-user', 10, timedelta(days=1))
+
 CHAT_BURST_BY_USER = Rule('chat-burst', 5, timedelta(minutes=1))
 CHAT_GLOBAL = Rule('chat-global', settings.CHAT_GLOBAL_DAILY_LIMIT, timedelta(days=1))
 CHAT_MODEL_CALLS = Rule('chat-model-calls', settings.CHAT_MODEL_CALLS_PER_MINUTE, timedelta(minutes=1))

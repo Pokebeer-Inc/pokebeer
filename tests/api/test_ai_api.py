@@ -6,10 +6,12 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 
+from app.models import ChatUsage
 from app.services.chat import ChatReply, ChatUnavailable
 from app.services.throttle import Rule
 
 from tests import factories as f
+from tests.fakes import chat_reply, search_reply
 from tests.helpers import post_json
 
 pytestmark = pytest.mark.django_db
@@ -35,7 +37,8 @@ def no_burst_limit(monkeypatch):
 @pytest.fixture
 def label_client(monkeypatch):
     client = mock.Mock()
-    monkeypatch.setattr("app.views.api_views.config_client", lambda: client)
+    client.beta.conversations.start.return_value = search_reply("{}")
+    monkeypatch.setattr("app.services.llm.get_client", lambda *args, **kwargs: client)
     return client
 
 
@@ -101,9 +104,30 @@ class TestChat:
         assert post_json(client, CHAT_URL, {"message": "Bonjour"}).status_code == 302
         zythologue.assert_not_called()
 
-    @pytest.mark.parametrize("method", ["put", "delete", "patch"])
+    @pytest.mark.parametrize("method", ["put", "patch"])
     def test_other_http_methods_are_refused(self, auth_client, method):
         assert getattr(auth_client, method)(CHAT_URL).status_code == 405
+
+    def test_a_new_conversation_forgets_the_history_and_the_pending_position(self, auth_client, zythologue):
+        post_json(auth_client, CHAT_URL, {"message": "Une IPA ?"})
+        assert auth_client.get(CHAT_URL).json()["history"]
+        assert auth_client.delete(CHAT_URL).json() == {"history": []}
+        assert auth_client.get(CHAT_URL).json()["history"] == []
+        assert "chat_pending_location" not in auth_client.session
+
+    def test_a_new_conversation_does_not_give_the_quota_back(self, auth_client, zythologue, user):
+        post_json(auth_client, CHAT_URL, {"message": "Une IPA ?"})
+        auth_client.delete(CHAT_URL)
+        assert ChatUsage.objects.get(user=user).count == 1
+
+    def test_only_my_own_history_is_cleared(self, auth_client, other_client, zythologue):
+        post_json(auth_client, CHAT_URL, {"message": "Une IPA ?"})
+        post_json(other_client, CHAT_URL, {"message": "Une stout ?"})
+        auth_client.delete(CHAT_URL)
+        assert other_client.get(CHAT_URL).json()["history"]
+
+    def test_anonymous_visitors_cannot_clear_anything(self, client):
+        assert client.delete(CHAT_URL).status_code == 302
 
     def test_message_of_max_length_is_accepted(self, auth_client, zythologue, settings):
         assert post_json(auth_client, CHAT_URL, {"message": "x" * settings.CHAT_MESSAGE_MAX_LENGTH}).status_code == 200
@@ -170,6 +194,14 @@ class TestChatQuota:
         assert self.send(auth_client).status_code == 200
 
 
+def sent_image(label_client):
+    """(en-tête, octets) de l'image envoyée au modèle de vision."""
+    import base64
+    url = label_client.chat.complete.call_args.kwargs["messages"][0]["content"][1]["image_url"]
+    header, encoded = url.split(",", 1)
+    return header, base64.b64decode(encoded)
+
+
 class TestAnalyzeLabel:
     def upload(self, client):
         return client.post(LABEL_URL, {"image": f.make_image_upload()})
@@ -182,33 +214,33 @@ class TestAnalyzeLabel:
         '```json\n{"found": true, "name": "Punk IPA", "degree": 5.6}\n```',
     ])
     def test_returns_parsed_json_even_inside_markdown_fence(self, auth_client, label_client, raw):
-        label_client.models.generate_content.return_value = SimpleNamespace(text=raw)
-        assert self.upload(auth_client).json() == {"success": True, "data": {"name": "Punk IPA", "brewery": None, "style": None, "degree": 5.6, "bitterness": None}}
+        label_client.chat.complete.return_value = chat_reply(raw)
+        assert self.upload(auth_client).json() == {
+            "success": True, "data": {"name": "Punk IPA", "brewery": None, "style": None, "degree": 5.6, "bitterness": None}, "from_catalogue": [], "from_web": [], "corrected_by_web": [],
+        }
 
     @pytest.mark.parametrize("raw", ['{"found": false}', '{"found": true}', '{}', '{"found": "true", "name": "X"}'])
     def test_an_image_without_an_identified_beer_is_not_an_error(self, auth_client, label_client, raw):
-        label_client.models.generate_content.return_value = SimpleNamespace(text=raw)
+        label_client.chat.complete.return_value = chat_reply(raw)
         response = self.upload(auth_client)
         assert response.status_code == 200 and response.json()["success"] is False and response.json()["not_found"] is True
 
     def test_the_ai_answer_is_cleaned_before_it_reaches_the_form(self, auth_client, label_client):
-        label_client.models.generate_content.return_value = SimpleNamespace(
-            text='{"found": true, "name": "<img src=x onerror=alert(1)>Stout", "brewery": 42, "style": "IPA", "degree": 500, "bitterness": "abc", "extra": "x"}'
-        )
+        label_client.chat.complete.return_value = chat_reply('{"found": true, "name": "<img src=x onerror=alert(1)>Stout", "brewery": 42, "style": "IPA", "degree": 500, "bitterness": "abc", "extra": "x"}')
         data = self.upload(auth_client).json()["data"]
         assert data == {"name": "img src=x onerror=alert(1)Stout", "brewery": None, "style": "IPA", "degree": None, "bitterness": None}
 
     def test_the_prompt_asks_the_ai_to_say_when_no_beer_is_visible(self, auth_client, label_client):
-        label_client.models.generate_content.return_value = SimpleNamespace(text='{"found": false}')
+        label_client.chat.complete.return_value = chat_reply('{"found": false}')
         self.upload(auth_client)
-        assert '"found"' in label_client.models.generate_content.call_args.kwargs["contents"][0]
+        assert '"found"' in label_client.chat.complete.call_args.kwargs["messages"][0]["content"][0]["text"]
 
     def test_the_ai_receives_a_reencoded_webp_never_the_original_file(self, auth_client, label_client):
-        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        label_client.chat.complete.return_value = chat_reply("{}")
         self.upload(auth_client)
-        image_part = label_client.models.generate_content.call_args.kwargs["contents"][1]
-        assert image_part.inline_data.mime_type == "image/webp"
-        assert image_part.inline_data.data[:4] == b"RIFF" and image_part.inline_data.data[8:12] == b"WEBP"
+        header, data = sent_image(label_client)
+        assert header == "data:image/webp;base64"
+        assert data[:4] == b"RIFF" and data[8:12] == b"WEBP"
 
     def test_metadata_never_reaches_the_ai(self, auth_client, label_client):
         from io import BytesIO
@@ -218,44 +250,44 @@ class TestAnalyzeLabel:
         exif[0x010E] = "SECRET-GPS-MARKER"
         buffer = BytesIO()
         Image.new("RGB", (4, 4), "orange").save(buffer, "JPEG", exif=exif)
-        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        label_client.chat.complete.return_value = chat_reply("{}")
         auth_client.post(LABEL_URL, {"image": SimpleUploadedFile("x.jpg", buffer.getvalue(), content_type="image/jpeg")})
-        assert b"SECRET-GPS-MARKER" not in label_client.models.generate_content.call_args.kwargs["contents"][1].inline_data.data
+        assert b"SECRET-GPS-MARKER" not in sent_image(label_client)[1]
 
     def test_ai_failure_gives_the_attempt_back(self, auth_client, label_client, settings):
         settings.LABEL_DAILY_LIMIT = 1
-        label_client.models.generate_content.side_effect = RuntimeError("down")
+        label_client.chat.complete.side_effect = RuntimeError("down")
         assert self.upload(auth_client).status_code == 500
-        label_client.models.generate_content.side_effect = None
-        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        label_client.chat.complete.side_effect = None
+        label_client.chat.complete.return_value = chat_reply("{}")
         assert self.upload(auth_client).status_code == 200
 
     def test_unparseable_ai_answer_is_a_server_error(self, auth_client, label_client):
-        label_client.models.generate_content.return_value = SimpleNamespace(text="Je ne sais pas")
+        label_client.chat.complete.return_value = chat_reply("Je ne sais pas")
         assert self.upload(auth_client).status_code == 500
 
     def test_declared_type_is_never_trusted(self, auth_client, label_client):
-        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        label_client.chat.complete.return_value = chat_reply("{}")
         upload = f.make_image_upload()
         upload.content_type = "application/x-evil"
         auth_client.post(LABEL_URL, {"image": upload})
-        assert label_client.models.generate_content.call_args.kwargs["contents"][1].inline_data.mime_type == "image/webp"
+        assert sent_image(label_client)[0] == "data:image/webp;base64"
 
     @pytest.mark.parametrize("payload", [b"<svg onload=alert(1)>", b"GIF89a....", b"not an image", b""])
     def test_non_images_are_refused_before_the_ai_is_called(self, auth_client, label_client, payload):
         from django.core.files.uploadedfile import SimpleUploadedFile
         response = auth_client.post(LABEL_URL, {"image": SimpleUploadedFile("x.png", payload, content_type="image/png")})
         assert response.status_code == 400
-        label_client.models.generate_content.assert_not_called()
+        label_client.chat.complete.assert_not_called()
 
     def test_oversized_images_are_refused(self, auth_client, label_client, settings):
         settings.LABEL_MAX_UPLOAD_BYTES = 10
         assert self.upload(auth_client).status_code == 400
-        label_client.models.generate_content.assert_not_called()
+        label_client.chat.complete.assert_not_called()
 
     def test_daily_quota_is_enforced_and_separate_from_chat(self, auth_client, label_client, settings, zythologue):
         settings.LABEL_DAILY_LIMIT = 2
-        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        label_client.chat.complete.return_value = chat_reply("{}")
         assert [self.upload(auth_client).status_code for _ in range(3)] == [200, 200, 429]
         assert post_json(auth_client, CHAT_URL, {"message": "Salut"}).status_code == 200
 
@@ -263,13 +295,43 @@ class TestAnalyzeLabel:
         from django.core.files.uploadedfile import SimpleUploadedFile
         settings.LABEL_DAILY_LIMIT = 1
         auth_client.post(LABEL_URL, {"image": SimpleUploadedFile("x.png", b"junk", content_type="image/png")})
-        label_client.models.generate_content.return_value = SimpleNamespace(text="{}")
+        label_client.chat.complete.return_value = chat_reply("{}")
         assert self.upload(auth_client).status_code == 200
 
     def test_internal_error_details_are_not_leaked(self, auth_client, label_client):
-        label_client.models.generate_content.side_effect = RuntimeError("api key=SECRET-123 rejected")
+        label_client.chat.complete.side_effect = RuntimeError("api key=SECRET-123 rejected")
         response = self.upload(auth_client)
         assert response.status_code == 500 and "SECRET-123" not in response.content.decode()
+
+    def test_the_web_completes_and_corrects_the_label_and_says_so(self, auth_client, label_client):
+        label_client.chat.complete.return_value = chat_reply('{"found": true, "name": "Punk IPA", "brewery": "BrewDog", "style": "Ale", "degree": 5.0}')
+        label_client.beta.conversations.start.return_value = search_reply('{"found": true, "name": "Punk IPA", "brewery": "BrewDog", "style": "IPA", "degree": 5.6, "bitterness": 35}')
+        body = self.upload(auth_client).json()
+        assert body["data"] == {"name": "Punk IPA", "brewery": "BrewDog", "style": "IPA", "degree": 5.0, "bitterness": 35}  # le degré imprimé prime
+        assert body["from_web"] == ["bitterness"] and body["corrected_by_web"] == ["style"]
+
+    def test_the_web_search_only_receives_validated_text_never_the_photo(self, auth_client, label_client):
+        label_client.chat.complete.return_value = chat_reply('{"found": true, "name": "Punk IPA", "brewery": "BrewDog"}')
+        self.upload(auth_client)
+        call = label_client.beta.conversations.start.call_args.kwargs
+        assert "Punk IPA" in call["inputs"] and "base64" not in call["inputs"]
+        assert call["tools"] == [{"type": "web_search"}] and call["store"] is False
+
+    def test_a_failing_web_search_keeps_the_reading_of_the_image(self, auth_client, label_client):
+        label_client.chat.complete.return_value = chat_reply('{"found": true, "name": "Punk IPA", "brewery": "BrewDog", "degree": 5.6}')
+        label_client.beta.conversations.start.side_effect = RuntimeError("search down")
+        assert self.upload(auth_client).json()["data"]["name"] == "Punk IPA"
+
+    def test_a_hostile_web_answer_cannot_change_the_name_or_inject_markup(self, auth_client, label_client):
+        label_client.chat.complete.return_value = chat_reply('{"found": true, "name": "Punk IPA", "brewery": "BrewDog"}')
+        label_client.beta.conversations.start.return_value = search_reply('{"found": true, "name": "HACKED", "brewery": "<script>x</script>BrewDog", "style": "<b>IPA</b>"}')
+        data = self.upload(auth_client).json()["data"]
+        assert data["name"] == "Punk IPA" and data["style"] is None
+
+    def test_the_search_is_skipped_when_no_beer_is_identified(self, auth_client, label_client):
+        label_client.chat.complete.return_value = chat_reply('{"found": false}')
+        self.upload(auth_client)
+        label_client.beta.conversations.start.assert_not_called()
 
     def test_ai_outage_is_a_server_error(self, auth_client):
         assert "error" in self.upload(auth_client).json()

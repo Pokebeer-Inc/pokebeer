@@ -21,6 +21,15 @@ def clean_text(value, limit):
     return cleaned[:limit].strip() or None
 
 
+def clean_multiline(value, limit):
+    """Comme clean_text, mais les retours à la ligne sont conservés (descriptions) ; vide si ce n'est pas du texte."""
+    if not isinstance(value, str):
+        return ''
+    visible = ''.join(char for char in value if char == '\n' or unicodedata.category(char) not in _UNWANTED or char.isspace())
+    lines = (' '.join(line.split()) for line in re.sub(r'[<>]', '', visible).splitlines())
+    return '\n'.join(lines).strip()[:limit]
+
+
 def clean_number(value, maximum, decimals):
     """Nombre décimal arrondi à 0,1 (decimals=True) ou entier ; None s'il est absent, invalide ou hors bornes."""
     if isinstance(value, bool):

@@ -85,10 +85,11 @@ class TestRecommendations:
         assert [b.name for b in recommended] == ["Same brewery IPA"]
         assert recommended[0].match_score == 7
 
-    def test_at_most_five_recommendations(self, user, other_user):
-        for _ in range(7):
+    def test_recommendations_are_capped_at_the_limit(self, user, other_user):
+        for _ in range(12):
             f.make_drink(other_user, f.make_beer(), note=8)
-        assert len(get_recommended_beers(drinks_of(user), unrated_for(user))) == 5
+        assert len(get_recommended_beers(drinks_of(user), unrated_for(user))) == 10
+        assert len(get_recommended_beers(drinks_of(user), unrated_for(user), limit=3)) == 3
 
     def test_empty_catalogue_returns_no_recommendation(self, user):
         assert list(get_recommended_beers(drinks_of(user), unrated_for(user))) == []

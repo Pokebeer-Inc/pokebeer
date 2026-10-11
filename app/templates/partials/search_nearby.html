@@ -1,15 +1,16 @@
-{% comment %}Onglet « Près de moi » : coquille remplie par nearby.js. La position reste sur l'appareil, le serveur ne la reçoit jamais.{% endcomment %}
-<section data-nearby data-url="{% url 'api_places' %}" aria-label="Lieux près de moi">
-    <div class="flex gap-2 mb-3" role="group" aria-label="Type de lieu">
-        <button type="button" data-nearby-kind="" aria-pressed="true" class="btn btn-xs btn-primary">Tous</button>
-        <button type="button" data-nearby-kind="bar" aria-pressed="false" class="btn btn-xs btn-outline">Bars</button>
-        <button type="button" data-nearby-kind="brewery" aria-pressed="false" class="btn btn-xs btn-outline">Brasseries</button>
+{% comment %}Lieux près de moi : coquille remplie par nearby.js. La position reste sur l'appareil, le serveur ne la reçoit jamais.
+Paramètres facultatifs (accueil) : radius_km (rayon), fallback (nombre de lieux les plus proches si rien dans le rayon), page (taille d'une page).{% endcomment %}
+<section data-nearby data-url="{% url 'api_places' %}" {% if radius_km %}data-radius-km="{{ radius_km }}" data-fallback="{{ fallback|default:3 }}" data-page="{{ page|default:5 }}"{% endif %} aria-label="Lieux près de moi">
+    <div class="pb-chips mb-3" role="group" aria-label="Type de lieu">
+        <button type="button" data-nearby-kind="" aria-pressed="true" class="pb-chip">Tous</button>
+        <button type="button" data-nearby-kind="bar" aria-pressed="false" class="pb-chip">Bars</button>
+        <button type="button" data-nearby-kind="brewery" aria-pressed="false" class="pb-chip">Brasseries</button>
     </div>
-    <p data-nearby-status role="status" class="text-sm text-gray-500 mb-3">Recherche de votre position…</p>
-    <button type="button" data-nearby-retry class="btn btn-primary btn-sm w-full mb-3 hidden">Activer ma position</button>
+    <p data-nearby-status role="status" class="text-sm text-[#6b625a] mb-3">Recherche de votre position…</p>
+    <button type="button" data-nearby-retry class="btn btn-primary btn-sm w-full mb-3 hidden text-black border-secondary">Activer ma position</button>
     <div data-nearby-list class="flex flex-col gap-3"></div>
-    <button type="button" data-nearby-more class="btn btn-outline btn-primary btn-sm w-full mt-3 hidden">Afficher plus</button>
-    <p class="text-[10px] text-gray-400 mt-4">Votre position sert uniquement à classer les lieux par distance : le calcul est fait sur votre appareil et Pokebeer ne la reçoit ni ne l'enregistre.</p>
+    <button type="button" data-nearby-more class="btn btn-sm w-full mt-3 hidden bg-transparent text-secondary border-secondary hover:bg-primary/20">Afficher plus</button>
+    <p class="text-[10px] text-[#6b625a] mt-4">Votre position sert uniquement à classer les lieux par distance : le calcul est fait sur votre appareil et Pokebeer ne la reçoit ni ne l'enregistre.</p>
 
     <template data-nearby-row>{% include "partials/place_card.html" %}</template>
 </section>

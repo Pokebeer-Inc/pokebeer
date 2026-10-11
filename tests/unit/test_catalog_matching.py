@@ -46,6 +46,27 @@ class TestFindBrewery:
         assert report.candidates[0].obj == exact and len(report.candidates) <= cm.PLACE_CANDIDATES
 
 
+class TestFindBar:
+    @pytest.fixture
+    def pub(self):
+        return f.make_bar(name="Le Comptoir du Houblon")
+
+    @pytest.mark.parametrize("typed", ["Le Comptoir du Houblon", "comptoir du houblon", "LE COMPTOIR DU HOUBLON"])
+    def test_an_identical_bar_is_recognised(self, pub, typed):
+        assert verdicts(cm.find_bar(typed)) == [("Le Comptoir du Houblon", "SAME")] and cm.find_bar(typed).level == SAME
+
+    @pytest.mark.parametrize("typed", ["Le Bar du Port", "Zythos", ""])
+    def test_other_bars_are_distinct(self, pub, typed):
+        assert cm.find_bar(typed).candidates == () and cm.find_bar(typed).level == NONE
+
+    def test_a_brewery_with_the_same_name_is_not_a_bar(self, pub):
+        f.make_brewery(name="Brasserie du Port")
+        assert cm.find_bar("Brasserie du Port").candidates == ()
+
+    def test_the_bar_being_edited_is_left_out(self, pub):
+        assert cm.find_bar("Le Comptoir du Houblon", exclude_pk=pub.pk).candidates == ()
+
+
 class TestFindBeer:
     @pytest.fixture
     def punk(self, coin):

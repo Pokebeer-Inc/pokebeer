@@ -15,12 +15,10 @@ from .services.quota import consume_quota
 from .image_form import ProcessedImageMixin
 from .services.official_images import process_official_image
 from .services.tasting_photos import DAILY_LIMIT, QUOTA_SCOPE, process_tasting_photo
-from .validators import MAX_TEXT_LENGTH, plain_text_validator, validate_siret, validate_tasting_date
+from .validators import MAX_TEXT_LENGTH, OLDEST_BIRTH_YEAR, is_reserved_username, plain_text_validator, validate_adult_birth_date, validate_siret, validate_tasting_date
 from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
 from django.utils import timezone
-from django.utils.text import slugify
 
-from unfold.contrib.forms.widgets import ArrayWidget
 
 INVALID_FIELD_STYLE = "border: 2px solid #ef4444;"
 
@@ -54,6 +52,8 @@ class UniqueUsernameMixin:
 
     def clean_username(self):
         username = self.cleaned_data['username']
+        if is_reserved_username(username) and username != (self.instance.username if self.instance.pk else None):
+            raise ValidationError("Ce pseudo est réservé. Choisissez-en un autre.", code='reserved_username')
         if BeerUser.objects.filter(username__iexact=username).exclude(pk=self.instance.pk).exists():
             raise ValidationError("Ce pseudo est déjà utilisé.", code='duplicate_username')
         return username
@@ -123,6 +123,53 @@ class UserLoginForm(ThrottledLoginMixin, SuspensionNoticeLoginForm):
             field.widget.attrs.update({
                 'class': 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
             })
+
+class BirthDateForm(forms.ModelForm):
+    """Date de naissance demandée juste après l'inscription : obligatoire, et celle d'une personne majeure (jamais montrée aux autres membres)."""
+
+    class Meta:
+        model = BeerUser
+        fields = ['birth_date']
+        labels = {'birth_date': "Date de naissance"}
+        widgets = {'birth_date': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date', 'autocomplete': 'bday'})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields['birth_date']
+        field.required = True
+        field.error_messages['required'] = "Indiquez votre date de naissance pour continuer."
+        field.error_messages['invalid'] = "Cette date de naissance n'est pas valide."
+        field.widget.attrs.update({'min': f'{OLDEST_BIRTH_YEAR}-01-01', 'max': timezone.localdate().isoformat(), 'class': 'pb-input text-lg'})
+
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data['birth_date']
+        validate_adult_birth_date(birth_date)
+        return birth_date
+
+
+class GenderForm(forms.ModelForm):
+    """Genre demandé après la date de naissance : facultatif (aucune réponse vaut « passer »)."""
+
+    class Meta:
+        model = BeerUser
+        fields = ['gender']
+        widgets = {'gender': forms.RadioSelect}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields['gender']
+        field.required = False
+        field.choices = [choice for choice in field.choices if choice[0] != '']  # pas de choix vide : on ne coche rien pour passer
+
+
+class UsernameForm(UniqueUsernameMixin, forms.ModelForm):
+    """Changement de pseudo seul : mêmes règles que l'inscription (format, unicité sans casse, pseudos réservés)."""
+
+    class Meta:
+        model = BeerUser
+        fields = ['username']
+        labels = {'username': "Pseudo"}
+
 
 class UserUpdateForm(UniqueUsernameMixin, UniqueEmailMixin, forms.ModelForm):
     class Meta:
@@ -472,7 +519,7 @@ class DrinkForm(ProcessedImageMixin, forms.ModelForm):
 
     class Meta:
         model = Drinks
-        fields = ['date', 'note', 'comment', 'photo']
+        fields = ['date', 'note', 'comment', 'photo', 'venue_type', 'company', 'serving_format', 'price']
         labels = {
             'date': 'Date de dégustation',
             'note': 'Note (sur 10)',
@@ -482,19 +529,25 @@ class DrinkForm(ProcessedImageMixin, forms.ModelForm):
             'date': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
             'comment': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Votre expérience, vos impressions en toute subjectivité...', 'class': 'textarea textarea-bordered w-full'}),
             'note': forms.NumberInput(attrs={'min': 0, 'max': 10}),
+            'venue_type': forms.RadioSelect,
+            'company': forms.RadioSelect,
+            'serving_format': forms.RadioSelect,
+            'price': forms.NumberInput(attrs={'min': 0, 'max': 999, 'step': '0.10', 'inputmode': 'decimal', 'placeholder': 'Prix en €'}),
         }
+
+    CHOICE_FIELDS = ('venue_type', 'company', 'serving_format')  # boutons à choix unique, affichés par le gabarit
 
     def __init__(self, *args, user=None, **kwargs):
         super(DrinkForm, self).__init__(*args, **kwargs)
         self.user = user
         self.fields['note'].required = False
+        for name in self.CHOICE_FIELDS:
+            self.fields[name].required = False
+            self.fields[name].choices = [choice for choice in self.fields[name].choices if choice[0] != '']  # pas de choix vide : on ne coche rien
         for name, field in self.fields.items():
-            if name in ('photo', 'remove_photo'):
-                continue  # gérés par le composant partials/image_field.html
-            field.widget.attrs.update({
-                'class': 'form-control placeholder:text-gray-400',
-                'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;'
-            })
+            if name in ('photo', 'remove_photo') or name in self.CHOICE_FIELDS:
+                continue  # gérés par le composant partials/image_field.html ou par des boutons de choix
+            field.widget.attrs.update({'class': 'pb-input placeholder:text-gray-400'})
 
     def clean_date(self):
         date = self.cleaned_data['date']

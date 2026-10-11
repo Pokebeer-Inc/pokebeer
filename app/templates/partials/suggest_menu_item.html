@@ -1,0 +1,7 @@
+{% comment %}Entrée « Suggérer une modification » des menus trois points (à côté de « Signaler »). À inclure seulement si can_suggest.{% endcomment %}
+<li>
+    <a onclick="modal_suggest.showModal()" class="font-semibold">
+        {% include "partials/icon.html" with name="pencil" cls="mr-1" %}
+        Suggérer une modification
+    </a>
+</li>

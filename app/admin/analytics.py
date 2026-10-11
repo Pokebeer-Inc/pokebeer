@@ -4,8 +4,6 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
-from django.urls import path
-from django.views.decorators.http import require_GET, require_POST
 
 import json
 import logging
