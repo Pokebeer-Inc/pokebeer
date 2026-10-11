@@ -8,8 +8,6 @@ urlpatterns = [
     # ==========================================
     path("", views.index, name="index"),
     path('beers/', views.all_beers_view, name='all_beers'),
-    path('discover/', views.discover_view, name='discover'),
-    path('activity/', views.activity_feed_view, name='activity_feed'),
     path('map/', views.map_view, name='map'),
     path('achievements/', views.achievements_view, name='achievements'),
     path('notebook/', views.notebook_view, name='notebook'),

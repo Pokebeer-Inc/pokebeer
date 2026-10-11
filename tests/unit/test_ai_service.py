@@ -1,47 +1,39 @@
-from types import SimpleNamespace
-from unittest import mock
-
 import pytest
 
 from app.services import ai
 from app.services.chat import ChatUnavailable
 from tests import factories as f
+from tests.fakes import embeddings_reply, unit_vector
 
-DIMENSIONS = 3072
-
-
-def unit_vector(axis):
-    vector = [0.0] * DIMENSIONS
-    vector[axis] = 1.0
-    return vector
-
-
-@pytest.fixture
-def gemini(monkeypatch):
-    """Client Gemini factice injecté à la place du vrai SDK."""
-    client = mock.Mock()
-    client.models.embed_content.return_value = SimpleNamespace(embeddings=[SimpleNamespace(values=unit_vector(0))])
-    client.models.generate_content.return_value = SimpleNamespace(text="Essayez la Test IPA !", function_calls=None)
-    monkeypatch.setattr(ai, "config_client", lambda: client)
-    return client
+pytestmark = pytest.mark.django_db
 
 
 class TestGetEmbedding:
-    def test_returns_vector_values(self, gemini):
+    def test_returns_vector_values(self, mistral):
         assert ai.get_embedding("IPA") == unit_vector(0)
-        assert gemini.models.embed_content.call_args.kwargs["contents"] == "IPA"
+        assert mistral.embeddings.create.call_args.kwargs["inputs"] == ["IPA"]
 
-    def test_embedding_call_has_a_short_timeout(self, gemini):
+    def test_embedding_uses_the_configured_model_with_a_short_timeout(self, mistral, settings):
         ai.get_embedding("IPA")
-        config = gemini.models.embed_content.call_args.kwargs["config"]
-        assert config.http_options.timeout == ai.EMBEDDING_TIMEOUT_MS <= 5000
+        assert mistral.embeddings.create.call_args.kwargs["model"] == settings.MISTRAL_EMBED_MODEL
+        assert settings.EMBEDDING_TIMEOUT_MS <= 5000
 
-    def test_missing_api_key_skips_the_call(self, settings, gemini):
-        settings.GEMINI_API_KEY = None
+    @pytest.mark.django_db
+    def test_missing_api_key_skips_the_call(self, settings, mistral):
+        settings.MISTRAL_API_KEY = None
         assert ai.get_embedding("IPA") is None
-        gemini.models.embed_content.assert_not_called()
+        mistral.embeddings.create.assert_not_called()
 
-    def test_api_failure_returns_none(self):
+    @pytest.mark.django_db
+    def test_api_failure_returns_none(self, mistral):
+        mistral.embeddings.create.side_effect = RuntimeError("down")
+        assert ai.get_embedding("IPA") is None
+
+    @pytest.mark.django_db
+    def test_a_vector_of_the_wrong_size_never_reaches_the_database(self, mistral):
+        mistral.embeddings.create.side_effect = None
+        mistral.embeddings.create.return_value = embeddings_reply()
+        mistral.embeddings.create.return_value.data[0].embedding = [0.1] * 10
         assert ai.get_embedding("IPA") is None
 
 
@@ -90,26 +82,26 @@ class TestBeersContext:
 @pytest.mark.django_db
 class TestAskZythologue:
     def test_unavailable_without_api_key(self, settings):
-        settings.GEMINI_API_KEY = ""
+        settings.MISTRAL_API_KEY = ""
         with pytest.raises(ChatUnavailable):
             ai.ask_zythologue("Bonjour")
 
-    def test_sends_history_then_message_with_catalogue_in_system_prompt(self, gemini, beer):
+    def test_sends_history_then_message_with_catalogue_in_system_prompt(self, mistral, beer):
         history = [{"role": "user", "text": "Salut"}, {"role": "model", "text": "Bonjour !"}]
 
         assert ai.ask_zythologue("Une IPA ?", history).text == "Essayez la Test IPA !"
 
-        call = gemini.models.generate_content.call_args.kwargs
-        assert [(c.role, c.parts[0].text) for c in call["contents"]] == [("user", "Salut"), ("model", "Bonjour !"), ("user", "Une IPA ?")]
-        assert "Test IPA" in call["config"].system_instruction
+        messages = mistral.chat.complete.call_args.kwargs["messages"]
+        assert [(m["role"], m["content"]) for m in messages[1:]] == [("user", "Salut"), ("assistant", "Bonjour !"), ("user", "Une IPA ?")]
+        assert messages[0]["role"] == "system" and "Test IPA" in messages[0]["content"]
 
-    def test_history_is_not_mutated(self, gemini):
+    def test_history_is_not_mutated(self, mistral):
         history = [{"role": "user", "text": "Salut"}]
         ai.ask_zythologue("Encore ?", history)
         assert history == [{"role": "user", "text": "Salut"}]
 
     def test_api_failure_is_reported_to_the_caller(self):
-        with pytest.raises(ChatUnavailable):
+        with pytest.raises(ChatUnavailable):  # sans client factice : l'accès réseau est interdit
             ai.ask_zythologue("Bonjour")
 
     def test_member_text_in_the_catalogue_cannot_break_out_of_its_block(self):
@@ -120,13 +112,15 @@ class TestAskZythologue:
 
 @pytest.mark.django_db
 class TestModelBudget:
-    def test_calls_beyond_the_per_minute_budget_are_refused_before_reaching_gemini(self, gemini, monkeypatch):
+    def test_calls_beyond_the_per_minute_budget_of_every_model_are_refused_before_reaching_mistral(self, mistral, monkeypatch, settings):
         from datetime import timedelta
+        from app.services import llm
         from app.services.chat import ChatBusy
         from app.services.throttle import Rule
-        monkeypatch.setattr(ai, "CHAT_MODEL_CALLS", Rule("chat-model-calls", 2, timedelta(minutes=1)))
-        ai.ask_zythologue("Une IPA ?")
-        ai.ask_zythologue("Une stout ?")
+        monkeypatch.setattr(llm, "CHAT_MODEL_CALLS", Rule("chat-model-calls", 1, timedelta(minutes=1)))
+        settings.CHAT_MODELS = ("modele-a", "modele-b")
+        for _ in range(2):  # chaque modèle a son propre budget : le suivant prend le relais
+            ai.ask_zythologue("Une IPA ?")
         with pytest.raises(ChatBusy):
             ai.ask_zythologue("Une blonde ?")
-        assert gemini.models.generate_content.call_count == 2
+        assert mistral.chat.complete.call_count == 2

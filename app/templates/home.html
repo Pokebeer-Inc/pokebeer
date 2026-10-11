@@ -38,12 +38,12 @@
     {# Gaétan : ouvre la fenêtre de discussion déjà présente dans la page #}
     <button type="button" data-open-chat class="flex items-center gap-3 w-full mt-4 px-4 py-3 rounded-2xl bg-primary text-black text-left hover:brightness-95 active:scale-[0.99] transition">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5m-9 6l2.3-3.45A8 8 0 1112 20H4z" /></svg>
-        <span class="flex-1"><span class="block font-semibold">Demander à Gaétan</span><span class="block text-sm">Posez-lui n'importe quelle question</span></span>
+        <span class="flex-1"><span class="block font-semibold">Demander à Gaétan</span><span class="block text-sm">Posez-lui n'importe quelle question</span>{% include "partials/powered_by.html" with cls="mt-1" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6l6 6-6 6" /></svg>
     </button>
 
     <section aria-labelledby="reco-title">
-        <h2 id="reco-title" class="pb-section"><span>Recommandées pour vous</span><a href="{% url 'discover' %}">Voir tout</a></h2>
+        <h2 id="reco-title" class="pb-section"><span>Recommandées pour vous</span></h2>
         {% if recommended_beers %}
         <div class="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1" style="scrollbar-width: none;" tabindex="0" role="region" aria-label="Bières recommandées">
             {% for beer in recommended_beers %}{% include "partials/beer_mini_card.html" %}{% endfor %}
@@ -53,9 +53,9 @@
         {% endif %}
     </section>
 
-    {# Dernières dégustations : les amis d'abord, complétées par la communauté (5 cartes au plus) #}
+    {# Dernières dégustations : les amis d'abord, complétées par la communauté (10 cartes au plus) #}
     <section aria-labelledby="activity-title">
-        <h2 id="activity-title" class="pb-section"><span>{{ activity_title }}</span><a href="{% url 'activity_feed' %}">Voir tout</a></h2>
+        <h2 id="activity-title" class="pb-section"><span>{{ activity_title }}</span></h2>
         {% if activity %}
         <div class="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1" style="scrollbar-width: none;" tabindex="0" role="region" aria-label="{{ activity_title }}">
             {% for tasting in activity %}{% include "partials/activity_card.html" %}{% endfor %}

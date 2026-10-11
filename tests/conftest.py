@@ -9,6 +9,7 @@ from django.test import Client
 
 from app.models import BeerUser
 from tests import factories
+from tests.fakes import mistral as fake_mistral
 
 
 def _network_disabled(*args, **kwargs):
@@ -17,16 +18,15 @@ def _network_disabled(*args, **kwargs):
 
 @pytest.fixture(autouse=True)
 def isolated_services(settings, monkeypatch):
-    """Aucun test ne doit joindre Gemini, Supabase, S3 ou Firebase, ni dépendre de secrets réels."""
-    settings.GEMINI_API_KEY = "test-gemini-key"
+    """Aucun test ne doit joindre Mistral, Supabase, S3 ou Firebase, ni dépendre de secrets réels."""
+    settings.MISTRAL_API_KEY = "test-mistral-key"
     settings.SUPABASE_URL = None
     settings.SUPABASE_ANON_KEY = None
     settings.SUPABASE_SERVICE_ROLE_KEY = None
     settings.STORAGES = {**settings.STORAGES, "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"}}
     # Le champ garde le stockage résolu à l'import : on le remplace par un stockage mémoire (jamais le vrai bucket)
     monkeypatch.setattr(BeerUser._meta.get_field("avatar"), "storage", InMemoryStorage())
-    monkeypatch.setattr("app.services.ai.config_client", _network_disabled)
-    monkeypatch.setattr("app.views.api_views.config_client", _network_disabled)
+    monkeypatch.setattr("app.services.llm.get_client", _network_disabled)
     monkeypatch.setattr("app.services.realtime_service.requests.post", mock.Mock(side_effect=_network_disabled))
     monkeypatch.setattr("app.services.realtime_service.firebase_admin._apps", {})
 
@@ -157,3 +157,11 @@ def _clear_cache():
     cache.clear()
     yield
     cache.clear()
+
+
+@pytest.fixture
+def mistral(monkeypatch):
+    """Client Mistral factice injecté à la place du vrai SDK (discussion, embeddings, recherche web)."""
+    client = fake_mistral()
+    monkeypatch.setattr("app.services.llm.get_client", lambda *args, **kwargs: client)
+    return client

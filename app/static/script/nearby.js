@@ -128,6 +128,7 @@
         function requestPosition() {
             navigator.geolocation.getCurrentPosition(position => {
                 state.position = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+                if (window.PokebeerPosition) window.PokebeerPosition.remember(state.position.latitude, state.position.longitude);  // le chat la réutilise sans redemander
                 loadDirectory(root.dataset.url)
                     .then(places => { state.places = places; render(); })
                     .catch(() => fail('Impossible de charger les lieux. Réessayez.'));

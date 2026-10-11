@@ -1,7 +1,7 @@
 """Constructeurs d'objets métier pour les tests.
 
 Chaque fonction crée un objet valide avec des valeurs par défaut uniques ; tout champ
-peut être surchargé par mot-clé. Les appels réseau déclenchés par les save() (Gemini,
+peut être surchargé par mot-clé. Les appels réseau déclenchés par les save() (Mistral,
 Nominatim) sont neutralisés par les fixtures autouse de conftest.py.
 """
 from decimal import Decimal

@@ -19,7 +19,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--reset", action="store_true", help="Vide entièrement la base avant de la remplir.")
         parser.add_argument("--seed", type=int, default=42, help="Graine aléatoire (données reproductibles).")
-        parser.add_argument("--embed", action="store_true", help="Calcule ensuite les embeddings Gemini (appels API réels).")
+        parser.add_argument("--embed", action="store_true", help="Calcule ensuite les embeddings Mistral (appels API réels).")
 
     def handle(self, *args, reset, seed, embed, **options):
         try:

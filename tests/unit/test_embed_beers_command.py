@@ -10,12 +10,12 @@ from tests import factories as f
 
 pytestmark = pytest.mark.django_db
 
-VECTOR = [1.0] + [0.0] * 3071
+VECTOR = [1.0] + [0.0] * 1023
 
 
 def run(*args):
     out = StringIO()
-    call_command("embed_beers", *args, stdout=out)
+    call_command("embed_beers", "--pause", "0", *args, stdout=out)
     return out.getvalue()
 
 
@@ -23,16 +23,18 @@ def run(*args):
 def embedder(monkeypatch):
     calls = []
 
-    def fake(text):
-        calls.append(text)
-        return VECTOR
+    def fake(texts, budgeted=True):
+        if budgeted:  # les enregistrements de bière (Beer.save) échouent : seule la commande vectorise
+            return None
+        calls.extend(texts)
+        return [VECTOR for _ in texts]
 
-    monkeypatch.setattr("app.management.commands.embed_beers.get_embedding", fake)
+    monkeypatch.setattr("app.management.commands.embed_beers.llm.embed", fake)
     return calls
 
 
 def test_missing_api_key_is_refused(settings):
-    settings.GEMINI_API_KEY = ""
+    settings.MISTRAL_API_KEY = ""
     with pytest.raises(CommandError):
         run()
 
@@ -57,7 +59,20 @@ def test_all_option_recomputes_every_active_beer(embedder, monkeypatch):
 
 
 def test_failures_are_reported_and_left_for_a_retry(monkeypatch):
-    monkeypatch.setattr("app.management.commands.embed_beers.get_embedding", lambda text: None)
+    monkeypatch.setattr("app.management.commands.embed_beers.llm.embed", lambda texts, budgeted=True: None)
     beer = f.make_beer()
     assert "1 échec(s)" in run()
     assert Beer.objects.get(pk=beer.pk).embedding is None
+
+
+def test_beers_are_embedded_in_batches(embedder, monkeypatch):
+    from app.services import llm
+    monkeypatch.setattr(llm, "EMBED_BATCH_SIZE", 2)
+    monkeypatch.setattr("app.management.commands.embed_beers.llm.EMBED_BATCH_SIZE", 2)
+    calls = []
+    monkeypatch.setattr(ai, "get_embedding", lambda text: None)
+    for _ in range(5):
+        f.make_beer()
+    monkeypatch.setattr("app.management.commands.embed_beers.llm.embed", lambda texts, budgeted=True: calls.append((len(texts), budgeted)) or [VECTOR for _ in texts])
+    run()
+    assert calls == [(2, False), (2, False), (1, False)]  # par lots, hors du budget par minute du chat

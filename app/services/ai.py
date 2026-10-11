@@ -1,42 +1,22 @@
 import logging
 
-from google import genai
-from google.genai import types
 from django.conf import settings
 from pgvector.django import CosineDistance
 from ..models import Beer
-from .chat import ChatBusy, ChatUnavailable, engine, prompt, sanitize
+from . import label_scan, llm
+from .chat import ChatUnavailable, engine, prompt, sanitize
 from .chat.tools import build_tools
-from .throttle import CHAT_GLOBAL_KEY, CHAT_MODEL_CALLS
 
 logger = logging.getLogger(__name__)
 
 CONTEXT_SIZE = 10
-# Appelé depuis des requêtes web (Beer.save) : on abandonne vite plutôt que de bloquer la fonction serverless
-EMBEDDING_TIMEOUT_MS = 3000
 
-# Initialisation du client avec la clé définie dans settings.py
-def config_client():
-    return genai.Client(api_key=settings.GEMINI_API_KEY)
 
 def get_embedding(text):
-    """Transforme un texte en vecteur mathématique (3072 dimensions, comme `Beer.embedding`) avec Gemini."""
-    if not settings.GEMINI_API_KEY:
-        logger.error("GEMINI_API_KEY est introuvable.")
-        return None
-        
-    try:
-        client = config_client()
-        response = client.models.embed_content(
-            model='gemini-embedding-001',
-            contents=text,
-            config=types.EmbedContentConfig(http_options=types.HttpOptions(timeout=EMBEDDING_TIMEOUT_MS)),
-        )
-        return response.embeddings[0].values
-        
-    except Exception as e:
-        logger.warning("Embedding Gemini en échec : %s", type(e).__name__)
-        return None
+    """Transforme un texte en vecteur (`settings.EMBEDDING_DIMENSIONS` dimensions, comme `Beer.embedding`) avec Mistral ; None en cas d'échec."""
+    vectors = llm.embed([text])
+    return vectors[0] if vectors else None
+
 
 def _select_beers(user_message, limit=CONTEXT_SIZE):
     """Recherche Vectorielle (Sémantique) avec pgvector, complétée par les bières pas encore vectorisées."""
@@ -71,27 +51,27 @@ def _format_beers_context(user_message):
     return "\n".join(lines)
 
 
-def _reserve_model_call():
-    """Chaque appel à Gemini compte dans le budget par minute de toute l'application : au-delà, mieux vaut répondre « occupé » que subir un refus."""
-    if CHAT_MODEL_CALLS.exceeded(CHAT_GLOBAL_KEY):
-        raise ChatBusy
-    CHAT_MODEL_CALLS.record(CHAT_GLOBAL_KEY)
-
-
 def ask_zythologue(user_message, history=None, location=None):
     """Réponse de Gaétan. `location` (Coordinates ou None) sert aux questions de lieux et n'est ni transmise à Google ni conservée.
 
     Lève ChatUnavailable si le service ne peut pas répondre : l'appelant ne doit alors rien enregistrer.
     """
-    if not settings.GEMINI_API_KEY:
-        raise ChatUnavailable("Clé Gemini manquante")
+    if not settings.MISTRAL_API_KEY:
+        raise ChatUnavailable("Clé Mistral manquante")
 
     message = sanitize.clean_text(user_message, settings.CHAT_MESSAGE_MAX_LENGTH)
     turns = sanitize.clean_history(history, settings.CHAT_HISTORY_LIMIT, settings.CHAT_MESSAGE_MAX_LENGTH)
     system_prompt = prompt.build_system_prompt(_format_beers_context(message))
     try:
-        client = config_client()
+        client = llm.get_client()
     except Exception as error:
-        logger.warning("Client Gemini impossible à créer : %s", type(error).__name__)
+        logger.warning("Client Mistral impossible à créer : %s", type(error).__name__)
         raise ChatUnavailable from error
-    return engine.converse(client, system_prompt, turns, message, build_tools(location), _reserve_model_call)
+    return engine.converse(client, system_prompt, turns, message, build_tools(location), llm.reserve_call)
+
+
+def analyze_label(image_bytes):
+    """Bière lue sur l'étiquette (label_scan.Reading : {name, brewery, style, degree, bitterness} et l'origine de ce qui n'était pas imprimé), ou None.
+
+    Lève ValueError si la réponse du modèle est inutilisable et toute autre exception si le service est en panne : l'appelant rembourse alors l'essai."""
+    return label_scan.analyze(llm.get_client(settings.LABEL_TIMEOUT_MS), image_bytes, llm.reserve_call)

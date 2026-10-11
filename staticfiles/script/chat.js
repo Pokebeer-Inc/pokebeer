@@ -5,6 +5,8 @@ const chatInput = document.getElementById('chat-input');
 const chatMessages = document.getElementById('chat-messages');
 const chatOverlay = document.getElementById('chat-overlay');
 const chatSend = document.getElementById('chat-send');
+const chatReset = document.getElementById('chat-reset');
+const CHAT_WELCOME_HTML = chatMessages.innerHTML;  // message d'accueil et questions de départ, rendus par la page
 
 // Ouvrir / Fermer le chat et le fond
 chatToggle.addEventListener('click', () => {
@@ -55,58 +57,44 @@ function addToChat(html) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Position : réservée à la demande du membre (bouton), lue à chaque envoi et gardée en mémoire seulement le temps de l'envoi.
-// Le serveur l'arrondit (~1 km) et ne l'enregistre pas.
-const chatLocationButton = document.getElementById('chat-location');
-const CHAT_LOCATION_KEY = 'chat-location-enabled';
-const CHAT_LOCATION_OPTIONS = { enableHighAccuracy: false, maximumAge: 300000, timeout: 8000 };
+// Position : lue sans invite quand elle est déjà connue (page « Autour de vous », autorisation accordée) et jointe au message ; sinon Gaétan
+// la demande seulement s'il en a besoin, avec un bouton qui renvoie la même question. Le serveur l'arrondit (~1 km) et ne l'enregistre pas.
+const LOCATION_ERRORS = {
+    denied: "Position refusée : autorisez la localisation pour Pokebeer dans les réglages, ou citez une ville dans votre question.",
+    unavailable: "Position introuvable. Citez une ville dans votre question.",
+};
+let pendingLocationMessage = null;  // la demande qui attend la position
 
-function locationEnabled() {
-    try { return sessionStorage.getItem(CHAT_LOCATION_KEY) === '1'; } catch (e) { return false; }
+function locationBubble(markdown) {
+    return `
+            <div class="chat chat-start">
+                <div class="chat-bubble bg-primary text-black shadow-sm text-sm markdown-content">${renderMarkdown(markdown)}
+                    <button type="button" class="btn btn-xs btn-outline mt-2 text-black border-black" data-chat-locate>Activer ma position</button>
+                </div>
+            </div>`;
 }
 
-function setLocationEnabled(enabled) {
-    try { sessionStorage.setItem(CHAT_LOCATION_KEY, enabled ? '1' : '0'); } catch (e) { /* stockage indisponible : réglage non mémorisé */ }
-    chatLocationButton.setAttribute('aria-pressed', String(enabled));
-    chatLocationButton.classList.toggle('btn-primary', enabled);
-    chatLocationButton.classList.toggle('btn-outline', !enabled);
-    chatLocationButton.classList.toggle('text-black', enabled);  // le texte du bouton plein est clair sur le jaune du thème
+async function locateAndResend(button) {
+    const message = pendingLocationMessage;
+    if (!message) return;
+    button.disabled = true;
+    const position = await PokebeerPosition.request();  // déclenche la demande d'autorisation du navigateur
+    if (position.error) {
+        button.disabled = false;
+        return addToChat(errorBubble(LOCATION_ERRORS[position.error]));
+    }
+    button.remove();
+    sendMessage(message, { resend: true, position });
 }
 
-function readPosition() {
-    return new Promise(resolve => {
-        if (!navigator.geolocation) return resolve({ error: "La localisation n'est pas disponible sur cet appareil." });
-        navigator.geolocation.getCurrentPosition(
-            position => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
-            error => resolve({ error: error.code === 1
-                ? "Position refusée : autorisez la localisation pour Pokebeer dans les réglages, ou citez une ville dans votre question."
-                : "Position introuvable. Citez une ville dans votre question." }),
-            CHAT_LOCATION_OPTIONS,
-        );
-    });
-}
-
-// Vrai quand la dernière réponse de Gaétan attendait la position du membre : l'activer relance alors la conversation
-let awaitingLocation = false;
-const LOCATION_RESUME_MESSAGE = "J'ai activé ma position, reprends ma demande précédente.";
-
-chatLocationButton.addEventListener('click', async () => {
-    if (locationEnabled()) return setLocationEnabled(false);
-    const position = await readPosition();  // déclenche la demande d'autorisation du navigateur
-    if (position.error) return addToChat(errorBubble(position.error));
-    setLocationEnabled(true);
-    if (awaitingLocation) return sendMessage(LOCATION_RESUME_MESSAGE);
-    addToChat(modelBubble("Position activée : je peux chercher des bars et brasseries autour de vous. Elle n'est jamais enregistrée."));
-});
-
-async function sendMessage(text) {
+async function sendMessage(text, { resend = false, position = null } = {}) {
     const msg = (text ?? chatInput.value).trim();
     if (!msg || chatSend.disabled) return;
 
     chatSend.disabled = true;
     document.getElementById('chat-suggestions')?.remove();
-    addToChat(userBubble(msg));
-    chatInput.value = '';
+    if (!resend) addToChat(userBubble(msg));
+    if (!resend) chatInput.value = '';
 
     const loadingId = 'loading-' + Date.now();
     addToChat(`
@@ -118,10 +106,8 @@ async function sendMessage(text) {
 
     try {
         const body = { message: msg };
-        if (locationEnabled()) {
-            const position = await readPosition();
-            if (!position.error) body.location = position;
-        }
+        const location = position || await PokebeerPosition.silent();
+        if (location) body.location = { lat: location.lat, lng: location.lng };
         const res = await fetch(chatWindow.dataset.url, {
             method: 'POST',
             headers: {
@@ -133,8 +119,9 @@ async function sendMessage(text) {
         const data = await res.json();
         document.getElementById(loadingId)?.remove();
         // Un refus (quota, message invalide, service indisponible) n'est pas une réponse de Gaétan
-        awaitingLocation = res.ok && data.needs_location === true;
-        addToChat(res.ok ? modelBubble(data.response) : errorBubble(data.response));
+        const needsLocation = res.ok && data.needs_location === true;
+        pendingLocationMessage = needsLocation ? msg : null;
+        addToChat(!res.ok ? errorBubble(data.response) : needsLocation ? locationBubble(data.response) : modelBubble(data.response));
     } catch (err) {
         document.getElementById(loadingId)?.remove();
         addToChat(errorBubble("La cave est fermée, impossible de joindre Gaétan."));
@@ -143,6 +130,27 @@ async function sendMessage(text) {
     }
 }
 
+// Nouvelle conversation : le serveur oublie l'historique, la fenêtre retrouve l'accueil et ses questions de départ
+chatReset.addEventListener('click', async () => {
+    if (chatSend.disabled || chatReset.disabled) return;
+    chatReset.disabled = true;
+    try {
+        const res = await fetch(chatWindow.dataset.url, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
+            credentials: 'same-origin'
+        });
+        if (!res.ok) throw new Error('reset');
+        pendingLocationMessage = null;
+        chatMessages.innerHTML = CHAT_WELCOME_HTML;
+        chatInput.value = '';
+    } catch (err) {
+        addToChat(errorBubble("Impossible de réinitialiser la conversation. Réessayez."));
+    } finally {
+        chatReset.disabled = false;
+    }
+});
+
 chatSend.addEventListener('click', () => sendMessage());
 chatInput.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.isComposing) sendMessage();
@@ -150,10 +158,11 @@ chatInput.addEventListener('keydown', e => {
 chatMessages.addEventListener('click', e => {
     const suggestion = e.target.closest('[data-chat-suggestion]');
     if (suggestion) sendMessage(suggestion.dataset.chatSuggestion);
+    const locate = e.target.closest('[data-chat-locate]');
+    if (locate) locateAndResend(locate);
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-    setLocationEnabled(locationEnabled());
     try {
         const res = await fetch(chatWindow.dataset.url, {
             method: 'GET',

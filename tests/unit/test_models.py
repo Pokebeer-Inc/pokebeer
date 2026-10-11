@@ -36,12 +36,12 @@ class TestBeerEmbedding:
 
     def test_save_stores_embedding_built_from_beer_profile(self, monkeypatch):
         received = []
-        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: received.append(text) or [0.5] * 3072)
+        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: received.append(text) or [0.5] * 1024)
 
         beer = f.make_beer(name="Rousse", style="Amber", description="Caramel", brewery=f.make_brewery(name="Mont"))
 
         beer.refresh_from_db()
-        assert len(beer.embedding) == 3072
+        assert len(beer.embedding) == 1024
         assert all(keyword in received[0] for keyword in ("Rousse", "Mont", "Amber", "Caramel"))
 
 
@@ -49,7 +49,7 @@ class TestBeerEmbeddingRefresh:
     @pytest.fixture
     def embed_calls(self, monkeypatch):
         calls = []
-        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: calls.append(text) or [0.5] * 3072)
+        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: calls.append(text) or [0.5] * 1024)
         return calls
 
     @pytest.fixture
@@ -65,7 +65,7 @@ class TestBeerEmbeddingRefresh:
             beer.save()
 
     @pytest.mark.parametrize("changes", [{"is_deleted": True}, {"degree": 7}, {"bitterness": 40}])
-    def test_unrelated_changes_do_not_call_gemini(self, embedded_beer, embed_calls, django_capture_on_commit_callbacks, changes):
+    def test_unrelated_changes_do_not_call_mistral(self, embedded_beer, embed_calls, django_capture_on_commit_callbacks, changes):
         self.save(embedded_beer, django_capture_on_commit_callbacks, **changes)
         assert embed_calls == []
 
@@ -77,7 +77,7 @@ class TestBeerEmbeddingRefresh:
     def test_beer_without_vector_is_retried_on_next_save(self, embed_calls, monkeypatch, django_capture_on_commit_callbacks):
         monkeypatch.setattr("app.services.ai.get_embedding", lambda text: None)
         beer = f.make_beer()
-        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: embed_calls.append(text) or [0.5] * 3072)
+        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: embed_calls.append(text) or [0.5] * 1024)
         self.save(beer, django_capture_on_commit_callbacks, degree=6)
         assert len(embed_calls) == 1
 

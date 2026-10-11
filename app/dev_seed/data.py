@@ -84,6 +84,14 @@ BREWERIES = [
         ],
     },
     {
+        "name": "Brasserie de l'Ours Doré", "address": "12 Rue des Tanneurs, 67000 Strasbourg",
+        "latitude": 48.5839, "longitude": 7.7455,
+        "description": "Brasserie artisanale alsacienne (sert aussi à tester le trophée « Ours doré »).",
+        "beers": [
+            ("Ours Blonde", "Blonde", 5.0, 18, "Fruitée, légère et désaltérante."),
+        ],
+    },
+    {
         "name": "Brasserie de l'Estuaire", "address": "2 Quai de la Fosse, 44000 Nantes",
         "latitude": 47.2120, "longitude": -1.5620,
         "description": "Brasserie expérimentale en bord de Loire.",

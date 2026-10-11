@@ -194,22 +194,14 @@ def _community_tastings(user):
     return _visible_tastings(user).exclude(drinker_id=user).exclude(drinker_id__in=_followed_ids(user))
 
 
-def get_activity(user, limit=5, offset=0):
+def get_activity(user, limit=10):
     """Fil d'activité : les dégustations des amis d'abord (les plus récentes), puis celles de la communauté pour compléter.
 
-    Chaque dégustation reçoit `is_friend`. Au premier chargement : une requête pour les amis, une seconde seulement s'il faut
-    compléter. Pour les pages suivantes, un comptage des dégustations d'amis place la frontière entre les deux listes.
+    Chaque dégustation reçoit `is_friend`. Une requête pour les amis, une seconde seulement s'il faut compléter.
     """
-    friends_qs = _friends_tastings(user)
-    if offset == 0:
-        friends = list(friends_qs[:limit])
-        community_offset = 0
-    else:
-        friends_count = friends_qs.count()
-        friends = list(friends_qs[offset:offset + limit]) if offset < friends_count else []
-        community_offset = max(0, offset - friends_count)
+    friends = list(_friends_tastings(user)[:limit])
     missing = limit - len(friends)
-    community = list(_community_tastings(user)[community_offset:community_offset + missing]) if missing > 0 else []
+    community = list(_community_tastings(user)[:missing]) if missing > 0 else []
     for tasting in friends:
         tasting.is_friend = True
     for tasting in community:

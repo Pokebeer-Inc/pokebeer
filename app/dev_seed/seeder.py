@@ -25,7 +25,7 @@ MANAGED_ESTABLISHMENTS = 2
 class DevDatabaseSeeder:
     """Remplit une base vide avec un jeu de données cohérent et reproductible.
 
-    Tout passe par bulk_create : les save() des modèles appellent Gemini (embeddings)
+    Tout passe par bulk_create : les save() des modèles appellent Mistral (embeddings)
     et Nominatim (géocodage), et les signaux d'attribution des rôles ne sont pas
     déclenchés. Leur effet (groupes) est donc reproduit explicitement ici.
     """

@@ -121,7 +121,7 @@ class TestFindPlacesTool:
 
     def test_without_any_position_the_model_is_told_to_ask(self, overpass):
         result = FindPlacesTool(None).run({})
-        assert "localisation" in result["error"] and result["needs_location"] is True
+        assert "position" in result["error"].lower() and result["needs_location"] is True
         overpass.assert_not_called()
 
     def test_an_unknown_named_place_does_not_ask_for_the_position(self, monkeypatch):
@@ -136,7 +136,7 @@ class TestFindPlacesTool:
 
     def test_declaration_is_exposed_by_the_registry(self):
         (tool,) = build_tools(PARIS).values()
-        assert tool.declaration().name == "find_places"
+        assert tool.declaration()["function"]["name"] == "find_places"
 
 
 class TestGeocoding:

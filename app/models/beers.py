@@ -1,7 +1,8 @@
 """Bières, dégustations, réactions et carnets."""
 
 from django.core.validators import MaxValueValidator, MinValueValidator
-from pgvector.django import VectorField
+from django.conf import settings
+from pgvector.django import HnswIndex, VectorField
 from datetime import date
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models, transaction
@@ -33,12 +34,16 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     # Code-barres EAN lu à l'ajout : une prochaine lecture retrouve la bière dans le catalogue, sans service extérieur
     ean = models.CharField(max_length=13, null=True, blank=True, editable=False, verbose_name="Code-barres EAN")
 
-    embedding = VectorField(dimensions=3072, null=True, blank=True)
+    embedding = VectorField(dimensions=settings.EMBEDDING_DIMENSIONS, null=True, blank=True)
 
     class Meta:
         verbose_name = "Bière"
         ordering = ['name']
-        indexes = [GinIndex(fields=['match_key'], name='beer_match_key_trgm', opclasses=['gin_trgm_ops'])]
+        indexes = [
+            GinIndex(fields=['match_key'], name='beer_match_key_trgm', opclasses=['gin_trgm_ops']),
+            # Recherche sémantique du chat : possible depuis que les vecteurs font 1024 dimensions (pgvector n'indexe pas au-delà de 2000)
+            HnswIndex(name='beer_embedding_hnsw', fields=['embedding'], m=16, ef_construction=64, opclasses=['vector_cosine_ops']),
+        ]
         constraints = [
             # Un nom par brasserie (deux brasseries peuvent avoir chacune leur « Blonde »). Une bière retirée du catalogue libère son
             # nom ; le slug reste unique pour garder ses anciennes URLs. Les noms proches sont traités par services/catalog_matching.py.
@@ -97,7 +102,7 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
         if needs_embedding:
             self._embedded_sources = self._embedding_sources()
             # Après la validation de la transaction en cours : jamais d'appel réseau pendant qu'elle est ouverte.
-            # En cas d'échec Gemini, le vecteur reste absent : `embed_beers` ou le prochain save le rattrape.
+            # En cas d'échec de l'embedding, le vecteur reste absent : `embed_beers` ou le prochain save le rattrape.
             transaction.on_commit(self._refresh_embedding)
 
 class Drinks(models.Model):

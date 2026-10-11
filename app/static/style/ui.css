@@ -51,7 +51,7 @@
 .pb-set.is-danger { color: var(--color-error); font-weight: 600; }
 .pb-set.is-danger:hover { background: color-mix(in oklab, var(--color-error) 12%, transparent); }
 
-/* Glissement des onglets (tab_bar.js et tab_slide.js) */
+/* Glissement des onglets (tab_slide.js) */
 @keyframes slideInRight {
     from { opacity: 0; transform: translateX(15px); }
     to { opacity: 1; transform: translateX(0); }

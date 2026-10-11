@@ -62,7 +62,7 @@ PROTECTED_ROUTES = [
     ("chat_api", {}, GET),
     ("chat_api", {}, POST),
     ("api_unread_notifications", {}, GET),
-    ("load_more_generic", {"item_type": "unrated_beers"}, GET),
+    ("load_more_generic", {"item_type": "search_beers"}, GET),
     ("api_search_users_for_manager", {"brewery_slug": "some-slug"}, GET),
     ("api_search_users_for_bar_manager", {"bar_slug": "some-slug"}, GET),
     ("api_update_fcm_token", {}, POST),

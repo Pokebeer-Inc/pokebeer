@@ -35,24 +35,12 @@ class TestHomeSearchAndFriends:
 
         assert auth_client.get(reverse("index")).context["activity"] == []
 
-    def test_friends_feed_is_newest_first_and_capped(self, auth_client, user, other_user):
+    def test_friends_feed_is_newest_first(self, auth_client, user, other_user):
         f.follow(user, other_user)
         for index in range(7):
             f.make_drink(other_user, f.make_beer(), note=5, date=date(2024, 1, index + 1))
         feed = auth_client.get(reverse("index")).context["activity"]
-        assert len(feed) == 5 and [t.date.day for t in feed] == [7, 6, 5, 4, 3]
-
-    def test_friends_page_lists_more_and_paginates(self, auth_client, user, other_user):
-        f.follow(user, other_user)
-        for _ in range(12):
-            f.make_drink(other_user, f.make_beer(), note=6)
-        page = auth_client.get(reverse("activity_feed"))
-        assert len(page.context["activity"]) == 10 and page.context["page_full"]
-        more = auth_client.get(reverse("load_more_generic", args=["activity"]), {"offset": 10}).json()
-        assert more["html"].count("<li") == 2 and more["has_more"] is False
-
-    def test_friends_page_requires_a_login(self, client):
-        assert client.get(reverse("activity_feed")).status_code == 302
+        assert len(feed) == 7 and [t.date.day for t in feed] == [7, 6, 5, 4, 3, 2, 1]
 
     def test_home_query_count_does_not_grow_with_friends(self, auth_client, user, django_assert_max_num_queries):
         friends = [f.make_user() for _ in range(5)]
@@ -80,40 +68,6 @@ class TestHomeSearchAndFriends:
         assert response.context["searching"] is True
         assert "Zythos Unique" in body
         assert 'id="home-sections" class="hidden"' in body
-
-
-class TestDiscover:
-    def test_unrated_beers_exclude_mine_and_deleted_and_are_capped(self, auth_client, user, beer):
-        for _ in range(HOME_LIMIT + 1):
-            f.make_beer()
-        f.make_beer(is_deleted=True)
-        f.make_drink(user, beer)
-
-        unrated = auth_client.get(reverse("discover")).context["unrated_beers"]
-
-        assert len(unrated) == HOME_LIMIT
-        assert beer not in unrated
-
-    def test_rankings_only_contain_rated_active_beers(self, auth_client, other_user):
-        best, good, deleted = f.make_beer(name="Best"), f.make_beer(name="Good"), f.make_beer(is_deleted=True)
-        f.make_beer(name="Unrated")
-        f.make_drink(other_user, best, note=9)
-        f.make_drink(other_user, good, note=6, date=date(2000, 1, 1))
-        f.make_drink(other_user, deleted, note=10)
-
-        context = auth_client.get(reverse("discover")).context
-
-        assert [b.name for b in context["top"]] == ["Best", "Good"]
-        assert [b.name for b in context["topMonth"]] == ["Best"]
-
-    def test_rankings_are_capped_at_ten(self, auth_client, other_user):
-        for _ in range(HOME_LIMIT + 2):
-            f.make_drink(other_user, note=5)
-        assert len(auth_client.get(reverse("discover")).context["top"]) == HOME_LIMIT
-
-    def test_wishlist_flags_only_displayed_beers(self, auth_client, user, beer):
-        user.wishlist_beers.add(beer)
-        assert auth_client.get(reverse("discover")).context["wishlist_beer_ids"] == [beer.id]
 
 
 class TestHome:
@@ -188,14 +142,6 @@ class TestCommunityFallback:
         f.make_drink(fine, f.make_beer(name="Visible"), note=5, comment="ok")
         assert [t.beer_id.name for t in auth_client.get(reverse("index")).context["activity"]] == ["Visible"]
 
-    def test_community_page_paginates_with_a_stable_source(self, auth_client, other_user):
-        for _ in range(12):
-            f.make_drink(other_user, f.make_beer(), note=6)
-        page = auth_client.get(reverse("activity_feed"))
-        assert "La communauté a goûté" in page.content.decode() and page.context["page_full"]
-        more = auth_client.get(reverse("load_more_generic", args=["activity"]), {"offset": 10}).json()
-        assert more["html"].count("<li") == 2
-
     def test_community_home_query_count_is_bounded(self, auth_client, other_user, django_assert_max_num_queries):
         for _ in range(8):
             f.make_drink(f.make_user(), f.make_beer(), note=7)
@@ -204,7 +150,7 @@ class TestCommunityFallback:
 
 
 class TestActivityCards:
-    def test_friends_come_first_and_the_community_completes_to_five(self, auth_client, user, other_user):
+    def test_friends_come_first_and_the_community_completes_to_ten(self, auth_client, user, other_user):
         f.follow(user, other_user)
         stranger = f.make_user()
         f.make_drink(other_user, f.make_beer(name="Ami ancien"), note=8, date=date(2020, 1, 1))
@@ -215,18 +161,18 @@ class TestActivityCards:
         context = auth_client.get(reverse("index")).context
         names = [t.beer_id.name for t in context["activity"]]
 
-        assert names[:2] == ["Ami récent", "Ami ancien"] and len(names) == 5
-        assert [t.is_friend for t in context["activity"]] == [True, True, False, False, False]
-        assert names[2:] == ["Inconnu 4", "Inconnu 3", "Inconnu 2"]
+        assert names[:2] == ["Ami récent", "Ami ancien"] and len(names) == 7
+        assert [t.is_friend for t in context["activity"]] == [True, True] + [False] * 5
+        assert names[2:] == ["Inconnu 4", "Inconnu 3", "Inconnu 2", "Inconnu 1", "Inconnu 0"]
         assert context["activity_kind"] == "mixed" and context["activity_title"] == "Vos amis et la communauté"
 
-    def test_with_more_than_five_friend_tastings_only_the_latest_five_are_shown(self, auth_client, user, other_user):
+    def test_with_more_than_ten_friend_tastings_only_the_latest_ten_are_shown(self, auth_client, user, other_user):
         f.follow(user, other_user)
-        for index in range(8):
+        for index in range(12):
             f.make_drink(other_user, f.make_beer(name=f"Ami {index}"), note=7, date=date(2024, 2, index + 1))
         f.make_drink(f.make_user(), f.make_beer(name="Inconnu"), note=7)
         names = [t.beer_id.name for t in auth_client.get(reverse("index")).context["activity"]]
-        assert names == ["Ami 7", "Ami 6", "Ami 5", "Ami 4", "Ami 3"]
+        assert names == [f"Ami {index}" for index in range(11, 1, -1)]
 
     def test_the_card_shows_the_member_avatar_and_keeps_the_recommendation_pattern(self, auth_client, other_user):
         f.make_drink(other_user, f.make_beer(name="Carte Test"), note=9)
@@ -235,20 +181,6 @@ class TestActivityCards:
         card = html[html.rindex("<a ", 0, at):html.index("</a>", at)]
         assert "absolute top-1.5 right-1.5" in card and other_user.avatar_url in card
         assert "w-[44%]" in card and "snap-start" in card
-
-    def test_full_page_continues_across_the_friends_and_community_boundary(self, auth_client, user, other_user):
-        f.follow(user, other_user)
-        for index in range(3):
-            f.make_drink(other_user, f.make_beer(name=f"Ami {index}"), note=7, date=date(2024, 3, index + 1))
-        for index in range(12):
-            f.make_drink(f.make_user(), f.make_beer(name=f"Inconnu {index}"), note=6, date=date(2025, 1, 1))
-        first = auth_client.get(reverse("activity_feed")).context["activity"]
-        assert [t.is_friend for t in first] == [True] * 3 + [False] * 7
-        more = auth_client.get(reverse("load_more_generic", args=["activity"]), {"offset": 10}).json()
-        assert more["html"].count("<li") == 5 and more["has_more"] is False
-        all_names = [t.beer_id.name for t in first]
-        assert len(set(all_names)) == 10  # pas de doublon entre amis et communauté
-
 
 class TestHomeNearbyAndGaetan:
     def test_nearby_section_is_rendered_directly_with_the_100_km_rule(self, auth_client):
