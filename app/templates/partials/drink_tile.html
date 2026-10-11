@@ -1,14 +1,14 @@
 <div class="bg-white rounded-lg p-3 relative overflow-hidden flex flex-col shadow-sm border border-base-200 hover:bg-base-200 active:scale-[0.98] transition-all">
-    <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="absolute inset-0 z-0"></a>
+    <a href="{% url 'beer_detail' drink.beer.slug %}" class="absolute inset-0 z-0"></a>
 
     {% if not drink.photo %}{# la photo de la dégustation illustre déjà la carte #}
-    {% include "partials/beer_thumb.html" with beer=drink.beer_id cover=True %}
+    {% include "partials/beer_thumb.html" with beer=drink.beer cover=True %}
     {% endif %}
 
     <div class="flex items-start gap-3">
     {% if is_editable %}
     <!-- Mode modifiable (Mon propre carnet) -->
-    <button onclick="document.getElementById('modalEditDrink-{{ drink.slug }}').showModal()" class="shrink-0 flex flex-col items-center gap-1 hover:scale-110 transition-transform z-10 relative">
+    <button data-modal-open="modalEditDrink-{{ drink.slug }}" class="shrink-0 flex flex-col items-center gap-1 hover:scale-110 transition-transform z-10 relative">
         {% if drink.note is not null %}
         <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-sm bg-base-100 shadow-sm
         {% if drink.note >= 8 %} border-success text-success {% elif drink.note >= 5 %} border-warning text-warning {% else %} border-error text-error {% endif %}">
@@ -41,8 +41,8 @@
 
     <div class="flex-1 min-w-0 pointer-events-none">
         <h4 class="font-bold text-sm leading-tight text-gray-900">
-            {{ drink.beer_id.name }}
-            {% if drink.beer_id.is_deleted %}
+            {{ drink.beer.name }}
+            {% if drink.beer.is_deleted %}
             <span class="badge badge-error badge-xs ml-1 font-normal opacity-80">Retirée du catalogue</span>
             {% endif %}
         </h4>

@@ -23,9 +23,9 @@ def split_styles(raw):
 def style_stats(drinks):
     """{style: (nombre de dégustations, somme des notes, nombre de notes)} sur un queryset de dégustations."""
     stats = defaultdict(lambda: [0, 0.0, 0])
-    rows = drinks.values('beer_id__style').annotate(n=Count('pk'), rated=Count('note'), avg=Avg('note'))
+    rows = drinks.values('beer__style').annotate(n=Count('pk'), rated=Count('note'), avg=Avg('note'))
     for row in rows:
-        for style in split_styles(row['beer_id__style']):
+        for style in split_styles(row['beer__style']):
             stats[style][0] += row['n']
             stats[style][1] += (row['avg'] or 0) * row['rated']
             stats[style][2] += row['rated']
@@ -76,8 +76,8 @@ def build(period, params):
                         subtitle=f'Styles avec au moins {MIN_STYLE_VOLUME} dégustations sur les deux périodes'))
 
     for chart_id, title, field_name, buckets in (
-        ('abv', 'Force des bières bues', 'beer_id__degree', ABV_BUCKETS),
-        ('ibu', 'Amertume des bières bues (IBU)', 'beer_id__bitterness', IBU_BUCKETS),
+        ('abv', 'Force des bières bues', 'beer__degree', ABV_BUCKETS),
+        ('ibu', 'Amertume des bières bues (IBU)', 'beer__bitterness', IBU_BUCKETS),
     ):
         rows = current.values(field_name).annotate(n=Count('pk'))
         labels, counts = _bucketed(rows, buckets, field_name)
@@ -88,21 +88,21 @@ def build(period, params):
                         [{'name': 'Avis', 'data': [ratings.get(n, 0) for n in range(11)]}],
                         subtitle='Des notes toutes élevées ou toutes basses signalent un manque de discrimination'))
 
-    top_beers = (current.values('beer_id__name', 'beer_id__brewery_id__name')
+    top_beers = (current.values('beer__name', 'beer__brewery__name')
                  .annotate(n=Count('pk'), avg=Avg('note'), rated=Count('note')).filter(rated__gte=MIN_RATINGS).order_by('-avg', '-n')[:10])
     blocks.append(Table('top-beers', 'Bières les mieux notées', ['Bière', 'Brasserie', 'Dégustations', 'Note moyenne'],
-                        [[r['beer_id__name'], r['beer_id__brewery_id__name'], r['n'], round(r['avg'], 2)] for r in top_beers],
+                        [[r['beer__name'], r['beer__brewery__name'], r['n'], round(r['avg'], 2)] for r in top_beers],
                         subtitle=f'Au moins {MIN_RATINGS} notes'))
 
     wished = Beer.objects.filter(is_deleted=False).annotate(w=Count('wishlisted_by')).filter(w__gt=0).order_by('-w')[:10]
     blocks.append(Table('wishlist', 'Demande non satisfaite : bières les plus souhaitées', ['Bière', 'Brasserie', 'Listes de souhaits'],
-                        [[b.name, b.brewery_id.name, b.w] for b in wished.select_related('brewery_id')],
+                        [[b.name, b.brewery.name, b.w] for b in wished.select_related('brewery')],
                         subtitle='Bières que des membres veulent goûter : un levier de mise en avant pour les brasseurs'))
 
     top_styles = [s for s, _ in ranked[:6]]
     seasonal = defaultdict(lambda: defaultdict(int))
-    for row in current.annotate(m=ExtractMonth('date')).values('beer_id__style', 'm').annotate(n=Count('pk')):
-        for style in split_styles(row['beer_id__style']):
+    for row in current.annotate(m=ExtractMonth('date')).values('beer__style', 'm').annotate(n=Count('pk')):
+        for style in split_styles(row['beer__style']):
             if style in top_styles:
                 seasonal[style][row['m']] += row['n']
     blocks.append(Chart('seasonality', 'Saisonnalité des styles principaux', 'heatmap', [month_name(m) for m in range(1, 13)],

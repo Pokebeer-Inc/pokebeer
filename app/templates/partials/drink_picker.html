@@ -11,11 +11,11 @@ Paramètres : drinks (dégustations avec bière et brasserie chargées), selecte
     </div>
     <div class="pb-picker-list" role="group" aria-label="{{ label }}">
         {% for drink in drinks %}
-        <label class="pb-picker-row" data-picker-item data-search="{{ drink.beer_id.name|lower }} {{ drink.beer_id.brewery_id.name|lower }}">
+        <label class="pb-picker-row" data-picker-item data-search="{{ drink.beer.name|lower }} {{ drink.beer.brewery.name|lower }}">
             <input type="checkbox" name="drinks" value="{{ drink.slug }}" class="checkbox checkbox-sm checkbox-primary shrink-0" {% if drink.slug in selected %}checked{% endif %}>
             <span class="min-w-0 flex-1">
-                <span class="block text-sm font-semibold leading-tight truncate">{{ drink.beer_id.name }}</span>
-                <span class="block text-[10px] text-[#6b625a] truncate">{{ drink.beer_id.brewery_id.name }}</span>
+                <span class="block text-sm font-semibold leading-tight truncate">{{ drink.beer.name }}</span>
+                <span class="block text-[10px] text-[#6b625a] truncate">{{ drink.beer.brewery.name }}</span>
             </span>
             {% if drink.note is not None %}<span class="pb-pill is-primary !text-xs shrink-0">{{ drink.note }}/10</span>{% endif %}
         </label>

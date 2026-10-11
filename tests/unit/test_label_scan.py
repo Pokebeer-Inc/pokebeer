@@ -4,7 +4,7 @@ import json
 import pytest
 from decimal import Decimal
 
-from app.services import label_scan
+from app.services.catalog import label_scan
 
 
 def answer(**fields):

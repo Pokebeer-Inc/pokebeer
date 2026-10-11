@@ -5,8 +5,8 @@ from django.views.decorators.cache import cache_control, never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from ..services import app_links, marketing
-from ..services.throttle import EMAIL_PREFERENCES_BY_IP
+from ..services.messaging import app_links, marketing
+from ..services.protection.throttle import EMAIL_PREFERENCES_BY_IP
 from .utils import limit_posts
 
 __all__ = ['email_preferences', 'email_unsubscribe', 'assetlinks']

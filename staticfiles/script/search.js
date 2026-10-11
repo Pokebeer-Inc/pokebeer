@@ -1,4 +1,5 @@
-// Recherche unique : saisie en direct, onglets et filtres sans recharger la page.
+// Recherche unique : la recherche part quand le membre valide (Entrée, touche « Rechercher » du clavier ou loupe), jamais à chaque frappe ;
+// onglets et filtres s'appliquent sans recharger la page.
 // Sans JavaScript, le formulaire et les liens des onglets fonctionnent par navigation classique.
 (function () {
     const form = document.getElementById('search-form');
@@ -8,8 +9,6 @@
     const home = document.getElementById('home-sections'); // présent seulement sur la page d'accueil (Recherche)
     if (!form || !results || !input) return;
 
-    const DEBOUNCE_MS = 250;
-    let timer = null;
     let controller = null;
 
     function params() {
@@ -35,7 +34,6 @@
     }
 
     function refresh() {
-        clearTimeout(timer);
         if (home && input.value.trim() === '' && form.elements.tab.value === 'all') return showHome();
         if (home) home.classList.add('hidden');
         // « Près de moi » filtre sa liste sur place : pas de nouvelle requête, la position déjà obtenue est conservée
@@ -68,14 +66,11 @@
             });
     }
 
-    input.addEventListener('input', () => {
-        clear.classList.toggle('hidden', input.value === '');
-        clearTimeout(timer);
-        timer = setTimeout(refresh, DEBOUNCE_MS);
-    });
+    // Saisir ne lance aucune requête : on met seulement à jour la croix d'effacement (et, via recent_searches.js, les recherches récentes)
+    input.addEventListener('input', () => clear.classList.toggle('hidden', input.value === ''));
     form.addEventListener('submit', event => { event.preventDefault(); refresh(); });
-    // L'événement « input » met à jour le bouton, les recherches récentes et relance la recherche : un seul chemin
-    clear.addEventListener('click', () => { input.value = ''; if (home) form.elements.tab.value = 'all'; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus(); });
+    // Effacer est une action volontaire : elle ramène tout de suite à l'accueil / aux résultats sans filtre de texte
+    clear.addEventListener('click', () => { input.value = ''; if (home) form.elements.tab.value = 'all'; input.dispatchEvent(new Event('input', { bubbles: true })); refresh(); input.focus(); });
 
     // Onglets et liens « Voir tout » : même page, autre rubrique (la recherche en cours est conservée)
     function onTabClick(event) {

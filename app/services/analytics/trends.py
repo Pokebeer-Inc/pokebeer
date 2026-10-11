@@ -12,7 +12,7 @@ def _metrics():
     """(id, titre, queryset, champ date, agrégat éventuel) de chaque série suivie."""
     return [
         ('drinks', 'Dégustations', Drinks.objects.all(), 'date', None),
-        ('active', 'Membres actifs (au moins une dégustation)', Drinks.objects.all(), 'date', Count('drinker_id', distinct=True)),
+        ('active', 'Membres actifs (au moins une dégustation)', Drinks.objects.all(), 'date', Count('drinker', distinct=True)),
         ('users', 'Nouveaux membres', BeerUser.objects.all(), 'created_at', None),
         ('spots', 'Lieux placés sur la carte', BeerSpot.objects.all(), 'date', None),
         ('breweries', 'Nouvelles brasseries', Brewery.objects.all(), 'created_at', None),
@@ -22,7 +22,7 @@ def _metrics():
 
 def _new_beers_series(period):
     """Bières par date de première dégustation : `Beer` n'a pas de date de création, mais chaque bière naît avec sa première note."""
-    first_tasting = Drinks.objects.filter(beer_id__is_deleted=False).values('beer_id').annotate(first=Min('date')).values_list('first', flat=True)
+    first_tasting = Drinks.objects.filter(beer__is_deleted=False).values('beer').annotate(first=Min('date')).values_list('first', flat=True)
     counts = Counter(period.bucket_start(day) for day in first_tasting if day >= period.start)
     return [counts.get(bucket, 0) for bucket in period.buckets()]
 

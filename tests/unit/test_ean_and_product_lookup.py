@@ -1,5 +1,4 @@
 """Codes-barres : validation, nettoyage des champs reçus, recherche Open Food Facts, enregistrement avec la bière."""
-import io
 import json
 from types import SimpleNamespace
 from unittest import mock
@@ -9,7 +8,8 @@ import requests
 
 from app.forms import BeerForm
 from app.models import Beer
-from app.services import beer_fields, ean, product_lookup, upstream
+from app.services.catalog import beer_fields, ean, product_lookup
+from app.services.common import upstream
 from tests import factories as f
 
 LEFFE = "5410228142218"
@@ -157,7 +157,7 @@ class TestBeerFormEan:
         beer = f.make_beer(name="Existante")
         Beer.objects.filter(pk=beer.pk).update(ean=LEFFE)
         beer.refresh_from_db()  # comme la vue de modification, qui charge la bière depuis la base
-        form = BeerForm({"name": "Existante", "brewery_name": beer.brewery_id.name, "degree": "5.0", "ean": "96385074"}, instance=beer, user=user)
+        form = BeerForm({"name": "Existante", "brewery_name": beer.brewery.name, "degree": "5.0", "ean": "96385074"}, instance=beer, user=user)
         assert "ean" not in form.fields
         assert form.is_valid()
         form.save()

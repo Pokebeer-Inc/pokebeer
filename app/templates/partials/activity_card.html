@@ -1,6 +1,6 @@
 {% comment %}Carte d'une dégustation récente : même carte compacte que « Recommandées pour vous », avec la photo de profil du membre en haut à droite.
-Paramètre : tasting (avec drinker_id et beer_id préchargés).{% endcomment %}
-{% with beer=tasting.beer_id member=tasting.drinker_id %}
+Paramètre : tasting (avec drinker et beer préchargés).{% endcomment %}
+{% with beer=tasting.beer member=tasting.drinker %}
 <a href="{% url 'beer_detail' beer.slug %}" aria-label="{{ beer.name }}, noté {{ tasting.note }} sur 10 par {{ member.username }}" title="{{ member.username }} · {{ tasting.note }}/10"
    class="pb-card block w-[44%] shrink-0 snap-start p-2.5 hover:bg-base-300 active:scale-[0.98] transition-all">
     <span class="relative block">

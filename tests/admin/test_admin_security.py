@@ -4,7 +4,7 @@ import importlib
 import pytest
 from django.urls import clear_url_caches, reverse
 
-from app.services.throttle import LOGIN_BY_IP
+from app.services.protection.throttle import LOGIN_BY_IP
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db

@@ -55,7 +55,7 @@
         </a>
         {% endfor %}
         {% if custom_notebooks|length < 50 %}
-        <button type="button" onclick="modal_create_notebook.showModal()" class="rounded-xl border-2 border-dashed border-gray-400 p-4 flex flex-col items-center justify-center text-center min-h-[130px] text-gray-600 hover:border-black hover:text-black transition-colors">
+        <button type="button" data-modal-open="modal_create_notebook" class="rounded-xl border-2 border-dashed border-gray-400 p-4 flex flex-col items-center justify-center text-center min-h-[130px] text-gray-600 hover:border-black hover:text-black transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
             <span class="font-bold text-sm">Créer une collection</span>
         </button>
@@ -69,7 +69,7 @@
     {% if not wishlist_count %}
         {% include "partials/empty_state.html" with show_icon=True title="Rien à goûter pour l'instant" description="Ajoutez des bières à votre liste depuis la recherche : elles apparaîtront ici." show_browse=True %}
     {% else %}
-    <form id="carnet-form" hx-get="{% url 'notebook_wishlist_fragment' %}" hx-trigger="input delay:250ms from:#carnet-q, change" hx-target="#carnet-list" hx-swap="innerHTML" hx-sync="this:replace" role="search" onsubmit="return false">
+    <form id="carnet-form" hx-get="{% url 'notebook_wishlist_fragment' %}" hx-trigger="input delay:250ms from:#carnet-q, change" hx-target="#carnet-list" hx-swap="innerHTML" hx-sync="this:replace" role="search" data-prevent-submit>
         <label class="pb-card flex items-center gap-2 px-3 h-11">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             <input id="carnet-q" type="search" name="q" maxlength="100" autocomplete="off" enterkeyhint="search" placeholder="Chercher dans ma liste" aria-label="Chercher dans ma liste" class="grow bg-transparent text-sm outline-none border-0 shadow-none min-w-0" style="border:0;box-shadow:none;outline:none">
@@ -146,8 +146,8 @@
                     <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
                         <div class="flex flex-col">
                             <span class="font-bold text-sm leading-tight truncate line-through">{{ beer.name }}</span>
-                            <a href="{% url 'brewery_detail' beer.brewery_id.slug %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
-                                {{ beer.brewery_id.name }}
+                            <a href="{% url 'brewery_detail' beer.brewery.slug %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
+                                {{ beer.brewery.name }}
                             </a>
                         </div>
                         <div class="flex gap-1 mt-0.5">
@@ -172,7 +172,7 @@
 </div>
 {% endif %}
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.body.addEventListener('htmx:afterSwap', function (event) {
     if (event.detail.target.id === 'carnet-list' && typeof initLoadMore === 'function') initLoadMore(event.detail.target);
 });

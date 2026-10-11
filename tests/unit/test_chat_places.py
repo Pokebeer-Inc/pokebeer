@@ -1,13 +1,12 @@
-from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 from django.core.cache import cache
 
-from app.services import upstream
-from app.services.chat import geocoding, places
-from app.services.chat.geo import Coordinates
-from app.services.chat.tools import FindPlacesTool, build_tools
+from app.services.common import upstream
+from app.services.assistant.chat import geocoding, places
+from app.services.assistant.chat.geo import Coordinates
+from app.services.assistant.chat.tools import FindPlacesTool, build_tools
 from tests import factories as f
 
 PARIS = Coordinates(48.86, 2.35)

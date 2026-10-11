@@ -5,7 +5,7 @@ from unfold.decorators import display
 
 from ..models import Report
 from ..forms import ReportAdminForm
-from ..services.notifications import notify
+from ..services.messaging.notifications import notify
 from .pending import PendingKpiMixin, pending_report_count
 
 
@@ -182,7 +182,7 @@ class ReportAdmin(PendingKpiMixin, ModelAdmin):
             return f"{obj.reported_beer.name}"
 
         if obj.reported_drink:
-            return f"{obj.reported_drink.drinker_id.username}"
+            return f"{obj.reported_drink.drinker.username}"
 
         if obj.reported_user:
             return f"{obj.reported_user.username}"

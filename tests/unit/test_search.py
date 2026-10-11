@@ -2,7 +2,7 @@
 import pytest
 
 from app.models import Bar, Beer, BeerUser, Brewery
-from app.services import search
+from app.services.catalog import search
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db

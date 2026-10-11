@@ -31,7 +31,9 @@ class TestMapPage:
     def test_only_geolocated_places_are_listed(self, auth_client, geocoder):
         geocoded = f.make_bar(address="Lyon")
         f.make_bar(address=None)
-        assert list(auth_client.get(URL).context["bars"]) == [geocoded]
+        bars = auth_client.get(URL).context["bars"]
+        assert [bar["slug"] for bar in bars] == [geocoded.slug]
+        assert set(bars[0]) == {"slug", "name", "latitude", "longitude"}  # quatre colonnes, pas la fiche entière
 
 
 class TestCreateSpot:

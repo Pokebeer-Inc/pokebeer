@@ -1,8 +1,8 @@
 import pytest
 
 from app.models import Notification, UserBlock
-from app.services import notification_types
-from app.services.notifications import create_notifications, notify
+from app.services.messaging import notification_types
+from app.services.messaging.notifications import create_notifications, notify
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -57,14 +57,14 @@ class TestPolicy:
 class TestNotify:
     def test_creates_one_per_recipient_and_broadcasts(self, user, other_user, monkeypatch):
         sent = []
-        monkeypatch.setattr("app.services.notifications.broadcast_notifications", sent.extend)
+        monkeypatch.setattr("app.services.messaging.notifications.broadcast_notifications", sent.extend)
         created = notify("follow", [user, other_user.pk], sender=f.make_user(username=f.unique("s_")))
         assert {n.recipient_id for n in created} == {user.pk, other_user.pk}
         assert sent == created
 
     def test_refused_notifications_are_not_broadcast(self, user, monkeypatch):
         sent = []
-        monkeypatch.setattr("app.services.notifications.broadcast_notifications", sent.extend)
+        monkeypatch.setattr("app.services.messaging.notifications.broadcast_notifications", sent.extend)
         muted = f.make_user(notif_follow=False)
         assert notify("follow", [muted], sender=user) == []
         assert sent == []

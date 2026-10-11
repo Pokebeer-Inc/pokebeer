@@ -1,7 +1,7 @@
 import pytest
 
-from app.services import ai
-from app.services.chat import ChatUnavailable
+from app.services.assistant import ai
+from app.services.assistant.chat import ChatUnavailable
 from tests import factories as f
 from tests.fakes import embeddings_reply, unit_vector
 
@@ -114,9 +114,9 @@ class TestAskZythologue:
 class TestModelBudget:
     def test_calls_beyond_the_per_minute_budget_of_every_model_are_refused_before_reaching_mistral(self, mistral, monkeypatch, settings):
         from datetime import timedelta
-        from app.services import llm
-        from app.services.chat import ChatBusy
-        from app.services.throttle import Rule
+        from app.services.assistant import llm
+        from app.services.assistant.chat import ChatBusy
+        from app.services.protection.throttle import Rule
         monkeypatch.setattr(llm, "CHAT_MODEL_CALLS", Rule("chat-model-calls", 1, timedelta(minutes=1)))
         settings.CHAT_MODELS = ("modele-a", "modele-b")
         for _ in range(2):  # chaque modèle a son propre budget : le suivant prend le relais

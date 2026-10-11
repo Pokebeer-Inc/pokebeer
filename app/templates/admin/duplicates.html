@@ -62,7 +62,7 @@
         {% for pair in beers %}
         <tr class="border-t border-base-200 dark:border-base-700">
           <td class="p-3">{% if pair.level == 3 %}Identiques{% else %}Proches{% endif %}</td>
-          <td class="p-3">{{ pair.first.brewery_id.name }}</td>
+          <td class="p-3">{{ pair.first.brewery.name }}</td>
           <td class="p-3"><a class="text-primary-600" href="{% url 'admin:app_beer_change' pair.first.pk %}">{{ pair.first.name }}</a></td>
           <td class="p-3"><a class="text-primary-600" href="{% url 'admin:app_beer_change' pair.second.pk %}">{{ pair.second.name }}</a></td>
           <td class="p-3">{{ pair.score|floatformat:2 }}</td>

@@ -3,7 +3,7 @@
 import django.contrib.postgres.indexes
 from django.db import migrations, models
 
-from app.services import match_keys
+from app.services.catalog import match_keys
 
 BATCH = 500
 

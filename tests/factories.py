@@ -56,12 +56,12 @@ def make_beer(name=None, brewery=None, **fields):
     fields.setdefault("degree", Decimal("5.0"))
     # L'embedding est calculé après validation de la transaction : on exécute ces callbacks comme en production
     with TestCase.captureOnCommitCallbacks(execute=True):
-        return Beer.objects.create(name=name or unique("Biere "), brewery_id=brewery or make_brewery(), **fields)
+        return Beer.objects.create(name=name or unique("Biere "), brewery=brewery or make_brewery(), **fields)
 
 
 def make_drink(drinker, beer=None, note=7, **fields):
     fields.setdefault("comment", "Très bonne")
-    return Drinks.objects.create(drinker_id=drinker, beer_id=beer or make_beer(), note=note, **fields)
+    return Drinks.objects.create(drinker=drinker, beer=beer or make_beer(), note=note, **fields)
 
 
 def make_spot(user, friends=(), drinks=(), **fields):
@@ -86,6 +86,8 @@ def make_notification(recipient, notif_type="follow", **fields):
 
 
 def make_report(reporter, **fields):
+    if not any(key.startswith("reported_") for key in fields):
+        fields["reported_user"] = make_user()  # un signalement vise toujours une cible
     fields.setdefault("reason", "spam")
     fields.setdefault("description", "Contenu douteux")
     return Report.objects.create(reporter=reporter, **fields)

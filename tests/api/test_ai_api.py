@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from unittest import mock
 
 from datetime import timedelta
@@ -6,9 +5,9 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 
-from app.models import ChatUsage
-from app.services.chat import ChatReply, ChatUnavailable
-from app.services.throttle import Rule
+from app.models import QuotaUsage
+from app.services.assistant.chat import ChatReply, ChatUnavailable
+from app.services.protection.throttle import Rule
 
 from tests import factories as f
 from tests.fakes import chat_reply, search_reply
@@ -23,7 +22,7 @@ HISTORY_LIMIT = 10
 
 @pytest.fixture
 def zythologue(monkeypatch):
-    ask = mock.Mock(side_effect=lambda message, history, location=None: ChatReply(f"Réponse à {message}"))
+    ask = mock.Mock(side_effect=lambda message, history, location=None, user=None: ChatReply(f"Réponse à {message}"))
     monkeypatch.setattr("app.views.api_views.ask_zythologue", ask)
     return ask
 
@@ -38,7 +37,7 @@ def no_burst_limit(monkeypatch):
 def label_client(monkeypatch):
     client = mock.Mock()
     client.beta.conversations.start.return_value = search_reply("{}")
-    monkeypatch.setattr("app.services.llm.get_client", lambda *args, **kwargs: client)
+    monkeypatch.setattr("app.services.assistant.llm.get_client", lambda *args, **kwargs: client)
     return client
 
 
@@ -80,14 +79,14 @@ class TestChat:
         response = post_json(auth_client, CHAT_URL, {"message": "Bonjour"})
         assert response.status_code == 503 and response.json()["response"].startswith("Désolé")
         assert auth_client.get(CHAT_URL).json() == {"history": []}
-        assert not user.chat_usages.filter(count__gt=0).exists()
+        assert not user.quota_usages.filter(count__gt=0).exists()
 
     def test_busy_model_asks_to_retry_and_refunds_the_question(self, auth_client, monkeypatch, user):
-        from app.services.chat import ChatBusy
+        from app.services.assistant.chat import ChatBusy
         monkeypatch.setattr("app.views.api_views.ask_zythologue", mock.Mock(side_effect=ChatBusy))
         response = post_json(auth_client, CHAT_URL, {"message": "Bonjour"})
         assert response.status_code == 503 and "minute" in response.json()["response"]
-        assert not user.chat_usages.filter(count__gt=0).exists()
+        assert not user.quota_usages.filter(count__gt=0).exists()
 
     def test_location_is_validated_rounded_and_never_stored(self, auth_client, zythologue):
         post_json(auth_client, CHAT_URL, {"message": "Un bar ?", "location": {"lat": 48.85661, "lng": 2.35222}})
@@ -118,7 +117,7 @@ class TestChat:
     def test_a_new_conversation_does_not_give_the_quota_back(self, auth_client, zythologue, user):
         post_json(auth_client, CHAT_URL, {"message": "Une IPA ?"})
         auth_client.delete(CHAT_URL)
-        assert ChatUsage.objects.get(user=user).count == 1
+        assert QuotaUsage.objects.get(user=user).count == 1
 
     def test_only_my_own_history_is_cleared(self, auth_client, other_client, zythologue):
         post_json(auth_client, CHAT_URL, {"message": "Une IPA ?"})
@@ -135,7 +134,7 @@ class TestChat:
     def test_oversized_message_is_rejected_without_using_quota(self, auth_client, zythologue, settings, user):
         assert post_json(auth_client, CHAT_URL, {"message": "x" * (settings.CHAT_MESSAGE_MAX_LENGTH + 1)}).status_code == 400
         zythologue.assert_not_called()
-        assert not user.chat_usages.exists()
+        assert not user.quota_usages.exists()
 
 
 class TestChatQuota:
@@ -155,10 +154,10 @@ class TestChatQuota:
     def test_weekly_limit_stops_a_member_who_spends_the_daily_limit_every_day(self, auth_client, zythologue, settings, user):
         from datetime import timedelta as days
         from django.utils import timezone
-        from app.models import ChatUsage
+        from app.models import QuotaUsage
         settings.CHAT_WEEKLY_LIMIT = 5
         for ago in (1, 2):
-            ChatUsage.objects.create(user=user, day=timezone.localdate() - days(days=ago), scope="chat", count=2)
+            QuotaUsage.objects.create(user=user, day=timezone.localdate() - days(days=ago), scope="chat", count=2)
         statuses = [self.send(auth_client).status_code for _ in range(2)]
         assert statuses == [200, 429]
 
@@ -183,7 +182,7 @@ class TestChatQuota:
         assert self.send(other_client).status_code == 200
 
     def test_failed_ai_calls_are_refunded_but_still_spend_the_global_budget(self, auth_client):
-        from app.services.throttle import CHAT_GLOBAL, CHAT_GLOBAL_KEY
+        from app.services.protection.throttle import CHAT_GLOBAL, CHAT_GLOBAL_KEY
         for _ in range(self.LIMIT + 2):
             assert self.send(auth_client).status_code == 503
         assert CHAT_GLOBAL._hits(CHAT_GLOBAL_KEY).count() == self.LIMIT + 2

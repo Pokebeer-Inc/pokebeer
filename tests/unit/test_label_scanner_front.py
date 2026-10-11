@@ -20,6 +20,14 @@ def test_pure_front_logic_behaves(script):
 
 @pytest.mark.django_db
 class TestAddBeerPage:
+    def test_choosing_a_photo_opens_the_gallery_not_the_camera(self, auth_client):
+        import re
+        html = auth_client.get(reverse("add_beer")).content.decode()
+        gallery = re.search(r'<input[^>]*id="gallery-input"[^>]*>', html).group(0)
+        camera = re.search(r'<input[^>]*id="camera-input"[^>]*>', html).group(0)
+        assert "capture" not in gallery and 'accept="image/*"' in gallery  # le téléphone propose galerie et fichiers
+        assert 'capture="environment"' in camera  # secours du scanner : appareil photo direct
+
     def test_the_page_wires_the_scanner_and_keeps_the_photo_fallback(self, auth_client):
         html = auth_client.get(reverse("add_beer")).content.decode()
         assert 'id="label-scanner"' in html and 'role="dialog"' in html and 'aria-modal="true"' in html

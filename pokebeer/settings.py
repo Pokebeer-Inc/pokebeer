@@ -40,11 +40,8 @@ ALLOWED_HOSTS = _csv('ALLOWED_HOSTS', 'localhost,127.0.0.1') + [
     host for host in (os.getenv('VERCEL_PROJECT_PRODUCTION_URL'), os.getenv('VERCEL_URL'), os.getenv('VERCEL_BRANCH_URL')) if host
 ]
 
-# Sécurité CSRF pour Hugging Face (car HF est derrière un proxy HTTPS)
-CSRF_TRUSTED_ORIGINS = [
-    'https://flow-millot-pokebeer.hf.space',
-    'https://*.hf.space'
-]
+# Origines supplémentaires autorisées à envoyer des formulaires (schéma compris, ex. https://app.exemple.fr) ; aucune par défaut
+CSRF_TRUSTED_ORIGINS = _csv('CSRF_TRUSTED_ORIGINS')
 
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
@@ -136,6 +133,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'app.context_processors.supabase_config',
                 'app.context_processors.chat_config',
+                'app.context_processors.main_nav',
             ],
         },
     },
@@ -211,7 +209,9 @@ USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
 CSRF_COOKIE_HTTPONLY = False  # DOIT être False pour que le JS puisse lire le cookie via document.cookie
-SESSION_COOKIE_AGE = 31536000
+# RGPD (minimisation de la conservation) : la session reste ouverte 6 mois, et ce délai est prolongé à chaque visite (voir ActivityMiddleware) :
+# un membre actif reste connecté, un appareil abandonné est oublié. Les sessions expirées sont effacées chaque jour par la tâche planifiée.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 183
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # RGPD : un compte sans aucune visite depuis ce délai est supprimé, après un avertissement par notification.
@@ -251,6 +251,8 @@ PASSWORD_RESET_MIN_SECONDS = 3
 
 # Le site ne peut être affiché en iframe que par lui-même (anti-clickjacking)
 X_FRAME_OPTIONS = 'SAMEORIGIN'
+# Choix assumés pour `check --deploy` : SAMEORIGIN (l'administration s'affiche dans ses propres cadres) et pas de liste de préchargement HSTS
+SILENCED_SYSTEM_CHECKS = ['security.W019', 'security.W021']
 
 #Nom du dossier contenant TailwindCSS
 TAILWIND_APP_NAME = "theme"
@@ -347,6 +349,7 @@ CHAT_GENERATION_TIMEOUT_MS = 15000  # une fonction serverless ne doit jamais att
 # Lieux proches (OpenStreetMap, gratuit et sans clé) : la position est arrondie (~1 km) et n'est jamais enregistrée
 OVERPASS_URL = os.getenv("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
 LABEL_DAILY_LIMIT = 20
 # Recherche par code-barres (Open Food Facts) : plafond quotidien par membre, délai et identification de l'application
 EAN_DAILY_LIMIT = 60

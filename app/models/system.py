@@ -29,7 +29,10 @@ class ThrottleHit(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        indexes = [models.Index(fields=['scope', 'key_hash', 'created_at'], name='throttle_lookup_idx')]
+        indexes = [
+            models.Index(fields=['scope', 'key_hash', 'created_at'], name='throttle_lookup_idx'),
+            models.Index(fields=['created_at'], name='throttle_created_idx'),  # purge des tentatives expirées (ThrottleHit.created_at < ...)
+        ]
 
 
 class AccountDeletion(models.Model):
@@ -50,16 +53,17 @@ class AccountDeletion(models.Model):
         verbose_name = "Compte supprimé"
         verbose_name_plural = "Comptes supprimés"
         
-class ChatUsage(models.Model):
-    """Nombre d'appels à l'IA (chat, lecture d'étiquette) d'un utilisateur sur une journée, par usage."""
-    user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='chat_usages')
+class QuotaUsage(models.Model):
+    """Appels d'un membre à un service à quota (chat IA, lecture d'étiquette, code-barres, photo…) sur une journée, par usage (`scope`)."""
+    user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='quota_usages')
     day = models.DateField()
     scope = models.CharField(max_length=20, default='chat')
     count = models.PositiveIntegerField(default=0)
 
     class Meta:
         unique_together = ('user', 'day', 'scope')
-        verbose_name = "Utilisation de l'IA"
+        verbose_name = "Utilisation d'un service à quota"
+        verbose_name_plural = "Utilisations des services à quota"
 
     def __str__(self):
         return f"{self.user.username} - {self.day} ({self.count})"

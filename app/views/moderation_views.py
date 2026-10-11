@@ -7,15 +7,15 @@ from django.views.decorators.http import require_POST
 
 from ..forms import ReportForm, error_summary
 from ..models import BeerUser, UserFollow, Report, UserBlock
-from ..services.blocks import invite_blockers_to_report
-from ..services.threads import report_entries
+from ..services.members.blocks import invite_blockers_to_report
+from ..services.support.threads import report_entries
 from .utils import previous_page
 
 @login_required(login_url='login')
 def my_reports_view(request):
     """Affiche la liste des signalements faits par l'utilisateur."""
     reports = (Report.objects.filter(reporter=request.user)
-               .select_related('reported_beer', 'reported_user', 'reported_drink__beer_id', 'reported_brewery'))
+               .select_related('reported_beer', 'reported_user', 'reported_drink__beer', 'reported_brewery'))
     return render(request, 'my_reports.html', {'reports': [{'report': r, 'entries': report_entries(r)} for r in reports]})
 
 @require_POST

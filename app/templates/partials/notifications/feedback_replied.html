@@ -1,0 +1,4 @@
+L'équipe a répondu à votre message{% with reply=notif.feedback.last_team_message %}{% if reply %} :<br>
+    <div class="mt-1 p-2 bg-base-200 rounded-lg text-xs italic border-l-2 border-primary text-gray-700">
+        "{{ reply.body|truncatechars:140 }}"
+    </div>{% else %}.{% endif %}{% endwith %}

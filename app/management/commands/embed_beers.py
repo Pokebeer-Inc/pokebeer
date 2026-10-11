@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from app.models import Beer
-from app.services import llm
+from app.services.assistant import llm
 
 
 def batches(iterable, size):
@@ -25,7 +25,7 @@ class Command(BaseCommand):
         if not settings.MISTRAL_API_KEY:
             raise CommandError("MISTRAL_API_KEY est absente : impossible de calculer les embeddings.")
 
-        beers = Beer.objects.filter(is_deleted=False).select_related("brewery_id")
+        beers = Beer.objects.filter(is_deleted=False).select_related("brewery")
         if not all:
             beers = beers.filter(embedding__isnull=True)
 

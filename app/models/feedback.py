@@ -24,7 +24,7 @@ class Feedback(models.Model):
     @property
     def last_team_message(self):
         """Dernière réponse de l'équipe, utilisée par le texte des notifications."""
-        from ..services.feedback import last_team_message
+        from ..services.support.feedback import last_team_message
         return last_team_message(self)
 
     def __str__(self):

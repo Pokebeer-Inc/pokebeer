@@ -111,7 +111,7 @@ async function sendMessage(text, { resend = false, position = null } = {}) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRFToken': Pokebeer.csrfToken()
             },
             body: JSON.stringify(body)
         });
@@ -135,7 +135,7 @@ chatReset.addEventListener('click', async () => {
     try {
         const res = await fetch(chatWindow.dataset.url, {
             method: 'DELETE',
-            headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
+            headers: { 'X-CSRFToken': Pokebeer.csrfToken() },
             credentials: 'same-origin'
         });
         if (!res.ok) throw new Error('reset');

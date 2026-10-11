@@ -2,7 +2,7 @@
 from django.contrib.admin.forms import AdminAuthenticationForm
 from django.core.exceptions import ValidationError
 
-from .services.throttle import LOGIN_BY_ACCOUNT, LOGIN_BY_IP, client_ip
+from .services.protection.throttle import LOGIN_BY_ACCOUNT, LOGIN_BY_IP, client_ip
 
 
 class ThrottledLoginMixin:

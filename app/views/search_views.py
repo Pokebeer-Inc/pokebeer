@@ -4,6 +4,7 @@ La page complète et l'API de rafraîchissement (saisie en direct) produisent le
 `build_results`. Sans JavaScript, la page fonctionne par simples liens et envoi du formulaire.
 """
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -13,11 +14,10 @@ from django.views.decorators.http import require_GET
 
 from ..forms import DrinkForm
 from ..models import Beer, Drinks
-from ..services import place_directory, place_filters, search
-from ..services.places import BAR, BREWERY, with_targets
-from .services.selectors import (
-    get_filtered_bars, get_filtered_beers, get_filtered_breweries, get_filtered_users, search_query,
-)
+from ..services.establishments import place_directory, place_filters
+from ..services.catalog import search
+from ..services.establishments.places import BAR, BREWERY, with_targets
+from ..services.catalog.selectors import get_filtered_bars, get_filtered_beers, get_filtered_breweries, get_filtered_users, search_query
 
 PAGE = 10        # éléments d'un onglet avant « Charger plus »
 PREVIEW = 3      # éléments de chaque rubrique dans l'onglet « Tout »
@@ -44,10 +44,17 @@ def active_tab(request, default='beers'):
     return 'members' if request.GET.get('uq') else default
 
 
+BEER_STYLES_CACHE_KEY = 'beer_styles'
+BEER_STYLES_CACHE_SECONDS = 600  # le cache est aussi vidé dès qu'une bière est ajoutée, modifiée ou retirée (models/signals.py)
+
+
 def beer_styles():
-    """Styles du catalogue pour le filtre (un champ peut en contenir plusieurs, séparés par des virgules)."""
-    raw = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct()
-    return sorted({style.strip() for value in raw for style in value.split(',') if style.strip()})
+    """Styles du catalogue pour le filtre (un champ peut en contenir plusieurs, séparés par des virgules). Gardés en cache : la liste ne
+    change qu'avec le catalogue, et la relire à chaque recherche parcourait toute la colonne."""
+    def compute():
+        raw = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct()
+        return sorted({style.strip() for value in raw for style in value.split(',') if style.strip()})
+    return cache.get_or_set(BEER_STYLES_CACHE_KEY, compute, BEER_STYLES_CACHE_SECONDS)
 
 
 def _beer_context(request, beers):
@@ -55,7 +62,7 @@ def _beer_context(request, beers):
     return {
         'beers': beers,
         'rating_form': DrinkForm(),
-        'rated_beer_ids': list(Drinks.objects.filter(drinker_id=request.user, beer_id__in=ids).values_list('beer_id', flat=True)),
+        'rated_beer_ids': list(Drinks.objects.filter(drinker=request.user, beer__in=ids).values_list('beer', flat=True)),
         'wishlist_beer_ids': list(request.user.wishlist_beers.filter(id__in=ids).values_list('id', flat=True)),
     }
 

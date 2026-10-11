@@ -4,9 +4,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from app.models import ModerationEntry
-from app.services.notifications import create_notifications
-from app.services.realtime_service import broadcast_notifications
-from app.services.verification import certify
+from app.services.messaging.notifications import create_notifications
+from app.services.messaging.realtime_service import broadcast_notifications
+from app.services.establishments.verification import certify
 
 from .capture import SKIP_ATTR
 from .content import CONTENT_TYPES

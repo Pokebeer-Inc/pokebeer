@@ -1,8 +1,7 @@
 import pytest
-from django.contrib import admin
 from django.urls import reverse
 
-from app.services.blocks import REPEATED_BLOCK_THRESHOLD, repeatedly_blocked_count
+from app.services.members.blocks import REPEATED_BLOCK_THRESHOLD, repeatedly_blocked_count
 from app.models import UserBlock
 from tests import factories as f
 

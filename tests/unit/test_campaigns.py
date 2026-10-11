@@ -6,8 +6,8 @@ from django.core import mail
 from django.utils import timezone
 
 from app.models import CampaignRecipient, EmailCampaign, ThrottleHit
-from app.services import campaigns, marketing
-from app.services.throttle import Rule
+from app.services.messaging import campaigns, marketing
+from app.services.protection.throttle import Rule
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -159,7 +159,7 @@ class TestSending:
         monkeypatch.setattr(campaigns, "CAMPAIGN_EMAIL_GLOBAL", Rule("campaign-email", 2, timedelta(days=1)))
         for _ in range(5):
             member()
-        launched = campaigns.launch(campaign(), user)
+        campaigns.launch(campaign(), user)
         assert campaigns.send_pending() == 2 and EmailCampaign.objects.get().status == EmailCampaign.Status.SENDING
         for expected in (2, 1):
             ThrottleHit.objects.update(created_at=timezone.now() - timedelta(days=2))

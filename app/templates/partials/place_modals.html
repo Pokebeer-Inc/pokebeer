@@ -44,7 +44,7 @@
             <input type="text" id="search-collab" 
                    placeholder="Rechercher par nom d'utilisateur" 
                    class="pb-input mb-3 sticky top-0 z-10" 
-                   onkeyup="searchUsersForCollab()"
+                   data-on-keyup="searchUsersForCollab" data-no-event
                    data-search-url="{% if place_type == 'bar' %}{% url 'api_search_users_for_bar_manager' place.slug %}{% else %}{% url 'api_search_users_for_manager' place.slug %}{% endif %}"
                    data-add-url="{% if place_type == 'bar' %}{% url 'add_bar_manager' place.slug %}{% else %}{% url 'add_brewery_manager' place.slug %}{% endif %}"
                    data-csrf-token="{{ csrf_token }}">

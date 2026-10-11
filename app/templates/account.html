@@ -15,7 +15,7 @@
 
 <div class="flex justify-end gap-1 -mb-2">
     <a href="{% url 'notifications' %}" class="btn btn-sm btn-ghost btn-circle indicator" aria-label="Notifications">
-        <span class="indicator-item badge badge-error badge-xs w-2.5 h-2.5 p-0 mt-1 mr-1 border border-white {% if not user.has_unread_notifications %}hidden{% endif %}" data-notification-dot></span>
+        <span class="indicator-item badge badge-error badge-xs w-2.5 h-2.5 p-0 mt-1 mr-1 border border-white hidden" data-notification-dot></span>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
     </a>
     <a href="{% url 'account_settings_home' %}" class="btn btn-sm btn-ghost btn-circle" aria-label="Réglages">
@@ -57,11 +57,11 @@
         <a href="{% url 'achievements' %}" class="pb-chip is-primary">Niv {{ level }}</a>
     </div>
     <div class="flex justify-center gap-8 mt-4">
-        <button type="button" class="text-center hover:opacity-70" onclick="modal_followers.showModal()">
-            <div class="font-bold text-lg">{{ followers|length }}</div><div class="text-xs text-gray-600">Abonnés</div>
+        <button type="button" class="text-center hover:opacity-70" data-modal-open="modal_followers">
+            <div class="font-bold text-lg">{{ followers_count }}</div><div class="text-xs text-gray-600">Abonnés</div>
         </button>
-        <button type="button" class="text-center hover:opacity-70" onclick="modal_following.showModal()">
-            <div class="font-bold text-lg">{{ following|length }}</div><div class="text-xs text-gray-600">Abonnements</div>
+        <button type="button" class="text-center hover:opacity-70" data-modal-open="modal_following">
+            <div class="font-bold text-lg">{{ following_count }}</div><div class="text-xs text-gray-600">Abonnements</div>
         </button>
         <a href="{% url 'notebook' %}" class="text-center hover:opacity-70">
             <div class="font-bold text-lg">{{ total_drinks }}</div><div class="text-xs text-gray-600">Dégustées</div>
@@ -115,7 +115,7 @@
             {% if item.beer %}
             <button type="button" data-open-top class="flex-1 min-w-0 text-left py-1" aria-label="Changer la bière n°{{ forloop.counter }} : {{ item.beer.name }}">
                 <span class="block font-semibold leading-tight truncate">{{ item.beer.name }}</span>
-                <span class="block text-sm text-gray-600 truncate">{{ item.beer.brewery_id.name }}</span>
+                <span class="block text-sm text-gray-600 truncate">{{ item.beer.brewery.name }}</span>
             </button>
             {% if item.note is not null %}<span class="pb-chip is-primary !py-0.5 shrink-0">{{ item.note }}/10</span>{% endif %}
             <button type="button" data-drag-handle class="touch-none cursor-grab active:cursor-grabbing p-2 -mr-1 text-gray-500 hover:text-black shrink-0 rounded-lg" aria-label="Déplacer {{ item.beer.name }} (glisser, ou flèches haut et bas)">
@@ -144,6 +144,7 @@
 </div>
 
 <script src="{% static 'script/top3_sort.js' %}"></script>
+<script src="{% static 'script/load_more_generic.js' %}"></script>
 <script src="{% static 'script/username_edit.js' %}"></script>
 {% endblock %}
 
@@ -169,27 +170,14 @@
 <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
         {% include "partials/modal_header.html" with title="Abonnés" %}
-        <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
-            {% for f in followers %}
-            <li class="pb-card flex items-center justify-between p-2">
-                <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
-                    <div class="avatar">
-                        <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
-                            <img class="object-cover w-full h-full" src="{{ f.follower.avatar_url }}" />
-                        </div>
-                    </div>
-                    <span class="font-bold text-sm">{{ f.follower.username }}</span>
-                </a>
-                
-                <form method="post" action="{% url 'remove_follower' f.follower.username %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-xs btn-outline btn-error">Supprimer</button>
-                </form>
-            </li>
-            {% empty %}
-            <li class="text-[#6b625a] text-xs italic text-center">Personne ne vous suit pour le moment.</li>
-            {% endfor %}
+        <ul id="followers-list" class="flex flex-col gap-2 overflow-y-auto flex-1">
+            {% include "partials/follow_items.html" with entries=followers variant="own_followers" %}
+            {% if not followers %}<li class="text-[#6b625a] text-xs italic text-center">Personne ne vous suit pour le moment.</li>{% endif %}
         </ul>
+        {% if followers_has_more %}
+        <button type="button" class="btn-load-more-generic btn btn-outline btn-sm w-full mt-3" data-offset="{{ follow_page }}" data-container="followers-list" data-autoscroll="false"
+                data-url="{% url 'load_more_generic' 'followers' %}">Voir plus</button>
+        {% endif %}
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
@@ -197,27 +185,14 @@
 <dialog id="modal_following" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
         {% include "partials/modal_header.html" with title="Abonnements" %}
-        <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
-            {% for f in following %}
-            <li class="pb-card flex items-center justify-between p-2">
-                <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
-                    <div class="avatar">
-                        <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
-                            <img class="object-cover w-full h-full" src="{{ f.followed.avatar_url }}" />
-                        </div>
-                    </div>
-                    <span class="font-bold text-sm">{{ f.followed.username }}</span>
-                </a>
-                
-                <form method="post" action="{% url 'follow_user' f.followed.username %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-xs btn-outline btn-error">Ne plus suivre</button>
-                </form>
-            </li>
-            {% empty %}
-            <li class="text-[#6b625a] text-xs italic text-center">Vous ne suivez personne.</li>
-            {% endfor %}
+        <ul id="following-list" class="flex flex-col gap-2 overflow-y-auto flex-1">
+            {% include "partials/follow_items.html" with entries=following variant="own_following" %}
+            {% if not following %}<li class="text-[#6b625a] text-xs italic text-center">Vous ne suivez personne.</li>{% endif %}
         </ul>
+        {% if following_has_more %}
+        <button type="button" class="btn-load-more-generic btn btn-outline btn-sm w-full mt-3" data-offset="{{ follow_page }}" data-container="following-list" data-autoscroll="false"
+                data-url="{% url 'load_more_generic' 'following' %}">Voir plus</button>
+        {% endif %}
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
@@ -234,14 +209,14 @@
                 <label class="pb-label" for="top-select-{{ item.slot }}">Sélectionnez une bière dégustée</label>
                 <select id="top-select-{{ item.slot }}" name="beer_slug" class="pb-select">
                     <option value="">-- Vider l'emplacement --</option>
-                    {% for drink in my_drinks %}
-                    <option value="{{ drink.beer_id.slug }}" 
-                    {% if item.beer and item.beer.id == drink.beer_id.id %}
+                    {% for drink in top_choices %}
+                    <option value="{{ drink.beer__slug }}" 
+                    {% if item.beer and item.beer.id == drink.beer %}
                     selected
-                    {% elif drink.beer_id.id == user.top_beer_1_id or drink.beer_id.id == user.top_beer_2_id or drink.beer_id.id == user.top_beer_3_id %}
+                    {% elif drink.beer == user.top_beer_1_id or drink.beer == user.top_beer_2_id or drink.beer == user.top_beer_3_id %}
                     disabled class="text-gray-400 bg-gray-50 italic"
                     {% endif %}>
-                    {{ drink.beer_id.name }} {% if drink.note is not null %}(Note: {{ drink.note }}/10){% endif %}
+                    {{ drink.beer__name }} {% if drink.note is not null %}(Note: {{ drink.note }}/10){% endif %}
                 </option>
                 {% endfor %}
             </select>

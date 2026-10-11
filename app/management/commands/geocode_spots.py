@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from app.services.reverse_geocoding import REQUEST_DELAY, pending_keys, resolve_pending
+from app.services.establishments.reverse_geocoding import REQUEST_DELAY, pending_keys, resolve_pending
 
 
 class Command(BaseCommand):

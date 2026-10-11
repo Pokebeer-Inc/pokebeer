@@ -134,7 +134,7 @@ class TestEngine:
 
     def test_trophies_dataset_ignores_the_period_and_hides_small_groups(self, user):
         from app.models import UserAchievementState
-        UserAchievementState.objects.create(user=user, achievement_name="Juge", tier_level=1)
+        UserAchievementState.objects.create(user=user, achievement_slug="juge", tier_level=1)
         block = engine.build_block(1, "T", {"dataset": "trophies", "dimension": "trophy", "measures": ["count"], "chart": "table"}, Period())
         assert block.rows == []
 
@@ -301,7 +301,7 @@ class TestSecurity:
             assert "<script>alert(1)" not in html and "<img src=x" not in html
 
     def test_hostile_values_never_reach_the_orm(self, client_for, staff, my_view):
-        for field, value in (("dimension", "beer_id__drinker_id__password"), ("dataset", "BeerUser"), ("measures", "password"), ("sort", "?"), ("limit", "99999999")):
+        for field, value in (("dimension", "beer__drinker__password"), ("dataset", "BeerUser"), ("measures", "password"), ("sort", "?"), ("limit", "99999999")):
             response = client_for(staff).post(reverse("admin_analytics_tile_new", args=[my_view.pk]), tile_post(**{field: value}))
             assert response.status_code == 400
         assert not AnalyticsTile.objects.exists()

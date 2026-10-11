@@ -2,9 +2,8 @@ import pytest
 from django.contrib.auth.models import AnonymousUser
 
 from app.models import Notification, UserAchievementState
-from app.views.utils import (
-    TIER_NAMES, check_and_notify_achievements, get_excluded_users, get_user_achievements,
-)
+from app.services.members.achievements import TIER_NAMES, check_and_notify_achievements, get_user_achievements
+from app.views.utils import get_excluded_users
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -97,7 +96,7 @@ class TestAchievementNotifications:
         check_and_notify_achievements(user)
         check_and_notify_achievements(user)
         assert list(Notification.objects.values_list("text_content", flat=True)) == ["Juge (Bronze)"]
-        assert UserAchievementState.objects.get(user=user, achievement_name="Juge").tier_level == 1
+        assert UserAchievementState.objects.get(user=user, achievement_slug="juge").tier_level == 1
 
     def test_lost_tier_removes_its_notification(self, user):
         drinks = drink_many(user, 5)
@@ -105,7 +104,7 @@ class TestAchievementNotifications:
         drinks[0].delete()
         check_and_notify_achievements(user)
         assert not Notification.objects.filter(notif_type="achievement").exists()
-        assert UserAchievementState.objects.get(user=user, achievement_name="Juge").tier_level == 0
+        assert UserAchievementState.objects.get(user=user, achievement_slug="juge").tier_level == 0
 
     def test_opted_out_user_gets_state_but_no_notification(self):
         member = f.make_user(notif_achievements=False)

@@ -17,7 +17,7 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import display
 
 from ..models import BeerUser, EmailCampaign
-from ..services import campaigns
+from ..services.messaging import campaigns
 
 MIN_ACTIVITY_DAYS, MAX_ACTIVITY_DAYS = 7, 730
 single_line = RegexValidator(r'\A[^\r\n]*\Z', message="L'objet doit tenir sur une seule ligne.")

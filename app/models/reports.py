@@ -37,6 +37,20 @@ class Report(models.Model):
     class Meta:
         verbose_name = "Signalement"
         ordering = ['-created_at']
+        indexes = [models.Index(fields=['status'], name='report_status_idx')]  # compteur « à traiter » de l'administration
+        constraints = [
+            # Un signalement vise exactement une cible
+            models.CheckConstraint(
+                condition=(
+                    models.Q(reported_beer__isnull=False, reported_drink__isnull=True, reported_user__isnull=True, reported_brewery__isnull=True)
+                    | models.Q(reported_beer__isnull=True, reported_drink__isnull=False, reported_user__isnull=True, reported_brewery__isnull=True)
+                    | models.Q(reported_beer__isnull=True, reported_drink__isnull=True, reported_user__isnull=False, reported_brewery__isnull=True)
+                    | models.Q(reported_beer__isnull=True, reported_drink__isnull=True, reported_user__isnull=True, reported_brewery__isnull=False)
+                ),
+                name='report_exactly_one_target',
+                violation_error_message="Choisissez exactement une cible : bière, note, membre ou brasserie.",
+            ),
+        ]
 
     def __str__(self):
         return f"Signalement #{self.id} par {self.reporter.username} - {self.get_status_display()}"

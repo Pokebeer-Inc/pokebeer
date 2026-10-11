@@ -3,10 +3,11 @@ import pytest
 from django.core import mail
 from django.urls import reverse
 
-from app.models import Bar, Beer, BeerUser, Brewery, EstablishmentClaim, Notification
-from app.services import catalog_matching as cm, claims, siret_registry
+from app.models import Beer, BeerUser, Brewery, EstablishmentClaim, Notification
+from app.services.catalog import catalog_matching as cm
+from app.services.establishments import claims, siret_registry
 from tests import factories as f
-from tests.unit.test_claims import OTHER_SIRET, SIRET
+from tests.unit.test_claims import SIRET
 from tests.views.test_beer_views import add_beer_data
 
 pytestmark = pytest.mark.django_db
@@ -148,7 +149,7 @@ class TestClaimButton:
         assert claim.status == "cancelled" and "Demande de gestion en cours d'examen" not in auth_client.get(reverse("account")).content.decode()
 
     def test_nobody_can_cancel_someone_elses_claim(self, other_client, user, coin):
-        claim = claims.open_claim(user, claims.BREWERY if hasattr(claims, "BREWERY") else __import__("app.services.places", fromlist=["BREWERY"]).BREWERY, coin, SIRET)
+        claim = claims.open_claim(user, claims.BREWERY if hasattr(claims, "BREWERY") else __import__("app.services.establishments.places", fromlist=["BREWERY"]).BREWERY, coin, SIRET)
         assert other_client.post(reverse("cancel_claim", args=[claim.pk])).status_code == 404
         claim.refresh_from_db()
         assert claim.status == "pending"
@@ -162,7 +163,7 @@ class TestAdminQueue:
 
     @pytest.fixture
     def claim(self, user, coin):
-        from app.services.places import BREWERY
+        from app.services.establishments.places import BREWERY
         return claims.open_claim(user, BREWERY, coin, SIRET, "Gérante depuis 2019")
 
     def act(self, claim, name):
@@ -236,18 +237,18 @@ class TestHomonymsInTheBeerForm:
 
     def test_without_a_postal_code_the_known_brewery_is_reused_and_the_member_is_invited_to_give_one(self, auth_client, coin):
         self.post(auth_client)
-        assert Beer.objects.get().brewery_id == coin
+        assert Beer.objects.get().brewery == coin
         html = auth_client.post(reverse("add_beer"), add_beer_data(name="Nouvelle Blonde", brewery_name="Brasserie du Coin", **{"drink-note": "11"})).content.decode()
         assert "Indiquez le code postal de votre brasserie" in html
 
     def test_the_same_postal_code_reuses_the_brewery(self, auth_client, coin):
         self.post(auth_client, postal="44000")
-        assert Beer.objects.get().brewery_id == coin and Brewery.objects.count() == 1
+        assert Beer.objects.get().brewery == coin and Brewery.objects.count() == 1
 
     def test_another_postal_code_creates_a_homonym_in_its_own_city(self, auth_client, coin):
         self.post(auth_client, postal="69001")
         beer = Beer.objects.get()
-        assert beer.brewery_id != coin and (beer.brewery_id.name, beer.brewery_id.postal_code, beer.brewery_id.city) == ("Brasserie du Coin", "69001", "Lyon")
+        assert beer.brewery != coin and (beer.brewery.name, beer.brewery.postal_code, beer.brewery.city) == ("Brasserie du Coin", "69001", "Lyon")
         assert Brewery.objects.count() == 2
 
     def test_a_beer_of_the_homonym_is_not_compared_with_the_other_ones_beers(self, auth_client, coin):

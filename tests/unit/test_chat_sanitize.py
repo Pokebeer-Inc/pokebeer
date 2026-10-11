@@ -1,7 +1,7 @@
 import pytest
 
-from app.services.chat import payload, sanitize
-from app.services.chat.geo import Coordinates
+from app.services.assistant.chat import payload, sanitize
+from app.services.assistant.chat.geo import Coordinates
 
 
 class TestCleanText:

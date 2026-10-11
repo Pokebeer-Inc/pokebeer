@@ -1,5 +1,4 @@
 """Ajout d'une bière par étapes : brouillon enregistré à chaque étape, mêmes règles qu'avant, page de félicitations."""
-import json
 
 import pytest
 from django.urls import reverse
@@ -149,7 +148,7 @@ class TestDraftStorage:
     def test_oversized_bodies_and_floods_are_refused(self, auth_client):
         assert post_step(auth_client, 1, strict=False, **{"beer-description": "d" * 30000}).status_code == 413
         for _ in range(200):
-            ThrottleHit.objects.create(scope="beer-draft", key_hash=__import__("app.services.throttle", fromlist=["_digest"])._digest(auth_client.session["_auth_user_id"]))
+            ThrottleHit.objects.create(scope="beer-draft", key_hash=__import__("app.services.protection.throttle", fromlist=["_digest"])._digest(auth_client.session["_auth_user_id"]))
         assert post_step(auth_client, 1, strict=False, **{"beer-name": "x"}).status_code == 429
 
     def test_post_only_and_login_required(self, auth_client, client):
@@ -191,7 +190,7 @@ class TestFinishing:
         response = auth_client.post(reverse("add_beer"), full_data(**{"drink-venue_type": "bar", "drink-company": "friends", "drink-serving_format": "pint", "drink-price": "6.50"}))
         beer = Beer.objects.get(name="Nouvelle Blonde")
         assert response.status_code == 302 and response.url == reverse("add_beer_done", args=[beer.slug])
-        drink = Drinks.objects.get(beer_id=beer)
+        drink = Drinks.objects.get(beer=beer)
         assert (drink.venue_type, drink.company, drink.serving_format, str(drink.price)) == ("bar", "friends", "pint", "6.50")
         assert not BeerDraft.objects.filter(user=user).exists()
 

@@ -12,7 +12,6 @@
         const list = document.getElementById('cities-' + group);
         if (!city || !list) return;
 
-        let timer = null;
         let controller = null;
 
         function show(cities) {
@@ -44,7 +43,7 @@
             }
         }
 
-        postal.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(lookup, DEBOUNCE_MS); });
+        postal.addEventListener('input', Pokebeer.debounce(() => lookup(), DEBOUNCE_MS));
         if (FORMAT.test(postal.value.trim())) lookup();
     });
 })();

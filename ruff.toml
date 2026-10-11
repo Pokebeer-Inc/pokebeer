@@ -1,0 +1,9 @@
+# Contrôle statique de la CI : erreurs de syntaxe et défauts évidents (imports ou variables inutilisés, noms indéfinis).
+line-length = 200
+extend-exclude = ["app/migrations", "staticfiles", "theme", "node_modules"]
+
+[lint]
+select = ["E9", "F"]
+
+[lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]  # ré-exports volontaires

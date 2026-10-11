@@ -32,7 +32,7 @@ class TestBeerFormDuplicates:
 
     def test_active_beer_with_a_suffixed_slug_still_blocks_its_name(self, beer):
         Beer.objects.filter(pk=beer.pk).update(is_deleted=True)
-        f.make_beer(name="Test IPA", brewery=beer.brewery_id)
+        f.make_beer(name="Test IPA", brewery=beer.brewery)
         form = BeerForm(data=beer_data(name="test ipa"))
         assert not form.is_valid() and "Test IPA" in form.non_field_errors()[0]
 
@@ -92,14 +92,14 @@ class TestBeerFormCleaning:
 class TestBeerFormSave:
     def test_existing_brewery_is_reused_case_insensitively(self, brewery, user):
         beer = BeerForm(data=beer_data(brewery_name="BRASSERIE test")).save(user=user)
-        assert beer.brewery_id == brewery
+        assert beer.brewery == brewery
         assert beer.added_by == user
         assert Brewery.objects.count() == 1
 
     def test_unknown_brewery_is_created_on_the_fly(self, user):
         beer = BeerForm(data=beer_data(brewery_name="Inconnue")).save(user=user)
-        assert beer.brewery_id.name == "Inconnue"
-        assert beer.brewery_id.description == "Ajoutée automatiquement"
+        assert beer.brewery.name == "Inconnue"
+        assert beer.brewery.description == "Ajoutée automatiquement"
 
 
 class TestBeerFormImagePermission:
@@ -117,7 +117,7 @@ class TestBeerFormImagePermission:
 
     def test_brewery_manager_can_edit_the_image_even_when_verified(self, user, beer):
         beer.is_verified = True
-        beer.brewery_id.managers.add(user)
+        beer.brewery.managers.add(user)
         assert "image" in BeerForm(instance=beer, user=user).fields
 
     def test_a_stranger_cannot_edit_the_image(self, user, beer):
@@ -125,7 +125,7 @@ class TestBeerFormImagePermission:
 
     def test_remove_flag_is_ignored_when_the_image_field_is_not_allowed(self, user, beer):
         beer.image.save("x.webp", f.make_image_upload(), save=True)
-        form = BeerForm(data=beer_data(name=beer.name, brewery_name=beer.brewery_id.name, remove_image="on"), instance=beer, user=user)
+        form = BeerForm(data=beer_data(name=beer.name, brewery_name=beer.brewery.name, remove_image="on"), instance=beer, user=user)
         assert form.is_valid(), form.errors
         form.save()
         beer.refresh_from_db()
@@ -146,7 +146,7 @@ class TestBeerFormImagePermission:
         beer.added_by = user
         beer.image.save("x.webp", f.make_image_upload(), save=True)
         old, storage = beer.image.name, beer.image.storage
-        form = BeerForm(data=beer_data(name=beer.name, brewery_name=beer.brewery_id.name), files={"image": f.make_image_upload()}, instance=beer, user=user)
+        form = BeerForm(data=beer_data(name=beer.name, brewery_name=beer.brewery.name), files={"image": f.make_image_upload()}, instance=beer, user=user)
         assert form.is_valid(), form.errors
         with django_capture_on_commit_callbacks(execute=True):
             form.save()
@@ -157,7 +157,7 @@ class TestBeerFormImagePermission:
         beer.added_by = user
         beer.image.save("x.webp", f.make_image_upload(), save=True)
         old, storage = beer.image.name, beer.image.storage
-        form = BeerForm(data=beer_data(name=beer.name, brewery_name=beer.brewery_id.name, remove_image="on"), instance=beer, user=user)
+        form = BeerForm(data=beer_data(name=beer.name, brewery_name=beer.brewery.name, remove_image="on"), instance=beer, user=user)
         assert form.is_valid(), form.errors
         with django_capture_on_commit_callbacks(execute=True):
             form.save()
@@ -236,7 +236,7 @@ class TestProForms:
         assert "siret" in form_class(data=self.data(siret=siret)).errors
 
     def test_an_existing_siret_is_not_a_form_error_it_becomes_a_claim(self, form_class):
-        """Le SIRET d'une fiche existante est traité par services/claims.py (demande de gestion), pas refusé par le formulaire."""
+        """Le SIRET d'une fiche existante est traité par services/establishments/claims.py (demande de gestion), pas refusé par le formulaire."""
         form = form_class(data=self.data())
         assert form.is_valid()
         place = form.save(commit=False)

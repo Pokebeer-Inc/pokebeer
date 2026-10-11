@@ -1,6 +1,6 @@
 """Éléments « à traiter » : pastille du menu latéral et KPI en tête de liste, pour les modèles à statut."""
 from ..models import Feedback, Report
-from ..services import claims
+from ..services.establishments import claims
 
 PENDING_REPORTS_EXCLUDED_STATUS = 'resolved'
 

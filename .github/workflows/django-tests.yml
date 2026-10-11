@@ -52,6 +52,20 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements-dev.txt
 
+    - name: Static analysis (ruff)
+      run: ruff check app pokebeer tests api manage.py
+
+    - name: Known vulnerabilities in dependencies (pip-audit)
+      run: pip-audit -r requirements.txt --no-deps --disable-pip
+
+    - name: Django deployment checks
+      env:
+        DEBUG: 'False'
+        DATABASE_URL: 'postgresql://test_user:test_password@localhost:5432/test_db'
+        SECRET_KEY: 'cle-secrete-de-test-assez-longue-pour-passer-le-controle-de-deploiement-0123456789'
+        ALLOWED_HOSTS: 'example.test'
+      run: python manage.py check --deploy --fail-level WARNING
+
     - name: Setup Node.js and Tailwind
       uses: actions/setup-node@v4
       with:
@@ -62,10 +76,7 @@ jobs:
     - name: Run Pytest
       env:
         DATABASE_URL: 'postgresql://test_user:test_password@localhost:5432/test_db'
-        
         SECRET_KEY: 'cle-secrete-bidon-inutile-de-la-cacher-ici'
         DEBUG: 'False'
-        
-        GEMINI_API_KEY: 'cle-factice-pour-les-tests'
       run: |
         pytest --cov-fail-under=90

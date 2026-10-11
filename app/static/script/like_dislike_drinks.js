@@ -76,7 +76,7 @@ function react(event, drinkSlug, isLike) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : window.CSRF_TOKEN
+            'X-CSRFToken': Pokebeer.csrfToken()
         },
         body: JSON.stringify({ is_like: isLike })
     })

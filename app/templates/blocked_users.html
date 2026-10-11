@@ -13,7 +13,7 @@
         <p class="thread-title">{{ just_blocked }} est bloqué</p>
         <p class="thread-sub">Il ne peut plus interagir avec vous et ne sera pas prévenu. Un comportement problématique ? Dites-le-nous : notre équipe examinera la situation.</p>
         <div class="thread-card-actions">
-            <button type="button" class="btn btn-xs btn-warning" onclick="document.getElementById('modal_report_{{ just_blocked }}').showModal()">Signaler à l'équipe</button>
+            <button type="button" class="btn btn-xs btn-warning" data-modal-open="modal_report_{{ just_blocked }}">Signaler à l'équipe</button>
         </div>
     </div>
 </div>
@@ -33,8 +33,8 @@
             <span class="thread-status thread-status--waiting">Bloqué</span>
         </div>
         <div class="thread-card-actions">
-            <button onclick="document.getElementById('modal_report_{{ entry.blocked.username }}').showModal()" class="btn btn-xs btn-outline btn-warning">Signaler</button>
-            <button onclick="document.getElementById('modal_unblock_{{ entry.blocked.username }}').showModal()" class="btn btn-xs btn-outline btn-success">Débloquer</button>
+            <button data-modal-open="modal_report_{{ entry.blocked.username }}" class="btn btn-xs btn-outline btn-warning">Signaler</button>
+            <button data-modal-open="modal_unblock_{{ entry.blocked.username }}" class="btn btn-xs btn-outline btn-success">Débloquer</button>
         </div>
     </div>
 

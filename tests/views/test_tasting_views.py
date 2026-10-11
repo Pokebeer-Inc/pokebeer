@@ -18,7 +18,7 @@ class TestRateBeer:
 
     def test_rating_is_saved_and_leads_to_the_thank_you_page_that_returns_to_the_referer(self, auth_client, user, beer):
         assert_redirects(self.rate(auth_client, beer), reverse("rate_beer_done", args=[beer.slug]))
-        assert Drinks.objects.get(drinker_id=user, beer_id=beer).note == 8
+        assert Drinks.objects.get(drinker=user, beer=beer).note == 8
         page = auth_client.get(reverse("rate_beer_done", args=[beer.slug])).content.decode()
         assert 'href="/beers/"' in page and "Merci" in page and beer.name in page and "8/10" in page
 

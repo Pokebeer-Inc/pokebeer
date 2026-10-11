@@ -1,6 +1,6 @@
 {% load static %}
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+{% include "partials/leaflet_css.html" %}
 <link rel="stylesheet" href="{% static 'style/admin_places_map.css' %}">
 
 <div class="mb-6 rounded-default bg-white shadow-xs dark:bg-base-800" id="places-map-section">
@@ -75,5 +75,5 @@
 
 {{ places|json_script:"places-data" }}
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+{% include "partials/leaflet_js.html" %}
 <script src="{% static 'script/admin_places_map.js' %}"></script>

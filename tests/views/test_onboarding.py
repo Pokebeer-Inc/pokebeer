@@ -6,7 +6,7 @@ from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
-from app.models import BeerUser, ThrottleHit
+from app.models import BeerUser
 from app.validators import MIN_AGE, age_on, validate_adult_birth_date
 from django.core.exceptions import ValidationError
 from tests import factories as f
@@ -66,7 +66,7 @@ class TestTheGuard:
     def test_the_onboarding_logout_and_policy_stay_reachable(self, client, newcomer):
         assert client.get(reverse("onboarding_birth")).status_code == 200
         assert client.get(reverse("privacy_policy")).status_code in (301, 302)
-        assert client.get(reverse("logout")).status_code in (200, 302)
+        assert client.post(reverse("logout")).status_code in (200, 302)
 
     def test_existing_and_finished_members_are_not_affected(self, auth_client):
         assert auth_client.get(reverse("index")).status_code == 200

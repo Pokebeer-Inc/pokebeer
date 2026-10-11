@@ -2,8 +2,8 @@
 import pytest
 
 from app.models import Bar, Brewery
-from app.services import place_filters
-from app.services.places import BAR, BREWERY
+from app.services.establishments import place_filters
+from app.services.establishments.places import BAR, BREWERY
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db

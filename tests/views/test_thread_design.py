@@ -1,8 +1,8 @@
 import pytest
 from django.urls import reverse
 
-from app.services import feedback as conversations
-from app.services.threads import RESOLVED_DEFAULT_MESSAGE, report_entries
+from app.services.support import feedback as conversations
+from app.services.support.threads import RESOLVED_DEFAULT_MESSAGE, report_entries
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -88,7 +88,7 @@ class TestTeamTextIsPlain:
         ("", ""), (None, ""),
     ])
     def test_plain_text(self, stored, shown):
-        from app.services.threads import plain_text
+        from app.services.support.threads import plain_text
         assert plain_text(stored) == shown
 
     def test_legacy_html_decision_is_shown_as_clean_text(self, auth_client, user):

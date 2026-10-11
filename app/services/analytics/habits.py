@@ -25,9 +25,9 @@ def _retention(period):
         for row in BeerUser.objects.filter(created_at__date__gte=first).annotate(cohort=TruncMonth('created_at'))
         .values('cohort').annotate(n=Count('pk'))
     }
-    rows = (Drinks.objects.filter(drinker_id__created_at__date__gte=first)
-            .annotate(cohort=TruncMonth('drinker_id__created_at'), active=TruncMonth('date'))
-            .values('cohort', 'active').annotate(users=Count('drinker_id', distinct=True)))
+    rows = (Drinks.objects.filter(drinker__created_at__date__gte=first)
+            .annotate(cohort=TruncMonth('drinker__created_at'), active=TruncMonth('date'))
+            .values('cohort', 'active').annotate(users=Count('drinker', distinct=True)))
     counts = {}
     for row in rows:
         cohort = row['cohort'].date() if hasattr(row['cohort'], 'date') else row['cohort']
@@ -59,7 +59,7 @@ def build(period, params):
                         [{'name': 'Dégustations', 'data': [month.get(m, 0) for m in range(1, 13)]}],
                         subtitle='Saisonnalité ; 12 mois ou plus recommandés'))
 
-    per_member = [row['n'] for row in drinks.values('drinker_id').annotate(n=Count('pk'))]
+    per_member = [row['n'] for row in drinks.values('drinker').annotate(n=Count('pk'))]
     members = len(per_member)
     counts = [sum(1 for n in per_member if low <= n <= high) for low, high, _ in INTENSITY_BUCKETS]
     blocks.append(Chart('intensity', 'Régularité des membres actifs', 'donut', [label for *_x, label in INTENSITY_BUCKETS], [{'name': 'Membres', 'data': counts}],

@@ -31,7 +31,7 @@ def _tastings(spot_ids):
     """Dégustations rattachées aux lieux donnés (style, bière, note, dégustateur)."""
     return list(
         BeerSpot.drinks.through.objects.filter(beerspot_id__in=spot_ids)
-        .values_list('drinks__beer_id__style', 'drinks__beer_id__name', 'drinks__note', 'drinks__drinker_id')
+        .values_list('drinks__beer__style', 'drinks__beer__name', 'drinks__note', 'drinks__drinker')
     )
 
 
@@ -57,8 +57,8 @@ def _style_mix(tastings, period):
             drinkers[style].add(drinker)
 
     overall = Counter()
-    for row in date_range(Drinks.objects.all(), 'date', period.start).values('beer_id__style').annotate(n=Count('pk')):
-        for style in split_styles(row['beer_id__style']):
+    for row in date_range(Drinks.objects.all(), 'date', period.start).values('beer__style').annotate(n=Count('pk')):
+        for style in split_styles(row['beer__style']):
             overall[style] += row['n']
     local_total, overall_total = sum(local.values()) or 1, sum(overall.values()) or 1
 

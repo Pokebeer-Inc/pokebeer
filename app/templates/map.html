@@ -4,7 +4,7 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
 <link rel="stylesheet" href="{% static 'style/map.css' %}">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+{% include "partials/leaflet_css.html" %}
 <div class="pb-frame-fixed fixed top-0 left-0 w-full bottom-[4.5rem] z-0 bg-base-100">
     <div id="map" class="absolute inset-0 z-0" role="application" aria-label="Carte des bars, des brasseries et de vos souvenirs"></div>
 
@@ -14,8 +14,8 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             <input type="search" id="map-search-input" placeholder="Bar, brasserie, adresse…" aria-label="Chercher un lieu sur la carte" autocomplete="off" enterkeyhint="search"
                    class="grow min-w-0 bg-transparent text-base outline-none border-0 shadow-none" style="border:0;box-shadow:none;outline:none"
-                   onkeypress="if(event.key === 'Enter') searchLocation()">
-            <button type="button" onclick="searchLocation()" class="btn btn-primary btn-sm border-secondary text-black normal-case">Chercher</button>
+                   data-on-keypress="searchLocation" data-key="Enter" data-no-event>
+            <button type="button" data-on-click="searchLocation" data-no-event class="btn btn-primary btn-sm border-secondary text-black normal-case">Chercher</button>
         </div>
 
         <div class="pb-chips" role="group" aria-label="Couches affichées sur la carte">
@@ -37,8 +37,8 @@
     <div id="move-overlay" class="fixed top-0 left-0 w-full h-16 bg-primary text-black z-[10000] flex items-center justify-between px-4 shadow-lg transition-transform -translate-y-full" role="status">
         <span class="text-sm font-bold">Faites glisser le marqueur</span>
         <div class="flex gap-2">
-            <button type="button" onclick="cancelMoveMode()" class="btn btn-sm btn-ghost normal-case">Annuler</button>
-            <button type="button" onclick="finishMoveMode()" class="btn btn-sm bg-secondary text-base-200 border-none normal-case">Valider ici</button>
+            <button type="button" data-on-click="cancelMoveMode" data-no-event class="btn btn-sm btn-ghost normal-case">Annuler</button>
+            <button type="button" data-on-click="finishMoveMode" data-no-event class="btn btn-sm bg-secondary text-base-200 border-none normal-case">Valider ici</button>
         </div>
     </div>
 </div>
@@ -53,13 +53,13 @@
     data-lat="{{ spot.latitude|stringformat:'f' }}"
     data-lng="{{ spot.longitude|stringformat:'f' }}"
     data-is-owner="{% if spot.user == request.user %}true{% else %}false{% endif %}"
-    data-drink-slugs="{% for d in spot.drinks.all %}{% if d.drinker_id == request.user %}{{ d.slug }},{% endif %}{% endfor %}"
-    data-other-beer-slugs="{% for d in spot.drinks.all %}{% if d.drinker_id != request.user %}{{ d.beer_id.slug }},{% endif %}{% endfor %}"
+    data-drink-slugs="{% for d in spot.drinks.all %}{% if d.drinker == request.user %}{{ d.slug }},{% endif %}{% endfor %}"
+    data-other-beer-slugs="{% for d in spot.drinks.all %}{% if d.drinker != request.user %}{{ d.beer.slug }},{% endif %}{% endfor %}"
     data-friend-usernames="{% for f in spot.friends.all %}{{ f.username }},{% endfor %}">
     
     <div class="popup-template">
         <div class="text-sm font-montserrat relative pr-5 min-w-40">
-            <button onclick="openEditModal('{{ spot.slug }}')" class="absolute top-0 right-0 text-gray-600 hover:text-black z-50 p-1" title="Modifier">
+            <button data-on-click="openEditModal" data-no-event data-args='["{{ spot.slug }}"]' class="absolute top-0 right-0 text-gray-600 hover:text-black z-50 p-1" title="Modifier">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             </button>
             
@@ -76,10 +76,10 @@
             <ul class="text-xs list-disc pl-4 mt-1 text-gray-700">
                 {% for drink in spot.drinks.all %}
                 <li>
-                    <a href="{% url 'beer_detail' drink.beer_id.slug %}" class="font-bold underline hover:no-underline transition-colors">
-                        {{ drink.beer_id.name }}
+                    <a href="{% url 'beer_detail' drink.beer.slug %}" class="font-bold underline hover:no-underline transition-colors">
+                        {{ drink.beer.name }}
                     </a> 
-                    <span class="text-[9px] text-gray-400">({{ drink.drinker_id.username }})</span>
+                    <span class="text-[9px] text-gray-400">({{ drink.drinker.username }})</span>
                 </li>
                 {% endfor %}
             </ul>
@@ -104,7 +104,7 @@
 <dialog id="modal_add_spot" class="modal z-[9999]">
     <div class="modal-box custom-modal-form">
         
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-50 bg-base-100" onclick="modal_add_spot.close()">{% include "partials/icon.html" with name="close" %}</button>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-50 bg-base-100" data-modal-close="modal_add_spot">{% include "partials/icon.html" with name="close" %}</button>
         <h3 id="modal-title" class="pb-title text-xl font-bold mb-4 text-center shrink-0">Ajouter un lieu</h3>
         
         <form method="post" class="flex flex-col gap-3">
@@ -127,11 +127,11 @@
                 <label class="label py-1"><span class="label-text text-xs font-bold">Emplacement du point</span></label>
                 <div class="flex flex-col gap-2">
                     <div class="flex gap-2">
-                        <button type="button" onclick="startMoveMode()" class="btn btn-sm btn-outline border-secondary flex-1 gap-2">
+                        <button type="button" data-on-click="startMoveMode" data-no-event class="btn btn-sm btn-outline border-secondary flex-1 gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
                             Déplacer sur la carte
                         </button>
-                        <button type="button" onclick="updateToCurrentLocation()" class="btn btn-sm btn-outline border-secondary gap-2">
+                        <button type="button" data-on-click="updateToCurrentLocation" data-no-event class="btn btn-sm btn-outline border-secondary gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                             GPS
                         </button>
@@ -154,14 +154,14 @@
                     {% for drink in user_drinks %}
                     <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors drink-item" 
                     data-drink-slug="{{ drink.slug }}" 
-                    data-is-deleted="{% if drink.beer_id.is_deleted %}true{% else %}false{% endif %}">
-                    <input type="checkbox" name="drinks" value="{{ drink.slug }}" data-beer-slug="{{ drink.beer_id.slug }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
+                    data-is-deleted="{% if drink.beer.is_deleted %}true{% else %}false{% endif %}">
+                    <input type="checkbox" name="drinks" value="{{ drink.slug }}" data-beer-slug="{{ drink.beer.slug }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
                     <span class="label-text text-xs font-semibold">
-                        {{ drink.beer_id.name }} 
+                        {{ drink.beer.name }} 
                         {% if drink.note is not null %}
                         <span class="text-[10px] text-gray-500 font-normal">({{ drink.note }}/10)</span>
                         {% endif %}
-                        {% if drink.beer_id.is_deleted %}
+                        {% if drink.beer.is_deleted %}
                         <span class="badge badge-error badge-xs ml-1 opacity-70">Supprimée</span>
                         {% endif %}
                     </span>
@@ -195,7 +195,7 @@
     </form>
     <form id="form-delete-spot" method="post" action="" class="mt-4 pt-4 border-t border-base-200" style="display: none;">
         {% csrf_token %}
-        <button type="button" class="btn btn-error btn-outline btn-sm w-full" onclick="modal_confirm_spot.showModal()">
+        <button type="button" class="btn btn-error btn-outline btn-sm w-full" data-modal-open="modal_confirm_spot">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             Supprimer ce lieu
         </button>
@@ -221,7 +221,7 @@
 
 <dialog id="modal_place" class="modal modal-bottom sm:modal-middle z-[99999]">
     <div class="modal-box p-0 w-full max-w-2xl custom-modal-form overflow-y-auto relative bg-base-100">
-        <button type="button" class="btn btn-sm btn-circle absolute right-3 top-3 z-[100] shadow-md bg-base-200/90 border border-secondary/20 text-black backdrop-blur-sm" onclick="modal_place.close()">{% include "partials/icon.html" with name="close" %}</button>
+        <button type="button" class="btn btn-sm btn-circle absolute right-3 top-3 z-[100] shadow-md bg-base-200/90 border border-secondary/20 text-black backdrop-blur-sm" data-modal-close="modal_place">{% include "partials/icon.html" with name="close" %}</button>
         
         <div id="modal_place_content" class="w-full min-h-[300px] flex flex-col p-4">
             <div class="flex justify-center p-20 w-full">
@@ -232,7 +232,7 @@
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+{% include "partials/leaflet_js.html" %}
 <script src="{% static 'script/pins.js' %}"></script>
 <script src="{% static 'script/map.js' %}"></script>
 <script src="{% static 'script/wishlist.js' %}"></script>

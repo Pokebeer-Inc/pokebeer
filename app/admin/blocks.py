@@ -7,7 +7,7 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import display
 
 from ..models import Report, UserBlock
-from ..services.blocks import REPEATED_BLOCK_THRESHOLD, repeatedly_blocked_count
+from ..services.members.blocks import REPEATED_BLOCK_THRESHOLD, repeatedly_blocked_count
 from .pending import PendingKpiMixin
 
 def _blocks_received():

@@ -4,7 +4,7 @@ import pytest
 from django.urls import reverse
 
 from app.admin import dashboard_callback
-from app.services.places_map import PUBLIC_FIELDS, places_for_map
+from app.services.establishments.places_map import PUBLIC_FIELDS, places_for_map
 from tests import factories as f
 from tests.admin.test_admin import admin_request
 
@@ -50,12 +50,11 @@ class TestDashboardMap:
         f.make_bar(address="Paris")
         assert len(dashboard_callback(admin_request(superuser), {})["places"]) == 1
 
-    def test_page_embeds_data_safely_and_loads_leaflet_with_integrity(self, client_for, superuser, geocoder):
+    def test_page_embeds_data_safely_and_loads_its_own_copy_of_leaflet(self, client_for, superuser, geocoder):
         f.make_bar(name="</script><img src=x onerror=alert(1)>", address="Paris")
         html = client_for(superuser).get(reverse("admin:index")).content.decode()
         assert 'id="places-data"' in html and "<img src=x" not in html
-        assert 'integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="' in html
-        assert 'integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="' in html
+        assert "vendor/leaflet/leaflet.css" in html and "vendor/leaflet/leaflet.js" in html and "unpkg" not in html
 
     def test_regular_member_cannot_reach_the_dashboard(self, auth_client):
         assert auth_client.get(reverse("admin:index")).status_code == 302

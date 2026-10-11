@@ -103,7 +103,7 @@ class TestCarnet:
         f.make_drink(user, low, note=3, date=date(2024, 1, 2))
         f.make_drink(user, high, note=9, date=date(2024, 1, 1))
         drinks = auth_client.get(reverse("notebook_drinks_fragment"), {"sort": "note_desc"}).context["my_drinks"]
-        assert [d.beer_id.name for d in drinks] == ["Brillante", "Faible"]
+        assert [d.beer.name for d in drinks] == ["Brillante", "Faible"]
 
     def test_fragment_requires_a_login(self, client):
         assert client.get(reverse("notebook_drinks_fragment")).status_code == 302
@@ -116,7 +116,7 @@ class TestTastingContext:
             "date": date.today().isoformat(), "note": 7, "comment": "Très bien",
             "venue_type": "bar", "company": "friends", "serving_format": "pint", "price": "6.50",
         })
-        drink = Drinks.objects.get(drinker_id=user, beer_id=beer)
+        drink = Drinks.objects.get(drinker=user, beer=beer)
         assert (drink.venue_type, drink.company, drink.serving_format, str(drink.price)) == ("bar", "friends", "pint", "6.50")
 
     def test_editing_without_the_context_fields_keeps_them(self, auth_client, user):
@@ -128,7 +128,7 @@ class TestTastingContext:
     def test_invalid_choice_is_refused(self, auth_client, user):
         beer = f.make_beer()
         auth_client.post(reverse("rate_beer", args=[beer.slug]), {"date": date.today().isoformat(), "comment": "x", "venue_type": "moon"})
-        assert not Drinks.objects.filter(drinker_id=user, beer_id=beer).exists()
+        assert not Drinks.objects.filter(drinker=user, beer=beer).exists()
 
     def test_the_add_page_offers_every_field_across_its_steps(self, auth_client):
         html = auth_client.get(reverse("add_beer")).content.decode()
@@ -214,17 +214,17 @@ class TestCollectionPage:
         assert [param for param, _ in context["filter_chips"]] == ["q", "degree", "ibu", "style", "rating"]
         assert context["filter_count"] == 4  # la recherche n'est pas comptée : elle a sa propre barre
         assert context["sort"] == "note_desc"
-        assert [d.beer_id.name for d in context["my_drinks"]] == ["Forte IPA"]
+        assert [d.beer.name for d in context["my_drinks"]] == ["Forte IPA"]
 
     def test_default_rating_range_does_not_hide_tastings_without_a_note(self, auth_client, user):
         f.make_drink(user, f.make_beer(name="Sans note"), note=None)
         context = auth_client.get(reverse("notebook_all"), {"rating_min": 0, "rating_max": 10}).context
-        assert [d.beer_id.name for d in context["my_drinks"]] == ["Sans note"] and context["filter_chips"] == []
+        assert [d.beer.name for d in context["my_drinks"]] == ["Sans note"] and context["filter_chips"] == []
 
     def test_narrow_rating_range_filters(self, auth_client, user):
         f.make_drink(user, f.make_beer(name="Basse"), note=3)
         f.make_drink(user, f.make_beer(name="Haute"), note=9)
-        names = [d.beer_id.name for d in auth_client.get(reverse("notebook_all"), {"rating_min": 8}).context["my_drinks"]]
+        names = [d.beer.name for d in auth_client.get(reverse("notebook_all"), {"rating_min": 8}).context["my_drinks"]]
         assert names == ["Haute"]
 
     def test_garbage_parameters_are_ignored_safely(self, auth_client):
@@ -249,7 +249,7 @@ class TestCollectionPage:
         assert more["html"].count("Forte") >= 2 and "Légère" not in more["html"]
 
     def test_a_collection_page_shows_only_its_own_drinks(self, auth_client, user):
-        inside, outside = f.make_drink(user, f.make_beer(name="Dedans")), f.make_drink(user, f.make_beer(name="Dehors"))
+        inside, _outside = f.make_drink(user, f.make_beer(name="Dedans")), f.make_drink(user, f.make_beer(name="Dehors"))
         notebook = f.make_notebook(user, drinks=[inside])
         html = auth_client.get(reverse("notebook_drinks_fragment"), {"notebook_slug": notebook.slug}).content.decode()
         assert "Dedans" in html and "Dehors" not in html
@@ -543,7 +543,7 @@ class TestTastingModal:
 
     def test_a_new_rating_goes_step_by_step_with_a_close_button(self, auth_client, beer):
         modal = self.new_modal(auth_client, beer)
-        assert 'aria-label="Fermer"' in modal and "this.closest('dialog').close()" in modal and "data-stepper" in modal
+        assert 'aria-label="Fermer"' in modal and "data-modal-close" in modal and "data-stepper" in modal
         assert [step for step in ("Votre note", "Votre avis", "Le contexte", "Format et prix") if f'data-title="{step}"' in modal] == [
             "Votre note", "Votre avis", "Le contexte", "Format et prix"]
         assert "data-stepper-back" in modal and "data-stepper-next" in modal and "data-stepper-submit" in modal and 'sur <span data-stepper-total>4</span>' in modal
@@ -580,7 +580,7 @@ class TestTastingModal:
         })
         assert response.status_code == 302
         from app.models import Drinks
-        drink = Drinks.objects.get(drinker_id=user, beer_id=beer)
+        drink = Drinks.objects.get(drinker=user, beer=beer)
         assert (drink.note, drink.venue_type, drink.company, drink.serving_format, str(drink.price)) == (8, "bar", "friends", "bottle", "4.50")
 
     def test_the_edit_modal_keeps_the_saved_values_and_shows_the_context_summary(self, auth_client, user, beer):
@@ -679,8 +679,8 @@ class TestBeerPageDesign:
         drink = f.make_drink(other_user, beer, note=7)
         html = self.beer_page(auth_client, beer).content.decode()
         for hook in (f'id="drink-card-{drink.slug}"', f'id="reactions-{drink.slug}"', f'id="likes-count-{drink.slug}"', f'id="dislikes-count-{drink.slug}"',
-                     f'id="score-val-{drink.slug}"', f"react(event, '{drink.slug}', true)", f"startPress(event, '{drink.slug}')",
-                     f"handleDoubleTap(event, '{drink.slug}')", "drink-card", "reaction-menu", f'data-score="{drink.score if hasattr(drink, "score") else 0}"'):
+                     f'id="score-val-{drink.slug}"', 'data-on-click="react"', 'data-on-mousedown="startPress"', 'data-on-touchstart="startPress"',
+                     'data-on-click="handleDoubleTap"', f"data-args='[\"{drink.slug}\"", "drink-card", "reaction-menu", f'data-score="{drink.score if hasattr(drink, "score") else 0}"'):
             assert hook in html
         assert "like_dislike_drinks.js" in html
 
@@ -714,7 +714,7 @@ class TestBeerPageDesign:
     def test_wishlist_and_report_features_remain(self, auth_client, other_user):
         beer = f.make_beer(added_by=other_user)
         html = self.beer_page(auth_client, beer).content.decode()
-        assert "toggleWishlist(event" in html and "modal_report_beer" in html and "modalRate-" in html
+        assert 'data-on-click="toggleWishlist"' in html and "modal_report_beer" in html and "modalRate-" in html
 
     def test_unverified_own_beer_can_still_be_edited_or_removed(self, auth_client, user):
         beer = f.make_beer(added_by=user)
@@ -743,7 +743,7 @@ class TestPlacePagesDesign:
         beer = f.make_beer(name="Blonde Maison", brewery=brewery, style="Blonde", degree=5, bitterness=20)
         html = auth_client.get(reverse("brewery_detail", args=[brewery.slug])).content.decode()
         for needle in ("Brasserie Test", "1 rue du Houblon, Lille", "Une brasserie de test", "https://example.org", "tel:0102030405", "mailto:b@example.org",
-                       "Bières proposées (1)", "Blonde Maison", "Blonde", "Alc. 5", "IBU 20", reverse("beer_detail", args=[beer.slug]), "modalRate-", "toggleWishlist(event"):
+                       "Bières proposées (1)", "Blonde Maison", "Blonde", "Alc. 5", "IBU 20", reverse("beer_detail", args=[beer.slug]), "modalRate-", 'data-on-click="toggleWishlist"'):
             assert needle in html
         assert "modal_report_place" in html and "pb-title" in html and "text-justify" not in html
 
@@ -781,9 +781,9 @@ class TestMapDesign:
 
     def test_every_existing_hook_of_the_map_page_is_still_there(self, auth_client):
         html = self.page(auth_client)
-        for hook in ('id="map"', 'id="map-search-input"', 'id="map-search-results"', 'id="geoloc-btn"', 'id="move-overlay"', "searchLocation()", "cancelMoveMode()",
-                     "finishMoveMode()", 'id="modal_add_spot"', 'id="modal_confirm_spot"', 'id="modal_place"', 'id="form-delete-spot"', 'id="spots-data-container"',
-                     'id="places-data-container"', "startMoveMode()", "updateToCurrentLocation()", 'id="spot-lat"', 'id="friends-section"'):
+        for hook in ('id="map"', 'id="map-search-input"', 'id="map-search-results"', 'id="geoloc-btn"', 'id="move-overlay"', 'data-on-click="searchLocation"', 'data-on-click="cancelMoveMode"',
+                     'data-on-click="finishMoveMode"', 'id="modal_add_spot"', 'id="modal_confirm_spot"', 'id="modal_place"', 'id="form-delete-spot"', 'id="spots-data-container"',
+                     'id="places-data-container"', 'data-on-click="startMoveMode"', 'data-on-click="updateToCurrentLocation"', 'id="spot-lat"', 'id="friends-section"'):
             assert hook in html
 
     def test_place_names_with_apostrophes_are_not_garbled(self, auth_client):

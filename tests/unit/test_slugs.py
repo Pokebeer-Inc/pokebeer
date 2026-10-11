@@ -6,7 +6,7 @@ from django import forms
 from django.db import IntegrityError, transaction
 
 from app.models import Bar, Beer, BeerSpot, Brewery, CustomNotebook, Drinks, Notification, Report
-from app.services.slugs import SUFFIX_LENGTH, TOKEN_ALPHABET, TOKEN_LENGTH, generate_slug, generate_token
+from app.services.common.slugs import SUFFIX_LENGTH, TOKEN_ALPHABET, TOKEN_LENGTH, generate_slug, generate_token
 from tests import factories as f
 
 TOKEN = rf"[a-z0-9]{{{TOKEN_LENGTH}}}"
@@ -22,7 +22,7 @@ class TestGenerateToken:
 
     def test_is_drawn_from_the_system_csprng(self, monkeypatch):
         calls = []
-        monkeypatch.setattr("app.services.slugs.secrets.choice", lambda alphabet: calls.append(alphabet) or "a")
+        monkeypatch.setattr("app.services.common.slugs.secrets.choice", lambda alphabet: calls.append(alphabet) or "a")
         assert generate_token(5) == "aaaaa" and len(calls) == 5
 
 
@@ -61,7 +61,7 @@ class TestPublicSlugField:
         assert re.fullmatch(TOKEN, factory(user).slug)
 
     def test_slug_is_generated_by_bulk_create(self, user):
-        beers = Beer.objects.bulk_create([Beer(name=f"Bulk {i}", brewery_id=f.make_brewery(), degree=5) for i in range(3)])
+        beers = Beer.objects.bulk_create([Beer(name=f"Bulk {i}", brewery=f.make_brewery(), degree=5) for i in range(3)])
         assert len({beer.slug for beer in beers}) == 3 and all(beer.slug for beer in beers)
 
     def test_slug_never_changes_once_created(self, user):

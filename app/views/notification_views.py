@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from ..models import BeerUser, Notification
-from ..services import notification_presenter as presenter, notification_types, realtime_service
+from ..services.messaging import notification_presenter as presenter, notification_types, realtime_service
 
 FCM_TOKEN_MAX_LENGTH = 4096
 
@@ -29,9 +29,9 @@ def _with_achievements(notifications, user):
     """Associe à chaque notification de trophée ses données (calculées une seule fois, et seulement si nécessaire)."""
     trophies = [notif for notif in notifications if notif.notif_type == presenter.ACHIEVEMENT]
     if trophies:
-        by_name = presenter.achievements_by_name(user)
+        by_slug = presenter.achievements_by_slug(user)
         for notif in trophies:
-            notif.ach_data = by_name.get(notif.achievement_name)
+            notif.ach_data = by_slug.get(notif.achievement_slug)
     return notifications
 
 
@@ -60,8 +60,8 @@ def api_unread_notifications(request):
         )
         realtime_service.mark_toasted(fresh)
 
-    trophies = presenter.achievements_by_name(request.user) if any(n.notif_type == presenter.ACHIEVEMENT for n in fresh) else {}
-    data = [presenter.payload(n, trophies.get(n.achievement_name), request) for n in fresh]
+    trophies = presenter.achievements_by_slug(request.user) if any(n.notif_type == presenter.ACHIEVEMENT for n in fresh) else {}
+    data = [presenter.payload(n, trophies.get(n.achievement_slug), request) for n in fresh]
     unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
     return JsonResponse({'unread_count': unread_count, 'notifications': data})
 

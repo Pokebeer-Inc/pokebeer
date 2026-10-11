@@ -3,7 +3,7 @@
     {% include "partials/drink_tile.html" with drink=drink is_editable=True %}
 
     {% url 'modify_rate_beer' drink.slug as modify_url %}{% url 'delete_drink' drink.slug as delete_url %}
-    {% include "partials/tasting_modal.html" with modal_id="modalEditDrink-"|add:drink.slug title="Modifier : "|add:drink.beer_id.name action=modify_url photo_prefix="photo-edit-" uid=drink.slug drink=drink delete_url=delete_url delete_form_id="form-delete-drink-"|add:drink.slug confirm_modal_id="modal_confirm_drink_"|add:drink.slug %}
+    {% include "partials/tasting_modal.html" with modal_id="modalEditDrink-"|add:drink.slug title="Modifier : "|add:drink.beer.name action=modify_url photo_prefix="photo-edit-" uid=drink.slug drink=drink delete_url=delete_url delete_form_id="form-delete-drink-"|add:drink.slug confirm_modal_id="modal_confirm_drink_"|add:drink.slug %}
 
     <dialog id="modal_confirm_drink_{{ drink.slug }}" class="modal z-[99999]">
         <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center">

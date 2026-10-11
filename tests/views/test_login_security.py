@@ -3,7 +3,7 @@ import pytest
 from django.urls import reverse
 
 from app.models import ThrottleHit
-from app.services.throttle import LOGIN_BY_ACCOUNT, LOGIN_BY_IP, PRO_SIGNUP_BY_IP, SIGNUP_BY_IP
+from app.services.protection.throttle import LOGIN_BY_ACCOUNT, LOGIN_BY_IP, PRO_SIGNUP_BY_IP, SIGNUP_BY_IP
 from tests import factories as f
 from tests.helpers import messages_of
 

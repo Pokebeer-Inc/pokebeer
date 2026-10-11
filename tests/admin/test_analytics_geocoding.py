@@ -9,7 +9,7 @@ from django.core.management import call_command
 from django.urls import reverse
 
 from app.models import ReverseGeocode
-from app.services import reverse_geocoding as rg
+from app.services.establishments import reverse_geocoding as rg
 from app.services.analytics import export
 from app.services.analytics.blocks import Chart, Table
 from app.services.analytics.periods import Period
@@ -132,7 +132,7 @@ class TestGeocodedGeography:
         assert "real-kind" not in blocks and blocks["cities"].rows == []
 
     def test_group_publishable(self):
-        P = type("P", (), {})
+        type("P", (), {})
         points = [type("P", (), {"user_id": i % 4, "k": "a" if i < 8 else "b"})() for i in range(10)]
         rows, hidden = group_publishable(points, lambda p: p.k)
         assert rows == [("a", 8, 4)] and hidden == 2
@@ -211,7 +211,7 @@ class TestExport:
 
     def test_period_filter_changes_the_exported_data(self, client_for, staff, data):
         from datetime import timedelta
-        old = f.make_drink(f.make_user(username=f.unique("e_")), f.make_beer(name="Old", style="Stout"), date=date.today() - timedelta(days=200))
+        f.make_drink(f.make_user(username=f.unique("e_")), f.make_beer(name="Old", style="Stout"), date=date.today() - timedelta(days=200))
         wide = self.read(client_for(staff).get(self.URL(), {"months": "12", "export": "styles-volume"}))
         narrow = self.read(client_for(staff).get(self.URL(), {"months": "3", "export": "styles-volume"}))
         assert ["Stout", "1"] in wide and ["Stout", "1"] not in narrow

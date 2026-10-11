@@ -1,0 +1,18 @@
+# Jamais dans l'image : secrets, données locales et fichiers générés
+.git
+.github
+.env
+.env.*
+!.env.example
+*.jks
+*firebase-adminsdk*.json
+media
+node_modules
+**/node_modules
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+.coverage
+htmlcov
+.DS_Store

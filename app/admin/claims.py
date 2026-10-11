@@ -12,7 +12,7 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import display
 
 from ..models import EstablishmentClaim
-from ..services import claims
+from ..services.establishments import claims
 
 Status = EstablishmentClaim.Status
 ACTIONS = ('approve', 'reject')

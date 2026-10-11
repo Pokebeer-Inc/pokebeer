@@ -1,8 +1,8 @@
 {% for fb in feedback_on_my_beers %}
 <div class="pb-card p-2.5 text-xs flex justify-between items-center gap-2">
     <div class="leading-tight">
-        <a href="{% url 'public_profile' fb.drinker_id.username %}" class="underline font-bold text-secondary">{{ fb.drinker_id.username }}</a> a noté 
-        <a href="{% url 'beer_detail' fb.beer_id.slug %}" class="font-bold underline">{{ fb.beer_id.name }}</a>
+        <a href="{% url 'public_profile' fb.drinker.username %}" class="underline font-bold text-secondary">{{ fb.drinker.username }}</a> a noté 
+        <a href="{% url 'beer_detail' fb.beer.slug %}" class="font-bold underline">{{ fb.beer.name }}</a>
     </div>
     {% if fb.note is not null %}
     <span class="pb-pill is-primary !text-xs shrink-0">

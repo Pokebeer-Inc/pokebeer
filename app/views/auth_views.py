@@ -3,6 +3,7 @@ import logging
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.core.exceptions import NON_FIELD_ERRORS
 from django.db import transaction
@@ -10,10 +11,10 @@ from django.utils.http import url_has_allowed_host_and_scheme
 
 from ..forms import UserRegisterForm, UserLoginForm, ProUserForm
 from ..models import BeerUser
-from ..services import claims
-from ..services.places import PLACE_KINDS_BY_KEY
-from ..services.welcome import send_welcome
-from ..services.throttle import PRO_SIGNUP_BY_IP, SIGNUP_BY_IP
+from ..services.establishments import claims
+from ..services.establishments.places import PLACE_KINDS_BY_KEY
+from ..services.members.welcome import send_welcome
+from ..services.protection.throttle import PRO_SIGNUP_BY_IP, SIGNUP_BY_IP
 from .utils import limit_posts
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,7 @@ def login_view(request):
     return render(request, 'login.html', {'form': form})
 
 
+@require_POST  # un lien ou une image venus d'un autre site ne doivent pas pouvoir déconnecter un membre
 @login_required(login_url='login')
 def logout_view(request):
     # L'appareil ne doit plus recevoir les notifications de ce compte une fois déconnecté

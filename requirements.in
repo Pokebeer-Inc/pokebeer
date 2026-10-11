@@ -1,0 +1,23 @@
+# Dépendances DIRECTES du site (celles que le code importe ou configure). requirements.txt en est la version figée, avec toutes les
+# dépendances indirectes : pour changer une version ici, régénérez-le (voir README, « Dépendances »).
+Django==6.0.8
+django-allauth==65.16.1
+django-cleanup==9.0.0
+django-storages==1.14.6
+django-tailwind==4.4.2
+django-unfold==0.102.0
+dj-database-url==2.1.0
+boto3==1.43.6              # exigé par django-storages (stockage S3)
+cryptography==50.0.0       # signatures de la connexion Google (allauth)
+PyJWT==2.15.0
+firebase-admin==7.7.0
+gunicorn==25.1.0          # serveur web de l'image Docker (la production Vercel utilise api/index.py)
+mistralai==3.2.0
+pgvector==0.4.2
+pillow==12.3.0
+psycopg2-binary==2.9.11
+python-dotenv==1.2.2
+python-slugify==8.0.4
+requests==2.33.0
+tzdata==2025.3
+whitenoise==6.12.0

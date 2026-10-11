@@ -6,8 +6,8 @@ from django.test import RequestFactory
 from django.utils import timezone
 
 from app.models import ThrottleHit
-from app.services import throttle
-from app.services.throttle import Rule
+from app.services.protection import throttle
+from app.services.protection.throttle import Rule
 
 pytestmark = pytest.mark.django_db
 

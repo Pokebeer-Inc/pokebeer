@@ -1,6 +1,6 @@
 from django.db import models
 
-from .services.slugs import generate_slug
+from .services.common.slugs import generate_slug
 
 
 class PublicSlugField(models.SlugField):

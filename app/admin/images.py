@@ -15,7 +15,7 @@ def processed_image_form(image_processors):
 
 
 class ProcessedImageAdminMixin:
-    """À placer avant ModelAdmin. `image_processors` : nom du champ image -> fonction de traitement (voir services/official_images.py, tasting_photos.py...)."""
+    """À placer avant ModelAdmin. `image_processors` : nom du champ image -> fonction de traitement (voir services/catalog/official_images.py, tasting_photos.py...)."""
     image_processors = {}
 
     def get_form(self, request, obj=None, change=False, **kwargs):

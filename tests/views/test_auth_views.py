@@ -90,8 +90,12 @@ class TestLogin:
         assert_redirects(auth_client.get(reverse("login")), reverse("index"))
 
     def test_logout_ends_the_session(self, auth_client):
-        assert_redirects(auth_client.get(reverse("logout")), reverse("login"))
+        assert_redirects(auth_client.post(reverse("logout")), reverse("login"))
         assert not is_authenticated(auth_client)
+
+    def test_logout_refuses_a_get_request(self, auth_client):
+        assert auth_client.get(reverse("logout")).status_code == 405
+        assert is_authenticated(auth_client)
 
 
 class TestRegisterPro:

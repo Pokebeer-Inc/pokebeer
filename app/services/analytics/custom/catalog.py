@@ -10,7 +10,7 @@ from django.db.models import Avg, Count, F
 from django.db.models.functions import ExtractIsoWeekDay, ExtractMonth
 
 from ....models import Bar, BeerSpot, BeerUser, Brewery, Drinks, UserAchievementState
-from ...achievements import TIER_NAMES
+from ...members.achievements import ACHIEVEMENT_NAMES, TIER_NAMES
 from ..habits import WEEKDAYS
 from ..series import month_name
 
@@ -67,18 +67,18 @@ DISTINCT_MEMBERS = Measure('Membres distincts', lambda dataset: Count(dataset.me
 
 CATALOG = {
     'drinks': Dataset(
-        'Dégustations', Drinks.objects.all, date_field='date', member_field='drinker_id', brewery_path='beer_id__brewery_id__slug',
+        'Dégustations', Drinks.objects.all, date_field='date', member_field='drinker', brewery_path='beer__brewery__slug',
         measures={
             'count': COUNT('Dégustations'),
             'members': DISTINCT_MEMBERS,
             'avg_note': Measure('Note moyenne', lambda dataset: Avg('note'), decimals=2),
-            'beers': Measure('Bières distinctes', lambda dataset: Count('beer_id', distinct=True)),
+            'beers': Measure('Bières distinctes', lambda dataset: Count('beer', distinct=True)),
         },
         dimensions={
             'time': _time(), 'weekday': WEEKDAY, 'month_of_year': MONTH_OF_YEAR,
-            'style': _field('Style (tel que saisi)', 'beer_id__style', 'Sans style'),
-            'brewery': _field('Brasserie', 'beer_id__brewery_id__name'),
-            'beer': _field('Bière', 'beer_id__name'),
+            'style': _field('Style (tel que saisi)', 'beer__style', 'Sans style'),
+            'brewery': _field('Brasserie', 'beer__brewery__name'),
+            'beer': _field('Bière', 'beer__name'),
             'rating': _field('Note', 'note', 'Non noté'),
         },
     ),
@@ -106,7 +106,8 @@ CATALOG = {
         'Trophées (progression des membres)', UserAchievementState.objects.all, member_field='user_id',
         measures={'count': COUNT('Membres')},
         dimensions={
-            'trophy': _field('Trophée', 'achievement_name'),
+            'trophy': Dimension('Trophée', 'category', expression=lambda period, dataset: F('achievement_slug'),
+                                to_label=lambda v: ACHIEVEMENT_NAMES.get(v, v or 'Non renseigné')),
             'tier': Dimension('Palier', 'category', expression=lambda period, dataset: F('tier_level'),
                               to_label=lambda v: TIER_NAMES[min(v, len(TIER_NAMES) - 1)]),
         },

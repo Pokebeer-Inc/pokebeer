@@ -1,5 +1,5 @@
 """Modèles de l'application, un module par domaine ; tout est ré-exporté ici : `from app.models import Beer` continue de fonctionner."""
-from .mixins import GEOCODING_TIMEOUT, GeocodableMixin, MatchKeyMixin, PostalAddressMixin, VerifiableMixin, OfficialImageMixin
+from .mixins import GeocodableMixin, MatchKeyMixin, PostalAddressMixin, VerifiableMixin, OfficialImageMixin
 from .users import STAFF_GROUP, BeerUserManager, BeerUser, UserFollow, UserBlock
 from .establishments import Brewery, Bar
 from .beers import Beer, BeerDraft, Drinks, DrinkReaction, CustomNotebook
@@ -11,5 +11,5 @@ from .moderation import ModerationEntryQuerySet, ModerationEntry
 from .notifications import NotificationManager, Notification, UserAchievementState
 from .claims import EstablishmentClaim
 from .campaigns import EmailCampaign, CampaignRecipient
-from .system import PolicyNotice, ThrottleHit, AccountDeletion, ChatUsage
+from .system import PolicyNotice, ThrottleHit, AccountDeletion, QuotaUsage
 from . import signals  # noqa: F401  (branche les réactions automatiques)

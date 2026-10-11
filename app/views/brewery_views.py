@@ -11,14 +11,14 @@ from .place_views import (
 def brewery_detail_view(request, brewery_slug):
     """Affiche les détails d'une brasserie et la liste de ses bières."""
     brewery = get_object_or_404(Brewery, slug=brewery_slug)
-    beers = Beer.objects.filter(brewery_id=brewery, is_deleted=False).order_by('name')
+    beers = Beer.objects.filter(brewery=brewery, is_deleted=False).order_by('name')
 
     # Limiter aux bières de cette brasserie
     rated_beer_ids = []
     wishlist_beer_ids = []
     if request.user.is_authenticated:
         displayed_ids = [b.id for b in beers]
-        rated_beer_ids = list(Drinks.objects.filter(drinker_id=request.user, beer_id__in=displayed_ids).values_list('beer_id', flat=True))
+        rated_beer_ids = list(Drinks.objects.filter(drinker=request.user, beer__in=displayed_ids).values_list('beer', flat=True))
         wishlist_beer_ids = list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True))
 
     rating_form = DrinkForm()
