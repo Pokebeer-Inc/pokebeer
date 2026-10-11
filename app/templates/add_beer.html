@@ -42,7 +42,9 @@
         </button>
         <p class="text-center text-xs text-gray-500 mt-2">Astuce : le code-barres (EAN) est le plus rapide et le plus fiable. Sans lui, l'étiquette est analysée par l'IA.</p>
         {% include "partials/powered_by.html" with cls="text-center text-gray-500 mt-1" %}
+        {# Deux sélecteurs : « capture » ouvre directement l'appareil photo (secours du scanner) ; sans lui le téléphone propose la galerie et les fichiers #}
         <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="gallery-input" accept="image/*" class="hidden">
         <p class="text-center mt-1"><button type="button" id="scan-pick-photo" class="text-xs text-gray-500 underline hover:text-black">Choisir une photo plutôt</button></p>
         <p id="scan-status" class="hidden text-center text-sm font-bold mt-2" role="status" aria-live="polite"></p>
     </div>

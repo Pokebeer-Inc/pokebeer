@@ -6,9 +6,9 @@ from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
-from app.models import BeerUser, Feedback, FeedbackMessage, Notification, UserBlock
-from app.services import feedback as conversations
-from app.services import notification_types
+from app.models import BeerUser, Feedback, Notification, UserBlock
+from app.services.support import feedback as conversations
+from app.services.messaging import notification_types
 from tests import factories as f
 from tests.helpers import assert_redirects
 
@@ -126,10 +126,10 @@ class TestNotificationsPage:
 
     def test_failed_images_are_removed_so_the_icon_shows(self, auth_client, user, other_user):
         f.make_notification(user, sender=other_user)
-        assert 'onerror="this.remove()"' in self.html(auth_client)
+        assert "data-remove-on-error" in self.html(auth_client)
 
     def test_trophy_without_computed_data_still_renders(self, auth_client, user):
-        f.make_notification(user, "achievement", achievement_name="Inconnu", text_content="Inconnu (Bronze)")
+        f.make_notification(user, "achievement", achievement_slug="inconnu", text_content="Inconnu (Bronze)")
         assert auth_client.get(reverse("notifications")).status_code == 200
 
     def test_unread_ones_are_marked_and_the_page_is_paginated(self, auth_client, user):
@@ -203,7 +203,7 @@ class TestRedirects:
 class TestLogoutClearsThePushToken:
     def test_device_stops_receiving_after_logout(self, auth_client, user):
         BeerUser.objects.filter(pk=user.pk).update(fcm_token="tok")
-        auth_client.get(reverse("logout"))
+        auth_client.post(reverse("logout"))
         user.refresh_from_db()
         assert user.fcm_token is None
 

@@ -26,9 +26,10 @@ def isolated_services(settings, monkeypatch):
     settings.STORAGES = {**settings.STORAGES, "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"}}
     # Le champ garde le stockage résolu à l'import : on le remplace par un stockage mémoire (jamais le vrai bucket)
     monkeypatch.setattr(BeerUser._meta.get_field("avatar"), "storage", InMemoryStorage())
-    monkeypatch.setattr("app.services.llm.get_client", _network_disabled)
-    monkeypatch.setattr("app.services.realtime_service.requests.post", mock.Mock(side_effect=_network_disabled))
-    monkeypatch.setattr("app.services.realtime_service.firebase_admin._apps", {})
+    monkeypatch.setattr("app.services.assistant.llm.get_client", _network_disabled)
+    monkeypatch.setattr("app.services.messaging.realtime_service.requests.post", mock.Mock(side_effect=_network_disabled))
+    monkeypatch.setattr("app.services.messaging.realtime_service.firebase_admin.get_app", mock.Mock(side_effect=ValueError("Firebase désactivé en test")))
+    monkeypatch.setattr("app.services.messaging.realtime_service._firebase_attempted", True)  # pas de tentative d'initialisation (ni de journal) en test
 
 
 @pytest.fixture(autouse=True)
@@ -52,7 +53,7 @@ POSTAL_DIRECTORY = {
 
 @pytest.fixture(autouse=True)
 def postal_directory(monkeypatch):
-    from app.services import postal_codes
+    from app.services.establishments import postal_codes
     monkeypatch.setattr(postal_codes, "_fetch", lambda code: list(POSTAL_DIRECTORY.get(code, [])))
     return POSTAL_DIRECTORY
 
@@ -69,7 +70,7 @@ class SiretDirectory(dict):
 def siret_directory(monkeypatch):
     """Annuaire des entreprises simulé : tout SIRET est valable (établissement ouvert, activité cohérente) sauf ceux que le test déclare
     dans le dict renvoyé ; aucun test n'appelle recherche-entreprises.api.gouv.fr."""
-    from app.services import siret_registry
+    from app.services.establishments import siret_registry
     directory = SiretDirectory(siret_registry.check)
 
     def check(siret, kind, name="", postal_code=""):
@@ -85,10 +86,8 @@ def siret_directory(monkeypatch):
 @pytest.fixture(autouse=True)
 def geocoder(monkeypatch):
     """Remplace Nominatim : coordonnées fixes, appels inspectables via le mock retourné."""
-    response = mock.Mock(status_code=200)
-    response.json.return_value = [{"lat": "48.8566", "lon": "2.3522"}]
-    get = mock.Mock(return_value=response)
-    monkeypatch.setattr("app.models.mixins.requests.get", get)
+    get = mock.Mock(return_value={"lat": "48.8566", "lon": "2.3522"})
+    monkeypatch.setattr("app.services.establishments.place_geocoding.search_address", get)
     return get
 
 
@@ -163,5 +162,5 @@ def _clear_cache():
 def mistral(monkeypatch):
     """Client Mistral factice injecté à la place du vrai SDK (discussion, embeddings, recherche web)."""
     client = fake_mistral()
-    monkeypatch.setattr("app.services.llm.get_client", lambda *args, **kwargs: client)
+    monkeypatch.setattr("app.services.assistant.llm.get_client", lambda *args, **kwargs: client)
     return client

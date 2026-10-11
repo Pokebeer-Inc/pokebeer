@@ -4,8 +4,7 @@ from django.test import Client
 from django.urls import reverse
 
 from app.models import BeerUser
-from app.services import marketing
-from tests import factories as f
+from app.services.messaging import marketing
 
 pytestmark = pytest.mark.django_db
 

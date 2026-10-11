@@ -61,6 +61,7 @@
         pick.addEventListener('click', () => {
             input.value = text;
             input.dispatchEvent(new Event('input', { bubbles: true }));
+            form.requestSubmit();  // choisir une recherche récente la lance (comme valider la saisie)
             input.focus();
         });
         const remove = document.createElement('button');

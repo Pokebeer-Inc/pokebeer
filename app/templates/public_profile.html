@@ -13,11 +13,11 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </div>
         <ul tabindex="0" class="dropdown-content menu pb-menu z-[60] w-48 right-0 gap-1">
-            <li><button type="button" onclick="modal_report_user.showModal()" class="font-medium flex items-center gap-2">
+            <li><button type="button" data-modal-open="modal_report_user" class="font-medium flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 Signaler
             </button></li>
-            <li><button type="button" onclick="modal_block_user.showModal()" class="font-medium flex items-center gap-2 text-error">
+            <li><button type="button" data-modal-open="modal_block_user" class="font-medium flex items-center gap-2 text-error">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                 Bloquer
             </button></li>
@@ -39,11 +39,11 @@
     </div>
 
     <div class="flex justify-center gap-8 mt-4">
-        <button type="button" class="text-center hover:opacity-70" onclick="modal_followers.showModal()">
-            <div class="font-bold text-lg">{{ followers|length }}</div><div class="text-xs text-gray-600">Abonnés</div>
+        <button type="button" class="text-center hover:opacity-70" data-modal-open="modal_followers">
+            <div class="font-bold text-lg">{{ followers_count }}</div><div class="text-xs text-gray-600">Abonnés</div>
         </button>
-        <button type="button" class="text-center hover:opacity-70" onclick="modal_following.showModal()">
-            <div class="font-bold text-lg">{{ following|length }}</div><div class="text-xs text-gray-600">Abonnements</div>
+        <button type="button" class="text-center hover:opacity-70" data-modal-open="modal_following">
+            <div class="font-bold text-lg">{{ following_count }}</div><div class="text-xs text-gray-600">Abonnements</div>
         </button>
         <div class="text-center">
             <div class="font-bold text-lg">{{ total_drinks }}</div><div class="text-xs text-gray-600">Dégustées</div>
@@ -101,7 +101,7 @@
             <span class="w-7 text-center font-bold italic text-gray-600 shrink-0">#{{ forloop.counter }}</span>
             <span class="flex-1 min-w-0 py-1 pointer-events-none">
                 <span class="block font-semibold leading-tight truncate">{{ item.beer.name }}</span>
-                <span class="block text-sm text-gray-600 truncate">{{ item.beer.brewery_id.name }}</span>
+                <span class="block text-sm text-gray-600 truncate">{{ item.beer.brewery.name }}</span>
             </span>
             {% if item.note is not null %}<span class="pb-chip is-primary !py-0.5 shrink-0 pointer-events-none">{{ item.note }}/10</span>{% endif %}
         </li>
@@ -170,22 +170,14 @@
 <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
         {% include "partials/modal_header.html" with title="Abonnés" %}
-        <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
-            {% for f in followers %}
-            <li>
-                <a href="{% url 'public_profile' f.follower.username %}" class="pb-card flex items-center gap-3 p-2 hover:bg-base-300 active:scale-[0.98] transition-all">
-                    <div class="avatar">
-                        <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
-                            <img class="object-cover w-full h-full" src="{{ f.follower.avatar_url }}" />
-                        </div>
-                    </div>
-                    <span class="font-bold text-sm">{{ f.follower.username }}</span>
-                </a>
-            </li>
-            {% empty %}
-            <li class="text-[#6b625a] text-xs italic text-center">Personne ne suit ce membre pour le moment.</li>
-            {% endfor %}
+        <ul id="followers-list" class="flex flex-col gap-2 overflow-y-auto flex-1">
+            {% include "partials/follow_items.html" with entries=followers variant="public_followers" %}
+            {% if not followers %}<li class="text-[#6b625a] text-xs italic text-center">Personne ne suit ce membre pour le moment.</li>{% endif %}
         </ul>
+        {% if followers_has_more %}
+        <button type="button" class="btn-load-more-generic btn btn-outline btn-sm w-full mt-3" data-offset="{{ follow_page }}" data-container="followers-list" data-autoscroll="false"
+                data-url="{% url 'load_more_generic' 'followers' %}?username={{ profile_user.username|urlencode }}">Voir plus</button>
+        {% endif %}
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>
@@ -193,22 +185,14 @@
 <dialog id="modal_following" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
         {% include "partials/modal_header.html" with title="Abonnements" %}
-        <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
-            {% for f in following %}
-            <li>
-                <a href="{% url 'public_profile' f.followed.username %}" class="pb-card flex items-center gap-3 p-2 hover:bg-base-300 active:scale-[0.98] transition-all">
-                    <div class="avatar">
-                        <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
-                            <img class="object-cover w-full h-full" src="{{ f.followed.avatar_url }}" />
-                        </div>
-                    </div>
-                    <span class="font-bold text-sm">{{ f.followed.username }}</span>
-                </a>
-            </li>
-            {% empty %}
-            <li class="text-[#6b625a] text-xs italic text-center">Ce membre ne suit personne.</li>
-            {% endfor %}
+        <ul id="following-list" class="flex flex-col gap-2 overflow-y-auto flex-1">
+            {% include "partials/follow_items.html" with entries=following variant="public_following" %}
+            {% if not following %}<li class="text-[#6b625a] text-xs italic text-center">Ce membre ne suit personne.</li>{% endif %}
         </ul>
+        {% if following_has_more %}
+        <button type="button" class="btn-load-more-generic btn btn-outline btn-sm w-full mt-3" data-offset="{{ follow_page }}" data-container="following-list" data-autoscroll="false"
+                data-url="{% url 'load_more_generic' 'following' %}?username={{ profile_user.username|urlencode }}">Voir plus</button>
+        {% endif %}
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
 </dialog>

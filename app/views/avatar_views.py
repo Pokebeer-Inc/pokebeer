@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from ..forms import ProfilePictureForm
 from ..models import BeerUser
-from ..services.profile_pictures import COOLDOWN_SECONDS, delete_stored_picture
+from ..services.members.profile_pictures import COOLDOWN_SECONDS, delete_stored_picture
 
 
 def _reserve_upload_slot(user):

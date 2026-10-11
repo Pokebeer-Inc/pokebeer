@@ -8,7 +8,7 @@ from django.test import RequestFactory
 from app.admin.images import ProcessedImageAdminMixin, processed_image_form
 from app.image_form import ProcessedImageMixin
 from app.models import Bar, Beer, BeerUser, Brewery, Drinks
-from app.services.official_images import process_official_image
+from app.services.catalog.official_images import process_official_image
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db

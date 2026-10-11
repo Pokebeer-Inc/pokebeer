@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from app.models import ModerationEntry
 
-from ..throttle import SUGGESTION_BY_USER
+from ..protection.throttle import SUGGESTION_BY_USER
 from .actions import ModerationError, _locked_entry
 from .capture import SKIP_ATTR, _clip, _normalize
 from .content import CONTENT_TYPES

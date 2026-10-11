@@ -1,6 +1,6 @@
 from django.db import migrations
 
-from app.services.slugs import generate_slug
+from app.services.common.slugs import generate_slug
 
 BATCH_SIZE = 500
 

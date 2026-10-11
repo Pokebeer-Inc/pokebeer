@@ -5,7 +5,7 @@ import pytest
 from django.urls import reverse
 
 from app.models import Beer
-from app.services import product_lookup
+from app.services.catalog import product_lookup
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -42,7 +42,7 @@ class TestLookup:
         Beer.objects.filter(pk=beer.pk).update(ean=LEFFE)
         for _ in range(3):
             body = lookup(auth_client).json()
-            assert body["source"] == "catalog" and body["existing"] == {"name": "Déjà là", "brewery": beer.brewery_id.name, "slug": beer.slug}
+            assert body["source"] == "catalog" and body["existing"] == {"name": "Déjà là", "brewery": beer.brewery.name, "slug": beer.slug}
         off.assert_not_called()
 
     def test_deleted_beers_and_blocked_members_beers_are_not_offered(self, auth_client, off, user, other_user):

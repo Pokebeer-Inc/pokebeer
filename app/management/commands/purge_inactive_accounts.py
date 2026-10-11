@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 
-from app.services import inactivity, policy_notice
+from app.services.members import inactivity
+from app.services.messaging import policy_notice
 
 
 class Command(BaseCommand):

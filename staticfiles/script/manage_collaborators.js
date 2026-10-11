@@ -1,8 +1,8 @@
-let searchTimeout;
-    
+// Lance la recherche AJAX 300 ms après la dernière frappe
+const runCollabSearch = Pokebeer.debounce(task => task(), 300);
+
 function searchUsersForCollab() {
-    clearTimeout(searchTimeout);
-    
+    runCollabSearch.cancel();  // une frappe plus récente annule la recherche en attente
     const inputEl = document.getElementById('search-collab');
     const input = inputEl.value.trim();
     const container = document.getElementById('search-results-container');
@@ -21,7 +21,7 @@ function searchUsersForCollab() {
     container.innerHTML = '<div class="flex justify-center py-4"><span class="loading loading-spinner text-primary"></span></div>';
 
     // Lance la recherche AJAX après 300ms
-    searchTimeout = setTimeout(() => {
+    runCollabSearch(() => {
         fetch(`${searchUrl}?q=${encodeURIComponent(input)}`)
         .then(res => res.json())
         .then(data => {
@@ -53,5 +53,5 @@ function searchUsersForCollab() {
         .catch(err => {
             container.innerHTML = '<p class="text-xs text-error italic text-center py-2">Erreur lors de la recherche.</p>';
         });
-    }, 300);
+    });
 }

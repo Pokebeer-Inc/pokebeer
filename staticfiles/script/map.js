@@ -398,11 +398,11 @@ document.addEventListener("DOMContentLoaded", function() {
                         const popupContent = `
                             <div class="flex flex-col gap-2 max-w-[220px]">
                                 <span class="text-sm font-bold leading-tight">${escapeHtml(place.display_name)}</span>
-                                <button type="button" onclick="addSpotAtSearchResult()" class="btn btn-sm btn-primary border-secondary text-black normal-case w-full mt-1">
+                                <button type="button" data-on-click="addSpotAtSearchResult" data-no-event class="btn btn-sm btn-primary border-secondary text-black normal-case w-full mt-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
                                     Ajouter une dégustation ici
                                 </button>
-                                <button type="button" onclick="clearSearchMarker()" class="btn btn-xs btn-outline border-error text-error flex gap-1 w-full">
+                                <button type="button" data-on-click="clearSearchMarker" data-no-event class="btn btn-xs btn-outline border-error text-error flex gap-1 w-full">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                                     Effacer
                                 </button>

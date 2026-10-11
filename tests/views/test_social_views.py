@@ -144,7 +144,7 @@ class TestReactions:
     def test_like_creates_reaction_and_notifies_author(self, auth_client, drink):
         body = self.react(auth_client, drink, is_like=True).json()
         assert body == {"success": True, "score": 1, "likes": 1, "dislikes": 0, "current_reaction": True}
-        assert Notification.objects.get().recipient == drink.drinker_id
+        assert Notification.objects.get().recipient == drink.drinker
 
     def test_same_reaction_twice_cancels_it(self, auth_client, drink):
         self.react(auth_client, drink, is_like=False)
@@ -186,6 +186,7 @@ class TestTopBeers:
         return client.post(reverse("update_top_beer", args=[slot]), {"beer_slug": beer_slug})
 
     def test_set_and_clear_a_slot(self, auth_client, user, beer):
+        f.make_drink(user, beer)
         self.update(auth_client, 2, beer.slug)
         user.refresh_from_db()
         assert user.top_beer_2 == beer
@@ -200,6 +201,7 @@ class TestTopBeers:
         assert (user.top_beer_1, user.top_beer_2, user.top_beer_3) == (None, None, None)
 
     def test_same_beer_cannot_fill_two_slots(self, auth_client, user, beer):
+        f.make_drink(user, beer)
         self.update(auth_client, 1, beer.slug)
         response = self.update(auth_client, 3, beer.slug)
         user.refresh_from_db()

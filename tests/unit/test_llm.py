@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services import llm
-from app.services.throttle import Rule
+from app.services.assistant import llm
+from app.services.protection.throttle import Rule
 from tests.fakes import embeddings_reply, http_error, search_reply
 
 pytestmark = pytest.mark.django_db

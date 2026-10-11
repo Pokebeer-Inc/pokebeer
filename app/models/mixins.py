@@ -1,17 +1,14 @@
 """Briques communes aux modèles : géocodage automatique, coche « vérifié », image officielle, clés de comparaison des noms."""
 
-import requests
 from django.db import models
 
-from ..services import address as address_service, match_keys
+from ..services.establishments import address as address_service
+from ..services.catalog import match_keys
 
-
-# Le géocodage est synchrone dans la requête web : timeout court (connexion + lecture)
-GEOCODING_TIMEOUT = 2
 
 class PostalAddressMixin(models.Model):
     """Adresse découpée : rue (à compléter plus tard par le gérant ou l'admin), code postal et ville (déduite du code postal, voir
-    services/postal_codes.py). `address` reste disponible en lecture et en écriture sous forme de texte complet."""
+    services/establishments/postal_codes.py). `address` reste disponible en lecture et en écriture sous forme de texte complet."""
     street = models.CharField(max_length=255, blank=True, default='', verbose_name="Adresse (numéro et rue)")
     postal_code = models.CharField(max_length=10, blank=True, default='', db_index=True, verbose_name="Code postal")
     city = models.CharField(max_length=100, blank=True, default='', verbose_name="Ville")
@@ -30,63 +27,39 @@ class PostalAddressMixin(models.Model):
 
 class GeocodableMixin(models.Model):
     """
-    Classe abstraite qui ajoute la logique de géocodage automatique.
-    À hériter sur tout modèle possédant les champs 'address', 'latitude' et 'longitude'.
+    Classe abstraite pour les modèles à adresse ('street', 'postal_code', 'city') et à coordonnées ('latitude', 'longitude').
+
+    Elle se contente de savoir si l'adresse a changé (sans requête supplémentaire quand la fiche vient de la base) : le calcul des
+    coordonnées est fait par `services/establishments/place_geocoding.py` (signal pre_save), le modèle n'appelle aucun service extérieur.
     """
     class Meta:
         abstract = True
 
-    def _update_coordinates(self):
-        """Appelle l'API OpenStreetMap pour convertir l'adresse en coordonnées. Sans rue, la fiche n'est pas placée : un point au centre de
-        la ville laisserait croire à l'adresse de l'établissement."""
-        if not self.street:
-            self.latitude = None
-            self.longitude = None
-            return
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        """Retient l'adresse telle qu'elle est en base : savoir si elle a changé ne coûte alors aucune requête."""
+        instance = super().from_db(db, field_names, values)
+        loaded = instance.__dict__
+        # Champs différés (`only()`/`defer()`) : on ne les lit pas ici, `address_changed` ira alors chercher l'ancienne adresse
+        instance._loaded_address = instance.address if all(name in loaded for name in ('street', 'postal_code', 'city')) else None
+        return instance
 
-        url = "https://nominatim.openstreetmap.org/search"
-        params = {
-            'q': self.address,
-            'format': 'json',
-            'limit': 1
-        }
-        # L'API Nominatim exige un User-Agent personnalisé
-        headers = {
-            'User-Agent': 'PokebeerApp/1.0' 
-        }
-
-        try:
-            response = requests.get(url, params=params, headers=headers, timeout=GEOCODING_TIMEOUT)
-            data = response.json() if response.status_code == 200 else None
-            if data:
-                self.latitude = float(data[0]['lat'])
-                self.longitude = float(data[0]['lon'])
-                return
-            if response.status_code != 200:
-                print(f"Erreur de géocodage : HTTP {response.status_code}")
-        except Exception as e:
-            # En cas de coupure réseau ou erreur API, on ne fait pas crasher l'enregistrement
-            print(f"Erreur de géocodage : {e}")
-        # Adresse introuvable ou service indisponible : mieux vaut pas de carte que les coordonnées de l'ancienne adresse
-        self.latitude = None
-        self.longitude = None
+    def address_changed(self):
+        """Vrai pour une nouvelle fiche, ou quand l'adresse enregistrée n'est plus celle de l'instance."""
+        if not self.pk or self._state.adding:
+            return True
+        loaded = getattr(self, '_loaded_address', None)
+        if loaded is None:
+            stored = type(self).objects.filter(pk=self.pk).first()
+            loaded = stored.address if stored else None
+        return loaded != self.address
 
     def save(self, *args, **kwargs):
-        # On vérifie si c'est une modification d'un objet existant
-        if self.pk:
-            old_instance = type(self).objects.get(pk=self.pk)
-            # On appelle l'API UNIQUEMENT si l'adresse a changé
-            if old_instance.address != self.address:
-                self._update_coordinates()
-        else:
-            # C'est une création de nouvel établissement
-            self._update_coordinates()
-
-        # On appelle le comportement de sauvegarde normal de Django
         super().save(*args, **kwargs)
+        self._loaded_address = self.address
 
 class VerifiableMixin(models.Model):
-    """Coche « vérifié » posée par un admin (voir services/verification.py) ; jamais modifiable par un formulaire public."""
+    """Coche « vérifié » posée par un admin (voir services/establishments/verification.py) ; jamais modifiable par un formulaire public."""
     is_verified = models.BooleanField(default=False, verbose_name="Vérifié")
     verified_by = models.ForeignKey('BeerUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_%(class)s_set', verbose_name="Vérifié par")
     verified_at = models.DateTimeField(null=True, blank=True, verbose_name="Date de vérification")
@@ -95,7 +68,7 @@ class VerifiableMixin(models.Model):
         abstract = True
 
 class MatchKeyMixin(models.Model):
-    """Clés de comparaison du nom (voir services/match_keys.py), recalculées à chaque enregistrement : la détection de doublons
+    """Clés de comparaison du nom (voir services/catalog/match_keys.py), recalculées à chaque enregistrement : la détection de doublons
     les interroge avec un index au lieu de relire tous les noms. À hériter sur un modèle qui a un champ `name`, avec MATCH_KIND."""
     MATCH_KIND = None  # match_keys.BEER ou match_keys.BREWERY
 

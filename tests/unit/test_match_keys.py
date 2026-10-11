@@ -1,7 +1,7 @@
 """Clés de comparaison des noms : ce qui rend deux noms « identiques » ou « proches », et ce qui les garde distincts."""
 import pytest
 
-from app.services import match_keys as keys
+from app.services.catalog import match_keys as keys
 
 BEER, BREWERY = keys.BEER, keys.BREWERY
 

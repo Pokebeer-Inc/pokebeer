@@ -3,7 +3,8 @@
 document.addEventListener('DOMContentLoaded', function () {
     const button = document.getElementById('scan-label-btn');
     const overlay = document.getElementById('label-scanner');
-    const fileInput = document.getElementById('camera-input');
+    const fileInput = document.getElementById('camera-input');  // appareil photo (secours quand le scanner en direct n'est pas disponible)
+    const galleryInput = document.getElementById('gallery-input');  // galerie / fichiers de l'appareil
     const pickLink = document.getElementById('scan-pick-photo');
     const status = document.getElementById('scan-status');
     const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -62,11 +63,11 @@ document.addEventListener('DOMContentLoaded', function () {
         scanner.open();
     });
 
-    if (pickLink) pickLink.addEventListener('click', () => { say(''); fileInput.click(); });
+    if (pickLink) pickLink.addEventListener('click', () => { say(''); (galleryInput || fileInput).click(); });
 
     // Secours : une photo choisie (ou prise avec l'appareil photo du téléphone) suit le même chemin d'analyse
-    fileInput.addEventListener('change', async function () {
-        const file = fileInput.files[0];
+    async function analyzeChosenFile(input) {
+        const file = input.files[0];
         if (!file) return;
         say("Analyse de l'étiquette en cours...", false);
         Pending.start(button);  // cercle sur le bouton pendant l'analyse (plusieurs secondes)
@@ -85,7 +86,9 @@ document.addEventListener('DOMContentLoaded', function () {
             say(error.message || "L'analyse de l'étiquette a échoué.", true);
         } finally {
             Pending.stop(button);
-            fileInput.value = '';
+            input.value = '';
         }
-    });
+    }
+    fileInput.addEventListener('change', () => analyzeChosenFile(fileInput));
+    if (galleryInput) galleryInput.addEventListener('change', () => analyzeChosenFile(galleryInput));
 });

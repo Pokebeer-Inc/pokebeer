@@ -7,8 +7,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from app.models import Notification, PolicyNotice, ThrottleHit
-from app.services import policy_notice
-from app.services.throttle import Rule
+from app.services.messaging import policy_notice
+from app.services.protection.throttle import Rule
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db

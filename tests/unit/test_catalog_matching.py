@@ -2,8 +2,8 @@
 import pytest
 from django.core import signing
 
-from app.models import Beer, Brewery
-from app.services import catalog_matching as cm
+from app.models import Beer
+from app.services.catalog import catalog_matching as cm
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db

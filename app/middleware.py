@@ -1,9 +1,12 @@
 """Suivi de l'activité des membres (base de la suppression des comptes inactifs)."""
+import secrets
+
 from django.conf import settings
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect
 
-from .services import csp, inactivity
+from .services.protection import csp
+from .services.members import inactivity
 
 
 class ActivityMiddleware:
@@ -12,8 +15,9 @@ class ActivityMiddleware:
 
     def __call__(self, request):
         user = request.user
-        if user.is_authenticated:
-            inactivity.record_activity(user)
+        if user.is_authenticated and inactivity.record_activity(user):
+            # Session glissante : prolongée à chaque visite enregistrée (au plus toutes les 12 h, pas à chaque requête)
+            request.session.set_expiry(settings.SESSION_COOKIE_AGE)
         return self.get_response(request)
 
 
@@ -27,8 +31,10 @@ class SecurityHeadersMiddleware:
         self.admin_prefix = f'/{settings.ADMIN_URL}'
 
     def __call__(self, request):
+        # Jeton propre à cette réponse : les gabarits le lisent (`request.csp_nonce`) pour leurs rares scripts en ligne
+        request.csp_nonce = secrets.token_urlsafe(16)
         response = self.get_response(request)
-        policy = csp.build_policy(settings.SUPABASE_URL, admin=request.path.startswith(self.admin_prefix))
+        policy = csp.build_policy(settings.SUPABASE_URL, admin=request.path.startswith(self.admin_prefix), nonce=request.csp_nonce)
         response.headers.setdefault('Content-Security-Policy', policy)
         response.headers.setdefault('Permissions-Policy', self.PERMISSIONS_POLICY)
         return response

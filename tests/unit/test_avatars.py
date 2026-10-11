@@ -1,9 +1,8 @@
 from urllib.parse import unquote
 
 import pytest
-from django.template import Context, Template
 
-from app.services.avatars import initials_avatar_url
+from app.services.members.avatars import initials_avatar_url
 
 
 def svg(username):

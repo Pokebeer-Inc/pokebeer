@@ -5,10 +5,7 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from ..models import BeerUser, UserBlock
-from ..services.throttle import client_ip
-from ..services.achievements import (  # noqa: F401  (ré-exportés : les vues importent depuis ici)
-    TIER_NAMES, TIER_SLUGS, TIER_XP_REWARDS, check_and_notify_achievements, get_user_achievements,
-)
+from ..services.protection.throttle import client_ip
 
 MAX_OFFSET = 100_000
 
@@ -31,7 +28,9 @@ def get_blocked_users(user):
     return list(set(blocked_by_me) | set(blocking_me))
 
 def get_excluded_users(user):
-    """Retourne la liste des IDs d'utilisateurs à masquer : blocages et comptes suspendus."""
+    """Retourne la liste des IDs d'utilisateurs à masquer : blocages et comptes suspendus.
+
+    Réservé aux cas qui ont besoin des identifiants eux-mêmes ; pour filtrer une requête, préférer `exclude_hidden_users`."""
     suspended = BeerUser.objects.filter(is_active=False).values_list('id', flat=True)
     return list(set(get_blocked_users(user)) | set(suspended))
 

@@ -9,7 +9,7 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import display
 
 from ..models import PolicyNotice
-from ..services import policy_notice
+from ..services.messaging import policy_notice
 from ..validators import plain_text_validator
 
 

@@ -6,14 +6,14 @@ from unittest import mock
 
 import pytest
 import requests
-from django.apps import apps
 from django.urls import reverse
 from django.utils import timezone
 
 from app.forms import BarEditForm, BreweryEditForm, BreweryProForm
 from app.models import Bar, Brewery, PostalCode
-from app.services import address, postal_codes, upstream
-from app.services.throttle import POSTAL_LOOKUP_BY_IP, Rule
+from app.services.establishments import address, postal_codes
+from app.services.common import upstream
+from app.services.protection.throttle import POSTAL_LOOKUP_BY_IP, Rule
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db

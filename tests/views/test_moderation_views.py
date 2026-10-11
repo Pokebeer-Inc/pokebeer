@@ -30,7 +30,7 @@ class TestSubmitReport:
         ("beer", "reported_beer"), ("drink", "reported_drink"), ("user", "reported_user"), ("brewery", "reported_brewery"),
     ])
     def test_report_targets_the_requested_item(self, auth_client, user, other_user, beer, item_type, field):
-        target = {"beer": beer, "drink": f.make_drink(other_user, beer), "user": other_user, "brewery": beer.brewery_id}[item_type]
+        target = {"beer": beer, "drink": f.make_drink(other_user, beer), "user": other_user, "brewery": beer.brewery}[item_type]
         self.report(auth_client, item_type, ref(target))
         report = Report.objects.get()
         assert (report.reporter, getattr(report, field), report.status) == (user, target, "pending")

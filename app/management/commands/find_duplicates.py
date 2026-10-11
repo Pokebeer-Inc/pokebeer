@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 
 from app.models import Bar, Beer, Brewery
-from app.services import catalog_matching
+from app.services.catalog import catalog_matching
 
 
 class Command(BaseCommand):

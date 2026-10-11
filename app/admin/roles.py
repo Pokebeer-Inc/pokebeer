@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 from unfold.decorators import display
 
 from ..models import BeerUser
-from ..services.roles import ADMIN, LOCKED_ROLES, ROLES, grant_role, revoke_role, role_counts, role_q, user_roles
+from ..services.members.roles import ADMIN, LOCKED_ROLES, ROLES, grant_role, revoke_role, role_counts, role_q, user_roles
 
 LOG_PREFIX = "Rôle "
 SELF_PROTECTED_ROLES = {ADMIN, "staff"}

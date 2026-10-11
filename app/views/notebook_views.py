@@ -8,8 +8,8 @@ from django.db.models import Count, Q, Max
 
 from ..forms import CustomNotebookForm, DrinkForm, error_summary
 from ..models import Beer, Drinks, CustomNotebook
-from .services.selectors import get_filtered_notebook_drinks, get_wishlist_beers
-from .services.stats import get_user_statistics
+from ..services.catalog.selectors import get_filtered_notebook_drinks, get_wishlist_beers
+from ..services.members.profile_stats import get_user_statistics
 
 NOTEBOOK_TABS = ('tastings', 'to-taste', 'additions')
 CARNET_PAGE = 10
@@ -88,7 +88,7 @@ def notebook_view(request):
     if active_tab not in NOTEBOOK_TABS:
         active_tab = 'tastings'
 
-    user_drinks_all = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
+    user_drinks_all = Drinks.objects.filter(drinker=user).select_related('beer', 'beer__brewery').order_by('-date')
     context = {
         **get_user_statistics(user_drinks_all),
         'wishlist_count': user.wishlist_beers.count(),
@@ -112,11 +112,11 @@ def notebook_view(request):
     else:  # ajouts : requêtes réservées à cet onglet
         context.update({
             'my_added_beers': Beer.objects.filter(added_by=user, is_deleted=False).annotate(
-                user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))).order_by('-id')[:10],
+                user_note=Max('drinks__note', filter=Q(drinks__drinker=user))).order_by('-id')[:10],
             'my_deleted_beers': Beer.objects.filter(added_by=user, is_deleted=True).annotate(
-                user_note=Max('drinks__note', filter=Q(drinks__drinker_id=user))).order_by('-id'),
-            'feedback_on_my_beers': Drinks.objects.filter(beer_id__added_by=user).exclude(drinker_id=user)
-                .select_related('drinker_id', 'beer_id').order_by('-date')[:10],
+                user_note=Max('drinks__note', filter=Q(drinks__drinker=user))).order_by('-id'),
+            'feedback_on_my_beers': Drinks.objects.filter(beer__added_by=user).exclude(drinker=user)
+                .select_related('drinker', 'beer').order_by('-date')[:10],
         })
     return render(request, 'notebook.html', context)
 
@@ -143,7 +143,7 @@ def notebook_drinks_fragment(request):
 
 def _styles_of(drinks):
     """Styles présents dans ces dégustations (un champ peut en contenir plusieurs, séparés par des virgules)."""
-    raw = drinks.exclude(beer_id__style__isnull=True).exclude(beer_id__style='').values_list('beer_id__style', flat=True).distinct()
+    raw = drinks.exclude(beer__style__isnull=True).exclude(beer__style='').values_list('beer__style', flat=True).distinct()
     return sorted({style.strip() for value in raw for style in value.split(',') if style.strip()})
 
 
@@ -162,7 +162,7 @@ def notebook_detail_view(request, notebook_slug=None):
         notebook_drink_slugs = list(notebook.drinks.values_list('slug', flat=True))
 
     my_drinks = list(get_filtered_notebook_drinks(request)[:CARNET_PAGE])
-    user_drinks_all = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')  # fenêtre « Modifier le carnet »
+    user_drinks_all = Drinks.objects.filter(drinker=user).select_related('beer', 'beer__brewery').order_by('-date')  # fenêtre « Modifier le carnet »
     scope = notebook.drinks.all() if notebook else user_drinks_all
 
     context = {
@@ -201,7 +201,7 @@ def create_custom_notebook(request):
     notebook.save()
     drink_slugs = request.POST.getlist('drinks')
     if drink_slugs:
-        notebook.drinks.set(Drinks.objects.filter(slug__in=drink_slugs, drinker_id=request.user))
+        notebook.drinks.set(Drinks.objects.filter(slug__in=drink_slugs, drinker=request.user))
     messages.success(request, "Carnet créé avec succès !")
         
     return redirect('notebook')
@@ -227,7 +227,7 @@ def edit_custom_notebook(request, notebook_slug):
         return redirect('notebook_detail', notebook_slug=notebook.slug)
 
     form.save()
-    notebook.drinks.set(Drinks.objects.filter(slug__in=request.POST.getlist('drinks'), drinker_id=request.user))
+    notebook.drinks.set(Drinks.objects.filter(slug__in=request.POST.getlist('drinks'), drinker=request.user))
     messages.success(request, "Le carnet a été modifié avec succès.")
         
     return redirect('notebook_detail', notebook_slug=notebook.slug)

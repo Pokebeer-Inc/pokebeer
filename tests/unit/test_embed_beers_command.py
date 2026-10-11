@@ -5,7 +5,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 from app.models import Beer
-from app.services import ai
+from app.services.assistant import ai
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -66,7 +66,7 @@ def test_failures_are_reported_and_left_for_a_retry(monkeypatch):
 
 
 def test_beers_are_embedded_in_batches(embedder, monkeypatch):
-    from app.services import llm
+    from app.services.assistant import llm
     monkeypatch.setattr(llm, "EMBED_BATCH_SIZE", 2)
     monkeypatch.setattr("app.management.commands.embed_beers.llm.EMBED_BATCH_SIZE", 2)
     calls = []

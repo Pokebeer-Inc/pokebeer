@@ -12,13 +12,8 @@
     const cityField = document.getElementById('id_beer-brewery_city');
     if (!panel || !nameField || !breweryField || !postalField || !cityField) return;
 
-    let timer = null;
     let controller = null;
-
-    function schedule() {
-        clearTimeout(timer);
-        timer = setTimeout(check, DEBOUNCE_MS);
-    }
+    const schedule = Pokebeer.debounce(() => check(), DEBOUNCE_MS);
 
     async function check() {
         if (controller) controller.abort(); // une saisie plus récente rend la réponse précédente inutile

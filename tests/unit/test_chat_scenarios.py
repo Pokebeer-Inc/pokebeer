@@ -12,13 +12,12 @@ import pytest
 from django.core.cache import cache
 from django.urls import reverse
 
-from app.models import ChatUsage
-from app.services import ai, llm
-from app.services.chat import ChatBusy, ChatReply, ChatUnavailable, engine, geocoding, places
-from app.services.chat.geo import Coordinates
-from app.services.chat.tools import build_tools
-from app.services.throttle import Rule
-from tests import factories as f
+from app.models import QuotaUsage
+from app.services.assistant import ai, llm
+from app.services.assistant.chat import ChatBusy, ChatReply, ChatUnavailable, engine, geocoding, places
+from app.services.assistant.chat.geo import Coordinates
+from app.services.assistant.chat.tools import build_tools
+from app.services.protection.throttle import Rule
 from tests.fakes import chat_reply, tool_call, tool_reply
 from tests.helpers import post_json
 
@@ -143,7 +142,7 @@ class TestResumeAfterEnablingThePosition:
     @pytest.fixture
     def chat(self, auth_client, monkeypatch):
         monkeypatch.setattr("app.views.api_views.CHAT_BURST_BY_USER", Rule("chat-burst", 10_000, timedelta(minutes=1)))
-        asked = mock.Mock(side_effect=lambda message, history, location=None: ChatReply("Activez votre position", True) if location is None else ChatReply("Le Comptoir"))
+        asked = mock.Mock(side_effect=lambda message, history, location=None, user=None: ChatReply("Activez votre position", True) if location is None else ChatReply("Le Comptoir"))
         monkeypatch.setattr("app.views.api_views.ask_zythologue", asked)
         return SimpleNamespace(client=auth_client, asked=asked)
 
@@ -157,19 +156,19 @@ class TestResumeAfterEnablingThePosition:
         url = reverse("chat_api")
         post_json(chat.client, url, {"message": "Une IPA près de moi ?"})
         post_json(chat.client, url, {"message": "Une IPA près de moi ?", "location": {"lat": 50.63, "lng": 3.06}})
-        assert ChatUsage.objects.get(user=user).count == 1
+        assert QuotaUsage.objects.get(user=user).count == 1
 
     def test_the_browser_cannot_claim_a_resume_to_skip_the_quota(self, chat, user):
         url = reverse("chat_api")
         for _ in range(2):  # sans demande en attente côté serveur, même avec position, chaque message compte
             post_json(chat.client, url, {"message": "Une IPA près de moi ?", "location": {"lat": 50.63, "lng": 3.06}})
-        assert ChatUsage.objects.get(user=user).count == 2
+        assert QuotaUsage.objects.get(user=user).count == 2
 
     def test_a_resume_is_valid_for_the_pending_message_only(self, chat, user):
         url = reverse("chat_api")
         post_json(chat.client, url, {"message": "Une IPA près de moi ?"})
         post_json(chat.client, url, {"message": "Autre chose", "location": {"lat": 50.63, "lng": 3.06}})
-        assert ChatUsage.objects.get(user=user).count == 2
+        assert QuotaUsage.objects.get(user=user).count == 2
 
     def test_the_unanswered_request_is_not_kept_in_the_history(self, chat):
         url = reverse("chat_api")
@@ -186,7 +185,7 @@ class TestResumeAfterEnablingThePosition:
         post_json(auth_client, url, {"message": "Un bar ?"})
         assert post_json(auth_client, url, body).status_code == 503
         assert post_json(auth_client, url, body).status_code == 200
-        assert ChatUsage.objects.get(user=user).count == 1
+        assert QuotaUsage.objects.get(user=user).count == 1
 
     def test_the_catalogue_is_searched_with_the_original_request_when_resuming(self, client, monkeypatch, settings):
         monkeypatch.setattr(llm, "get_client", lambda *args, **kwargs: client)

@@ -8,7 +8,7 @@ from django.urls import reverse
 
 from app.admin import dashboard_callback
 from app.admin.pending import pending_feedback_count, pending_report_count
-from app.models import Bar, BeerUser, Feedback, Notification, Report
+from app.models import BeerUser, Feedback, Notification, Report
 from tests import factories as f
 from tests.helpers import messages_of
 
@@ -44,20 +44,20 @@ class TestReportAdmin:
         assert Notification.objects.filter(recipient=user, notif_type="report_updated", report=report).exists() is notified
 
     def test_creation_from_admin_does_not_notify(self, superuser, user):
-        save_through_admin(Report, Report(reporter=user, reason="spam", description="x"), superuser, ["status"], change=False)
+        save_through_admin(Report, Report(reporter=user, reason="spam", description="x", reported_user=superuser), superuser, ["status"], change=False)
         assert not Notification.objects.exists()
 
     def test_target_label(self, user, other_user, beer):
         report_admin = admin.site._registry[Report]
         reports = [f.make_report(user, **target) for target in (
             {"reported_beer": beer}, {"reported_drink": f.make_drink(other_user, beer)}, {"reported_user": other_user},
-            {"reported_brewery": beer.brewery_id}, {},
+            {"reported_brewery": beer.brewery},
         )]
-        assert [report_admin.target_type(r) for r in reports] == ["Bière", "Note", "Utilisateur", "Brasserie", "Inconnu"]
-        assert report_admin.get_target(reports[3]) == beer.brewery_id.name
+        assert [report_admin.target_type(r) for r in reports] == ["Bière", "Note", "Utilisateur", "Brasserie"]
+        assert report_admin.get_target(reports[3]) == beer.brewery.name
 
     def test_brewery_filter_lists_only_brewery_reports(self, client_for, superuser, user, beer):
-        brewery_report = f.make_report(user, reported_brewery=beer.brewery_id)
+        brewery_report = f.make_report(user, reported_brewery=beer.brewery)
         f.make_report(user, reported_beer=beer)
         response = client_for(superuser).get(reverse("admin:app_report_changelist"), {"target_type": "brewery"})
         assert list(response.context["cl"].result_list) == [brewery_report]

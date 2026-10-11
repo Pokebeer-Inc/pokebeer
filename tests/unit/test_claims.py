@@ -3,10 +3,10 @@ import pytest
 from django.core import mail
 from django.db import IntegrityError, transaction
 
-from app.models import Bar, Brewery, EstablishmentClaim, Notification, ThrottleHit
-from app.services import claims, siret_registry
-from app.services.places import BAR, BREWERY
-from app.services.throttle import CLAIM_BY_USER, Rule
+from app.models import Brewery, EstablishmentClaim, Notification, ThrottleHit
+from app.services.establishments import claims, siret_registry
+from app.services.establishments.places import BAR, BREWERY
+from app.services.protection.throttle import CLAIM_BY_USER, Rule
 from app.validators import validate_siret
 from tests import factories as f
 
@@ -163,7 +163,7 @@ class TestPlanRegistration:
             self.plan(name="Microbrasserie du Coin", choice=f"existing:{elsewhere.slug}")
 
     def test_confirming_that_the_fiche_does_not_exist_yet(self, coin):
-        from app.services import catalog_matching as cm
+        from app.services.catalog import catalog_matching as cm
         token = cm.find_brewery("Microbrasserie du Coin", "44000", "Nantes").token
         assert self.plan(name="Microbrasserie du Coin", choice=f"new:{token}").place is None
 

@@ -62,7 +62,7 @@ class TestUnreadApi:
     URL = reverse("api_unread_notifications")
 
     def test_returns_at_most_five_unread_of_mine_newest_first(self, auth_client, user, other_user):
-        created = [f.make_notification(user, sender=other_user) for _ in range(6)]
+        created = [f.make_notification(user, notif_type='beer_added', sender=other_user) for _ in range(6)]  # un type sans plafond quotidien
         f.make_notification(user, is_read=True)
         f.make_notification(other_user)
 
@@ -83,7 +83,7 @@ class TestUnreadApi:
     def test_achievement_includes_tier_and_icon(self, auth_client, user):
         for _ in range(5):
             f.make_drink(user)
-        f.make_notification(user, "achievement", achievement_name="Juge", text_content="Juge (Bronze)")
+        f.make_notification(user, "achievement", achievement_slug="juge", text_content="Juge (Bronze)")
         notification = auth_client.get(self.URL).json()["notifications"][0]
         assert notification["tier_slug"] == "bronze"
         assert notification["icon"]

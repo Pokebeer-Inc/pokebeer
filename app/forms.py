@@ -7,14 +7,16 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, SetPasswordForm
 from django.core.exceptions import ValidationError
 from .auth_forms import ThrottledLoginMixin
-from .services import catalog_matching, ean, marketing, notification_types, postal_codes
-from .services.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
-from .services.threads import plain_text
-from .services.profile_pictures import process_profile_picture
-from .services.quota import consume_quota
+from .services.catalog import catalog_matching, ean
+from .services.messaging import marketing, notification_types
+from .services.establishments import postal_codes
+from .services.support.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
+from .services.support.threads import plain_text
+from .services.members.profile_pictures import process_profile_picture
+from .services.protection.quota import consume_quota
 from .image_form import ProcessedImageMixin
-from .services.official_images import process_official_image
-from .services.tasting_photos import DAILY_LIMIT, QUOTA_SCOPE, process_tasting_photo
+from .services.catalog.official_images import process_official_image
+from .services.catalog.tasting_photos import DAILY_LIMIT, QUOTA_SCOPE, process_tasting_photo
 from .validators import MAX_TEXT_LENGTH, OLDEST_BIRTH_YEAR, is_reserved_username, plain_text_validator, validate_adult_birth_date, validate_siret, validate_tasting_date
 from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
 from django.utils import timezone
@@ -257,7 +259,7 @@ def address_widgets(css_class, group='address'):
 
 
 class PostalAddressFormMixin:
-    """La ville d'un établissement vient de son code postal (services/postal_codes.py) : jamais une ville inventée ou en désaccord avec le code."""
+    """La ville d'un établissement vient de son code postal (services/establishments/postal_codes.py) : jamais une ville inventée ou en désaccord avec le code."""
 
     def clean(self):
         data = super().clean()
@@ -293,7 +295,7 @@ class ProPlaceForm(PostalAddressFormMixin, ProcessedImageMixin, forms.ModelForm)
 
     def validate_unique(self):
         """Le SIRET d'une fiche existante n'est pas une erreur ici : l'inscription devient alors une demande de gestion de cette fiche
-        (services/claims.py). Le SIRET n'est rattaché à une fiche qu'à l'acceptation de la demande."""
+        (services/establishments/claims.py). Le SIRET n'est rattaché à une fiche qu'à l'acceptation de la demande."""
         exclude = self._get_validation_exclusions() | {'siret'}
         try:
             self.instance.validate_unique(exclude=exclude)
@@ -359,7 +361,7 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
         widget=forms.TextInput(attrs={'autocomplete': 'off'})
     )
 
-    # Lieu de la brasserie (facultatif) : il distingue deux brasseries de même nom. La ville se déduit du code postal (services/postal_codes.py).
+    # Lieu de la brasserie (facultatif) : il distingue deux brasseries de même nom. La ville se déduit du code postal (services/establishments/postal_codes.py).
     brewery_postal_code = forms.CharField(
         required=False, max_length=5, label="Code postal de la brasserie",
         help_text="Facultatif. Utile quand plusieurs brasseries portent ce nom : la ville s'en déduit.",
@@ -374,7 +376,7 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
     )
     # Code-barres lu par le scanner (champ caché, à la création seulement) : validé ici, jamais cru tel quel
     ean = forms.CharField(required=False, widget=forms.HiddenInput())
-    # Confirmations : jeton signé envoyé par la case du panneau « doublon probable » (voir services/catalog_matching.py)
+    # Confirmations : jeton signé envoyé par la case du panneau « doublon probable » (voir services/catalog/catalog_matching.py)
     confirm_brewery = forms.CharField(required=False, max_length=600, widget=forms.HiddenInput())
     confirm_beer = forms.CharField(required=False, max_length=600, widget=forms.HiddenInput())
 
@@ -399,9 +401,9 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
         self.inspection = None  # rapport de détection de doublons, rempli par clean() et affiché par partials/duplicate_panel.html
         self.location = postal_codes.Resolution('', '', False)  # lieu de la brasserie saisie, rempli par clean()
         
-        if 'instance' in kwargs and kwargs['instance'] and kwargs['instance'].brewery_id:
+        if 'instance' in kwargs and kwargs['instance'] and kwargs['instance'].brewery:
             initial = kwargs.setdefault('initial', {})
-            initial['brewery_name'] = kwargs['instance'].brewery_id.name
+            initial['brewery_name'] = kwargs['instance'].brewery.name
             
         super(BeerForm, self).__init__(*args, **kwargs)
         
@@ -429,7 +431,7 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             return False
         if not beer.pk:
             return True
-        if beer.brewery_id and beer.brewery_id.managers.filter(id=user.id).exists():
+        if beer.brewery and beer.brewery.managers.filter(id=user.id).exists():
             return True
         return beer.added_by_id == user.id and not beer.is_verified
 
@@ -441,7 +443,7 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
         brewery = report.same.obj if report.same else Brewery.objects.create(
             name=b_name, description='Ajoutée automatiquement', postal_code=self.location.postal_code, city=self.location.city,
         )
-        beer.brewery_id = brewery
+        beer.brewery = brewery
         if 'ean' in self.fields:  # création seulement : une modification ne touche jamais au code-barres
             beer.ean = self.cleaned_data.get('ean') or None
         
@@ -493,6 +495,8 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
         return style
     
 class CustomNotebookForm(forms.ModelForm):
+    title = forms.CharField(max_length=150, label="Titre", validators=[plain_text_validator])
+
     class Meta:
         model = CustomNotebook
         fields = ['title', 'description']
@@ -638,7 +642,7 @@ class ReportForm(forms.Form):
         target = self.TARGET_MODELS[item_type].objects.filter(**{self.TARGET_LOOKUPS[item_type]: item_ref}).first()
         if target is None:
             self.add_error('item_ref', "L'élément signalé n'existe pas ou plus.")
-        elif target == self.reporter or (item_type == 'drink' and target.drinker_id_id == self.reporter.pk):
+        elif target == self.reporter or (item_type == 'drink' and target.drinker_id == self.reporter.pk):
             self.add_error('item_ref', "Vous ne pouvez pas signaler votre propre profil ou votre propre avis.")
         else:
             cleaned_data['target'] = target

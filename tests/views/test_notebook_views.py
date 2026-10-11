@@ -26,7 +26,7 @@ class TestNotebookPages:
         assert auth_client.get(reverse("notebook"), {"tab": "additions"}).context["active_tab"] == "additions"
 
     def test_detail_shows_only_the_notebook_drinks(self, auth_client, user):
-        inside, outside = f.make_drink(user, f.make_beer(style="Stout, IPA")), f.make_drink(user)
+        inside, _outside = f.make_drink(user, f.make_beer(style="Stout, IPA")), f.make_drink(user)
         notebook = f.make_notebook(user, drinks=[inside])
         context = auth_client.get(reverse("notebook_detail", args=[notebook.slug])).context
         assert list(context["my_drinks"]) == [inside]

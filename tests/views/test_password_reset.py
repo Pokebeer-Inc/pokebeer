@@ -10,9 +10,9 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
-from app.models import BeerUser, ThrottleHit
-from app.services import password_reset
-from app.services.throttle import PASSWORD_RESET_BY_EMAIL, PASSWORD_RESET_BY_IP, PASSWORD_RESET_CONFIRM_BY_IP, Rule
+from app.models import ThrottleHit
+from app.services.members import password_reset
+from app.services.protection.throttle import PASSWORD_RESET_BY_EMAIL, PASSWORD_RESET_BY_IP, PASSWORD_RESET_CONFIRM_BY_IP, Rule
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -82,7 +82,7 @@ class TestRequest:
 
     def test_the_response_takes_a_minimum_time(self, client, user, settings):
         settings.PASSWORD_RESET_MIN_SECONDS = 2
-        with mock.patch("app.services.timing.time.sleep") as sleep:
+        with mock.patch("app.services.protection.timing.time.sleep") as sleep:
             ask(client, "nobody@example.test")
         assert sleep.called and 0 < sleep.call_args.args[0] <= 2
 

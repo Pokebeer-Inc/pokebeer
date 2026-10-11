@@ -4,14 +4,16 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.db import IntegrityError, transaction
-from django.db.models import Avg, Count, Q, F
+from django.db.models import Count, Q, F
 
 from ..forms import BeerForm, DrinkForm, clear_invalid_fields, error_summary
 from ..models import Beer, BeerDraft, Drinks, Notification, UserFollow, DrinkReaction
-from .utils import get_excluded_users, check_and_notify_achievements, posted_notebooks
-from ..services import beer_drafts
-from ..services.notifications import notify
-from ..services.throttle import BEER_DRAFT_SAVES
+from ..services.members.achievements import check_and_notify_achievements
+from ..services.members.visibility import exclude_hidden_users
+from .utils import posted_notebooks
+from ..services.catalog import beer_drafts
+from ..services.messaging.notifications import notify
+from ..services.protection.throttle import BEER_DRAFT_SAVES
 from ..services.moderation.content import CONTENT_TYPES
 from ..services.moderation.suggestions import menu_context as suggestion_menu
 
@@ -21,8 +23,8 @@ def _save_new_beer(user, beer_form, drink_form):
         with transaction.atomic():
             new_beer = beer_form.save(user=user)
             new_drink = drink_form.save(commit=False)
-            new_drink.drinker_id = user
-            new_drink.beer_id = new_beer
+            new_drink.drinker = user
+            new_drink.beer = new_beer
             new_drink.save()
     except IntegrityError:
         beer_form.instance.pk = None
@@ -67,9 +69,9 @@ def add_beer_view(request):
             # Création en masse
             notify('beer_added', followers, sender=request.user, beer=new_beer)
             
-            if new_beer.brewery_id:
+            if new_beer.brewery:
                 # Le créateur n'est pas notifié s'il est lui-même manager (la politique d'envoi écarte l'auto-notification)
-                notify('beer_added_to_brewery', new_beer.brewery_id.managers.all(), sender=request.user, beer=new_beer)
+                notify('beer_added_to_brewery', new_beer.brewery.managers.all(), sender=request.user, beer=new_beer)
             
             check_and_notify_achievements(request.user)
             BeerDraft.objects.filter(user=request.user).delete()  # la bière existe : le brouillon n'a plus lieu d'être
@@ -147,7 +149,7 @@ def discard_beer_draft_view(request):
 @login_required(login_url='login')
 def add_beer_done_view(request, beer_slug):
     """Page de félicitations après l'ajout d'une bière (réservée à la personne qui vient de l'ajouter)."""
-    beer = get_object_or_404(Beer.objects.select_related('brewery_id'), slug=beer_slug, added_by=request.user, is_deleted=False)
+    beer = get_object_or_404(Beer.objects.select_related('brewery'), slug=beer_slug, added_by=request.user, is_deleted=False)
     return render(request, 'add_beer_done.html', {
         'beer': beer,
         'beers_added': Beer.objects.filter(added_by=request.user, is_deleted=False).count(),
@@ -158,27 +160,27 @@ def beer_detail_view(request, beer_slug):
     """Affiche les détails d'une bière, ses notes et commentaires."""
     beer = get_object_or_404(Beer, slug=beer_slug)
     
-    # Calcul du Score (Likes - Dislikes) et Tri
-    drinks = Drinks.objects.filter(beer_id=beer).exclude(drinker_id__in=get_excluded_users(request.user)).select_related('drinker_id')
-    drinks = drinks.annotate(
+    # Calcul du Score (Likes - Dislikes) et Tri : les avis sont lus une seule fois, tout le reste (moyenne, avis du membre,
+    # réactions) en est déduit sans requête supplémentaire
+    drinks = list(exclude_hidden_users(Drinks.objects.filter(beer=beer), request.user, 'drinker').select_related('drinker').annotate(
         likes=Count('reactions', filter=Q(reactions__is_like=True)),
         dislikes=Count('reactions', filter=Q(reactions__is_like=False))
     ).annotate(
         score=F('likes') - F('dislikes')
-    ).order_by('-score', '-date')
+    ).order_by('-score', '-date'))
 
     # Identifier les réactions de l'utilisateur connecté pour l'UI
     user_reactions = {}
     if request.user.is_authenticated:
-        reactions = DrinkReaction.objects.filter(user=request.user, drink__in=drinks).values_list('drink_id', 'is_like')
+        reactions = DrinkReaction.objects.filter(user=request.user, drink_id__in=[drink.id for drink in drinks]).values_list('drink_id', 'is_like')
         user_reactions = {r[0]: r[1] for r in reactions}
-    
+
     for drink in drinks:
         drink.user_reaction = user_reactions.get(drink.id, None)
 
     # Format
     user_rating = None
-    user_drink = drinks.filter(drinker_id=request.user).first() if request.user.is_authenticated else None
+    user_drink = next((drink for drink in drinks if drink.drinker_id == request.user.pk), None)
     if user_drink:
         user_rating = {
             'note': user_drink.note,
@@ -212,10 +214,11 @@ def beer_detail_view(request, beer_slug):
             wishlist_beer_ids.append(beer.id)
             
         # On vérifie si le user est manager de la brasserie liée à cette bière
-        if beer.brewery_id:
-            is_brewery_manager = beer.brewery_id.managers.filter(id=request.user.id).exists()
+        if beer.brewery:
+            is_brewery_manager = beer.brewery.managers.filter(id=request.user.id).exists()
 
-    average = Drinks.objects.filter(beer_id=beer, note__isnull=False).exclude(drinker_id__in=get_excluded_users(request.user)).aggregate(average=Avg('note'), count=Count('id'))
+    notes = [drink.note for drink in drinks if drink.note is not None]
+    average = {'average': sum(notes) / len(notes) if notes else None, 'count': len(notes)}
 
     context = {
         'beer': beer,
@@ -238,7 +241,7 @@ def edit_beer_view(request, beer_slug):
     
     # Vérification des droits : le gérant de la brasserie, ou le créateur tant que le staff n'a pas vérifié la fiche
     is_creator = (beer.added_by == request.user)
-    is_manager = beer.brewery_id and beer.brewery_id.managers.filter(id=request.user.id).exists()
+    is_manager = beer.brewery and beer.brewery.managers.filter(id=request.user.id).exists()
     
     if not (is_manager or (is_creator and not beer.is_verified)):
         messages.error(request, "Cette fiche est vérifiée : seul le gérant de la brasserie peut la modifier." if is_creator else "Vous n'avez pas l'autorisation de modifier cette bière.")
@@ -249,7 +252,7 @@ def edit_beer_view(request, beer_slug):
         if form.is_valid():
             form.save()
             
-            drinkers = Drinks.objects.filter(beer_id=beer).exclude(drinker_id=request.user).values_list('drinker_id', flat=True).distinct()
+            drinkers = Drinks.objects.filter(beer=beer).exclude(drinker=request.user).values_list('drinker', flat=True).distinct()
             
             notify('beer_updated', drinkers, sender=request.user, beer=beer)
             
@@ -270,7 +273,7 @@ def delete_beer_view(request, beer_slug):
     
     # Vérification des droits
     is_creator = (beer.added_by == request.user)
-    is_manager = beer.brewery_id and beer.brewery_id.managers.filter(id=request.user.id).exists()
+    is_manager = beer.brewery and beer.brewery.managers.filter(id=request.user.id).exists()
     
     if not (is_creator or is_manager):
         messages.error(request, "Vous n'avez pas l'autorisation de retirer cette bière.")

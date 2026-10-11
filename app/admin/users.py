@@ -4,8 +4,8 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import display
 
 from ..models import AccountDeletion, BeerUser
-from ..services import inactivity
-from ..services.profile_pictures import process_profile_picture
+from ..services.members import inactivity
+from ..services.members.profile_pictures import process_profile_picture
 from .images import ProcessedImageAdminMixin
 from .roles import RoleManagementMixin
 

@@ -73,7 +73,7 @@ class ReverseGeocode(models.Model):
 
 
 class PostalCode(models.Model):
-    """Communes d'un code postal, mémorisées pour ne pas interroger l'annuaire des communes à chaque saisie (voir services/postal_codes.py).
+    """Communes d'un code postal, mémorisées pour ne pas interroger l'annuaire des communes à chaque saisie (voir services/establishments/postal_codes.py).
     Une ligne sans ville signifie « code postal inconnu » (réponse négative mémorisée)."""
     code = models.CharField(max_length=5, db_index=True)
     city = models.CharField(max_length=100, blank=True)

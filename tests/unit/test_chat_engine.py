@@ -4,8 +4,8 @@ from unittest import mock
 import pytest
 from django.core.cache import cache
 
-from app.services.chat import ChatBusy, ChatUnavailable, engine
-from app.services.chat.tools import FindPlacesTool
+from app.services.assistant.chat import ChatBusy, ChatUnavailable, engine
+from app.services.assistant.chat.tools import FindPlacesTool
 from tests.fakes import chat_reply, http_error, tool_call, tool_reply
 
 

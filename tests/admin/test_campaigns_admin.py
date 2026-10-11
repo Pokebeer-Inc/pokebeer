@@ -99,7 +99,7 @@ class TestWriting:
         assert set(EmailCampaign.objects.get().custom_members.all()) == {alpha, bravo}
 
     def test_a_custom_list_is_capped(self, client_for, superuser, monkeypatch):
-        from app.services import campaigns
+        from app.services.messaging import campaigns
         monkeypatch.setattr(campaigns, "MAX_CUSTOM_MEMBERS", 1)
         chosen = [fan().pk, fan().pk]
         assert client_for(superuser).post(ADD, data(audience="custom", custom_members=chosen)).status_code == 200
@@ -155,7 +155,7 @@ class TestActions:
         assert {m.to[0] for m in mail.outbox} == {refuser.email, superuser.email}  # même celui qui a refusé les e-mails promotionnels
 
     def test_next_batch_and_cancel(self, client_for, superuser, draft, monkeypatch):
-        from app.services import campaigns
+        from app.services.messaging import campaigns
         monkeypatch.setattr(campaigns, "ADMIN_BATCH", 1)
         for _ in range(3):
             fan()

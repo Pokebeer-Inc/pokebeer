@@ -77,3 +77,9 @@ def test_every_model_is_reexported_by_the_models_package():
 
     missing = [model.__name__ for model in apps.get_app_config("app").get_models() if getattr(models_package, model.__name__, None) is not model]
     assert not missing, missing
+
+
+def test_no_scratch_test_files_are_left_in_the_suite():
+    """Les fichiers de débogage (test_tmp_*, test_dbg_*, test_probe_*) ne doivent pas rester dans tests/."""
+    scratch = [str(p) for p in Path(settings.BASE_DIR, "tests").rglob("test_*.py") if any(word in p.stem for word in ("tmp", "dbg", "probe"))]
+    assert not scratch, f"fichiers de test temporaires : {scratch}"

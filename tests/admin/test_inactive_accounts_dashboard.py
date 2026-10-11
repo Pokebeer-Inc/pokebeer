@@ -1,12 +1,11 @@
 """Tableau de bord RGPD des comptes inactifs."""
-from datetime import timedelta
 
 import pytest
 from django.urls import reverse
 from django.utils import timezone
 
 from app.models import AccountDeletion
-from app.services import inactivity
+from app.services.members import inactivity
 from tests import factories as f
 from tests.unit.test_inactive_accounts import IN_WARNING_WINDOW, LONG_AGO, idle
 

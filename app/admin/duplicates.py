@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.core.exceptions import PermissionDenied
 from django.template.response import TemplateResponse
 
-from ..services import catalog_matching
+from ..services.catalog import catalog_matching
 
 
 def duplicates_view(request):

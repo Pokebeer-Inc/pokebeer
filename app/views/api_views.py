@@ -10,16 +10,25 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 
 from ..models import Beer, Brewery
-from ..services.match_keys import MAX_NAME_LENGTH
-from .utils import get_blocked_users
+from ..services.catalog.match_keys import MAX_NAME_LENGTH
+from ..services.members.visibility import exclude_blocked
 from django.template.loader import render_to_string
 
-from ..services import catalog_matching, ean, label_scan, postal_codes, product_lookup, upstream
-from ..services.throttle import CATALOG_CHECK_BY_USER, CHAT_BURST_BY_USER, CHAT_GLOBAL, CHAT_GLOBAL_KEY, POSTAL_LOOKUP_BY_IP, client_ip
-from ..services.ai import analyze_label, ask_zythologue
-from ..services.chat import ChatBusy, ChatUnavailable, payload as chat_payload
-from ..services.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota, refund_quota
-from ..services.slugs import SUFFIX_LENGTH
+from ..services.catalog import catalog_matching, ean, label_scan, product_lookup
+from ..services.establishments import postal_codes
+from ..services.common import upstream
+from ..services.protection.throttle import (
+    CATALOG_CHECK_BY_USER,
+    CHAT_BURST_BY_USER,
+    CHAT_GLOBAL,
+    CHAT_GLOBAL_KEY,
+    POSTAL_LOOKUP_BY_IP,
+    client_ip,
+)
+from ..services.assistant.ai import analyze_label, ask_zythologue
+from ..services.assistant.chat import ChatBusy, ChatUnavailable, payload as chat_payload
+from ..services.protection.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota, refund_quota
+from ..services.common.slugs import SUFFIX_LENGTH
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +70,7 @@ def _post_chat_message(request):
 
     history = request.session.get('chat_history', [])
     try:
-        reply = ask_zythologue(chat_request.message, history, chat_request.location)
+        reply = ask_zythologue(chat_request.message, history, chat_request.location, user=request.user)
     except ChatUnavailable as error:
         # Rien n'est enregistré et le membre récupère sa question (une reprise reste possible)
         if pending:
@@ -134,9 +143,9 @@ def lookup_ean(request):
     if code is None:
         return JsonResponse({"error": "Code-barres invalide."}, status=400)
 
-    known = Beer.objects.filter(ean=code, is_deleted=False).exclude(added_by__in=get_blocked_users(request.user)).select_related('brewery_id').first()
+    known = exclude_blocked(Beer.objects.filter(ean=code, is_deleted=False), request.user, 'added_by').select_related('brewery').first()
     if known:
-        return JsonResponse({"success": True, "source": "catalog", "existing": {"name": known.name, "brewery": known.brewery_id.name, "slug": known.slug}})
+        return JsonResponse({"success": True, "source": "catalog", "existing": {"name": known.name, "brewery": known.brewery.name, "slug": known.slug}})
 
     if not consume_quota(request.user, settings.EAN_DAILY_LIMIT, EAN_LOOKUP):
         return JsonResponse({"error": "Limite quotidienne de recherches par code-barres atteinte, revenez demain !"}, status=429)
@@ -210,18 +219,18 @@ def search_beer(request):
     query_slug = slugify(query) # Permet de matcher même si l'utilisateur oublie un accent
         
     # Le slug se termine par un jeton aléatoire : on ne compare que sa partie lisible
-    beers = Beer.objects.annotate(
+    beers = exclude_blocked(Beer.objects.annotate(
         readable_slug=Left('slug', Greatest(Length('slug') - SUFFIX_LENGTH, 0))
     ).filter(
         (Q(name__icontains=query) | Q(readable_slug__icontains=query_slug)),
         is_deleted=False
-    ).select_related('brewery_id')[:5]
+    ), request.user, 'added_by').select_related('brewery')[:5]
     
     results = [
         {
             'name': b.name, 
             'slug': b.slug, 
-            'brewery': b.brewery_id.name
+            'brewery': b.brewery.name
         } for b in beers
     ]
     return JsonResponse(results, safe=False)

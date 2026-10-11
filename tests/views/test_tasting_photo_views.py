@@ -3,7 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from app.models import Drinks
-from app.services import tasting_photos as tp
+from app.services.catalog import tasting_photos as tp
 from tests import factories as f
 from tests.helpers import messages_of
 
@@ -105,8 +105,8 @@ class TestPhotoDisplay:
 
 class TestQuotaOnlyConsumedByValidForms:
     def test_a_rejected_form_does_not_cost_an_upload(self, auth_client, user, beer, monkeypatch):
-        from app.models import ChatUsage
+        from app.models import QuotaUsage
         rate(auth_client, beer, comment="", photo=f.make_image_upload())  # commentaire manquant : formulaire invalide
-        assert not ChatUsage.objects.filter(user=user, scope=tp.QUOTA_SCOPE).exists()
+        assert not QuotaUsage.objects.filter(user=user, scope=tp.QUOTA_SCOPE).exists()
         rate(auth_client, beer, photo=f.make_image_upload())
-        assert ChatUsage.objects.get(user=user, scope=tp.QUOTA_SCOPE).count == 1
+        assert QuotaUsage.objects.get(user=user, scope=tp.QUOTA_SCOPE).count == 1

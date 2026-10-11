@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 from django.test import RequestFactory
 
-from app.views.services.selectors import get_filtered_beers, get_filtered_notebook_drinks, get_filtered_users
+from app.services.catalog.selectors import get_filtered_beers, get_filtered_notebook_drinks, get_filtered_users
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db

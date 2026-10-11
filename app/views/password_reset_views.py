@@ -6,9 +6,9 @@ from django.utils.decorators import method_decorator
 from django.views.generic import FormView, TemplateView
 
 from ..forms import NewPasswordForm, PasswordResetRequestForm
-from ..services import password_reset
-from ..services.throttle import PASSWORD_RESET_BY_IP, PASSWORD_RESET_CONFIRM_BY_IP
-from ..services.timing import minimum_duration
+from ..services.members import password_reset
+from ..services.protection.throttle import PASSWORD_RESET_BY_IP, PASSWORD_RESET_CONFIRM_BY_IP
+from ..services.protection.timing import minimum_duration
 from .utils import limit_posts
 
 __all__ = ['PasswordResetRequestView', 'PasswordResetDoneView', 'PasswordResetConfirmView', 'PasswordResetCompleteView']

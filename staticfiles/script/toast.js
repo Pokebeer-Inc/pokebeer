@@ -174,11 +174,6 @@
     // Aucun état n'est gardé dans le navigateur : un autre onglet ou un redémarrage de l'application ne rejoue rien.
     const shownInThisPage = new Set(); // évite seulement un doublon entre le direct et le rattrapage de cette même page
 
-    function getCookie(name) {
-        const match = document.cookie.split('; ').find(row => row.startsWith(name + '='));
-        return match ? decodeURIComponent(match.split('=')[1]) : null;
-    }
-
     function updateBellDots(unreadCount) {
         document.querySelectorAll('[data-notification-dot]').forEach(dot => dot.classList.toggle('hidden', !unreadCount));
     }
@@ -213,7 +208,7 @@
 
     // Accusé de réception d'un pop-up affiché en direct
     function acknowledge(slug) {
-        const csrfToken = getCookie('csrftoken');
+        const csrfToken = Pokebeer.csrfToken();
         if (!csrfToken) return;
         fetch('/api/notifications/seen/', {
             method: 'POST',

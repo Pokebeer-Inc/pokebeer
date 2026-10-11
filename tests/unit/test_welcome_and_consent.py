@@ -8,9 +8,10 @@ from django.core import mail, signing
 from django.test import TestCase
 from django.urls import reverse
 
-from app.models import BeerUser, ThrottleHit
-from app.services import app_links, marketing, welcome
-from app.services.throttle import Rule
+from app.models import BeerUser
+from app.services.messaging import app_links, marketing
+from app.services.members import welcome
+from app.services.protection.throttle import Rule
 from tests import factories as f
 from tests.views.test_auth_views import TestRegister
 
@@ -118,7 +119,7 @@ class TestConsent:
 
     def test_unsubscribe_headers_follow_rfc_8058(self, user):
         headers = marketing.unsubscribe_headers(user)
-        assert headers["List-Unsubscribe"].startswith(f"<https://pokebeer.test/emails/unsubscribe/")
+        assert headers["List-Unsubscribe"].startswith("<https://pokebeer.test/emails/unsubscribe/")
         assert headers["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
 
 

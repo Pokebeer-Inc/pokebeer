@@ -3,10 +3,7 @@ async function toggleWishlist(event, beerSlug) {
     event.stopPropagation(); // Évite de cliquer sur la carte en arrière-plan
     const button = event.currentTarget;  // lu tout de suite : il n'est plus disponible après l'attente
 
-    // Récupération sécurisée du token CSRF
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ?
-                      document.querySelector('[name=csrfmiddlewaretoken]').value :
-                      (window.CSRF_TOKEN || '');
+    const csrfToken = Pokebeer.csrfToken();
 
     // Le bouton est grisé avec un cercle qui tourne le temps de la requête (un second appui est ignoré)
     await Pending.run(button, async () => {

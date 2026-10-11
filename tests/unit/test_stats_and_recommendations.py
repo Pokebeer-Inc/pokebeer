@@ -4,19 +4,19 @@ from decimal import Decimal
 import pytest
 
 from app.models import Beer, Drinks
-from app.views.services.recommendations import get_recommended_beers
-from app.views.services.stats import get_top_beers_data, get_user_statistics
+from app.services.catalog.recommendations import get_recommended_beers
+from app.services.members.profile_stats import get_top_beers_data, get_user_statistics
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
 
 
 def drinks_of(user):
-    return Drinks.objects.filter(drinker_id=user)
+    return Drinks.objects.filter(drinker=user)
 
 
 def unrated_for(user):
-    return Beer.objects.filter(is_deleted=False).exclude(drinks__drinker_id=user)
+    return Beer.objects.filter(is_deleted=False).exclude(drinks__drinker=user)
 
 
 class TestUserStatistics:

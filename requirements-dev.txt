@@ -1,4 +1,7 @@
 -r requirements.txt
+django-browser-reload==1.21.0   # rechargement automatique en développement (DEBUG), jamais installé en production
 pytest==9.1.1
 pytest-django==4.14.0
 pytest-cov==7.1.0
+ruff==0.17.0              # contrôle statique de la CI (voir ruff.toml)
+pip-audit==2.10.1         # recherche de vulnérabilités connues dans requirements.txt

@@ -22,7 +22,7 @@ PROTECTED_ROUTES = [
     ("notebook_detail", {"notebook_slug": "some-slug"}, GET),
     ("delete_custom_notebook", {"notebook_slug": "some-slug"}, POST),
     ("edit_custom_notebook", {"notebook_slug": "some-slug"}, POST),
-    ("logout", {}, GET),
+    ("logout", {}, POST),
     ("account", {}, GET),
     ("delete_account", {}, POST),
     ("update_top_beer", {"slot": 1}, POST),

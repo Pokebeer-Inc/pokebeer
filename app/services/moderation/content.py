@@ -5,10 +5,10 @@ from django.db import transaction
 from django.urls import reverse
 
 from app.models import Bar, Beer, BeerUser, Brewery, Drinks, ModerationEntry, Notification
-from app.services import catalog_matching
-from app.services.achievements import check_and_notify_achievements
-from app.services.drinks import delete_drink
-from app.services.profile_pictures import delete_stored_picture
+from app.services.catalog import catalog_matching
+from app.services.members.achievements import check_and_notify_achievements
+from app.services.catalog.drinks import delete_drink
+from app.services.members.profile_pictures import delete_stored_picture
 
 Kind = ModerationEntry.Kind
 
@@ -123,18 +123,18 @@ class BeerContent(ModeratedContent):
 
     def can_edit(self, obj, user):
         # Même règle que la page de modification : le gérant de la brasserie, ou le créateur tant que la fiche n'est pas vérifiée
-        is_manager = obj.brewery_id.managers.filter(pk=user.pk).exists()
+        is_manager = obj.brewery.managers.filter(pk=user.pk).exists()
         return is_manager or (obj.added_by_id == user.pk and not obj.is_verified)
 
     def suggestion_errors(self, target, cleaned):
         # Le modèle ne contrôle pas le nom d'une bière au sein de sa brasserie (champ hors formulaire) : même règle que la modification directe
         name = cleaned.get('name')
-        if name and name != target.name and catalog_matching.inspect(name, target.brewery_id.name, exclude_beer_pk=target.pk, brewery_confirmed=True).beer.same:
+        if name and name != target.name and catalog_matching.inspect(name, target.brewery.name, exclude_beer_pk=target.pk, brewery_confirmed=True).beer.same:
             return ["Nom : une bière de ce nom existe déjà dans cette brasserie."]
         return []
 
     def context(self, obj):
-        return f"Brasserie : {obj.brewery_id.name}"
+        return f"Brasserie : {obj.brewery.name}"
 
     def url(self, obj):
         return reverse('beer_detail', args=[obj.slug])
@@ -160,19 +160,19 @@ class CommentContent(ModeratedContent):
     fields = (FieldSpec('comment', 'Commentaire'), FieldSpec('photo', 'Photo', is_image=True))
 
     def title(self, obj):
-        return f"Avis de {obj.drinker_id.username} sur {obj.beer_id.name}"
+        return f"Avis de {obj.drinker.username} sur {obj.beer.name}"
 
     def context(self, obj):
-        return _joined(f"Bière : {obj.beer_id.name}", f"Note : {obj.note}/10" if obj.note is not None else "")
+        return _joined(f"Bière : {obj.beer.name}", f"Note : {obj.note}/10" if obj.note is not None else "")
 
     def url(self, obj):
-        return reverse('beer_detail', args=[obj.beer_id.slug])
+        return reverse('beer_detail', args=[obj.beer.slug])
 
     def authors(self, obj):
-        return [obj.drinker_id]
+        return [obj.drinker]
 
     def remove(self, obj, entry):
-        drinker = obj.drinker_id
+        drinker = obj.drinker
         delete_drink(obj)
         check_and_notify_achievements(drinker)
 

@@ -25,5 +25,5 @@
 </form>
 
 <div id="end"></div>
-<script>document.getElementById('end').scrollIntoView({ block: 'end' });</script>
+<script nonce="{{ request.csp_nonce }}">document.getElementById('end').scrollIntoView({ block: 'end' });</script>
 {% endblock %}

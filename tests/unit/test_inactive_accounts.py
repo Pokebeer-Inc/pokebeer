@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from app.models import AccountDeletion, BeerUser, Notification
-from app.services import inactivity
+from app.services.members import inactivity
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -221,8 +221,8 @@ class TestInactivityEmails:
     def test_the_daily_ceiling_defers_the_remaining_members_to_the_next_run(self, monkeypatch):
         from datetime import timedelta as delta
         from django.core import mail
-        from app.services import inactivity_mail
-        from app.services.throttle import Rule
+        from app.services.members import inactivity_mail
+        from app.services.protection.throttle import Rule
         monkeypatch.setattr(inactivity_mail, "INACTIVITY_EMAIL_GLOBAL", Rule("inactivity-email", 2, delta(days=1)))
         members = [self.warned_user(f.make_user()) for _ in range(4)]
         assert inactivity.purge_inactive_accounts() == (2, 0)

@@ -1,0 +1,60 @@
+{% comment %}Lignes des listes d'abonnés / d'abonnements (fenêtres du profil et « Charger plus »). entries : UserFollow ; variant : own_followers, own_following, public_followers ou public_following.{% endcomment %}
+{% for f in entries %}
+{% if variant == 'own_followers' %}
+<li class="pb-card flex items-center justify-between p-2">
+    <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
+        <div class="avatar">
+            <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
+                <img class="object-cover w-full h-full" src="{{ f.follower.avatar_url }}" />
+            </div>
+        </div>
+        <span class="font-bold text-sm">{{ f.follower.username }}</span>
+    </a>
+
+    <form method="post" action="{% url 'remove_follower' f.follower.username %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-xs btn-outline btn-error">Supprimer</button>
+    </form>
+</li>
+{% elif variant == 'own_following' %}
+<li class="pb-card flex items-center justify-between p-2">
+    <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
+        <div class="avatar">
+            <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
+                <img class="object-cover w-full h-full" src="{{ f.followed.avatar_url }}" />
+            </div>
+        </div>
+        <span class="font-bold text-sm">{{ f.followed.username }}</span>
+    </a>
+
+    <form method="post" action="{% url 'follow_user' f.followed.username %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-xs btn-outline btn-error">Ne plus suivre</button>
+    </form>
+</li>
+{% else %}
+{% if variant == 'public_followers' %}{% with member=f.follower %}
+<li>
+    <a href="{% url 'public_profile' member.username %}" class="pb-card flex items-center gap-3 p-2 hover:bg-base-300 active:scale-[0.98] transition-all">
+        <div class="avatar">
+            <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
+                <img class="object-cover w-full h-full" src="{{ member.avatar_url }}" />
+            </div>
+        </div>
+        <span class="font-bold text-sm">{{ member.username }}</span>
+    </a>
+</li>
+{% endwith %}{% else %}{% with member=f.followed %}
+<li>
+    <a href="{% url 'public_profile' member.username %}" class="pb-card flex items-center gap-3 p-2 hover:bg-base-300 active:scale-[0.98] transition-all">
+        <div class="avatar">
+            <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
+                <img class="object-cover w-full h-full" src="{{ member.avatar_url }}" />
+            </div>
+        </div>
+        <span class="font-bold text-sm">{{ member.username }}</span>
+    </a>
+</li>
+{% endwith %}{% endif %}
+{% endif %}
+{% endfor %}

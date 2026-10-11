@@ -6,7 +6,7 @@ from unfold.decorators import display
 
 from ..forms import FeedbackAdminForm
 from ..models import Feedback
-from ..services import feedback as conversations
+from ..services.support import feedback as conversations
 from .pending import PendingKpiMixin, pending_feedback_count
 
 

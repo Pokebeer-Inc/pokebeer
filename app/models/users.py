@@ -6,8 +6,8 @@ from django.db import models
 from django.utils import timezone
 
 from ..validators import MAX_BIO_LENGTH, username_validator
-from ..services.avatars import initials_avatar_url
-from ..services.profile_pictures import profile_picture_path, profile_pictures_storage
+from ..services.members.avatars import initials_avatar_url
+from ..services.members.profile_pictures import profile_picture_path, profile_pictures_storage
 
 
 STAFF_GROUP = 'Staff'
@@ -120,20 +120,33 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     # ==========================================
     # GESTION DES RÔLES (Groupes)
     # ==========================================
+    def group_names(self):
+        """Noms des groupes du membre. Lus une seule fois par instance (une requête, pas une par rôle testé) ; le cache est vidé quand les
+        groupes de CE membre changent (signal `m2m_changed`) ou à `refresh_from_db`. Profite du `prefetch_related('groups')` quand il existe."""
+        if 'groups' in getattr(self, '_prefetched_objects_cache', {}):
+            return {group.name for group in self.groups.all()}
+        if getattr(self, '_group_names_cache', None) is None:
+            self._group_names_cache = set(self.groups.values_list('name', flat=True))
+        return self._group_names_cache
+
+    def refresh_from_db(self, *args, **kwargs):
+        self._group_names_cache = None
+        super().refresh_from_db(*args, **kwargs)
+
     @property
     def is_brewer(self):
         """Vérifie si l'utilisateur a le rôle Brasseur."""
-        return any(group.name == 'Brasseur' for group in self.groups.all())
+        return 'Brasseur' in self.group_names()
 
     @property
     def is_bartender(self):
         """Vérifie si l'utilisateur a le rôle Bartender."""
-        return any(group.name == 'Bartender' for group in self.groups.all())
+        return 'Bartender' in self.group_names()
 
     @property
     def is_staff(self):
         """Vérifie si l'utilisateur a le rôle Staff."""
-        return any(group.name == STAFF_GROUP for group in self.groups.all())
+        return STAFF_GROUP in self.group_names()
     
     @property
     def primary_role_badge(self):
@@ -145,8 +158,7 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
         if self.is_staff or self.is_superuser:
             return {'name': 'Staff', 'color': 'badge-warning text-white'}
         
-        # On récupère tous les noms de groupes d'un coup pour éviter les requêtes multiples
-        group_names = [group.name for group in self.groups.all()]
+        group_names = self.group_names()
         
         if 'Brasseur' in group_names and 'Bartender' in group_names:
             return {'name': 'Brasseur & Gérant', 'color': 'badge-primary text-white'}

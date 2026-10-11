@@ -5,15 +5,15 @@ from django.conf import settings
 from pgvector.django import HnswIndex, VectorField
 from datetime import date
 from django.contrib.postgres.indexes import GinIndex
-from django.db import models, transaction
+from django.db import models
 
 from ..validators import MAX_TEXT_LENGTH, plain_text_validator
 from ..fields import PublicSlugField
-from ..services.official_images import beer_image_path
-from ..services.tasting_photos import tasting_photo_path
+from ..services.catalog.official_images import beer_image_path
+from ..services.catalog.tasting_photos import tasting_photo_path
 
 from .establishments import Brewery
-from ..services import match_keys
+from ..services.catalog import match_keys
 from .mixins import MatchKeyMixin, OfficialImageMixin, VerifiableMixin
 from .users import BeerUser
 
@@ -26,7 +26,7 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     description = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, null=True, verbose_name="Description officielle")
     bitterness = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(500)], verbose_name="IBU")
     degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Degré")
-    brewery_id = models.ForeignKey(Brewery, on_delete=models.CASCADE)
+    brewery = models.ForeignKey(Brewery, on_delete=models.CASCADE)
     slug = PublicSlugField(source='name')
     style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
     added_by = models.ForeignKey(BeerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_beers')
@@ -41,14 +41,16 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
         ordering = ['name']
         indexes = [
             GinIndex(fields=['match_key'], name='beer_match_key_trgm', opclasses=['gin_trgm_ops']),
+            # Presque toutes les listes ne montrent que les bières du catalogue : index partiel, plus petit qu'un index sur le booléen
+            models.Index(fields=['id'], condition=models.Q(is_deleted=False), name='beer_active_idx'),
             # Recherche sémantique du chat : possible depuis que les vecteurs font 1024 dimensions (pgvector n'indexe pas au-delà de 2000)
             HnswIndex(name='beer_embedding_hnsw', fields=['embedding'], m=16, ef_construction=64, opclasses=['vector_cosine_ops']),
         ]
         constraints = [
             # Un nom par brasserie (deux brasseries peuvent avoir chacune leur « Blonde »). Une bière retirée du catalogue libère son
-            # nom ; le slug reste unique pour garder ses anciennes URLs. Les noms proches sont traités par services/catalog_matching.py.
+            # nom ; le slug reste unique pour garder ses anciennes URLs. Les noms proches sont traités par services/catalog/catalog_matching.py.
             models.UniqueConstraint(
-                fields=['brewery_id', 'name'],
+                fields=['brewery', 'name'],
                 condition=models.Q(is_deleted=False),
                 name='unique_active_beer_name_per_brewery',
                 violation_error_message="Cette brasserie a déjà une bière de ce nom.",
@@ -67,10 +69,10 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     @property
     def embedding_text(self):
         """Texte décrivant la bière, vectorisé pour la recherche sémantique du chat IA."""
-        return f"Bière {self.name} de la brasserie {self.brewery_id.name}. Style: {self.style or 'inconnu'}. Profil: {self.description}"
+        return f"Bière {self.name} de la brasserie {self.brewery.name}. Style: {self.style or 'inconnu'}. Profil: {self.description}"
 
     # Champs dont dépend `embedding_text` : leur changement rend le vecteur obsolète
-    EMBEDDING_SOURCES = ('name', 'style', 'description', 'brewery_id_id')
+    EMBEDDING_SOURCES = ('name', 'style', 'description', 'brewery_id')
 
     def _embedding_sources(self):
         return tuple(self.__dict__.get(field) for field in self.EMBEDDING_SOURCES)
@@ -87,23 +89,24 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
             return False
         return self.embedding is None or self._embedding_sources() != getattr(self, '_embedded_sources', None)
 
-    def _refresh_embedding(self):
-        from ..services.ai import get_embedding
-        vector = get_embedding(self.embedding_text)
-        if vector:
-            self.embedding = vector
-            Beer.objects.filter(pk=self.pk).update(embedding=vector)
+    # Le vecteur de recherche (tableau numpy) n'est ni saisi ni contraint, et ne supporte pas les comparaisons `not value` / `in empty_values`
+    # de Django : sans cette exclusion, valider une bière qui en a un (formulaire, modération, administration) lève
+    # « The truth value of an array with more than one element is ambiguous ».
+    def clean_fields(self, exclude=None):
+        super().clean_fields(exclude={*(exclude or ()), 'embedding'})
+
+    def validate_constraints(self, exclude=None):
+        super().validate_constraints(exclude={*(exclude or ()), 'embedding'})
 
     def save(self, *args, **kwargs):
         update_fields = kwargs.get('update_fields')
         touches_profile = update_fields is None or bool(set(self.EMBEDDING_SOURCES) & set(update_fields))
-        needs_embedding = touches_profile and self._needs_embedding()
+        # Le modèle ne fait que constater que le vecteur est périmé ; c'est `services/catalog/embeddings.py` (signal post_save) qui le recalcule,
+        # après la validation de la transaction. En cas d'échec, le vecteur reste absent : `embed_beers` ou le prochain save le rattrape.
+        self.embedding_is_stale = touches_profile and self._needs_embedding()
         super().save(*args, **kwargs)
-        if needs_embedding:
+        if self.embedding_is_stale:
             self._embedded_sources = self._embedding_sources()
-            # Après la validation de la transaction en cours : jamais d'appel réseau pendant qu'elle est ouverte.
-            # En cas d'échec de l'embedding, le vecteur reste absent : `embed_beers` ou le prochain save le rattrape.
-            transaction.on_commit(self._refresh_embedding)
 
 class Drinks(models.Model):
     date = models.DateField(default=date.today, verbose_name="Date")
@@ -140,8 +143,8 @@ class Drinks(models.Model):
     serving_format = models.CharField(max_length=10, choices=ServingFormat.choices, blank=True, default='', verbose_name="Format")
     price = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, default=None, validators=[MinValueValidator(0), MaxValueValidator(999)], verbose_name="Prix payé (€)")
 
-    drinker_id = models.ForeignKey(BeerUser, on_delete=models.CASCADE)
-    beer_id = models.ForeignKey(Beer, on_delete=models.CASCADE)
+    drinker = models.ForeignKey(BeerUser, on_delete=models.CASCADE)
+    beer = models.ForeignKey(Beer, on_delete=models.CASCADE)
     
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
@@ -150,12 +153,17 @@ class Drinks(models.Model):
         verbose_name = "Dégustation"
         ordering = ['-date']
         indexes = [
-            models.Index(fields=['drinker_id', '-date'], name='drinks_drinker_date_idx'),  # fil des amis, carnet
+            models.Index(fields=['drinker', '-date'], name='drinks_drinker_date_idx'),  # fil des amis, carnet
             models.Index(fields=['-date', '-created_at'], name='drinks_recent_idx'),  # fil de la communauté
+        ]
+        constraints = [
+            # Un membre note une bière une seule fois : deux envois simultanés (double clic) ne peuvent plus créer deux notes
+            models.UniqueConstraint(fields=['drinker', 'beer'], name='unique_drink_per_member_and_beer',
+                                    violation_error_message="Vous avez déjà noté cette bière."),
         ]
 
     def __str__(self):
-        return f"{self.drinker_id.username} - {self.beer_id.name} ({self.note}/10)"
+        return f"{self.drinker.username} - {self.beer.name} ({self.note}/10)"
 
     @property
     def photo_url(self):
@@ -192,7 +200,7 @@ class BeerDraft(models.Model):
     """Brouillon de l'ajout d'une bière : une étape validée = des données conservées si le membre quitte avant la fin.
 
     Un seul brouillon par membre. Il ne contient que du texte (les photos ne sont pas conservées) et disparaît dès que la bière est
-    ajoutée, ou avec le compte. Les brouillons abandonnés depuis longtemps sont effacés (services/beer_drafts.py).
+    ajoutée, ou avec le compte. Les brouillons abandonnés depuis longtemps sont effacés (services/catalog/beer_drafts.py).
     """
     user = models.OneToOneField('BeerUser', on_delete=models.CASCADE, related_name='beer_draft')
     data = models.JSONField(default=dict, blank=True)

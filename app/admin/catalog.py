@@ -6,8 +6,8 @@ from django.contrib import admin
 from unfold.admin import ModelAdmin
 
 from ..models import Beer, Drinks, Brewery, Bar
-from ..services.official_images import process_official_image
-from ..services.tasting_photos import process_tasting_photo
+from ..services.catalog.official_images import process_official_image
+from ..services.catalog.tasting_photos import process_tasting_photo
 from .images import ProcessedImageAdminMixin
 
 
@@ -15,7 +15,15 @@ class OfficialImageAdmin(ProcessedImageAdminMixin, ModelAdmin):
     image_processors = {'image': process_official_image}
 
 
-admin.site.register(Beer, OfficialImageAdmin)
+
+
+@admin.register(Beer)
+class BeerAdmin(OfficialImageAdmin):
+    # Le vecteur de recherche du chat IA est calculé par le site (services/catalog/embeddings.py) : l'afficher comme un champ de texte de
+    # 1024 nombres invitait à le casser (un envoi vide faisait planter l'enregistrement)
+    exclude = ('embedding',)
+
+
 admin.site.register(Brewery, OfficialImageAdmin)
 admin.site.register(Bar, OfficialImageAdmin)
 

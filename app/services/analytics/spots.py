@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ...models import BeerSpot, ReverseGeocode
-from .. import reverse_geocoding as rg
+from ..establishments import reverse_geocoding as rg
 from . import geo
 from .date import date_range
 

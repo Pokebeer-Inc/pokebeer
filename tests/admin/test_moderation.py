@@ -3,7 +3,7 @@ from django.contrib.admin.models import DELETION, LogEntry
 from django.urls import reverse
 
 from app.models import Bar, Beer, BeerUser, Brewery, Drinks, ModerationEntry, Notification
-from app.services.verification import certify
+from app.services.establishments.verification import certify
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -100,7 +100,7 @@ class TestBeerCertification:
     def test_certifying_does_not_log_a_new_moderation_entry_nor_call_mistral(self, client_for, superuser, monkeypatch):
         beer = f.make_beer()
         calls = []
-        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: calls.append(text))
+        monkeypatch.setattr("app.services.assistant.ai.get_embedding", lambda text: calls.append(text))
         client_for(superuser).post(validate_url(entries("beer", "created").get(object_id=beer.pk)))
         assert calls == [] and not entries("beer", "modified").exists()
 
@@ -123,7 +123,7 @@ class TestRemove:
 
     def test_removing_a_comment_clears_top_slot(self, client_for, staff, user):
         drink = f.make_drink(user)
-        user.top_beer_1 = drink.beer_id
+        user.top_beer_1 = drink.beer
         user.save()
         self.post(client_for(staff), entries("comment").get(object_id=drink.pk))
         user.refresh_from_db()

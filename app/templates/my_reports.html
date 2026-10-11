@@ -28,8 +28,8 @@
             {% elif report.reported_user %}
                 <a href="{% url 'public_profile' report.reported_user.username %}">Profil de {{ report.reported_user.username }}</a>
             {% elif report.reported_drink %}
-                {% if not report.reported_drink.beer_id.is_deleted %}<a href="{% url 'beer_detail' report.reported_drink.beer_id.slug %}">Avis sur « {{ report.reported_drink.beer_id.name }} »</a>
-                {% else %}<em>Avis sur « {{ report.reported_drink.beer_id.name }} » (bière supprimée)</em>{% endif %}
+                {% if not report.reported_drink.beer.is_deleted %}<a href="{% url 'beer_detail' report.reported_drink.beer.slug %}">Avis sur « {{ report.reported_drink.beer.name }} »</a>
+                {% else %}<em>Avis sur « {{ report.reported_drink.beer.name }} » (bière supprimée)</em>{% endif %}
             {% elif report.reported_brewery %}
                 <a href="{% url 'brewery_detail' report.reported_brewery.slug %}">Brasserie « {{ report.reported_brewery.name }} »</a>
             {% endif %}

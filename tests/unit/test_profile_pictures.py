@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
-from app.services import profile_pictures as pp
+from app.services.members import profile_pictures as pp
 
 
 def upload(fmt="PNG", size=(800, 400), name="p.png", **save_kwargs):
@@ -42,7 +42,7 @@ class TestProcessing:
         assert error.value.code == "too_large"
 
     def test_decompression_bomb_is_refused(self, monkeypatch):
-        monkeypatch.setattr("app.services.images.MAX_SOURCE_PIXELS", 100)
+        monkeypatch.setattr("app.services.common.images.MAX_SOURCE_PIXELS", 100)
         with pytest.raises(ValidationError) as error:
             pp.process_profile_picture(upload(size=(50, 50)))
         assert error.value.code == "too_many_pixels"

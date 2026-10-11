@@ -7,11 +7,11 @@ from django.views.decorators.http import require_POST
 
 from ..forms import ClaimForm
 from ..models import BeerUser, EstablishmentClaim
-from ..services import claims
+from ..services.establishments import claims
 from ..services.moderation.content import CONTENT_TYPES
 from ..services.moderation.suggestions import menu_context as suggestion_menu
-from ..services.notifications import notify
-from ..services.places import BAR, BREWERY, PlaceKind, kind_of  # noqa: F401  (réexportés pour les vues bar/brasserie)
+from ..services.messaging.notifications import notify
+from ..services.establishments.places import BAR, BREWERY, PlaceKind, kind_of  # noqa: F401  (réexportés pour les vues bar/brasserie)
 
 
 def is_manager(place, user):

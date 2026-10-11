@@ -4,11 +4,10 @@
     const list = document.getElementById('top-beers-container');
     if (!list) return;
     const status = document.getElementById('top-status');
-    const token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
     const DRAG_CLASSES = ['ring-2', 'ring-primary', 'shadow-lg', 'scale-[1.02]', 'z-10', 'relative'];
     let dragged = null;
     let startOrder = null;
-    let saveTimer = null;
+    const scheduleSave = Pokebeer.debounce(() => save(), 700);
 
     const rows = () => Array.from(list.children);
     const order = () => rows().map(row => row.dataset.slot);
@@ -19,14 +18,14 @@
     }
 
     function save() {
-        clearTimeout(saveTimer);
+        scheduleSave.cancel();
         const now = order();
         if (!startOrder || now.join() === startOrder.join()) { startOrder = null; return; }
         Pending.region(list, true);  // le classement est estompé le temps de l'enregistrement, puis la page se recharge
         fetch(list.dataset.url, {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': Pokebeer.csrfToken() },
             body: JSON.stringify({ order: now.map(Number) }),
         }).then(response => response.json()).catch(() => null).then(() => window.location.reload());
     }
@@ -84,7 +83,6 @@
         renumber();
         handle.focus();
         announce('Position ' + (rows().indexOf(row) + 1) + ' sur ' + rows().length);
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(save, 700);
+        scheduleSave();
     });
 })();

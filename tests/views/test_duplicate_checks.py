@@ -9,8 +9,8 @@ from django.urls import reverse
 
 from app.forms import BeerForm
 from app.models import Beer, Brewery
-from app.services import catalog_matching as cm
-from app.services.throttle import CATALOG_CHECK_BY_USER, Rule
+from app.services.catalog import catalog_matching as cm
+from app.services.protection.throttle import CATALOG_CHECK_BY_USER, Rule
 from tests import factories as f
 from tests.helpers import messages_of
 from tests.views.test_beer_views import add_beer_data
@@ -38,7 +38,7 @@ def post(client, name="Nouvelle Blonde", brewery="Brasserie du Coin", **extra):
 class TestBreweryAtSubmission:
     def test_an_identical_brewery_is_reused_not_duplicated(self, auth_client, coin):
         post(auth_client, brewery="LA BRASSERIE DU COIN SAS")
-        assert Brewery.objects.filter(name__icontains="coin").count() == 1 and Beer.objects.get(name="Nouvelle Blonde").brewery_id == coin
+        assert Brewery.objects.filter(name__icontains="coin").count() == 1 and Beer.objects.get(name="Nouvelle Blonde").brewery == coin
 
     @pytest.mark.parametrize("typed", ["Microbrasserie du Coin", "Du Coin", "Coin Brewing"])
     def test_a_lookalike_brewery_blocks_until_chosen_or_confirmed(self, auth_client, coin, typed):
@@ -65,7 +65,7 @@ class TestBreweryAtSubmission:
 
     def test_picking_the_existing_one_attaches_the_beer_to_it(self, auth_client, coin):
         post(auth_client, brewery="Brasserie du Coin")
-        assert Beer.objects.get(name="Nouvelle Blonde").brewery_id == coin and Brewery.objects.count() == 1
+        assert Beer.objects.get(name="Nouvelle Blonde").brewery == coin and Brewery.objects.count() == 1
 
     @pytest.mark.parametrize("token", ["", "forged", "x" * 700])
     def test_a_forged_confirmation_does_not_pass(self, auth_client, coin, token):
@@ -112,7 +112,7 @@ class TestBeerAtSubmission:
         assert Beer.objects.filter(name="Punk IPA").count() == 2
 
     def test_distinct_beers_of_the_same_brewery_are_accepted(self, auth_client, punk):
-        f.make_beer(name="Houblon 1", brewery=punk.brewery_id)
+        f.make_beer(name="Houblon 1", brewery=punk.brewery)
         post(auth_client, name="Houblon 2")
         assert Beer.objects.filter(name="Houblon 2").exists()
 

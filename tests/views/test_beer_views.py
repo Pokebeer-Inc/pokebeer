@@ -20,7 +20,7 @@ def add_beer_data(name="Nouvelle Blonde", brewery_name="Brasserie Test", **overr
 
 
 def edit_data(beer, **overrides):
-    return {"name": beer.name, "brewery_name": beer.brewery_id.name, "degree": "7.0", "style": "IPA", **overrides}
+    return {"name": beer.name, "brewery_name": beer.brewery.name, "degree": "7.0", "style": "IPA", **overrides}
 
 
 class TestAddBeer:
@@ -34,8 +34,8 @@ class TestAddBeer:
         response = auth_client.post(self.URL, add_beer_data())
         beer = Beer.objects.get(name="Nouvelle Blonde")
         assert_redirects(response, reverse("add_beer_done", args=[beer.slug]))
-        assert (beer.added_by, beer.brewery_id, beer.style) == (user, brewery, "Blonde")
-        assert Drinks.objects.get().drinker_id == user
+        assert (beer.added_by, beer.brewery, beer.style) == (user, brewery, "Blonde")
+        assert Drinks.objects.get().drinker == user
 
     def test_followers_and_brewery_managers_are_notified(self, auth_client, user, other_user, brewery):
         manager = f.make_user()
@@ -82,7 +82,7 @@ class TestReAddSoftDeletedBeer:
     def test_deleted_beer_keeps_its_url_and_tastings(self, auth_client, deleted):
         auth_client.post(self.URL, add_beer_data(name="Test IPA"))
         old = Beer.objects.get(pk=deleted.pk)
-        assert (old.slug, old.is_deleted, Drinks.objects.filter(beer_id=old).count()) == (deleted.slug, True, 1)
+        assert (old.slug, old.is_deleted, Drinks.objects.filter(beer=old).count()) == (deleted.slug, True, 1)
 
     def test_re_added_beer_is_still_protected_against_duplicates(self, auth_client, deleted):
         auth_client.post(self.URL, add_beer_data(name="Test IPA"))
@@ -150,7 +150,7 @@ class TestBeerDetail:
         popular, unpopular, hidden = (f.make_drink(f.make_user(), beer) for _ in range(3))
         f.react(user, popular, is_like=True)
         f.react(user, unpopular, is_like=False)
-        f.block(user, hidden.drinker_id)
+        f.block(user, hidden.drinker)
 
         drinks = list(auth_client.get(reverse("beer_detail", args=[beer.slug])).context["drinks"])
 
@@ -159,7 +159,7 @@ class TestBeerDetail:
 
     def test_own_rating_and_manager_flag_are_exposed(self, auth_client, user, beer):
         drink = f.make_drink(user, beer, note=6)
-        beer.brewery_id.managers.add(user)
+        beer.brewery.managers.add(user)
         context = auth_client.get(reverse("beer_detail", args=[beer.slug])).context
         assert (context["user_rating"]["slug"], context["user_rating"]["note"]) == (drink.slug, 6)
         assert context["is_brewery_manager"]
@@ -183,7 +183,7 @@ class TestEditBeer:
         assert list(Notification.objects.values_list("recipient", "notif_type")) == [(taster.id, "beer_updated")]
 
     def test_manager_edit_notifies_the_creator(self, auth_client, user, beer):
-        beer.brewery_id.managers.add(user)
+        beer.brewery.managers.add(user)
         auth_client.post(self.url(beer), edit_data(beer))
         assert Notification.objects.get().notif_type == "beer_updated_by_manager"
 
@@ -195,7 +195,7 @@ class TestEditBeer:
 
     def test_manager_can_still_edit_a_verified_beer(self, auth_client, user, beer):
         Beer.objects.filter(pk=beer.pk).update(is_verified=True)
-        beer.brewery_id.managers.add(user)
+        beer.brewery.managers.add(user)
         auth_client.post(self.url(beer), edit_data(beer))
         beer.refresh_from_db()
         assert beer.degree == 7
@@ -243,11 +243,11 @@ class TestDeleteBeer:
         assert_redirects(other_client.post(self.url(beer)), reverse("index"))
         beer.refresh_from_db()
         assert beer.is_deleted
-        assert Drinks.objects.filter(beer_id=beer).exists()
+        assert Drinks.objects.filter(beer=beer).exists()
         assert not Notification.objects.filter(beer=beer).exists()
 
     def test_manager_deletion_notifies_creator_by_name(self, auth_client, user, beer):
-        beer.brewery_id.managers.add(user)
+        beer.brewery.managers.add(user)
         auth_client.post(self.url(beer))
         notification = Notification.objects.get(notif_type="beer_deleted_by_manager")
         assert (notification.recipient.username, notification.text_content) == ("bobby", "Test IPA")

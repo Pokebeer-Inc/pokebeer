@@ -3,8 +3,8 @@ import pytest
 from django.contrib.admin.models import CHANGE, LogEntry
 from django.urls import reverse
 
-from app.models import Bar, Beer, Brewery, ModerationEntry
-from app.services import throttle
+from app.models import Beer, Brewery, ModerationEntry
+from app.services.protection import throttle
 from app.services.moderation import suggestions
 from tests import factories as f
 from tests.helpers import messages_of
@@ -173,7 +173,7 @@ class TestReview:
     def test_the_team_page_lists_the_suggestion_with_a_prefilled_form(self, client_for, staff, suggestion):
         html = client_for(staff).get(reverse("admin:app_moderationentry_changelist")).content.decode()
         assert "Suggestion" in html and "suggéré par" in html and "bobby" in html and "Nouvelle description" in html
-        assert "Appliquer" in html and "Refuser" in html and f'name="description"' in html
+        assert "Appliquer" in html and "Refuser" in html and 'name="description"' in html
 
     def test_applying_the_suggestion_updates_the_fiche(self, client_for, staff, suggestion):
         client_for(staff).post(self.apply_url(suggestion), self.form_of(suggestion))

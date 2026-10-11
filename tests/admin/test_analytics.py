@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-from unittest import mock
 
 import pytest
 from django.urls import reverse
@@ -23,14 +22,18 @@ def populated(superuser, geocoder):
     ipa = f.make_beer(name="IPA 1", brewery=brewery, style="IPA, NEIPA / Hazy", degree=6.5, bitterness=50)
     lager = f.make_beer(name="Lager 1", brewery=brewery, style="Lager", degree=4.8)
     today = date.today()
+    # Une note par membre et par bière : les dégustations plus anciennes portent sur des variantes du même style
+    older = {offset: (f.make_beer(name=f"IPA 1 v{offset}", brewery=brewery, style="IPA, NEIPA / Hazy", degree=6.5, bitterness=50),
+                      f.make_beer(name=f"Lager 1 v{offset}", brewery=brewery, style="Lager", degree=4.8)) for offset in (20, 45, 100)}
     for index, member in enumerate(members):
         for offset in (0, 20, 45, 100):
-            f.make_drink(member, ipa if index % 2 else lager, note=index + 5, date=today - timedelta(days=offset))
+            pair = (ipa, lager) if offset == 0 else older[offset]
+            f.make_drink(member, pair[0] if index % 2 else pair[1], note=index + 5, date=today - timedelta(days=offset))
         f.make_spot(member, latitude=48.85, longitude=2.35, date=today - timedelta(days=index))
     members[0].wishlist_beers.add(ipa)
     f.follow(members[0], members[1])
-    UserAchievementState.objects.create(user=members[0], achievement_name="Juge", tier_level=2)
-    UserAchievementState.objects.create(user=members[1], achievement_name="Juge", tier_level=0)
+    UserAchievementState.objects.create(user=members[0], achievement_slug="juge", tier_level=2)
+    UserAchievementState.objects.create(user=members[1], achievement_slug="juge", tier_level=0)
     return brewery
 
 
@@ -193,7 +196,7 @@ class TestTrends:
     def test_new_beers_are_dated_by_their_first_tasting(self, client_for, staff, populated):
         blocks = client_for(staff).get(reverse("admin_analytics", args=["trends"])).context["blocks"]
         chart = next(b for b in blocks if getattr(b, "id", "") == "trend-beers")
-        assert sum(v for v in chart.series[0]["data"] if v) == 2
+        assert sum(v for v in chart.series[0]["data"] if v) == 8  # 2 bières du jour + 6 variantes plus anciennes, chacune comptée une fois
         assert chart.dashed == [] or chart.dashed == [2]
 
     def test_kpis_compare_with_the_previous_period(self, client_for, staff, populated):

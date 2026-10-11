@@ -6,7 +6,7 @@ from functools import lru_cache
 from django import forms
 from django.forms import modelform_factory
 
-from app.services.beer_fields import clean_multiline
+from app.services.catalog.beer_fields import clean_multiline
 
 from .content import CONTENT_TYPES
 

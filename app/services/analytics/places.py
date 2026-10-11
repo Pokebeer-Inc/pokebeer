@@ -15,17 +15,17 @@ TOP = 15
 
 
 def _leaderboard(period):
-    current = {r['beer_id__brewery_id']: r for r in
-               Drinks.objects.filter(date__gte=period.start).values('beer_id__brewery_id', 'beer_id__brewery_id__name')
-               .annotate(n=Count('pk'), avg=Avg('note'), beers=Count('beer_id', distinct=True))}
-    before = {r['beer_id__brewery_id']: r['n'] for r in
+    current = {r['beer__brewery']: r for r in
+               Drinks.objects.filter(date__gte=period.start).values('beer__brewery', 'beer__brewery__name')
+               .annotate(n=Count('pk'), avg=Avg('note'), beers=Count('beer', distinct=True))}
+    before = {r['beer__brewery']: r['n'] for r in
               Drinks.objects.filter(date__gte=period.previous_start, date__lt=period.start)
-              .values('beer_id__brewery_id').annotate(n=Count('pk'))}
+              .values('beer__brewery').annotate(n=Count('pk'))}
     rows = sorted(current.values(), key=lambda r: -r['n'])[:TOP]
     return Table('breweries', 'Brasseries les plus bues', ['Brasserie', 'Dégustations', 'Bières bues', 'Note moyenne', 'Variation'],
-                 [[r['beer_id__brewery_id__name'], r['n'], r['beers'], round(r['avg'], 2) if r['avg'] is not None else '—',
-                   '—' if growth(r['n'], before.get(r['beer_id__brewery_id'], 0)) is None
-                   else f"{growth(r['n'], before.get(r['beer_id__brewery_id'], 0)):+.0f} %"] for r in rows],
+                 [[r['beer__brewery__name'], r['n'], r['beers'], round(r['avg'], 2) if r['avg'] is not None else '—',
+                   '—' if growth(r['n'], before.get(r['beer__brewery'], 0)) is None
+                   else f"{growth(r['n'], before.get(r['beer__brewery'], 0)):+.0f} %"] for r in rows],
                  subtitle='Variation par rapport à la période précédente de même durée')
 
 
@@ -47,7 +47,7 @@ def _recommendations(brewery, period):
     rising.sort(key=lambda r: -r[1])
 
     own = defaultdict(int)
-    for row in Drinks.objects.filter(beer_id__brewery_id=brewery, date__gte=period.start).values('date__month').annotate(n=Count('pk')):
+    for row in Drinks.objects.filter(beer__brewery=brewery, date__gte=period.start).values('date__month').annotate(n=Count('pk')):
         own[row['date__month']] = row['n']
     return [
         Table('gaps', f'Styles demandés que {brewery.name} ne propose pas', ['Style', 'Dégustations', 'Note moyenne', 'Variation'], gaps[:10],
@@ -67,12 +67,12 @@ def _regional_demand(brewery, period):
     points = {p.spot_id: p for p in spot_points(period)}
     catalog = {s.lower() for beer in brewery.beer_set.filter(is_deleted=False) for s in split_styles(beer.style)}
     rows = BeerSpot.drinks.through.objects.filter(beerspot_id__in=points).values_list(
-        'beerspot_id', 'drinks__beer_id__style', 'drinks__beer_id__brewery_id', 'drinks__drinker_id')
+        'beerspot_id', 'drinks__beer__style', 'drinks__beer__brewery', 'drinks__drinker')
 
     zones = defaultdict(lambda: {'own': 0, 'own_drinkers': set(), 'style': 0, 'style_drinkers': set()})
-    for spot_id, styles, brewery_id, drinker in rows:
+    for spot_id, styles, row_brewery_id, drinker in rows:
         zone = zones[points[spot_id].zone]
-        if brewery_id == brewery.pk:
+        if row_brewery_id == brewery.pk:
             zone['own'] += 1
             zone['own_drinkers'].add(drinker)
         elif catalog & {s.lower() for s in split_styles(styles)}:

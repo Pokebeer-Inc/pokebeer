@@ -5,7 +5,7 @@ from django.utils import timezone
 
 
 class EmailCampaign(models.Model):
-    """Message rédigé dans l'administration et envoyé par lots à une audience (voir services/campaigns.py).
+    """Message rédigé dans l'administration et envoyé par lots à une audience (voir services/messaging/campaigns.py).
 
     Les destinataires sont figés au lancement (CampaignRecipient) : la suite de l'envoi ne dépend plus des critères.
     """

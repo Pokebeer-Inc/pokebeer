@@ -8,6 +8,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from app.models import Beer, BeerUser, Brewery, Drinks, Notification, Report
+from app.services.common.upstream import UpstreamUnavailable
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -36,7 +37,7 @@ class TestBeerEmbedding:
 
     def test_save_stores_embedding_built_from_beer_profile(self, monkeypatch):
         received = []
-        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: received.append(text) or [0.5] * 1024)
+        monkeypatch.setattr("app.services.assistant.ai.get_embedding", lambda text: received.append(text) or [0.5] * 1024)
 
         beer = f.make_beer(name="Rousse", style="Amber", description="Caramel", brewery=f.make_brewery(name="Mont"))
 
@@ -49,7 +50,7 @@ class TestBeerEmbeddingRefresh:
     @pytest.fixture
     def embed_calls(self, monkeypatch):
         calls = []
-        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: calls.append(text) or [0.5] * 1024)
+        monkeypatch.setattr("app.services.assistant.ai.get_embedding", lambda text: calls.append(text) or [0.5] * 1024)
         return calls
 
     @pytest.fixture
@@ -75,15 +76,15 @@ class TestBeerEmbeddingRefresh:
         assert len(embed_calls) == 1
 
     def test_beer_without_vector_is_retried_on_next_save(self, embed_calls, monkeypatch, django_capture_on_commit_callbacks):
-        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: None)
+        monkeypatch.setattr("app.services.assistant.ai.get_embedding", lambda text: None)
         beer = f.make_beer()
-        monkeypatch.setattr("app.services.ai.get_embedding", lambda text: embed_calls.append(text) or [0.5] * 1024)
+        monkeypatch.setattr("app.services.assistant.ai.get_embedding", lambda text: embed_calls.append(text) or [0.5] * 1024)
         self.save(beer, django_capture_on_commit_callbacks, degree=6)
         assert len(embed_calls) == 1
 
     def test_no_network_call_while_the_transaction_is_open(self, embed_calls, django_capture_on_commit_callbacks):
         with django_capture_on_commit_callbacks(execute=False) as callbacks:
-            beer = Beer.objects.create(name="Blonde", brewery_id=f.make_brewery(), degree=5)
+            Beer.objects.create(name="Blonde", brewery=f.make_brewery(), degree=5)
         assert embed_calls == [] and len(callbacks) == 1
         callbacks[0]()
         assert len(embed_calls) == 1
@@ -92,20 +93,20 @@ class TestBeerEmbeddingRefresh:
 class TestFieldLimits:
     @pytest.mark.parametrize("note, valid", [(None, True), (0, True), (10, True), (-1, False), (11, False)])
     def test_drink_note_is_bounded_between_0_and_10(self, user, beer, note, valid):
-        drink = Drinks(drinker_id=user, beer_id=beer, note=note, comment="ok")
+        drink = Drinks(drinker=user, beer=beer, note=note, comment="ok")
         self._assert_validity(drink, valid)
 
     @pytest.mark.parametrize("degree, valid", [("0", True), ("100.0", True), ("-0.1", False), ("100.1", False)])
     def test_beer_degree_is_a_percentage(self, brewery, degree, valid):
-        self._assert_validity(Beer(name=f.unique("Deg"), brewery_id=brewery, degree=Decimal(degree)), valid)
+        self._assert_validity(Beer(name=f.unique("Deg"), brewery=brewery, degree=Decimal(degree)), valid)
 
     @pytest.mark.parametrize("ibu, valid", [(None, True), (0, True), (500, True), (-1, False), (501, False)])
     def test_beer_bitterness_is_bounded(self, brewery, ibu, valid):
-        self._assert_validity(Beer(name=f.unique("Ibu"), brewery_id=brewery, bitterness=ibu), valid)
+        self._assert_validity(Beer(name=f.unique("Ibu"), brewery=brewery, bitterness=ibu), valid)
 
     @pytest.mark.parametrize("reason, valid", [("spam", True), ("other", True), ("hack", False), ("", False)])
     def test_report_reason_must_be_a_known_choice(self, user, reason, valid):
-        self._assert_validity(Report(reporter=user, reason=reason, description="desc"), valid)
+        self._assert_validity(Report(reporter=user, reason=reason, description="desc", reported_user=user), valid)
 
     @staticmethod
     def _assert_validity(instance, valid):
@@ -133,7 +134,7 @@ class TestUniqueness:
 
     def test_two_active_beers_of_a_brewery_cannot_share_a_name(self, beer):
         with pytest.raises(IntegrityError), transaction.atomic():
-            f.make_beer(name=beer.name, brewery=beer.brewery_id)
+            f.make_beer(name=beer.name, brewery=beer.brewery)
 
     def test_two_breweries_can_each_have_their_own_beer_of_the_same_name(self, beer):
         other = f.make_beer(name=beer.name, brewery=f.make_brewery(name="Autre Brasserie"))
@@ -146,7 +147,7 @@ class TestUniqueness:
 
     def test_restoring_a_beer_whose_name_was_reused_is_refused(self, beer):
         Beer.objects.filter(pk=beer.pk).update(is_deleted=True)
-        f.make_beer(name=beer.name, brewery=beer.brewery_id)
+        f.make_beer(name=beer.name, brewery=beer.brewery)
         beer.refresh_from_db()
         beer.is_deleted = False
         with pytest.raises(ValidationError):
@@ -285,7 +286,7 @@ class TestGeocoding:
     def test_creation_geocodes_the_address(self, geocoder):
         brewery = f.make_brewery(address="1 rue de la Soif, Paris")
         assert (brewery.latitude, brewery.longitude) == (48.8566, 2.3522)
-        assert geocoder.call_args.kwargs["params"]["q"] == "1 rue de la Soif, Paris"
+        assert geocoder.call_args.args[0] == "1 rue de la Soif, Paris"
         assert geocoder.call_args.kwargs["timeout"] > 0
 
     def test_unchanged_address_is_not_geocoded_again(self, geocoder):
@@ -293,6 +294,20 @@ class TestGeocoding:
         brewery.name = "Nouveau nom"
         brewery.save()
         assert geocoder.call_count == 1
+
+    def test_a_loaded_place_remembers_its_address_so_saving_needs_no_extra_read(self, geocoder):
+        brewery = Brewery.objects.get(pk=f.make_brewery(address="Lille").pk)
+        assert brewery._loaded_address == "Lille"
+        brewery.name = "Autre nom"
+        brewery.save()
+        assert geocoder.call_count == 1  # adresse inchangée : pas de nouvel appel
+
+    def test_a_place_loaded_without_its_address_still_detects_a_change(self, geocoder):
+        brewery = Brewery.objects.only("name").get(pk=f.make_brewery(address="Lille").pk)
+        assert brewery._loaded_address is None
+        brewery.street, brewery.postal_code, brewery.city = "1 rue X", "", "Lyon"
+        brewery.save()
+        assert geocoder.call_count == 2
 
     def test_changed_address_is_geocoded_again(self, geocoder):
         bar = f.make_bar(address="Lille")
@@ -306,12 +321,12 @@ class TestGeocoding:
         geocoder.assert_not_called()
 
     def test_unknown_address_clears_coordinates(self, geocoder):
-        geocoder.return_value.json.return_value = []
+        geocoder.return_value = None
         assert f.make_bar(address="Nulle part").latitude is None
 
     @pytest.mark.parametrize("failure", [
         {"side_effect": ConnectionError("down")},
-        {"return_value": type("Response", (), {"status_code": 503})()},
+        {"side_effect": UpstreamUnavailable("Statut 503")},
     ], ids=["network-error", "http-error"])
     def test_geocoding_failure_never_blocks_the_save(self, geocoder, failure):
         geocoder.configure_mock(**failure)
@@ -321,7 +336,7 @@ class TestGeocoding:
 
     @pytest.mark.parametrize("failure", [
         {"side_effect": ConnectionError("down")},
-        {"return_value": type("Response", (), {"status_code": 503})()},
+        {"side_effect": UpstreamUnavailable("Statut 503")},
     ], ids=["network-error", "http-error"])
     def test_failure_after_an_address_change_drops_the_old_coordinates(self, geocoder, failure):
         bar = f.make_bar(address="Paris")

@@ -4,7 +4,7 @@ from functools import partial
 from django import forms
 from django.db import transaction
 
-from .services.images import delete_stored_file
+from .services.common.images import delete_stored_file
 
 ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp'  # l'iPhone convertit alors le HEIC en JPEG
 

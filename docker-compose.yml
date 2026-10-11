@@ -24,7 +24,9 @@ services:
       - db
 
   web:
-    build: .
+    build:
+      context: .
+      target: dev
     command: >
       sh -c "
       python manage.py migrate &&

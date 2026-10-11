@@ -20,7 +20,7 @@ class TestHomeSearchAndFriends:
 
         response = auth_client.get(reverse("index"))
 
-        assert [t.beer_id.name for t in response.context["activity"]] == ["FriendBeer", "StrangerBeer"]  # amis d'abord, communauté ensuite
+        assert [t.beer.name for t in response.context["activity"]] == ["FriendBeer", "StrangerBeer"]  # amis d'abord, communauté ensuite
         assert [t.is_friend for t in response.context["activity"]] == [True, False]
         assert response.context["activity_kind"] == "mixed"
 
@@ -111,7 +111,7 @@ class TestCommunityFallback:
         body = response.content.decode()
 
         assert response.context["activity_kind"] == "community"
-        assert [t.beer_id.name for t in response.context["activity"]] == ["CommunityBeer"]  # jamais mes propres dégustations
+        assert [t.beer.name for t in response.context["activity"]] == ["CommunityBeer"]  # jamais mes propres dégustations
         assert "La communauté a goûté" in body and "Vos amis ont goûté" not in body
         assert "Suivez des membres" in body
         assert response.context["activity"][0].is_friend is False
@@ -125,7 +125,7 @@ class TestCommunityFallback:
         context = auth_client.get(reverse("index")).context
 
         assert context["activity_kind"] == "mixed"
-        assert [t.beer_id.name for t in context["activity"]] == ["FriendBeer", "StrangerBeer"]
+        assert [t.beer.name for t in context["activity"]] == ["FriendBeer", "StrangerBeer"]
 
     def test_friends_without_tastings_fall_back_to_the_community(self, auth_client, user, other_user):
         f.follow(user, other_user)
@@ -140,7 +140,7 @@ class TestCommunityFallback:
         f.make_drink(suspended, f.make_beer(), note=5)
         f.make_drink(fine, f.make_beer(is_deleted=True), note=5)
         f.make_drink(fine, f.make_beer(name="Visible"), note=5, comment="ok")
-        assert [t.beer_id.name for t in auth_client.get(reverse("index")).context["activity"]] == ["Visible"]
+        assert [t.beer.name for t in auth_client.get(reverse("index")).context["activity"]] == ["Visible"]
 
     def test_community_home_query_count_is_bounded(self, auth_client, other_user, django_assert_max_num_queries):
         for _ in range(8):
@@ -159,7 +159,7 @@ class TestActivityCards:
             f.make_drink(stranger, f.make_beer(name=f"Inconnu {index}"), note=6, date=date(2024, 1, index + 1))
 
         context = auth_client.get(reverse("index")).context
-        names = [t.beer_id.name for t in context["activity"]]
+        names = [t.beer.name for t in context["activity"]]
 
         assert names[:2] == ["Ami récent", "Ami ancien"] and len(names) == 7
         assert [t.is_friend for t in context["activity"]] == [True, True] + [False] * 5
@@ -171,7 +171,7 @@ class TestActivityCards:
         for index in range(12):
             f.make_drink(other_user, f.make_beer(name=f"Ami {index}"), note=7, date=date(2024, 2, index + 1))
         f.make_drink(f.make_user(), f.make_beer(name="Inconnu"), note=7)
-        names = [t.beer_id.name for t in auth_client.get(reverse("index")).context["activity"]]
+        names = [t.beer.name for t in auth_client.get(reverse("index")).context["activity"]]
         assert names == [f"Ami {index}" for index in range(11, 1, -1)]
 
     def test_the_card_shows_the_member_avatar_and_keeps_the_recommendation_pattern(self, auth_client, other_user):

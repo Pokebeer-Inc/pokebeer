@@ -10,7 +10,7 @@ from django.urls import Resolver404, resolve
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from ..forms import BirthDateForm, GenderForm
-from ..services.throttle import ONBOARDING_ATTEMPTS
+from ..services.protection.throttle import ONBOARDING_ATTEMPTS
 
 __all__ = ['onboarding_start_view', 'onboarding_birth_view', 'onboarding_gender_view', 'ONBOARDING_NEXT_KEY']
 

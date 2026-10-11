@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
-from app.services import tasting_photos as tp
+from app.services.catalog import tasting_photos as tp
 
 
 def upload(fmt="PNG", size=(3000, 1500), name="p.png"):

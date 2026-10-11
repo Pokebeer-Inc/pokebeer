@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from ..forms import FeedbackReplyForm
 from ..models import Feedback, Notification
-from ..services import feedback as conversations
+from ..services.support import feedback as conversations
 
 
 def _own_threads(user):

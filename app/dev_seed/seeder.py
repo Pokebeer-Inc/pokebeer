@@ -124,7 +124,7 @@ class DevDatabaseSeeder:
                 degree=Decimal(str(degree)),
                 bitterness=ibu,
                 description=description,
-                brewery_id=brewery,
+                brewery=brewery,
                 added_by=brewer if brewery in managed else self.admin,
             )
             for brewery, spec in zip(breweries, data.BREWERIES)
@@ -145,8 +145,8 @@ class DevDatabaseSeeder:
         today = date.today()
         self.drinks = self._bulk(Drinks, [
             Drinks(
-                drinker_id=user,
-                beer_id=beer,
+                drinker=user,
+                beer=beer,
                 note=self.rng.randint(3, 10),
                 comment=self.rng.choice(data.DRINK_COMMENTS),
                 date=today - timedelta(days=self.rng.randint(0, 365)),
@@ -156,7 +156,7 @@ class DevDatabaseSeeder:
         ])
         self.drinks_by_user = defaultdict(list)
         for drink in self.drinks:
-            self.drinks_by_user[drink.drinker_id.pk].append(drink)
+            self.drinks_by_user[drink.drinker.pk].append(drink)
 
     def _seed_social(self):
         self._seed_follows()
@@ -172,7 +172,7 @@ class DevDatabaseSeeder:
 
     def _seed_reactions(self):
         self._bulk(DrinkReaction, [
-            DrinkReaction(user=self.rng.choice(self._others(drink.drinker_id)), drink=drink, is_like=self.rng.random() < 0.8)
+            DrinkReaction(user=self.rng.choice(self._others(drink.drinker)), drink=drink, is_like=self.rng.random() < 0.8)
             for drink in self.drinks
             if self.rng.random() < 0.3
         ])
@@ -182,11 +182,11 @@ class DevDatabaseSeeder:
         wishlist = []
         for user in self.members:
             tasted = self.drinks_by_user[user.pk]
-            tasted_ids = {drink.beer_id.pk for drink in tasted}
+            tasted_ids = {drink.beer.pk for drink in tasted}
             untasted = [beer for beer in self.beers if beer.pk not in tasted_ids]
             wishlist += [through(beeruser_id=user.pk, beer_id=beer.pk) for beer in self.rng.sample(untasted, 3)]
             best = sorted(tasted, key=lambda drink: drink.note, reverse=True)[:3]
-            user.top_beer_1, user.top_beer_2, user.top_beer_3 = (drink.beer_id for drink in best)
+            user.top_beer_1, user.top_beer_2, user.top_beer_3 = (drink.beer for drink in best)
         self._bulk(through, wishlist)
         BeerUser.objects.bulk_update(self.members, ["top_beer_1", "top_beer_2", "top_beer_3"])
 
@@ -206,7 +206,7 @@ class DevDatabaseSeeder:
         ])
 
     def _build_spot(self, user):
-        brewery = self.drinks_by_user[user.pk][0].beer_id.brewery_id
+        brewery = self.drinks_by_user[user.pk][0].beer.brewery
         return BeerSpot(
             user=user,
             title=self.rng.choice(data.SPOT_TITLES),

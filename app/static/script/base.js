@@ -9,21 +9,6 @@ document.addEventListener('submit', function(event) {
 });
 
 document.addEventListener("DOMContentLoaded", function() {
-    // Fonction robuste pour lire un cookie
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
 
     // Enregistrement du jeton Firebase de l'appareil pour le compte connecté (notifications push Android)
     const isAuthenticated = document.querySelector('meta[name="user-authenticated"]')?.content === 'true';
@@ -45,7 +30,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 const syncValue = accountKey + ':' + fcmToken; // un jeton n'est « enregistré » que pour CE compte
 
                 if (syncValue !== localStorage.getItem(SYNC_KEY)) {
-                    const csrfToken = getCookie('csrftoken');
+                    const csrfToken = Pokebeer.csrfToken();
                     if (!csrfToken) return; // Sécurité si le cookie n'est pas encore là
 
                     fetch('/api/update-fcm-token/', {

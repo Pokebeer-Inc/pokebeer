@@ -1,10 +1,11 @@
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
 from app.models import Notification
-from app.services import realtime_service
-from app.services.security import get_secure_channel_name
+from app.services.messaging import realtime_service
+from app.services.messaging.security import get_secure_channel_name
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -19,12 +20,23 @@ def supabase(settings, monkeypatch):
     return post
 
 
+def batch_of(messages, failures=None):
+    """Réponse de Firebase : un résultat par message, en échec pour les positions de `failures` ({position: exception})."""
+    failures = failures or {}
+    return SimpleNamespace(responses=[SimpleNamespace(success=i not in failures, exception=failures.get(i)) for i, _ in enumerate(messages)])
+
+
 @pytest.fixture
 def firebase(monkeypatch):
-    send = mock.Mock()
-    monkeypatch.setattr(realtime_service.firebase_admin, "_apps", {"[DEFAULT]": object()})
-    monkeypatch.setattr(realtime_service.messaging, "send", send)
+    """Firebase prêt ; `send_each` reçoit la liste des messages du lot (un seul appel pour plusieurs notifications)."""
+    send = mock.Mock(side_effect=batch_of)
+    monkeypatch.setattr(realtime_service, "_push_enabled", lambda: True)
+    monkeypatch.setattr(realtime_service.messaging, "send_each", send)
     return send
+
+
+def first_push(firebase):
+    return firebase.call_args.args[0][0]
 
 
 def sent_messages(post):
@@ -44,7 +56,7 @@ class TestBroadcastGuards:
 
     def test_unsaved_notifications_are_skipped(self, supabase, user):
         realtime_service.broadcast_notifications([Notification(recipient=user, notif_type="follow")])
-        assert sent_messages(supabase) == []
+        supabase.assert_not_called()
 
 
 class TestBroadcastPayload:
@@ -55,7 +67,7 @@ class TestBroadcastPayload:
 
         supabase.assert_called_once()
         messages = sent_messages(supabase)
-        assert [m["topic"] for m in messages] == [get_secure_channel_name(user.id), get_secure_channel_name(other_user.id)]
+        assert [m["topic"] for m in messages] == [get_secure_channel_name(user), get_secure_channel_name(other_user)]
         assert messages[0]["event"] == "new_notification"
         assert messages[0]["payload"]["read_url"] == f"/notifications/read/{notifications[0].slug}/"
         assert messages[0]["payload"]["slug"] == notifications[0].slug and "id" not in messages[0]["payload"]
@@ -82,7 +94,7 @@ class TestBroadcastPayload:
     def test_achievement_notification_carries_tier_and_icon(self, supabase, user):
         for _ in range(5):
             f.make_drink(user)
-        notification = f.make_notification(user, "achievement", achievement_name="Juge", text_content="Juge (Bronze)")
+        notification = f.make_notification(user, "achievement", achievement_slug="juge", text_content="Juge (Bronze)")
         realtime_service.broadcast_notifications([notification])
         payload = sent_messages(supabase)[0]["payload"]
         assert payload["tier_slug"] == "bronze" and payload["icon"]
@@ -93,17 +105,17 @@ class TestBroadcastPayload:
         for _ in range(5):
             f.make_drink(other_user)
         realtime_service.broadcast_notifications([
-            f.make_notification(recipient, "achievement", achievement_name="Juge", text_content="Juge")
+            f.make_notification(recipient, "achievement", achievement_slug="juge", text_content="Juge")
             for recipient in (user, other_user)
         ])
         assert [m["payload"]["tier_slug"] for m in sent_messages(supabase)] == ["silver", "bronze"]
 
     def test_unknown_achievement_has_no_tier(self, supabase, user):
-        realtime_service.broadcast_notifications([f.make_notification(user, "achievement", achievement_name="Inconnu", text_content="?")])
+        realtime_service.broadcast_notifications([f.make_notification(user, "achievement", achievement_slug="inconnu", text_content="?")])
         assert sent_messages(supabase)[0]["payload"]["tier_slug"] is None
 
     def test_earning_an_achievement_through_the_app_does_not_crash(self, supabase, user):
-        from app.views.utils import check_and_notify_achievements
+        from app.services.members.achievements import check_and_notify_achievements
         for _ in range(5):
             f.make_drink(user)
         check_and_notify_achievements(user)
@@ -114,7 +126,7 @@ class TestFirebasePush:
     def test_push_is_sent_to_devices_with_a_token(self, supabase, firebase, other_user):
         recipient = f.make_user(fcm_token="device-token")
         realtime_service.broadcast_notifications([f.make_notification(recipient, sender=other_user)])
-        message = firebase.call_args.args[0]
+        message = first_push(firebase)
         assert message.token == "device-token"
         assert "<" not in message.notification.body and "bobby" in message.notification.body
 
@@ -122,13 +134,13 @@ class TestFirebasePush:
         recipient = f.make_user(fcm_token="device-token")
         notification = f.make_notification(recipient, sender=other_user)
         realtime_service.broadcast_notifications([notification])
-        assert firebase.call_args.args[0].data == {"read_url": f"/notifications/read/{notification.slug}/", "notif_slug": notification.slug}
+        assert first_push(firebase).data == {"read_url": f"/notifications/read/{notification.slug}/", "notif_slug": notification.slug}
 
     def test_push_uses_the_app_channel_and_replaces_duplicates(self, supabase, firebase, other_user, settings):
         recipient = f.make_user(fcm_token="device-token")
         notification = f.make_notification(recipient, sender=other_user)
         realtime_service.broadcast_notifications([notification])
-        android = firebase.call_args.args[0].android
+        android = first_push(firebase).android
         assert (android.notification.channel_id, android.notification.tag, android.collapse_key) == (settings.FCM_ANDROID_CHANNEL_ID, notification.slug, notification.slug)
 
     def test_a_delivered_push_is_not_toasted_again_on_the_next_page(self, supabase, firebase, other_user):
@@ -146,11 +158,23 @@ class TestFirebasePush:
         assert notification.toasted_at is None
 
     def test_a_stale_token_is_forgotten(self, supabase, firebase, other_user):
-        firebase.side_effect = realtime_service.messaging.UnregisteredError("gone")
+        firebase.side_effect = lambda messages: batch_of(messages, {0: realtime_service.messaging.UnregisteredError("gone")})
         recipient = f.make_user(fcm_token="dead-token")
         realtime_service.broadcast_notifications([f.make_notification(recipient, sender=other_user)])
         recipient.refresh_from_db()
         assert recipient.fcm_token is None
+
+    def test_several_notifications_go_out_in_a_single_firebase_call(self, supabase, firebase, other_user):
+        recipients = [f.make_user(fcm_token=f"token-{i}") for i in range(3)]
+        realtime_service.broadcast_notifications([f.make_notification(r, sender=other_user) for r in recipients])
+        firebase.assert_called_once()
+        assert [m.token for m in firebase.call_args.args[0]] == ["token-0", "token-1", "token-2"]
+
+    def test_firebase_is_only_started_when_something_is_sent(self, monkeypatch):
+        init = mock.Mock()
+        monkeypatch.setattr(realtime_service, "init_firebase", init)
+        realtime_service.broadcast_notifications([])
+        init.assert_not_called()
 
     def test_no_push_without_token(self, supabase, firebase, user):
         realtime_service.broadcast_notifications([f.make_notification(user)])
@@ -160,7 +184,7 @@ class TestFirebasePush:
         post = mock.Mock()
         monkeypatch.setattr(realtime_service.requests, "post", post)
         realtime_service.broadcast_notifications([f.make_notification(f.make_user(fcm_token="device-token"))])
-        assert firebase.call_args.args[0].token == "device-token"
+        assert first_push(firebase).token == "device-token"
         post.assert_not_called()
 
     def test_push_failure_does_not_prevent_websocket_broadcast(self, supabase, firebase):
@@ -175,7 +199,7 @@ class TestFirebaseInitialisation:
 
     @pytest.fixture(autouse=True)
     def no_apps(self, monkeypatch):
-        monkeypatch.setattr(realtime_service.firebase_admin, "_apps", {})
+        monkeypatch.setattr(realtime_service.firebase_admin, "get_app", mock.Mock(side_effect=ValueError("no app")))
 
     def test_json_credentials_initialise_firebase(self, settings, monkeypatch):
         import json
