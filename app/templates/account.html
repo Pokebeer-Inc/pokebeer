@@ -168,11 +168,10 @@
 
 <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_followers.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnés</h3>
+        {% include "partials/modal_header.html" with title="Abonnés" %}
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in followers %}
-            <li class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-base-200">
+            <li class="pb-card flex items-center justify-between p-2">
                 <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
@@ -188,7 +187,7 @@
                 </form>
             </li>
             {% empty %}
-            <li class="text-gray-500 text-xs italic text-center">Personne ne vous suit pour le moment.</li>
+            <li class="text-[#6b625a] text-xs italic text-center">Personne ne vous suit pour le moment.</li>
             {% endfor %}
         </ul>
     </div>
@@ -197,11 +196,10 @@
 
 <dialog id="modal_following" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_following.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnements</h3>
+        {% include "partials/modal_header.html" with title="Abonnements" %}
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in following %}
-            <li class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-base-200">
+            <li class="pb-card flex items-center justify-between p-2">
                 <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 hover:opacity-70 transition-opacity">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
@@ -217,7 +215,7 @@
                 </form>
             </li>
             {% empty %}
-            <li class="text-gray-500 text-xs italic text-center">Vous ne suivez personne.</li>
+            <li class="text-[#6b625a] text-xs italic text-center">Vous ne suivez personne.</li>
             {% endfor %}
         </ul>
     </div>
@@ -228,14 +226,13 @@
 {% for item in top_beers_data %}
 <dialog id="modal_top_beer_{{ item.slot }}" class="modal">
     <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_top_beer_{{ item.slot }}.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg mb-4 text-center">Choix du Top {{ item.slot }}</h3>
+        {% include "partials/modal_header.html" with title="Choix du Top" title_suffix=item.slot %}
         
         <form method="post" action="{% url 'update_top_beer' item.slot %}" class="flex flex-col gap-3">
             {% csrf_token %}
             <div class="form-control w-full">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Sélectionnez une bière dégustée</span></label>
-                <select name="beer_slug" class="w-full h-12 px-3 border border-base-300 rounded-lg bg-white text-sm outline-none focus:border-primary appearance-auto" style="-webkit-appearance: auto;">
+                <label class="pb-label" for="top-select-{{ item.slot }}">Sélectionnez une bière dégustée</label>
+                <select id="top-select-{{ item.slot }}" name="beer_slug" class="pb-select">
                     <option value="">-- Vider l'emplacement --</option>
                     {% for drink in my_drinks %}
                     <option value="{{ drink.beer_id.slug }}" 
@@ -249,7 +246,7 @@
                 {% endfor %}
             </select>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm w-full mt-3 text-white">Enregistrer</button>
+        <button type="submit" class="btn btn-primary w-full mt-3 text-black border-secondary">Enregistrer</button>
     </form>
 </div>
 <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>

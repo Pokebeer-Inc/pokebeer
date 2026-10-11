@@ -131,8 +131,8 @@ class Drinks(models.Model):
     class ServingFormat(models.TextChoices):
         PINT = 'pint', "Pinte 50 cl"
         HALF = 'half', "Demi 25 cl"
-        BOTTLE = 'bottle', "Bouteille"
-        CAN = 'can', "Canette"
+        BOTTLE = 'bottle', "Bouteille 75 cl"
+        CAN = 'can', "Canette 33 cl"
         OTHER = 'other', "Autre"
 
     venue_type = models.CharField(max_length=12, choices=VenueType.choices, blank=True, default='', verbose_name="Lieu")

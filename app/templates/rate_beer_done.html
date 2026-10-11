@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/celebration.css' %}">
+
+<section class="celebration" aria-labelledby="celebration-title">
+    {% include "partials/celebration_glass.html" %}
+
+    <h1 id="celebration-title" class="pb-title text-3xl font-bold text-center celebration-title">Merci {{ user.username }} !</h1>
+    <p class="text-center text-gray-700 mt-2 celebration-line">
+        Votre avis sur <b>{{ beer.name }}</b> ({{ beer.brewery_id.name }}) est enregistré dans votre carnet{% if drink.note is not None %}, avec la note de <b>{{ drink.note }}/10</b>{% endif %}.
+    </p>
+    <p class="text-center text-sm text-gray-600 mt-1 celebration-line">
+        {% if drinks_count == 1 %}Votre toute première dégustation : bienvenue dans votre carnet.
+        {% else %}{{ drinks_count }} dégustations dans votre carnet : continuez comme ça.{% endif %}
+    </p>
+
+    <div class="flex flex-col gap-2 mt-6 w-full max-w-sm celebration-line">
+        <a href="{{ return_url }}" class="btn btn-primary border-2 border-secondary text-black normal-case h-auto min-h-12">Continuer</a>
+        <a href="{% url 'beer_detail' beer.slug %}" class="btn btn-outline border-secondary normal-case h-auto min-h-12">Voir la bière</a>
+        <a href="{% url 'notebook' %}" class="btn btn-ghost normal-case">Voir mon carnet</a>
+        <button type="button" id="celebrate-again" class="text-sm text-gray-600 underline mx-auto mt-1">Rejouer la fête</button>
+    </div>
+</section>
+
+<script src="{% static 'script/celebration.js' %}"></script>
+{% endblock %}

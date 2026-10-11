@@ -77,10 +77,10 @@ function locationBubble(markdown) {
 async function locateAndResend(button) {
     const message = pendingLocationMessage;
     if (!message) return;
-    button.disabled = true;
+    if (!Pending.start(button)) return;
     const position = await PokebeerPosition.request();  // déclenche la demande d'autorisation du navigateur
     if (position.error) {
-        button.disabled = false;
+        Pending.stop(button);
         return addToChat(errorBubble(LOCATION_ERRORS[position.error]));
     }
     button.remove();
@@ -89,9 +89,8 @@ async function locateAndResend(button) {
 
 async function sendMessage(text, { resend = false, position = null } = {}) {
     const msg = (text ?? chatInput.value).trim();
-    if (!msg || chatSend.disabled) return;
+    if (!msg || !Pending.start(chatSend)) return;  // bouton grisé avec un cercle ; un second envoi est ignoré
 
-    chatSend.disabled = true;
     document.getElementById('chat-suggestions')?.remove();
     if (!resend) addToChat(userBubble(msg));
     if (!resend) chatInput.value = '';
@@ -126,14 +125,13 @@ async function sendMessage(text, { resend = false, position = null } = {}) {
         document.getElementById(loadingId)?.remove();
         addToChat(errorBubble("La cave est fermée, impossible de joindre Gaétan."));
     } finally {
-        chatSend.disabled = false;
+        Pending.stop(chatSend);
     }
 }
 
 // Nouvelle conversation : le serveur oublie l'historique, la fenêtre retrouve l'accueil et ses questions de départ
 chatReset.addEventListener('click', async () => {
-    if (chatSend.disabled || chatReset.disabled) return;
-    chatReset.disabled = true;
+    if (chatSend.disabled || !Pending.start(chatReset)) return;
     try {
         const res = await fetch(chatWindow.dataset.url, {
             method: 'DELETE',
@@ -147,7 +145,7 @@ chatReset.addEventListener('click', async () => {
     } catch (err) {
         addToChat(errorBubble("Impossible de réinitialiser la conversation. Réessayez."));
     } finally {
-        chatReset.disabled = false;
+        Pending.stop(chatReset);
     }
 });
 

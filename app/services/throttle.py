@@ -101,6 +101,9 @@ EMAIL_PREFERENCES_BY_IP = Rule('email-prefs-ip', 30, timedelta(hours=1))
 
 # Assistant Gaétan : rafale par membre (en plus du quota quotidien) et budget d'appels au modèle pour toute l'application, afin de
 # rester dans les limites du plan gratuit de Mistral
+# Suggestions de modification d'une fiche : quelques-unes par jour et par membre (chacune est relue par l'équipe)
+SUGGESTION_BY_USER = Rule('suggestion-user', 10, timedelta(days=1))
+
 CHAT_BURST_BY_USER = Rule('chat-burst', 5, timedelta(minutes=1))
 CHAT_GLOBAL = Rule('chat-global', settings.CHAT_GLOBAL_DAILY_LIMIT, timedelta(days=1))
 CHAT_MODEL_CALLS = Rule('chat-model-calls', settings.CHAT_MODEL_CALLS_PER_MINUTE, timedelta(minutes=1))

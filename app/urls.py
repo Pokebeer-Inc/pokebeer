@@ -115,6 +115,8 @@ urlpatterns = [
     # Dégustations (Avis) & Lieux (Spots)
     # ==========================================
     path('rate-beer/<slug:beer_slug>/', views.rate_beer_view, name='rate_beer'),
+    path('suggest-edit/<slug:kind>/<slug:slug>/', views.suggest_edit_view, name='suggest_edit'),
+    path('rate-beer/<slug:beer_slug>/done/', views.rate_beer_done_view, name='rate_beer_done'),
     path('modify-rate-beer/<slug:drink_slug>/', views.modify_rate_beer_view, name='modify_rate_beer'),
     path('delete-drink/<slug:drink_slug>/', views.delete_drink_view, name='delete_drink'),
     path('delete-spot/<slug:spot_slug>/', views.delete_spot_view, name='delete_spot'),

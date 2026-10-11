@@ -1,0 +1,28 @@
+{% comment %}Choix de dégustations pour un carnet : recherche, compteur, « tout sélectionner » (visibles) et liste défilante. Les cases gardent le nom « drinks ».
+Paramètres : drinks (dégustations avec bière et brasserie chargées), selected (slugs déjà cochés, facultatif), label, uid. Comportement : static/script/picker.js.{% endcomment %}
+<fieldset class="mb-4" data-picker>
+    <legend class="pb-label flex w-full items-baseline justify-between"><span>{{ label }}</span>
+        <span class="font-normal text-[#6b625a]"><b data-picker-count>{{ selected|length }}</b> sélectionnée{{ selected|length|pluralize }} sur {{ drinks|length }}</span></legend>
+    {% if drinks %}
+    <input type="search" id="picker-search-{{ uid }}" data-picker-search class="pb-input" placeholder="Rechercher une bière ou une brasserie" aria-label="Rechercher parmi mes dégustations" autocomplete="off">
+    <div class="flex gap-2 my-2">
+        <button type="button" data-picker-all class="pb-chip">Tout sélectionner</button>
+        <button type="button" data-picker-none class="pb-chip">Tout effacer</button>
+    </div>
+    <div class="pb-picker-list" role="group" aria-label="{{ label }}">
+        {% for drink in drinks %}
+        <label class="pb-picker-row" data-picker-item data-search="{{ drink.beer_id.name|lower }} {{ drink.beer_id.brewery_id.name|lower }}">
+            <input type="checkbox" name="drinks" value="{{ drink.slug }}" class="checkbox checkbox-sm checkbox-primary shrink-0" {% if drink.slug in selected %}checked{% endif %}>
+            <span class="min-w-0 flex-1">
+                <span class="block text-sm font-semibold leading-tight truncate">{{ drink.beer_id.name }}</span>
+                <span class="block text-[10px] text-[#6b625a] truncate">{{ drink.beer_id.brewery_id.name }}</span>
+            </span>
+            {% if drink.note is not None %}<span class="pb-pill is-primary !text-xs shrink-0">{{ drink.note }}/10</span>{% endif %}
+        </label>
+        {% endfor %}
+        <p data-picker-empty class="p-3 text-sm text-[#6b625a] text-center" hidden>Aucune bière ne correspond.</p>
+    </div>
+    {% else %}
+    <p class="pb-card p-3 text-sm text-[#6b625a] text-center">Vous n'avez pas encore de dégustation à ajouter.</p>
+    {% endif %}
+</fieldset>

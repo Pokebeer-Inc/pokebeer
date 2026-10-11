@@ -8,14 +8,14 @@
 
 {% if filter_template %}
 <div class="mb-4 flex flex-col gap-3">
-    <div class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-box">
+    <div class="pb-card collapse collapse-arrow">
         <input type="checkbox" data-filter-panel {% if filtered %}checked{% endif %} aria-label="Afficher les filtres" />
-        <div class="collapse-title text-sm font-medium">Filtres et tri</div>
+        <div class="collapse-title text-sm font-semibold">Filtres et tri</div>
         <div class="collapse-content text-sm overflow-visible">
             <div class="flex flex-col gap-4 mt-2">{% include filter_template %}</div>
         </div>
     </div>
-    {% if filtered %}<a href="{% url 'all_beers' %}?{% if query %}q={{ query|urlencode }}&{% endif %}tab={{ active_tab }}" data-tab="{{ active_tab }}" data-reset-filters class="btn btn-outline btn-error btn-sm w-full">Réinitialiser les filtres</a>{% endif %}
+    {% if filtered %}<a href="{% url 'all_beers' %}?{% if query %}q={{ query|urlencode }}&{% endif %}tab={{ active_tab }}" data-tab="{{ active_tab }}" data-reset-filters class="btn btn-outline btn-primary btn-sm w-full">Réinitialiser les filtres</a>{% endif %}
 </div>
 {% endif %}
 

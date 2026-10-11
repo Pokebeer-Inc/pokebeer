@@ -54,6 +54,8 @@ PROTECTED_ROUTES = [
     ("add_brewery_manager", {"brewery_slug": "some-slug"}, POST),
     ("remove_brewery_manager", {"brewery_slug": "some-brewery", "username": "someone"}, POST),
     ("rate_beer", {"beer_slug": "some-slug"}, POST),
+    ("suggest_edit", {"kind": "beer", "slug": "some-slug"}, POST),
+    ("rate_beer_done", {"beer_slug": "some-slug"}, GET),
     ("modify_rate_beer", {"drink_slug": "some-slug"}, POST),
     ("delete_drink", {"drink_slug": "some-slug"}, POST),
     ("delete_spot", {"spot_slug": "some-slug"}, POST),

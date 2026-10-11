@@ -514,6 +514,155 @@ class TestPublicProfileDesign:
             assert auth_client.get(self.url(other_user)).status_code == 200
 
 
+class TestServingFormatVolumes:
+    """Les volumes de la bouteille et de la canette sont précisés partout : choix des formulaires, fenêtres de notation et résumé."""
+
+    def test_the_volumes_are_part_of_the_labels(self):
+        from app.models import Drinks
+        labels = dict(Drinks.ServingFormat.choices)
+        assert labels["bottle"] == "Bouteille 75 cl" and labels["can"] == "Canette 33 cl"
+
+    def test_the_add_page_and_the_rating_modal_offer_them(self, auth_client, user, beer):
+        add = auth_client.get(reverse("add_beer")).content.decode()
+        modal = auth_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+        for html in (add, modal):
+            assert "Bouteille 75 cl" in html and "Canette 33 cl" in html
+
+    def test_the_tasting_summary_shows_them(self, auth_client, user, beer):
+        f.make_drink(user, beer, note=7, serving_format="can")
+        assert "Canette 33 cl" in auth_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+
+
+class TestTastingModal:
+    """Noter une bière (étape par étape) et modifier un avis (deux étapes) : croix de fermeture, mêmes champs, validation du serveur."""
+
+    def new_modal(self, auth_client, beer):
+        html = auth_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+        modal = html[html.index(f'<dialog id="modalRate-{beer.slug}"'):]
+        return modal[:modal.index("</dialog>")]
+
+    def test_a_new_rating_goes_step_by_step_with_a_close_button(self, auth_client, beer):
+        modal = self.new_modal(auth_client, beer)
+        assert 'aria-label="Fermer"' in modal and "this.closest('dialog').close()" in modal and "data-stepper" in modal
+        assert [step for step in ("Votre note", "Votre avis", "Le contexte", "Format et prix") if f'data-title="{step}"' in modal] == [
+            "Votre note", "Votre avis", "Le contexte", "Format et prix"]
+        assert "data-stepper-back" in modal and "data-stepper-next" in modal and "data-stepper-submit" in modal and 'sur <span data-stepper-total>4</span>' in modal
+        assert "Récapitulatif" not in modal  # l'envoi mène à la page de félicitations
+
+    def test_every_field_of_the_tasting_form_is_still_sent_by_the_wizard(self, auth_client, beer):
+        modal = self.new_modal(auth_client, beer)
+        for name in ("date", "note", "comment", "photo", "venue_type", "company", "serving_format", "price"):
+            assert f'name="{name}"' in modal
+
+    def test_the_note_is_chosen_with_buttons_from_0_to_10_or_left_empty(self, auth_client, beer):
+        modal = self.new_modal(auth_client, beer)
+        assert 'name="note" value="" checked' in modal
+        assert all(f'name="note" value="{value}"' in modal for value in range(11))
+
+    def test_the_notebook_step_only_exists_for_members_who_have_notebooks(self, auth_client, user, beer):
+        assert 'data-title="Carnets"' not in self.new_modal(auth_client, beer)
+        f.make_notebook(user, title="Soirée")
+        modal = self.new_modal(auth_client, beer)
+        assert 'data-title="Carnets"' in modal and "Soirée" in modal and 'sur <span data-stepper-total>5</span>' in modal
+
+    def test_a_page_with_many_modals_reads_the_notebooks_once(self, auth_client, user, django_assert_max_num_queries):
+        f.make_notebook(user, title="Soirée")
+        for _ in range(8):
+            f.make_beer()
+        with django_assert_max_num_queries(40):
+            assert auth_client.get(reverse("all_beers"), {"tab": "beers"}).status_code == 200
+
+    def test_a_rating_sent_from_the_wizard_is_saved_with_its_context(self, auth_client, user, beer):
+        from datetime import date
+        response = auth_client.post(reverse("rate_beer", args=[beer.slug]), {
+            "date": date.today().isoformat(), "note": "8", "comment": "Top", "venue_type": "bar", "company": "friends",
+            "serving_format": "bottle", "price": "4.50",
+        })
+        assert response.status_code == 302
+        from app.models import Drinks
+        drink = Drinks.objects.get(drinker_id=user, beer_id=beer)
+        assert (drink.note, drink.venue_type, drink.company, drink.serving_format, str(drink.price)) == (8, "bar", "friends", "bottle", "4.50")
+
+    def test_the_edit_modal_keeps_the_saved_values_and_shows_the_context_summary(self, auth_client, user, beer):
+        f.make_drink(user, beer, note=7, comment="Très bonne", venue_type="bar", company="friends", serving_format="can", price="3.20")
+        html = auth_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+        modal = html[html.index('<dialog id="modalEditRating-'):]
+        modal = modal[:modal.index("</dialog>")]
+        assert 'value="7"' in modal and "Très bonne" in modal and 'name="notebooks"' not in modal
+        assert "Canette 33 cl" in modal and "Bar" in modal and "Amis" in modal and "3.20" in modal.replace(",", ".")
+        assert 'aria-label="Fermer"' in modal and "Supprimer mon avis" in modal and 'id="form-delete-rating"' in modal
+
+    def test_the_edit_modal_summarises_the_context_or_says_it_is_optional(self, auth_client, user, beer):
+        f.make_drink(user, beer, note=5)
+        html = auth_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+        assert "Facultatif : le contexte de cette dégustation" in html
+
+    def test_the_notebook_edit_modal_uses_the_same_template_and_its_own_delete_flow(self, auth_client, user, beer):
+        drink = f.make_drink(user, beer, note=6)
+        html = auth_client.get(reverse("notebook_all")).content.decode()
+        modal = html[html.index(f'<dialog id="modalEditDrink-{drink.slug}"'):]
+        modal = modal[:modal.index("</dialog>")]
+        assert 'aria-label="Fermer"' in modal and f'id="form-delete-drink-{drink.slug}"' in modal and f"modal_confirm_drink_{drink.slug}" in modal
+
+    def test_every_notebook_is_offered_as_a_choice_chip(self, auth_client, user, beer):
+        f.make_notebook(user, title="Soirée")
+        html = auth_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+        assert 'name="notebooks"' in html and "Soirée" in html and "pb-choice" in html
+
+    def test_the_page_marks_javascript_so_the_steps_fall_back_to_one_long_form(self, auth_client):
+        html = auth_client.get(reverse("index")).content.decode()
+        assert "classList.add('js')" in html and "script/modal_steps.js" in html
+
+
+class TestNotebookModals:
+    """Création et modification d'un carnet : mêmes champs, croix de fermeture, choix des dégustations avec recherche."""
+
+    def modal(self, html, modal_id):
+        block = html[html.index(f'<dialog id="{modal_id}"'):]
+        return block[:block.index("</dialog>")]
+
+    def test_the_create_modal_keeps_its_form_and_gets_a_close_button(self, auth_client, user):
+        f.make_drink(user, f.make_beer(name="Zinc Witbier"), note=8)
+        modal = self.modal(auth_client.get(reverse("notebook")).content.decode(), "modal_create_notebook")
+        assert f'action="{reverse("create_custom_notebook")}"' in modal and 'name="title"' in modal and 'maxlength="150"' in modal
+        assert 'name="description"' in modal and 'name="drinks"' in modal and "Créer le carnet" in modal
+        assert 'aria-label="Fermer"' in modal and "Zinc Witbier" in modal and "8/10" in modal
+
+    def test_each_tasting_shows_its_brewery_and_can_be_searched(self, auth_client, user):
+        f.make_drink(user, f.make_beer(name="Zinc Witbier", brewery=f.make_brewery(name="Brasserie du Port")))
+        modal = self.modal(auth_client.get(reverse("notebook")).content.decode(), "modal_create_notebook")
+        assert "Brasserie du Port" in modal and 'data-search="zinc witbier brasserie du port"' in modal
+        assert "data-picker-search" in modal and "data-picker-all" in modal and "data-picker-none" in modal and "data-picker-count" in modal
+
+    def test_a_member_without_tastings_gets_an_explanation_instead_of_an_empty_box(self, auth_client):
+        modal = self.modal(auth_client.get(reverse("notebook")).content.decode(), "modal_create_notebook")
+        assert "pas encore de dégustation" in modal and "data-picker-search" not in modal
+
+    def test_the_edit_modal_checks_the_tastings_already_in_the_notebook(self, auth_client, user):
+        inside, outside = f.make_drink(user, f.make_beer(name="Dedans")), f.make_drink(user, f.make_beer(name="Dehors"))
+        notebook = f.make_notebook(user, title="Soirée", description="Une note", drinks=[inside])
+        modal = self.modal(auth_client.get(reverse("notebook_detail", args=[notebook.slug])).content.decode(), "modal_edit_notebook")
+        assert modal.count(" checked>") == 1 and modal.index(inside.slug) < modal.index(" checked>") < modal.index(outside.slug)
+        assert 'value="Soirée"' in modal and "Une note" in modal and "<b data-picker-count>1</b> sélectionnée sur 2" in modal.replace("\n", " ")
+        assert 'aria-label="Fermer"' in modal and f'action="{reverse("edit_custom_notebook", args=[notebook.slug])}"' in modal
+
+    def test_the_picker_does_not_query_per_tasting(self, auth_client, user, django_assert_max_num_queries):
+        for _ in range(15):
+            f.make_drink(user, f.make_beer())
+        with django_assert_max_num_queries(22):
+            assert auth_client.get(reverse("notebook")).status_code == 200
+
+    def test_the_three_dots_menus_share_one_style(self, auth_client, user, beer, other_user):
+        pages = [auth_client.get(reverse("beer_detail", args=[beer.slug])), auth_client.get(reverse("public_profile", args=[other_user.username]))]
+        assert all("pb-menu" in page.content.decode() and "bg-base-200 rounded-box" not in page.content.decode() for page in pages)
+
+    def test_a_posted_notebook_still_attaches_only_my_own_tastings(self, auth_client, user, other_user):
+        mine, foreign = f.make_drink(user), f.make_drink(other_user)
+        auth_client.post(reverse("create_custom_notebook"), {"title": "Test", "description": "x", "drinks": [mine.slug, foreign.slug]})
+        from app.models import CustomNotebook
+        assert list(CustomNotebook.objects.get(user=user).drinks.all()) == [mine]
+
+
 class TestBeerPageDesign:
     def beer_page(self, client, beer):
         return client.get(reverse("beer_detail", args=[beer.slug]))
@@ -553,7 +702,7 @@ class TestBeerPageDesign:
         edit = self.beer_page(auth_client, rated).content.decode()
         assert 'name="venue_type" value="home" checked' in edit and 'name="price"' in edit and 'value="3.00"' in edit
         new = self.beer_page(auth_client, fresh).content.decode()
-        assert 'name="serving_format"' in new and "Lieu, compagnie, format et prix" in new
+        assert 'name="serving_format"' in new and 'name="venue_type"' in new and 'name="company"' in new
 
     def test_editing_from_the_modal_updates_the_context_and_can_clear_it(self, auth_client, user):
         drink = f.make_drink(user, f.make_beer(), note=5, venue_type="home", company="alone", price="3.00")
@@ -651,3 +800,22 @@ class TestMapDesign:
         bar = f.make_bar(name="Bar Carte", address="2 rue du Bar, Lyon")
         html = auth_client.get(reverse("bar_detail", args=[bar.slug])).content.decode()
         assert 'data-kind="bar"' in html and html.index("script/pins.js") < html.index("script/mini_map.js")
+
+
+class TestDropdownsShareOneStyle:
+    """Toutes les listes déroulantes du site n'ont qu'une flèche : aucune ne force la flèche du navigateur et le style commun la fournit."""
+
+    def test_no_template_forces_the_native_arrow_back(self):
+        from pathlib import Path
+        offenders = [str(path) for path in Path("app/templates").rglob("*.html")
+                     if "admin" not in path.parts and ("appearance-auto" in path.read_text() or "-webkit-appearance: auto" in path.read_text())]
+        assert offenders == []
+
+    def test_the_stylesheet_gives_every_select_a_single_custom_arrow(self):
+        from pathlib import Path
+        css = Path("app/static/style/ui.css").read_text()
+        assert "select:not([multiple]):not([size])" in css and "appearance: none" in css and ".pb-select" in css
+
+    def test_the_report_and_top_beer_selects_use_the_shared_class(self, auth_client, user, beer):
+        html = auth_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+        assert 'class="pb-select"' in html and "appearance-auto" not in html

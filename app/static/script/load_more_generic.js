@@ -23,15 +23,11 @@ function initLoadMore(root) {
         
         // A. La logique de chargement (le clic)
         btn.addEventListener('click', function() {
-            if (this.disabled) return; // Double sécurité anti-spam
             
             const offset = parseInt(this.dataset.offset);
             const containerId = this.dataset.container;
-            const originalText = this.innerHTML;
-            
-            // État visuel de chargement
-            this.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Chargement...';
-            this.disabled = true;
+            // État visuel de chargement : bouton grisé avec un cercle qui tourne (pending.js)
+            if (!Pending.start(this)) return;
 
             // 1. On initialise un véritable objet URL basé sur le data-url du bouton
             const fetchUrl = new URL(this.dataset.url, window.location.origin);
@@ -66,15 +62,12 @@ function initLoadMore(root) {
                     observer.unobserve(this); // On arrête de surveiller ce bouton
                     this.remove();            // On le supprime
                 } else {
-                    // On restaure le bouton
-                    this.innerHTML = originalText;
-                    this.disabled = false;
+                    Pending.stop(this);
                 }
             })
             .catch(err => {
                 console.error("Erreur de chargement:", err);
-                this.innerHTML = originalText;
-                this.disabled = false;
+                Pending.stop(this);
             });
         });
 

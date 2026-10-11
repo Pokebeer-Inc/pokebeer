@@ -3,20 +3,9 @@
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'style/celebration.css' %}">
-<canvas id="confetti" class="celebration-canvas" aria-hidden="true"></canvas>
 
 <section class="celebration" aria-labelledby="celebration-title">
-    <div class="celebration-glass" aria-hidden="true">
-        <svg viewBox="0 0 120 120" class="w-36 h-36">
-            <g class="sparkle sparkle-1"><path d="M20 20l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#f1c40f" stroke="#333" stroke-width="2" stroke-linejoin="round"/></g>
-            <g class="sparkle sparkle-2"><path d="M100 14l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="#eca054" stroke="#333" stroke-width="2" stroke-linejoin="round"/></g>
-            <g class="sparkle sparkle-3"><path d="M104 62l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#f1c40f" stroke="#333" stroke-width="2" stroke-linejoin="round"/></g>
-            <path d="M34 40h42v50a10 10 0 01-10 10H44a10 10 0 01-10-10V40z" fill="#f1c40f" stroke="#333" stroke-width="4" stroke-linejoin="round"/>
-            <path d="M76 52h8a8 8 0 018 8v12a8 8 0 01-8 8h-8" fill="none" stroke="#333" stroke-width="4" stroke-linecap="round"/>
-            <path class="foam" d="M30 42c-2-9 6-14 12-10 3-8 14-8 17-1 7-4 16 1 14 11z" fill="#f7f3f0" stroke="#333" stroke-width="4" stroke-linejoin="round"/>
-            <path d="M44 58v28M56 58v28M66 58v28" stroke="#b87e44" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
-        </svg>
-    </div>
+    {% include "partials/celebration_glass.html" %}
 
     <h1 id="celebration-title" class="pb-title text-3xl font-bold text-center celebration-title">Bravo {{ user.username }} !</h1>
     <p class="text-center text-gray-700 mt-2 celebration-line">

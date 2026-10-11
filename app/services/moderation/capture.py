@@ -11,6 +11,7 @@ from .content import CONTENT_TYPES
 logger = logging.getLogger(__name__)
 MAX_VALUE_LENGTH = 2000
 BEFORE_ATTR = '_moderation_before'
+SKIP_ATTR = '_moderation_skip'  # posé par l'équipe qui applique une suggestion : l'enregistrement n'est pas re-relu
 
 
 def _normalize(value):
@@ -71,7 +72,7 @@ def _make_pre_save(content):
 def _make_post_save(content):
     def record_change(sender, instance, created=False, raw=False, update_fields=None, **kwargs):
         before = instance.__dict__.pop(BEFORE_ATTR, None)
-        if raw:
+        if raw or instance.__dict__.pop(SKIP_ATTR, False):
             return
         if not content.is_public(instance):
             ModerationEntry.objects.pending().for_object(content.kind, instance.pk).delete()

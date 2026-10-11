@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function () {
     form.addEventListener('submit', event => {
         event.preventDefault();
         error.textContent = '';
-        submit.disabled = true;
+        Pending.start(submit);
         fetch(form.action, {
             method: 'POST',
             credentials: 'same-origin',
@@ -38,6 +38,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 dialog.close();
             })
             .catch(() => { error.textContent = 'Connexion impossible. Réessayez.'; })
-            .finally(() => { submit.disabled = false; });
+            .finally(() => { Pending.stop(submit); });
     });
 });

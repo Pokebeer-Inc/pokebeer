@@ -231,7 +231,7 @@ class TestPlaceCards:
     def test_the_card_hides_the_distance_until_nearby_fills_it(self, auth_client):
         f.make_bar(name="Bar Neutre")
         card = auth_client.get(PAGE, {"tab": "bars"}).content.decode()
-        assert card.count("data-placeholder") == 1 and 'data-distance class="pointer-events-none badge badge-primary badge-sm shrink-0 hidden"' in card
+        assert card.count("data-placeholder") == 1 and 'data-distance class="pointer-events-none pb-pill is-primary !text-xs shrink-0 hidden"' in card
 
 
 def test_no_emoji_in_the_source_code():

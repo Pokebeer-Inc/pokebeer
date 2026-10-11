@@ -142,9 +142,7 @@
             state.shown = page;
             root.querySelectorAll('[data-nearby-kind]').forEach(other => {
                 const active = other === button;
-                other.setAttribute('aria-pressed', String(active));
-                other.classList.toggle('btn-primary', active);
-                other.classList.toggle('btn-outline', !active);
+                other.setAttribute('aria-pressed', String(active));  // la puce active est mise en forme par aria-pressed (ui.css)
             });
             render();
         }));

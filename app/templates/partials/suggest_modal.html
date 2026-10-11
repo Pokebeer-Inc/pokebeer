@@ -1,0 +1,19 @@
+{% comment %}Suggestion de modification d'une fiche (bière, brasserie, bar). Paramètres : obj (la fiche), suggest_kind, suggest_form (champs pré-remplis).
+L'équipe relit chaque suggestion avant de l'appliquer ; seuls les champs réellement modifiés sont transmis.{% endcomment %}
+<dialog id="modal_suggest" class="modal modal-bottom sm:modal-middle z-[99999]" aria-labelledby="modal_suggest-title">
+    <div class="modal-box custom-modal-form">
+        {% include "partials/modal_header.html" with title="Suggérer une modification" title_id="modal_suggest-title" %}
+        <p class="text-sm text-[#6b625a] mb-3">Une information est incomplète ou inexacte ? Corrigez-la ci-dessous : notre équipe relira votre suggestion avant de l'appliquer.</p>
+        <form method="post" action="{% url 'suggest_edit' suggest_kind obj.slug %}">
+            {% csrf_token %}
+            {% for field in suggest_form %}
+            <div class="mb-3">
+                <label class="pb-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary w-full text-black border-secondary">Envoyer ma suggestion</button>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>

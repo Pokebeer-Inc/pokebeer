@@ -14,9 +14,9 @@
             <div tabindex="0" role="button" class="btn btn-sm btn-ghost btn-circle text-gray-500">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
             </div>
-            <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-lg bg-base-100 rounded-box w-40 border border-base-200">
+            <ul tabindex="0" class="dropdown-content menu pb-menu z-[50] w-40">
                 <li>
-                    <a onclick="modal_edit_notebook.showModal()" class="font-semibold text-primary">
+                    <a onclick="modal_edit_notebook.showModal()" class="font-semibold">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         Modifier
                     </a>
@@ -122,44 +122,8 @@
 </div>
 
 {% if notebook %}
-<!-- Modale de modification du carnet -->
-<dialog id="modal_edit_notebook" class="modal z-[99999]">
-    <div class="modal-box custom-modal-form">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_edit_notebook.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg text-primary mb-4 border-b border-primary pb-2">Modifier le carnet</h3>
-        
-        <form method="post" action="{% url 'edit_custom_notebook' notebook.slug %}">
-            {% csrf_token %}
-            <div class="form-control w-full mb-3">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Titre du carnet *</span></label>
-                <input type="text" name="title" value="{{ notebook.title }}" class="input input-sm input-bordered w-full bg-white" placeholder="Ex: Bières d'été..." required maxlength="150">
-            </div>
-            
-            <div class="form-control w-full mb-3">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Description (Optionnel)</span></label>
-                <textarea name="description" class="textarea textarea-bordered h-16 bg-white text-xs" placeholder="Une petite note...">{% if notebook.description %}{{ notebook.description }}{% endif %}</textarea>
-            </div>
-            
-            <div class="form-control w-full mb-4">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Modifier les dégustations</span></label>
-                <div class="h-40 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box flex flex-col gap-1">
-                    {% for drink in user_drinks_all %}
-                        <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-2 transition-colors">
-                            <input type="checkbox" name="drinks" value="{{ drink.slug }}" class="checkbox checkbox-sm checkbox-primary shrink-0" {% if drink.slug in notebook_drink_slugs %}checked{% endif %} />
-                            <span class="label-text text-xs font-semibold truncate flex-1">
-                                {{ drink.beer_id.name }} 
-                                {% if drink.note is not null %}<span class="text-[10px] text-gray-500 font-normal ml-1">({{ drink.note }}/10)</span>{% endif %}
-                            </span>
-                        </label>
-                    {% endfor %}
-                </div>
-            </div>
-            
-            <button type="submit" class="btn btn-primary btn-sm w-full text-white">Enregistrer les modifications</button>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
-</dialog>
+{% url 'edit_custom_notebook' notebook.slug as edit_url %}
+{% include "partials/notebook_form_modal.html" with modal_id="modal_edit_notebook" heading="Modifier le carnet" action=edit_url submit_label="Enregistrer les modifications" picker_label="Modifier les dégustations" drinks=user_drinks_all selected=notebook_drink_slugs notebook=notebook %}
 
 <dialog id="modal_confirm_delete_notebook" class="modal z-[99999]">
     <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center">

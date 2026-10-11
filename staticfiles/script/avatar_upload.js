@@ -12,6 +12,6 @@ document.addEventListener('DOMContentLoaded', function () {
             input.value = '';
             return;
         }
-        input.form.submit();
+        input.form.requestSubmit();  // passe par le chargeur de page, contrairement à submit()
     });
 });

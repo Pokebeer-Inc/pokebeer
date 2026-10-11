@@ -88,7 +88,7 @@ def notebook_view(request):
     if active_tab not in NOTEBOOK_TABS:
         active_tab = 'tastings'
 
-    user_drinks_all = Drinks.objects.filter(drinker_id=user).select_related('beer_id').order_by('-date')
+    user_drinks_all = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')
     context = {
         **get_user_statistics(user_drinks_all),
         'wishlist_count': user.wishlist_beers.count(),
@@ -162,7 +162,7 @@ def notebook_detail_view(request, notebook_slug=None):
         notebook_drink_slugs = list(notebook.drinks.values_list('slug', flat=True))
 
     my_drinks = list(get_filtered_notebook_drinks(request)[:CARNET_PAGE])
-    user_drinks_all = Drinks.objects.filter(drinker_id=user).select_related('beer_id').order_by('-date')  # fenêtre « Modifier le carnet »
+    user_drinks_all = Drinks.objects.filter(drinker_id=user).select_related('beer_id', 'beer_id__brewery_id').order_by('-date')  # fenêtre « Modifier le carnet »
     scope = notebook.drinks.all() if notebook else user_drinks_all
 
     context = {

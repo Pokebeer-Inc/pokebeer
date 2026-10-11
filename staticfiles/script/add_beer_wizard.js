@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async function next() {
         const panel = panelOf(current);
         if (!nativeValid(panel)) return;
-        nextBtn.disabled = true;
+        if (!Pending.start(nextBtn)) return;
         clearErrors();
         try {
             const response = await fetch(form.dataset.draftUrl, { method: 'POST', credentials: 'same-origin', body: formDataFor(controlsOf(panel, current), current, true) });
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             showErrors(['Connexion impossible. Vérifiez votre réseau puis réessayez.']);
         } finally {
-            nextBtn.disabled = false;
+            Pending.stop(nextBtn);
         }
     }
 

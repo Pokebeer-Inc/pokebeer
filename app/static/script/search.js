@@ -28,8 +28,8 @@
     function showHome() {
         if (controller) controller.abort();
         results.replaceChildren();
-        results.removeAttribute('aria-busy');
-        results.classList.remove('opacity-60');
+        Pending.region(results, false);
+        form.removeAttribute('aria-busy');
         home.classList.remove('hidden');
         history.replaceState(null, '', location.pathname);
     }
@@ -48,8 +48,8 @@
         controller = new AbortController();
         const query = params();
         const wasOpen = panel() ? panel().checked : null;
-        results.setAttribute('aria-busy', 'true');
-        results.classList.add('opacity-60');
+        Pending.region(results, true);
+        form.setAttribute('aria-busy', 'true');  // l'icône de la barre devient un cercle (ui.css)
         fetch(results.dataset.url + '?' + query.toString(), { signal: controller.signal, headers: { 'X-Requested-With': 'fetch' } })
             .then(res => { if (!res.ok) throw new Error('Erreur réseau'); return res.json(); })
             .then(data => {
@@ -58,8 +58,8 @@
                 history.replaceState(null, '', '?' + query.toString());
                 if (typeof initLoadMore === 'function') initLoadMore(results);
                 if (typeof initNearby === 'function') initNearby(results);
-                results.removeAttribute('aria-busy');
-                results.classList.remove('opacity-60');
+                Pending.region(results, false);
+                form.removeAttribute('aria-busy');
             })
             .catch(err => {
                 if (err.name === 'AbortError') return;

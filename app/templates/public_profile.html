@@ -12,7 +12,7 @@
         <div tabindex="0" role="button" class="btn btn-sm btn-ghost btn-circle" aria-label="Plus d'actions">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </div>
-        <ul tabindex="0" class="dropdown-content z-[60] menu p-2 shadow-lg bg-base-200 border border-base-300 rounded-box w-48 right-0 gap-1">
+        <ul tabindex="0" class="dropdown-content menu pb-menu z-[60] w-48 right-0 gap-1">
             <li><button type="button" onclick="modal_report_user.showModal()" class="font-medium flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 Signaler
@@ -169,12 +169,11 @@
 
 <dialog id="modal_followers" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_followers.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnés</h3>
+        {% include "partials/modal_header.html" with title="Abonnés" %}
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in followers %}
             <li>
-                <a href="{% url 'public_profile' f.follower.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
+                <a href="{% url 'public_profile' f.follower.username %}" class="pb-card flex items-center gap-3 p-2 hover:bg-base-300 active:scale-[0.98] transition-all">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
                             <img class="object-cover w-full h-full" src="{{ f.follower.avatar_url }}" />
@@ -184,7 +183,7 @@
                 </a>
             </li>
             {% empty %}
-            <li class="text-gray-500 text-xs italic text-center">Personne ne suit ce membre pour le moment.</li>
+            <li class="text-[#6b625a] text-xs italic text-center">Personne ne suit ce membre pour le moment.</li>
             {% endfor %}
         </ul>
     </div>
@@ -193,12 +192,11 @@
 
 <dialog id="modal_following" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 pt-6 pb-8 sm:pb-4 flex flex-col custom-modal-text">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="modal_following.close()">{% include "partials/icon.html" with name="close" %}</button>
-        <h3 class="font-bold text-lg mb-4 text-center shrink-0">Abonnements</h3>
+        {% include "partials/modal_header.html" with title="Abonnements" %}
         <ul class="flex flex-col gap-2 overflow-y-auto flex-1">
             {% for f in following %}
             <li>
-                <a href="{% url 'public_profile' f.followed.username %}" class="flex items-center gap-3 bg-white p-2 rounded-lg hover:bg-base-300 active:scale-[0.98] transition-all">
+                <a href="{% url 'public_profile' f.followed.username %}" class="pb-card flex items-center gap-3 p-2 hover:bg-base-300 active:scale-[0.98] transition-all">
                     <div class="avatar">
                         <div class="w-8 h-8 rounded-full shadow-sm overflow-hidden border border-base-300">
                             <img class="object-cover w-full h-full" src="{{ f.followed.avatar_url }}" />
@@ -208,7 +206,7 @@
                 </a>
             </li>
             {% empty %}
-            <li class="text-gray-500 text-xs italic text-center">Ce membre ne suit personne.</li>
+            <li class="text-[#6b625a] text-xs italic text-center">Ce membre ne suit personne.</li>
             {% endfor %}
         </ul>
     </div>

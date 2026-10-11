@@ -22,6 +22,7 @@
         clearTimeout(saveTimer);
         const now = order();
         if (!startOrder || now.join() === startOrder.join()) { startOrder = null; return; }
+        Pending.region(list, true);  // le classement est estompé le temps de l'enregistrement, puis la page se recharge
         fetch(list.dataset.url, {
             method: 'POST',
             credentials: 'same-origin',

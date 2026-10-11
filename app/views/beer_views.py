@@ -12,6 +12,8 @@ from .utils import get_excluded_users, check_and_notify_achievements, posted_not
 from ..services import beer_drafts
 from ..services.notifications import notify
 from ..services.throttle import BEER_DRAFT_SAVES
+from ..services.moderation.content import CONTENT_TYPES
+from ..services.moderation.suggestions import menu_context as suggestion_menu
 
 def _save_new_beer(user, beer_form, drink_form):
     """Enregistre la bière et sa première note ensemble. Renvoie False si le nom a été pris entre-temps."""
@@ -224,6 +226,7 @@ def beer_detail_view(request, beer_slug):
         'user_rating': user_rating,
         'rating_form': rating_from,
         'wishlist_beer_ids': wishlist_beer_ids,
+        **suggestion_menu(CONTENT_TYPES['beer'], beer, request.user),
     }
     return render(request, 'beer_page.html', context)
 

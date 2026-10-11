@@ -1,0 +1,21 @@
+{% comment %}Fenêtre de création ou de modification d'un carnet (mêmes champs : title, description, drinks).
+Paramètres : modal_id, heading, action, submit_label, picker_label, drinks, selected (slugs cochés), notebook (carnet modifié, absent à la création).{% endcomment %}
+<dialog id="{{ modal_id }}" class="modal modal-bottom sm:modal-middle z-[99999]" aria-labelledby="{{ modal_id }}-title">
+    <div class="modal-box custom-modal-form">
+        {% include "partials/modal_header.html" with title=heading title_id=modal_id|add:"-title" %}
+        <form method="post" action="{{ action }}">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="pb-label" for="{{ modal_id }}-name">Titre du carnet <span aria-hidden="true">*</span></label>
+                <input id="{{ modal_id }}-name" type="text" name="title" value="{{ notebook.title|default:'' }}" class="pb-input" placeholder="Ex: Bières d'été..." required maxlength="150">
+            </div>
+            <div class="mb-3">
+                <label class="pb-label" for="{{ modal_id }}-description">Description <span class="font-normal text-[#6b625a]">(facultatif)</span></label>
+                <textarea id="{{ modal_id }}-description" name="description" rows="2" class="pb-input" placeholder="Une petite note...">{{ notebook.description|default:'' }}</textarea>
+            </div>
+            {% include "partials/drink_picker.html" with label=picker_label uid=modal_id %}
+            <button type="submit" class="btn btn-primary w-full text-black border-secondary">{{ submit_label }}</button>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>
+</dialog>

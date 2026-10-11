@@ -1,6 +1,4 @@
 /* Ajout d'une bière par étapes : sans JavaScript toutes les étapes restent visibles et le formulaire fonctionne comme avant. */
-.wizard-progress { height: 8px; border-radius: 4px; background: #e5ddd4; overflow: hidden; }
-.wizard-progress > i { display: block; height: 100%; width: 0; border-radius: 4px; background: var(--color-primary); transition: width 0.3s ease; }
 
 .wizard-step { background: var(--color-base-200); border: 1px solid #d9cfc5; border-radius: 0.75rem; padding: 0.9rem; }
 .wizard-nav { display: none; gap: 0.5rem; position: sticky; bottom: 4.75rem; z-index: 20; padding: 0.25rem 0; }
@@ -14,13 +12,5 @@
 @keyframes wizard-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
     .wizard-on .wizard-step.is-current { animation: none; }
-    .wizard-progress > i { transition: none; }
 }
 
-/* Récapitulatif */
-#wizard-recap .recap-row { display: flex; gap: 0.75rem; align-items: baseline; justify-content: space-between; width: 100%; text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid #d9cfc5; }
-#wizard-recap .recap-row:last-child { border-bottom: 0; }
-#wizard-recap .recap-row:hover { background: color-mix(in oklab, var(--color-primary) 18%, transparent); }
-#wizard-recap dt { font-size: 0.8rem; color: #6b625a; flex: none; }
-#wizard-recap dd { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
-#wizard-recap dd.is-empty { font-weight: 400; color: #6b625a; font-style: italic; }
