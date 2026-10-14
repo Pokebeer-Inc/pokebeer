@@ -14,6 +14,12 @@ from tests import factories as f
 pytestmark = pytest.mark.django_db
 
 
+def finish(client):
+    """Passe les deux dernières pages (genre, e-mails) d'un membre qui a donné sa date de naissance ; renvoie la réponse de la dernière."""
+    client.post(reverse("onboarding_gender"), {"skip": "1"})
+    return client.post(reverse("onboarding_emails"), {"marketing_opt_in": "on"})
+
+
 def adult_birth(years=30):
     today = timezone.localdate()
     return (today.replace(year=today.year - years, day=1) - timedelta(days=1)).isoformat()  # une date sans ambiguïté de jour
@@ -74,21 +80,21 @@ class TestTheGuard:
     def test_the_page_first_requested_is_opened_after_the_onboarding(self, client, newcomer):
         client.get(reverse("map"), HTTP_SEC_FETCH_DEST="document")
         client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
-        response = client.post(reverse("onboarding_gender"), {"skip": "1"})
+        response = finish(client)
         assert response.status_code == 302 and response.url == reverse("map")
 
     @pytest.mark.parametrize("probe", ["/.well-known/appspecific/com.chrome.devtools.json", "/favicon.ico", "/apple-touch-icon.png"])
     def test_automatic_browser_requests_are_never_kept_as_the_destination(self, client, newcomer, probe):
         client.get(probe)  # sans Sec-Fetch-Dest: document, comme les requêtes automatiques du navigateur
         client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
-        assert client.post(reverse("onboarding_gender"), {"skip": "1"}).url == reverse("index")
+        assert finish(client).url == reverse("index")
 
     def test_a_stored_address_that_leads_nowhere_ends_on_the_home_page(self, client, newcomer):
         session = client.session
         session["onboarding_next"] = "/.well-known/appspecific/com.chrome.devtools.json"
         session.save()
         client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
-        assert client.post(reverse("onboarding_gender"), {"skip": "1"}).url == reverse("index")
+        assert finish(client).url == reverse("index")
 
     def test_the_android_asset_links_file_is_never_intercepted(self, client, newcomer):
         assert client.get("/.well-known/assetlinks.json").status_code != 302
@@ -98,10 +104,10 @@ class TestTheGuard:
         session["onboarding_next"] = "https://evil.example/phish"
         session.save()
         client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
-        assert client.post(reverse("onboarding_gender"), {"skip": "1"}).url == reverse("index")
+        assert finish(client).url == reverse("index")
 
     def test_anonymous_visitors_are_asked_to_log_in(self, client):
-        for name in ("onboarding", "onboarding_birth", "onboarding_gender"):
+        for name in ("onboarding", "onboarding_birth", "onboarding_gender", "onboarding_emails"):
             assert client.get(reverse(name)).status_code == 302 and "login" in client.get(reverse(name)).url
 
 
@@ -177,25 +183,24 @@ class TestGenderStep:
         assert 'name="skip"' in html
 
     @pytest.mark.parametrize("choice", ["femme", "homme", "autre", "nsp"])
-    def test_each_answer_is_saved_and_ends_the_onboarding(self, client, newcomer, choice):
+    def test_each_answer_is_saved_and_leads_to_the_email_step(self, client, newcomer, choice):
         client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
         response = client.post(reverse("onboarding_gender"), {"gender": choice})
         newcomer.refresh_from_db()
-        assert response.status_code == 302 and response.url == reverse("index")
-        assert newcomer.gender == choice and newcomer.onboarding_done is True
-        assert client.get(reverse("index")).status_code == 200
+        assert response.status_code == 302 and response.url == reverse("onboarding_emails")
+        assert newcomer.gender == choice and newcomer.onboarding_done is False
 
-    def test_skipping_saves_no_gender_but_ends_the_onboarding(self, client, newcomer):
+    def test_skipping_saves_no_gender(self, client, newcomer):
         client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
-        client.post(reverse("onboarding_gender"), {"skip": "1", "gender": "homme"})
+        response = client.post(reverse("onboarding_gender"), {"skip": "1", "gender": "homme"})
         newcomer.refresh_from_db()
-        assert newcomer.gender == "" and newcomer.onboarding_done is True
+        assert response.url == reverse("onboarding_emails") and newcomer.gender == ""
 
     def test_next_without_any_choice_counts_as_skipping(self, client, newcomer):
         client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
-        client.post(reverse("onboarding_gender"), {})
+        response = client.post(reverse("onboarding_gender"), {})
         newcomer.refresh_from_db()
-        assert newcomer.gender == "" and newcomer.onboarding_done is True
+        assert response.url == reverse("onboarding_emails") and newcomer.gender == ""
 
     def test_an_unknown_answer_is_refused_and_does_not_finish(self, client, newcomer):
         client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
@@ -207,6 +212,42 @@ class TestGenderStep:
         assert client.get(reverse("onboarding")).url == reverse("onboarding_birth")
         client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
         assert client.get(reverse("onboarding")).url == reverse("onboarding_gender")
+        client.post(reverse("onboarding_gender"), {"gender": "nsp"})
+        assert client.get(reverse("onboarding")).url == reverse("onboarding_emails")
+
+
+class TestEmailsStep:
+    URL = reverse("onboarding_emails")
+
+    @pytest.fixture
+    def at_last_step(self, client, newcomer):
+        client.post(reverse("onboarding_birth"), {"birth_date": adult_birth()})
+        client.post(reverse("onboarding_gender"), {"skip": "1"})
+        return newcomer
+
+    def test_it_needs_the_birth_date(self, client, newcomer):
+        assert client.get(self.URL).url == reverse("onboarding_birth")
+
+    def test_the_box_is_checked_by_default(self, client, at_last_step):
+        html = client.get(self.URL).content.decode()
+        assert 'name="marketing_opt_in"' in html and "checked" in html and "Étape <b>3</b> sur 3" in html
+
+    def test_keeping_the_box_subscribes_and_ends_the_onboarding(self, client, at_last_step):
+        response = client.post(self.URL, {"marketing_opt_in": "on"})
+        at_last_step.refresh_from_db()
+        assert response.url == reverse("index") and at_last_step.onboarding_done is True
+        assert (at_last_step.marketing_opt_in, at_last_step.marketing_consent_source) == (True, "onboarding")
+        assert at_last_step.marketing_consent_at is not None
+        assert client.get(reverse("index")).status_code == 200
+
+    def test_unchecking_refuses_and_ends_the_onboarding(self, client, at_last_step):
+        client.post(self.URL, {})
+        at_last_step.refresh_from_db()
+        assert at_last_step.onboarding_done is True and at_last_step.marketing_opt_in is False
+        assert at_last_step.marketing_consent_source == "onboarding"
+
+    def test_a_finished_member_is_sent_home(self, auth_client):
+        assert auth_client.get(self.URL).url == reverse("index")
 
 
 class TestRegistrationFlows:

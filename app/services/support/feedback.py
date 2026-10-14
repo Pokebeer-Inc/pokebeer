@@ -76,8 +76,3 @@ def timeline(feedback):
     entries += [Entry(m.author_kind, m.body, m.created_at) for m in feedback.messages.all()]
     return entries
 
-
-def last_team_message(feedback):
-    """Dernière réponse de l'équipe (None s'il n'y en a pas) ; exploite le prefetch de `messages` quand il existe."""
-    team = [m for m in feedback.messages.all() if m.author_kind == Author.TEAM]
-    return team[-1] if team else None

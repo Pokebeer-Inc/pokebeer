@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div class="rounded-default bg-white p-6 shadow-xs dark:bg-base-800">
+    <h2 class="mb-3 text-lg font-semibold">Supprimer la brasserie {{ brewery.name }}</h2>
+    <p class="mb-4 text-sm">Elle a <strong>{{ impact.beers }} bière{{ impact.beers|pluralize }}</strong> et <strong>{{ impact.tastings }} dégustation{{ impact.tastings|pluralize }}</strong> de membres.
+        Choisissez ce qu'elles deviennent : rien n'est supprimé sans ce choix.</p>
+    <form method="post" class="flex flex-col gap-4">
+        {% csrf_token %}
+        {% for error in form.non_field_errors %}<p class="text-sm text-red-600">{{ error }}</p>{% endfor %}
+        <div class="text-sm">{{ form.action }}</div>
+        <label class="text-sm"><span class="mb-1 block opacity-70">{{ form.target.label }}</span>{{ form.target }}</label>
+        {% for error in form.target.errors %}<p class="text-sm text-red-600">{{ error }}</p>{% endfor %}
+        <label class="flex items-center gap-2 text-sm">{{ form.confirm_delete }} {{ form.confirm_delete.label }}</label>
+        {% for error in form.confirm_delete.errors %}<p class="text-sm text-red-600">{{ error }}</p>{% endfor %}
+        <div class="flex gap-3">
+            <button type="submit" class="rounded-default bg-red-600 px-4 py-2 text-sm font-semibold text-white">Supprimer la brasserie</button>
+            <a href="{% url 'admin:app_brewery_change' brewery.pk %}" class="rounded-default border border-base-200 px-4 py-2 text-sm">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

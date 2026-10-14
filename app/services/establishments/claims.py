@@ -19,6 +19,7 @@ from ..messaging import mailer
 from . import siret_registry
 from ..messaging.notifications import notify
 from .places import PLACE_KINDS_BY_KEY
+from .team import is_manager
 from ..protection.throttle import CLAIM_BY_USER
 
 Status = EstablishmentClaim.Status
@@ -46,6 +47,9 @@ class RegistrationPlan:
     check: object        # siret_registry.SiretCheck
 
 
+TOO_MANY_CLAIMS = "Trop de demandes aujourd'hui, réessayez demain."
+
+
 def normalize_siret(raw):
     siret = ''.join((raw or '').split())
     try:
@@ -53,10 +57,6 @@ def normalize_siret(raw):
     except Exception as error:  # ValidationError : message déjà rédigé
         raise ClaimError(' '.join(getattr(error, 'messages', [str(error)])), field='siret') from None
     return siret
-
-
-def is_manager(user, place):
-    return place.managers.filter(pk=user.pk).exists()
 
 
 def pending_claim(user, kind, place):
@@ -84,7 +84,7 @@ def open_claim(user, kind, place, siret, message='', check=None):
     if pending_claim(user, kind, place):
         raise ClaimError("Vous avez déjà une demande en cours pour cette fiche : l'équipe l'examine.")
     if CLAIM_BY_USER.exceeded(user.pk):
-        raise ClaimError("Trop de demandes aujourd'hui, réessayez demain.")
+        raise ClaimError(TOO_MANY_CLAIMS)
     if place.siret and place.siret != siret:
         raise ClaimError("Cette fiche est rattachée à un autre SIRET : seul son titulaire peut la gérer.", field='siret')
     other = kind.model.objects.filter(siret=siret).exclude(pk=place.pk).first()
@@ -93,7 +93,8 @@ def open_claim(user, kind, place, siret, message='', check=None):
     check = check or siret_registry.check(siret, kind.key, place.name, place.postal_code)
     if check.rejection:
         raise ClaimError(check.rejection, field='siret')
-    CLAIM_BY_USER.record(user.pk)
+    if not CLAIM_BY_USER.hit(user.pk):  # compté de façon atomique : deux demandes simultanées ne dépassent pas le plafond
+        raise ClaimError(TOO_MANY_CLAIMS)
     try:
         with transaction.atomic():
             claim = EstablishmentClaim.objects.create(

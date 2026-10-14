@@ -82,7 +82,11 @@ def make_notebook(user, drinks=(), **fields):
 
 
 def make_notification(recipient, notif_type="follow", **fields):
-    return Notification.objects.create(recipient=recipient, notif_type=notif_type, **fields)
+    """Notification créée par le point d'entrée du site (politique d'envoi comprise) ; non enregistrée (pk None) si elle est refusée."""
+    from app.services.messaging.notifications import save_notifications
+    notification = Notification(recipient=recipient, notif_type=notif_type, **fields)
+    created = save_notifications([notification])
+    return created[0] if created else notification
 
 
 def make_report(reporter, **fields):

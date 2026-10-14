@@ -6,7 +6,8 @@ Rien n'est transmis sur le membre : seul le numéro de SIRET part, depuis notre 
 """
 from dataclasses import asdict, dataclass
 
-from ..catalog import beer_fields, match_keys
+from ...domain import match_keys
+from ..catalog import beer_fields
 from ..common import upstream
 
 URL = 'https://recherche-entreprises.api.gouv.fr/search'

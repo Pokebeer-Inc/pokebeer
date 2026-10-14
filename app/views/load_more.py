@@ -6,17 +6,21 @@ ou lève `LoadMoreError` pour refuser (profil inaccessible, paramètre manquant�
 """
 from dataclasses import dataclass, field
 
-from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Max, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 
 from ..forms import DrinkForm
-from ..models import Beer, BeerUser, Drinks, UserBlock
+from ..models import Beer, BeerUser, Brewery, Drinks
+from ..services.catalog import permissions
 from ..services.members.follows import followers_of, following_of
 from ..services.establishments.places import BAR, BREWERY, with_targets
 from ..services.catalog.selectors import (
+    beer_reviews,
+    brewery_beers,
+    deleted_beers_added_by,
+    pickable_drinks,
     get_filtered_bars,
     get_filtered_beers,
     get_filtered_breweries,
@@ -24,7 +28,8 @@ from ..services.catalog.selectors import (
     get_filtered_users,
     get_wishlist_beers,
 )
-from .utils import parse_offset
+from ..services.members.visibility import is_blocked_between
+from .utils import PICKER_MODES, beer_list_context, parse_offset
 
 __all__ = ['load_more_generic']
 
@@ -55,34 +60,46 @@ def loader(name):
     return register
 
 
-def _blocked_between(user, other):
-    return UserBlock.objects.filter(Q(blocker=user, blocked=other) | Q(blocker=other, blocked=user)).exists()
-
-
 def _profile_from_request(request):
     """Membre dont on charge le profil public (paramètre `username`) : il doit exister, être actif et ne pas être en blocage avec le visiteur."""
     username = request.GET.get('username')
     if not username:
         raise LoadMoreError('Nom utilisateur manquant', 400)
     profile_user = get_object_or_404(BeerUser, username=username, is_active=True)
-    if _blocked_between(request.user, profile_user):
+    if is_blocked_between(request.user, profile_user):
         raise LoadMoreError('Profil inaccessible', 403)
     return profile_user
 
 
 @loader('search_beers')
 def search_beers(request, offset, limit):
-    beers = get_filtered_beers(request)[offset:offset + limit]
-    context = {}
-    if beers:
-        displayed_ids = [beer.id for beer in beers]
-        context = {
-            'beers': beers,
-            'rating_form': DrinkForm(),
-            'rated_beer_ids': list(Drinks.objects.filter(drinker=request.user, beer__in=displayed_ids).values_list('beer', flat=True)),
-            'wishlist_beer_ids': list(request.user.wishlist_beers.filter(id__in=displayed_ids).values_list('id', flat=True)),
-        }
-    return Page(beers, 'partials/search_beers.html', context)
+    beers = list(get_filtered_beers(request)[offset:offset + limit])
+    return Page(beers, 'partials/search_beers.html', beer_list_context(request.user, beers) if beers else {})
+
+
+@loader('beer_reviews')
+def beer_reviews_page(request, offset, limit):
+    beer = get_object_or_404(Beer.objects.select_related('brewery'), slug=request.GET.get('beer', ''))
+    if not permissions.can_view(request.user, beer):
+        raise LoadMoreError('Bière introuvable', 404)
+    drinks = list(beer_reviews(beer, request.user)[offset:offset + limit])
+    return Page(drinks, 'partials/beer_reviews.html', {'drinks': drinks})
+
+
+@loader('pick_drinks')
+def pick_drinks(request, offset, limit):
+    mode = PICKER_MODES.get(request.GET.get('mode'))
+    if mode is None:
+        raise LoadMoreError('Sélecteur inconnu', 400)
+    drinks = list(pickable_drinks(request.user, request.GET.get('q', ''), mode.catalog_only)[offset:offset + limit])
+    return Page(drinks, 'partials/picker_rows.html', {'drinks': drinks, **mode.row_context})
+
+
+@loader('brewery_beers')
+def brewery_beers_page(request, offset, limit):
+    brewery = get_object_or_404(Brewery, slug=request.GET.get('brewery', ''))
+    beers = list(brewery_beers(brewery)[offset:offset + limit])
+    return Page(beers, 'partials/brewery_beers.html', beer_list_context(request.user, beers) if beers else {})
 
 
 @loader('search_users')
@@ -121,6 +138,12 @@ def added_beers(request, offset, limit):
         user_note=Max('drinks__note', filter=Q(drinks__drinker=request.user))
     ).order_by('-id')[offset:offset + limit]
     return Page(beers, 'partials/notebook_added_beers.html', {'my_added_beers': beers})
+
+
+@loader('deleted_beers')
+def deleted_beers(request, offset, limit):
+    beers = list(deleted_beers_added_by(request.user)[offset:offset + limit])
+    return Page(beers, 'partials/notebook_deleted_beers.html', {'my_deleted_beers': beers})
 
 
 @loader('notebook_feedback')
@@ -166,7 +189,6 @@ def public_drinks(request, offset, limit):
     return Page(drinks, 'partials/public_drinks.html', {'user_drinks': drinks})
 
 
-@login_required(login_url='login')
 def load_more_generic(request, item_type):
     """API générique unique pour tous les chargements dynamiques (« Charger plus »)."""
     offset = parse_offset(request)

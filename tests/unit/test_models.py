@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from app.models import Beer, BeerUser, Brewery, Drinks, Notification, Report
 from app.services.common.upstream import UpstreamUnavailable
+from app.services.messaging.notifications import save_notifications
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -238,17 +239,17 @@ class TestNotificationPreferences:
         recipient = f.make_user(notif_global=False)
         assert f.make_notification(recipient, notif_type).pk is not None
 
-    def test_bulk_create_drops_refused_notifications(self, user):
+    def test_saving_drops_refused_notifications(self, user):
         muted = f.make_user(notif_follow=False)
-        created = Notification.objects.bulk_create([
+        created = save_notifications([
             Notification(recipient=user, notif_type="follow"),
             Notification(recipient=muted, notif_type="follow"),
         ])
         assert [n.recipient for n in created] == [user]
 
-    def test_bulk_create_with_only_refused_notifications_returns_empty_list(self):
+    def test_saving_only_refused_notifications_returns_empty_list(self):
         muted = f.make_user(notif_global=False)
-        assert Notification.objects.bulk_create([Notification(recipient=muted, notif_type="follow")]) == []
+        assert save_notifications([Notification(recipient=muted, notif_type="follow")]) == []
 
     def test_existing_notification_can_still_be_updated_after_opt_out(self, user):
         notification = f.make_notification(user)

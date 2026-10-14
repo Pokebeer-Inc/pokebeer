@@ -59,12 +59,16 @@
         </div>
         <h3 class="font-bold text-lg text-error">Suppression du compte</h3>
         <p class="text-sm text-gray-600">Voulez-vous vraiment nous quitter ?<br>Toutes vos données personnelles seront détruites.</p>
-        <div class="flex justify-center gap-3 mt-4 w-full">
+        <form method="post" action="{% url 'delete_account' %}" id="form-delete-account" class="w-full text-left">
+            {% csrf_token %}
+            {% with field=deletion_form.confirmation %}
+            <label class="label py-0" for="{{ field.id_for_label }}"><span class="label-text text-xs font-bold">{{ field.label }}{% if field.help_text %} : <span class="font-normal">{{ field.help_text }}</span>{% endif %}</span></label>
+            {{ field }}
+            {% endwith %}
+        </form>
+        <div class="flex justify-center gap-3 mt-2 w-full">
             <form method="dialog" class="flex-1"><button class="btn btn-sm btn-ghost w-full">Annuler</button></form>
-            <form method="post" action="{% url 'delete_account' %}" class="flex-1">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-error text-white w-full">Oui, supprimer</button>
-            </form>
+            <button type="submit" form="form-delete-account" class="btn btn-sm btn-error text-white flex-1">Oui, supprimer</button>
         </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>Fermer</button></form>

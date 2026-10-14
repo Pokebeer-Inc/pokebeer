@@ -11,10 +11,12 @@ from django.utils import timezone
 
 from app.forms import BarEditForm, BreweryEditForm, BreweryProForm
 from app.models import Bar, Brewery, PostalCode
-from app.services.establishments import address, postal_codes
+from app.domain import address
+from app.services.establishments import postal_codes
 from app.services.common import upstream
-from app.services.protection.throttle import POSTAL_LOOKUP_BY_IP, Rule
+from app.services.protection.throttle import POSTAL_LOOKUP_BY_IP
 from tests import factories as f
+from tests.helpers import exhaust
 
 pytestmark = pytest.mark.django_db
 
@@ -190,8 +192,8 @@ class TestApi:
         response = client.get(self.URL, {"code": "44000"})
         assert response.json() == {"cities": [], "known": False, "available": False} and "secret" not in response.content.decode()
 
-    def test_it_is_throttled_per_address(self, client, monkeypatch):
-        monkeypatch.setattr("app.views.api_views.POSTAL_LOOKUP_BY_IP", Rule("postal-ip", 2, POSTAL_LOOKUP_BY_IP.window))
+    def test_it_is_throttled_per_address(self, client):
+        exhaust(POSTAL_LOOKUP_BY_IP, "127.0.0.1", remaining=2)
         assert [client.get(self.URL, {"code": "44000"}).status_code for _ in range(3)] == [200, 200, 429]
 
     def test_get_only(self, client):

@@ -1,7 +1,7 @@
 """Contrôle d'un SIRET dans l'annuaire des entreprises : ce qui est refusé, ce qui est seulement consigné, et la robustesse face à une réponse hostile."""
 import pytest
 
-from app.services.catalog import match_keys
+from app.domain import match_keys
 from app.services.common import upstream
 
 SIRET = "73282932000074"

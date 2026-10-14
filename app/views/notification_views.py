@@ -2,7 +2,6 @@ import json
 import re
 from datetime import timedelta
 
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import JsonResponse
@@ -11,7 +10,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from ..models import BeerUser, Notification
-from ..services.messaging import notification_presenter as presenter, notification_types, realtime_service
+from ..domain import notification_types
+from ..services.messaging import notification_presenter as presenter, realtime_service
 
 FCM_TOKEN_MAX_LENGTH = 4096
 
@@ -35,7 +35,6 @@ def _with_achievements(notifications, user):
     return notifications
 
 
-@login_required(login_url='login')
 def notifications_view(request):
     queryset = (Notification.objects.filter(recipient=request.user)
                 .select_related(*LIST_RELATIONS).prefetch_related(*LIST_PREFETCH))
@@ -44,7 +43,6 @@ def notifications_view(request):
     return render(request, 'notifications.html', {'page': page, 'notifications': page.object_list})
 
 
-@login_required(login_url='login')
 def api_unread_notifications(request):
     """Alertes à montrer en pop-up : non lues, jamais montrées, récentes. Chacune n'est renvoyée qu'une seule fois.
 
@@ -67,7 +65,6 @@ def api_unread_notifications(request):
 
 
 @require_POST
-@login_required(login_url='login')
 def api_seen_notifications(request):
     """Le navigateur accuse réception d'un pop-up reçu en temps réel : il ne sera pas remontré au prochain chargement."""
     try:
@@ -82,7 +79,6 @@ def api_seen_notifications(request):
     return JsonResponse({'ok': True})
 
 
-@login_required(login_url='login')
 def read_notification(request, notif_slug):
     """Marque la notification comme lue (et comme montrée) puis ouvre sa page, ou la liste si la cible n'est plus accessible."""
     notif = get_object_or_404(Notification.objects.select_related(*LIST_RELATIONS), slug=notif_slug, recipient=request.user)
@@ -92,20 +88,17 @@ def read_notification(request, notif_slug):
 
 
 @require_POST
-@login_required(login_url='login')
 def mark_all_notifications_read(request):
     Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
     return redirect('notifications')
 
 @require_POST
-@login_required(login_url='login')
 def delete_notification(request, notif_slug):
     """Supprime la notification définitivement."""
     notif = get_object_or_404(Notification, slug=notif_slug, recipient=request.user)
     notif.delete()
     return redirect('notifications')
 
-@login_required
 @require_POST
 def update_fcm_token(request):
     """Met à jour le token Firebase (FCM) de l'utilisateur pour les notifications Push."""

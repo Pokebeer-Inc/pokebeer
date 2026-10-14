@@ -1,0 +1,24 @@
+{% comment %}Bières proposées par le membre puis retirées du catalogue (carnet, onglet Ajouts, et « Charger plus »). La fiche n'est ouverte qu'à ceux qui l'ont dégustée.{% endcomment %}
+{% for beer in my_deleted_beers %}
+                <div class="flex items-center justify-between bg-base-100 p-3 rounded-xl border border-[#d9cfc5] gap-3 relative overflow-hidden">
+                    {% if beer.tasted %}<a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>{% endif %}
+                    {% include "partials/beer_thumb.html" with beer=beer %}
+                    <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm leading-tight truncate line-through">{{ beer.name }}</span>
+                            <a href="{% url 'brewery_detail' beer.brewery.slug %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
+                                {{ beer.brewery.name }}
+                            </a>
+                        </div>
+                        <div class="flex gap-1 mt-0.5">
+                            {% if beer.style %}
+                            <span class="pb-pill">{{ beer.style }}</span>
+                            {% endif %}
+                            <span class="pb-pill">Alc. {{ beer.degree }}%</span>
+                        </div>
+                    </div>
+                    <div class="shrink-0 flex items-center pointer-events-none relative z-10">
+                        <span class="text-[10px] text-error font-bold italic">Supprimée</span>
+                    </div>
+                </div>
+{% endfor %}

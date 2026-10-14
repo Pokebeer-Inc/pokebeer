@@ -1,6 +1,7 @@
 import pytest
 from django.urls import reverse
 
+from app.models import Beer
 from app.views.utils import MAX_OFFSET
 from tests import factories as f
 
@@ -82,3 +83,38 @@ class TestPublicLists:
     def test_public_drinks_of_a_member(self, auth_client, other_user, beer):
         f.make_drink(other_user, beer)
         assert "Test IPA" in load(auth_client, "public_drinks", username=other_user.username).json()["html"]
+
+
+class TestDrinkPicker:
+    URL = reverse("load_more_generic", args=["pick_drinks"])
+
+    def rows(self, client, **params):
+        response = client.get(self.URL, {"offset": 0, **params})
+        return response, response.json().get("html", "")
+
+    def test_searches_the_beer_and_the_brewery_on_the_server(self, auth_client, user):
+        f.make_drink(user, f.make_beer(name="Zinc Witbier", brewery=f.make_brewery(name="Brasserie du Port")))
+        f.make_drink(user, f.make_beer(name="Autre"))
+        _, html = self.rows(auth_client, mode="drinks", q="port")
+        assert "Zinc Witbier" in html and "Autre" not in html and 'name="drinks"' in html and 'type="checkbox"' in html
+
+    def test_only_the_members_own_tastings(self, auth_client, user, other_user):
+        f.make_drink(other_user, f.make_beer(name="Pas à moi"))
+        _, html = self.rows(auth_client, mode="drinks")
+        assert "Pas à moi" not in html
+
+    def test_the_top_picker_offers_catalogue_beers_as_radios(self, auth_client, user):
+        kept, gone = f.make_drink(user, f.make_beer(name="Gardée")), f.make_drink(user, f.make_beer(name="Retirée"))
+        Beer.objects.filter(pk=gone.beer_id).update(is_deleted=True)
+        _, html = self.rows(auth_client, mode="top")
+        assert f'value="{kept.beer.slug}"' in html and 'name="beer_slug"' in html and 'type="radio"' in html and "Retirée" not in html
+
+    def test_unknown_modes_are_refused(self, auth_client):
+        response, _ = self.rows(auth_client, mode="admin")
+        assert response.status_code == 400
+
+    def test_pages_of_ten(self, auth_client, user):
+        for _ in range(12):
+            f.make_drink(user, f.make_beer())
+        assert auth_client.get(self.URL, {"offset": 10, "mode": "drinks"}).json()["has_more"] is False
+        assert auth_client.get(self.URL, {"offset": 0, "mode": "drinks"}).json()["has_more"] is True

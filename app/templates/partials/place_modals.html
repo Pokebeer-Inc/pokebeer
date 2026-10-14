@@ -38,8 +38,8 @@
         {% include "partials/modal_header.html" with title="Gérer les collaborateurs" %}
         
         <div class="flex-1 overflow-y-auto pr-2">
-            <!-- Ajouter un accès (AJAX) -->
-            <h4 class="font-bold text-sm mb-2 text-gray-700">Ajouter un collaborateur</h4>
+            <!-- Inviter un membre (AJAX) : il rejoint l'équipe en acceptant l'invitation -->
+            <h4 class="font-bold text-sm mb-2 text-gray-700">Inviter un collaborateur</h4>
             
             <input type="text" id="search-collab" 
                    placeholder="Rechercher par nom d'utilisateur" 
@@ -52,6 +52,21 @@
             <div id="search-results-container" class="max-h-48 overflow-y-auto mb-6 border border-base-200 rounded-lg p-2 bg-base-200/50">
                 <p class="text-xs text-gray-500 italic text-center py-2">Tapez un nom pour lancer la recherche...</p>
             </div>
+
+            {% if pending_invitations %}
+            <h4 class="font-bold text-sm mb-2 text-gray-700">Invitations en attente</h4>
+            <div class="pb-card p-2 mb-6">
+                {% for invitation in pending_invitations %}
+                <div class="flex justify-between items-center py-2 border-b border-base-100 last:border-0">
+                    <span class="text-sm font-semibold">{{ invitation.invitee.username }} <span class="text-gray-400 font-normal italic">(en attente)</span></span>
+                    <form method="post" action="{% url 'cancel_invitation' invitation.slug %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-xs btn-ghost text-error" title="Retirer l'invitation">Retirer</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
 
             <!-- Liste des accès actuels -->
             <h4 class="font-bold text-sm mb-2 text-gray-700">Accès existants</h4>

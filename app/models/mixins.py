@@ -2,8 +2,7 @@
 
 from django.db import models
 
-from ..services.establishments import address as address_service
-from ..services.catalog import match_keys
+from ..domain import address as address_service, match_keys
 
 
 class PostalAddressMixin(models.Model):
@@ -35,6 +34,10 @@ class GeocodableMixin(models.Model):
     class Meta:
         abstract = True
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self._loaded_address = self.address
+
     @classmethod
     def from_db(cls, db, field_names, values):
         """Retient l'adresse telle qu'elle est en base : savoir si elle a changé ne coûte alors aucune requête."""
@@ -53,10 +56,6 @@ class GeocodableMixin(models.Model):
             stored = type(self).objects.filter(pk=self.pk).first()
             loaded = stored.address if stored else None
         return loaded != self.address
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self._loaded_address = self.address
 
 class VerifiableMixin(models.Model):
     """Coche « vérifié » posée par un admin (voir services/establishments/verification.py) ; jamais modifiable par un formulaire public."""
@@ -78,16 +77,16 @@ class MatchKeyMixin(models.Model):
     class Meta:
         abstract = True
 
-    def refresh_match_keys(self):
-        self.name_key = match_keys.strict_key(self.name, self.MATCH_KIND)
-        self.match_key = match_keys.loose_key(self.name, self.MATCH_KIND)
-
     def save(self, *args, **kwargs):
         self.refresh_match_keys()
         update_fields = kwargs.get('update_fields')
         if update_fields is not None and 'name' in update_fields:
             kwargs['update_fields'] = {*update_fields, 'name_key', 'match_key'}
         super().save(*args, **kwargs)
+
+    def refresh_match_keys(self):
+        self.name_key = match_keys.strict_key(self.name, self.MATCH_KIND)
+        self.match_key = match_keys.loose_key(self.name, self.MATCH_KIND)
 
 
 class OfficialImageMixin:

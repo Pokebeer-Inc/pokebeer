@@ -35,7 +35,7 @@ class TestPlainText:
     @pytest.mark.django_db
     @pytest.mark.parametrize("field", ["name", "brewery_name"])
     def test_beer_form_refuses_markup(self, field):
-        data = {"name": "Punk IPA", "brewery_name": "BrewDog", "degree": "5.0", **{field: "<b>x</b>"}}
+        data = {"name": "Punk IPA", "brewery_name": "BrewDog", "degree": "5.0", field: "<b>x</b>"}
         assert field in BeerForm(data=data, user=f.make_user()).errors
 
     @pytest.mark.django_db

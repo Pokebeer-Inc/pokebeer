@@ -1,21 +1,22 @@
-"""Pages qui suivent l'inscription (formulaire classique ou Google) : date de naissance (obligatoire, majorité) puis genre (facultatif).
+"""Pages qui suivent l'inscription (formulaire classique ou Google) : date de naissance (obligatoire, majorité), genre (facultatif), puis
+choix des e-mails promotionnels (case cochée par défaut).
 
-Chaque page enregistre sa réponse en base dès qu'elle est validée ; tant que la seconde n'est pas passée, le middleware
+Chaque page enregistre sa réponse en base dès qu'elle est validée ; tant que la dernière n'est pas passée, le middleware
 (app/middleware.py) renvoie le membre ici. Rien de ce qui est saisi n'est affiché aux autres membres.
 """
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import Resolver404, resolve
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from ..forms import BirthDateForm, GenderForm
+from ..forms import BirthDateForm, GenderForm, MarketingConsentForm
+from ..services.messaging import marketing
 from ..services.protection.throttle import ONBOARDING_ATTEMPTS
 
-__all__ = ['onboarding_start_view', 'onboarding_birth_view', 'onboarding_gender_view', 'ONBOARDING_NEXT_KEY']
+__all__ = ['onboarding_start_view', 'onboarding_birth_view', 'onboarding_gender_view', 'onboarding_emails_view', 'ONBOARDING_NEXT_KEY']
 
 ONBOARDING_NEXT_KEY = 'onboarding_next'
-TOTAL_STEPS = 2
+TOTAL_STEPS = 3
 
 
 def _next_page(request):
@@ -30,16 +31,16 @@ def _next_page(request):
     return 'index'
 
 
-@login_required(login_url='login')
 def onboarding_start_view(request):
     """Reprend là où le membre s'était arrêté."""
     user = request.user
     if user.onboarding_done:
         return redirect(_next_page(request))
-    return redirect('onboarding_gender' if user.birth_date else 'onboarding_birth')
+    if not user.birth_date:
+        return redirect('onboarding_birth')
+    return redirect('onboarding_emails' if user.gender else 'onboarding_gender')
 
 
-@login_required(login_url='login')
 def onboarding_birth_view(request):
     """Étape 1 : date de naissance, obligatoire et d'une personne majeure."""
     user = request.user
@@ -48,11 +49,10 @@ def onboarding_birth_view(request):
 
     key = f"user:{user.pk}"
     if request.method == 'POST':
-        if ONBOARDING_ATTEMPTS.exceeded(key):
+        if not ONBOARDING_ATTEMPTS.hit(key):
             messages.error(request, "Trop d'essais. Réessayez dans quelques minutes.")
             form = BirthDateForm(instance=user)
         else:
-            ONBOARDING_ATTEMPTS.record(key)
             form = BirthDateForm(request.POST, instance=user)
             if form.is_valid():
                 user.birth_date = form.cleaned_data['birth_date']
@@ -63,7 +63,6 @@ def onboarding_birth_view(request):
     return render(request, 'onboarding_birth.html', {'form': form, 'step': 1, 'total': TOTAL_STEPS, 'hide_nav': True})
 
 
-@login_required(login_url='login')
 def onboarding_gender_view(request):
     """Étape 2 : genre, facultatif. « Suivant » enregistre le choix, « Passer » (ou aucun choix) n'enregistre rien."""
     user = request.user
@@ -77,12 +76,29 @@ def onboarding_gender_view(request):
         if 'skip' not in request.POST and not form.is_valid():
             messages.error(request, "Choisissez l'une des réponses proposées, ou passez cette étape.")
         else:
-            gender = '' if 'skip' in request.POST else form.cleaned_data.get('gender', '')
-            user.gender = gender
-            user.onboarding_done = True
-            user.save(update_fields=['gender', 'onboarding_done'])
-            messages.success(request, f"Bienvenue, {user.username} ! Votre compte est prêt.")
-            return redirect(_next_page(request))
+            user.gender = '' if 'skip' in request.POST else form.cleaned_data.get('gender', '')
+            user.save(update_fields=['gender'])
+            return redirect('onboarding_emails')
     else:
         form = GenderForm(instance=user)
     return render(request, 'onboarding_gender.html', {'form': form, 'step': 2, 'total': TOTAL_STEPS, 'hide_nav': True})
+
+
+def onboarding_emails_view(request):
+    """Étape 3 (dernière) : recevoir ou non les nouveautés par e-mail. La case est cochée par défaut ; le choix est horodaté et modifiable
+    à tout moment dans les réglages."""
+    user = request.user
+    if user.onboarding_done:
+        return redirect('index')
+    if not user.birth_date:
+        return redirect('onboarding_birth')
+
+    # Une case décochée n'est pas envoyée : un POST vide reste une réponse (refus), d'où le test sur la méthode et non sur les données
+    form = MarketingConsentForm(request.POST if request.method == 'POST' else None, user=user, source=marketing.ONBOARDING)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        user.onboarding_done = True
+        user.save(update_fields=['onboarding_done'])
+        messages.success(request, f"Bienvenue, {user.username} ! Votre compte est prêt.")
+        return redirect(_next_page(request))
+    return render(request, 'onboarding_emails.html', {'form': form, 'step': 3, 'total': TOTAL_STEPS, 'hide_nav': True})

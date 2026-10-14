@@ -23,7 +23,7 @@ class TestRolesAreReadOnce:
         user = type(user).objects.get(pk=user.pk)
         with CaptureQueriesContext(connection) as queries:
             for _ in range(5):
-                user.is_staff, user.is_brewer, user.is_bartender, user.primary_role_badge
+                _ = (user.is_staff, user.is_brewer, user.is_bartender, user.primary_role_badge)
         assert len(queries) == 1
 
     def test_changing_the_groups_forgets_the_cache(self, user):
@@ -43,7 +43,7 @@ class TestRolesAreReadOnce:
     def test_prefetched_groups_are_used_without_another_query(self, user):
         member = type(user).objects.prefetch_related("groups").get(pk=user.pk)
         with CaptureQueriesContext(connection) as queries:
-            member.is_staff, member.is_brewer
+            _ = (member.is_staff, member.is_brewer)
         assert len(queries) == 0
 
 
@@ -158,7 +158,7 @@ class TestRandomSampleWithoutSorting:
 
 class TestCachedLists:
     def test_the_style_filter_follows_the_catalogue(self):
-        from app.views.search_views import beer_styles
+        from app.services.catalog.styles import catalog_styles as beer_styles
         assert beer_styles() == []
         f.make_beer(style="IPA, Stout")
         assert beer_styles() == ["IPA", "Stout"]
@@ -180,13 +180,13 @@ class TestCachedLists:
 class TestNotificationTexts:
     def test_every_declared_type_has_its_text_template(self):
         from django.template.loader import get_template
-        from app.services.messaging import notification_types
+        from app.domain import notification_types
         for notification_type in notification_types.REGISTRY.values():
             get_template(notification_type.text_template)  # lève TemplateDoesNotExist s'il manque
 
     def test_every_template_belongs_to_a_declared_type(self):
         from pathlib import Path
         from django.conf import settings
-        from app.services.messaging import notification_types
+        from app.domain import notification_types
         files = {p.stem for p in Path(settings.BASE_DIR, "app", "templates", "partials", "notifications").glob("*.html")}
         assert files == set(notification_types.REGISTRY)

@@ -10,7 +10,7 @@ from app.dev_seed.seeder import DevDatabaseSeeder
 from app.models import BeerUser
 from pokebeer.database import assert_dev_database
 
-PASSWORD_ENV = "DEV_SEED_PASSWORD"
+PASSWORD_ENV = "DEV_SEED_PASSWORD"  # noqa: S105  (nom de la variable d'environnement, pas un mot de passe)
 
 
 class Command(BaseCommand):

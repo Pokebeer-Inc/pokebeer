@@ -6,7 +6,7 @@ from django import forms
 from django.db import IntegrityError, transaction
 
 from app.models import Bar, Beer, BeerSpot, Brewery, CustomNotebook, Drinks, Notification, Report
-from app.services.common.slugs import SUFFIX_LENGTH, TOKEN_ALPHABET, TOKEN_LENGTH, generate_slug, generate_token
+from app.domain.slugs import SUFFIX_LENGTH, TOKEN_ALPHABET, TOKEN_LENGTH, generate_slug, generate_token
 from tests import factories as f
 
 TOKEN = rf"[a-z0-9]{{{TOKEN_LENGTH}}}"
@@ -22,7 +22,7 @@ class TestGenerateToken:
 
     def test_is_drawn_from_the_system_csprng(self, monkeypatch):
         calls = []
-        monkeypatch.setattr("app.services.common.slugs.secrets.choice", lambda alphabet: calls.append(alphabet) or "a")
+        monkeypatch.setattr("app.domain.slugs.secrets.choice", lambda alphabet: calls.append(alphabet) or "a")
         assert generate_token(5) == "aaaaa" and len(calls) == 5
 
 
@@ -83,7 +83,7 @@ class TestPublicSlugField:
         class BeerSlugForm(forms.ModelForm):
             class Meta:
                 model = Beer
-                fields = "__all__"
+                fields = "__all__"  # noqa: DJ007  (le test vérifie justement ce que « tous les champs » exposerait)
 
         assert "slug" not in BeerSlugForm().fields
 

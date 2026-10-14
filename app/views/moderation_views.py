@@ -1,17 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
 from urllib.parse import quote
 from django.views.decorators.http import require_POST
 
 from ..forms import ReportForm, error_summary
-from ..models import BeerUser, UserFollow, Report, UserBlock
-from ..services.members.blocks import invite_blockers_to_report
+from ..models import BeerUser, Report, UserBlock
+from ..services.members import social
 from ..services.support.threads import report_entries
 from .utils import previous_page
 
-@login_required(login_url='login')
 def my_reports_view(request):
     """Affiche la liste des signalements faits par l'utilisateur."""
     reports = (Report.objects.filter(reporter=request.user)
@@ -19,7 +17,6 @@ def my_reports_view(request):
     return render(request, 'my_reports.html', {'reports': [{'report': r, 'entries': report_entries(r)} for r in reports]})
 
 @require_POST
-@login_required(login_url='login')
 def submit_report(request):
     """Reçoit et enregistre un signalement depuis n'importe quelle modale."""
     form = ReportForm(request.POST, reporter=request.user)
@@ -44,30 +41,22 @@ def submit_report(request):
     # Redirection classique pour les bières et les notes
     return redirect(referer)
 
-@login_required
 @require_POST
 def block_user(request, username):
     user_to_block = get_object_or_404(BeerUser, username=username)
-    if request.user != user_to_block:
-        UserBlock.objects.get_or_create(blocker=request.user, blocked=user_to_block)
-        # On supprime les abonnements mutuels s'ils existent
-        UserFollow.objects.filter(follower=request.user, followed=user_to_block).delete()
-        UserFollow.objects.filter(follower=user_to_block, followed=request.user).delete()
-        invite_blockers_to_report(user_to_block)
+    if social.block(request.user, user_to_block):
         messages.success(request, f"L'utilisateur {username} a été bloqué.")
         # On l'emmène là où il peut signaler le membre tout de suite s'il y a un problème
         return redirect(f"{reverse('blocked_users')}?just_blocked={quote(user_to_block.username)}")
     return redirect('index')
 
-@login_required
 @require_POST
 def unblock_user(request, username):
     user_to_unblock = get_object_or_404(BeerUser, username=username)
-    UserBlock.objects.filter(blocker=request.user, blocked=user_to_unblock).delete()
+    social.unblock(request.user, user_to_unblock)
     messages.success(request, f"L'utilisateur {username} a été débloqué.")
     return redirect('blocked_users')
 
-@login_required
 def blocked_users_list(request):
     blocked_list = UserBlock.objects.filter(blocker=request.user).select_related('blocked').prefetch_related('blocked__socialaccount_set')
     # Le paramètre n'est qu'un indice d'affichage : il n'est pris en compte que pour un membre réellement bloqué par l'utilisateur

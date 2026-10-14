@@ -7,22 +7,15 @@
 - Pertinence : nom exact, puis nom commençant par la recherche, puis mot du nom, puis le reste.
 Chaque fonction affine un queryset déjà restreint par l'appelant (droits, blocages) : ce module ne décide pas de la visibilité.
 """
-import unicodedata
-
 from django.db.models import Case, Func, IntegerField, Q, TextField, Value, When
 from django.db.models.functions import Lower
+
+from ...domain.text import normalize
 
 MAX_TERMS = 5
 MAX_QUERY_LENGTH = 100
 FUZZY_MIN_LENGTH = 4
-LIGATURES = str.maketrans({'œ': 'oe', 'æ': 'ae', 'ß': 'ss'})  # absentes des règles de décomposition Unicode
 RANK_FIELD = 'search_rank'
-
-
-def normalize(text):
-    """Minuscules sans accents, comme f_unaccent(lower(...)) côté base."""
-    decomposed = unicodedata.normalize('NFKD', (text or '').lower().translate(LIGATURES))
-    return ''.join(char for char in decomposed if not unicodedata.combining(char)).strip()
 
 
 def terms(query):

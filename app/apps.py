@@ -1,23 +1,24 @@
+from importlib import import_module
+
 from django.apps import AppConfig
+
+# Services qui réagissent aux changements de modèles : chacun déclare ses signaux dans une fonction `connect_signals()`. Le modèle ne fait
+# que constater (adresse changée, vecteur périmé…) ; l'appel au service (réseau, fichiers, caches) est branché ici, au démarrage.
+SIGNAL_MODULES = (
+    'app.services.moderation.capture',
+    'app.services.establishments.reverse_geocoding',
+    'app.services.establishments.place_geocoding',
+    'app.services.establishments.place_directory',
+    'app.services.members.welcome',
+    'app.services.catalog.embeddings',
+    'app.services.catalog.styles',
+    'app.services.common.images',
+)
 
 
 class AppConfig(AppConfig):
     name = 'app'
 
     def ready(self):
-        from .services.moderation.capture import connect_signals
-        connect_signals()
-
-        from .services.establishments.reverse_geocoding import connect_signals as connect_geocoding_signals
-        connect_geocoding_signals()
-
-        from .services.members.welcome import connect_signals as connect_welcome_signals
-        connect_welcome_signals()
-
-        from .services.catalog import embeddings
-        from .services.messaging import notification_policy
-        from .services.establishments import place_geocoding
-        from .models import notifications
-        embeddings.connect_signals()
-        place_geocoding.connect_signals()
-        notifications.use_admission_policy(notification_policy.filter_allowed)
+        for module in SIGNAL_MODULES:
+            import_module(module).connect_signals()

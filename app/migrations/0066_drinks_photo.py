@@ -1,4 +1,4 @@
-import app.services.catalog.tasting_photos
+import app.domain.upload_paths
 from django.db import migrations, models
 
 
@@ -12,6 +12,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='drinks',
             name='photo',
-            field=models.ImageField(blank=True, null=True, upload_to=app.services.catalog.tasting_photos.tasting_photo_path, verbose_name='Photo'),
+            field=models.ImageField(blank=True, null=True, upload_to=app.domain.upload_paths.tasting_photo_path, verbose_name='Photo'),
         ),
     ]

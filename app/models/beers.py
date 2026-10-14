@@ -3,17 +3,16 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.conf import settings
 from pgvector.django import HnswIndex, VectorField
-from datetime import date
+from django.utils import timezone
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 from ..validators import MAX_TEXT_LENGTH, plain_text_validator
 from ..fields import PublicSlugField
-from ..services.catalog.official_images import beer_image_path
-from ..services.catalog.tasting_photos import tasting_photo_path
+from ..domain.upload_paths import beer_image_path, tasting_photo_path
 
 from .establishments import Brewery
-from ..services.catalog import match_keys
+from ..domain import match_keys
 from .mixins import MatchKeyMixin, OfficialImageMixin, VerifiableMixin
 from .users import BeerUser
 
@@ -26,7 +25,9 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     description = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, null=True, verbose_name="Description officielle")
     bitterness = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(500)], verbose_name="IBU")
     degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Degré")
-    brewery = models.ForeignKey(Brewery, on_delete=models.CASCADE)
+    # PROTECT : supprimer une brasserie n'efface jamais ses bières et leurs dégustations par accident ; l'équipe choisit de les transférer
+    # ou de les supprimer (services/establishments/removal.py)
+    brewery = models.ForeignKey(Brewery, on_delete=models.PROTECT)
     slug = PublicSlugField(source='name')
     style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
     added_by = models.ForeignKey(BeerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_beers')
@@ -109,7 +110,7 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
             self._embedded_sources = self._embedding_sources()
 
 class Drinks(models.Model):
-    date = models.DateField(default=date.today, verbose_name="Date")
+    date = models.DateField(default=timezone.localdate, verbose_name="Date")
     slug = PublicSlugField()
     note = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(10)], null=True, blank=True, verbose_name="Note")
     comment = models.TextField(max_length=MAX_TEXT_LENGTH, verbose_name="Commentaire")
@@ -179,6 +180,9 @@ class DrinkReaction(models.Model):
     class Meta:
         unique_together = ('user', 'drink') # Un utilisateur ne peut réagir qu'une seule fois par avis
         verbose_name = "Réaction"
+
+    def __str__(self):
+        return f"{'+1' if self.is_like else '-1'} de {self.user_id} sur {self.drink_id}"
 
 class CustomNotebook(models.Model):
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='custom_notebooks')

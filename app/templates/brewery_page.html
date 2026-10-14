@@ -8,9 +8,9 @@
 
 <div class="px-1">
     <div class="flex justify-between items-center mb-3">
-        <h2 class="pb-section !m-0"><span>Bières proposées ({{ beers|length }})</span></h2>
+        <h2 class="pb-section !m-0"><span>Bières proposées ({{ beer_count }})</span></h2>
         
-        {% if is_manager and beers|length > 0 %}
+        {% if is_manager and beer_count %}
         <a href="{% url 'add_beer' %}?brewery={{ brewery.name|urlencode }}" class="btn btn-primary btn-sm text-black border-secondary">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
             Ajouter
@@ -19,45 +19,12 @@
     </div>
     
     <div class="flex flex-col gap-3">
-        {% for beer in beers %}
-        <div class="pb-card p-3 relative overflow-hidden hover:bg-base-300 active:scale-[0.98] transition-all flex flex-col"{% if beer.image %} style="container-type: inline-size;"{% endif %}>
-            <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
-
-            {% if user.is_authenticated and beer.id not in rated_beer_ids %}
-            <button{% if beer.image %} style="top: calc(100cqw - 0.5rem);"{% endif %} class="absolute top-2 right-2 btn btn-xs btn-circle bg-base-200 border border-secondary/30 text-black shadow-sm z-20" data-on-click="toggleWishlist" data-args='["{{ beer.slug }}"]' title="Liste de souhaits">
-                <svg id="wishlist-icon-{{ beer.slug }}" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-colors" fill="{% if beer.id in wishlist_beer_ids %}currentColor{% else %}none{% endif %}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-            </button>
-            {% endif %}
-
-            {% include "partials/beer_thumb.html" with beer=beer cover=True %}
-
-            <div class="pointer-events-none flex-1 flex flex-col">
-                <h3 class="font-bold leading-tight">{{ beer.name }}</h3>
-                <p class="text-sm text-gray-600 line-clamp-2 mt-1 mb-2">{{ beer.description|truncatechars:80 }}</p>
-                <div class="flex flex-wrap gap-1.5 text-xs mb-3 mt-auto">
-                    {% if beer.style %}<span class="pb-chip !py-0.5 !text-xs">{{ beer.style }}</span>{% endif %}
-                    <span class="pb-chip !py-0.5 !text-xs">Alc. {{ beer.degree }}%</span>
-                    {% if beer.bitterness is not None %}
-                    <span class="pb-chip !py-0.5 !text-xs">IBU {{ beer.bitterness }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% if user.is_authenticated %}
-            <div class="relative z-10 mt-auto pointer-events-auto">
-                {% if beer.id in rated_beer_ids %}
-                <button class="btn btn-sm btn-disabled w-full">Déjà noté</button>
-                {% else %}
-                <button class="btn btn-sm btn-primary w-full text-black border-secondary" data-modal-open="modalRate-{{ beer.slug }}">Noter</button>
-                {% endif %}
-            </div>
-            {% endif %}
+        {% if beers %}
+        <div id="brewery-beers-container" class="flex flex-col gap-3">
+            {% include "partials/brewery_beers.html" %}
         </div>
-
-        {% include "partials/rate_beer_modal.html" %}
-        
-        {% empty %}
+        {% if beers_has_more %}{% url 'load_more_generic' 'brewery_beers' as more_url %}{% include "partials/load_more_button.html" with url=more_url container="brewery-beers-container" label="Charger plus de bières" query="brewery="|add:brewery.slug %}{% endif %}
+        {% else %}
         <div class="pb-card text-center p-6 flex flex-col items-center gap-2">
             <p class="text-gray-500 italic text-sm">Aucune bière de cette brasserie n'a encore été ajoutée.</p>
             
@@ -68,11 +35,12 @@
             </a>
             {% endif %}
         </div>
-        {% endfor %}
+        {% endif %}
     </div>
 </div>
 
 {% include "partials/place_modals.html" with place=brewery place_type="brewery" %}
+<script src="{% static 'script/load_more_generic.js' %}"></script>
 
 <script src="{% static 'script/wishlist.js' %}"></script>
 {% endblock %}

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from django.conf import settings
 from django.core.cache import cache
 
-from ...catalog import match_keys
+from ....domain import match_keys
 from ...common import upstream
 from ...establishments.places import BAR, BREWERY, PLACE_KINDS
 from .sanitize import clean_text

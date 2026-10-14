@@ -1,6 +1,5 @@
 """Échanges du membre avec l'équipe : liste de ses fils et conversation. Un membre ne voit jamais le fil d'un autre (404)."""
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -13,7 +12,6 @@ def _own_threads(user):
     return Feedback.objects.filter(user=user).prefetch_related('messages')
 
 
-@login_required(login_url='login')
 def team_messages_view(request):
     """Tous les échanges du membre, le plus récemment actif en premier, avec le dernier message de chacun."""
     rows = []
@@ -24,7 +22,6 @@ def team_messages_view(request):
     return render(request, 'team_messages.html', {'threads': rows})
 
 
-@login_required(login_url='login')
 def feedback_thread_view(request, feedback_slug):
     """Conversation complète (premier message compris) et réponse du membre."""
     feedback = get_object_or_404(_own_threads(request.user), slug=feedback_slug)

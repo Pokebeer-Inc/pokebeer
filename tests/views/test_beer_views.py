@@ -253,6 +253,52 @@ class TestDeleteBeer:
         assert (notification.recipient.username, notification.text_content) == ("bobby", "Test IPA")
 
 
+    def test_creator_cannot_delete_a_verified_beer(self, other_client, beer):
+        Beer.objects.filter(pk=beer.pk).update(is_verified=True)
+        response = other_client.post(self.url(beer))
+        beer.refresh_from_db()
+        assert not beer.is_deleted
+        assert "seul le gérant de la brasserie peut la retirer" in " ".join(messages_of(response))
+
+    def test_manager_can_delete_a_verified_beer(self, auth_client, user, beer):
+        Beer.objects.filter(pk=beer.pk).update(is_verified=True)
+        beer.brewery.managers.add(user)
+        auth_client.post(self.url(beer))
+        beer.refresh_from_db()
+        assert beer.is_deleted
+
+    def test_the_menu_hides_actions_the_creator_can_no_longer_take(self, other_client, beer):
+        Beer.objects.filter(pk=beer.pk).update(is_verified=True)
+        html = other_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+        assert reverse("edit_beer", args=[beer.slug]) not in html and 'data-modal-open="modal_confirm_beer"' not in html
+
+
+class TestDeletedBeerVisibility:
+    @pytest.fixture
+    def deleted(self, beer):
+        Beer.objects.filter(pk=beer.pk).update(is_deleted=True)
+        return beer
+
+    def page(self, client, beer):
+        return client.get(reverse("beer_detail", args=[beer.slug]))
+
+    def test_hidden_from_other_members_and_from_its_creator(self, auth_client, other_client, deleted):
+        assert self.page(auth_client, deleted).status_code == 404
+        assert self.page(other_client, deleted).status_code == 404  # le créateur, sans dégustation ni gestion
+
+    def test_visible_to_members_who_tasted_it(self, auth_client, user, deleted):
+        f.make_drink(user, deleted)
+        assert self.page(auth_client, deleted).status_code == 200
+
+    def test_visible_to_the_brewery_managers(self, auth_client, user, deleted):
+        deleted.brewery.managers.add(user)
+        assert self.page(auth_client, deleted).status_code == 200
+
+    def test_no_new_rating(self, auth_client, user, deleted):
+        response = auth_client.post(reverse("rate_beer", args=[deleted.slug]), {"note": 7, "comment": "Bonne", "date": "2026-01-01"})
+        assert response.status_code == 404 and not Drinks.objects.filter(drinker=user).exists()
+
+
 class TestVerifiedBadge:
     def page(self, client, beer):
         return client.get(reverse("beer_detail", args=[beer.slug])).content.decode()

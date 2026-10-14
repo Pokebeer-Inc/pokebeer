@@ -1,4 +1,6 @@
 -r requirements.txt
+django-tailwind==4.4.2          # compilation de Tailwind (manage.py tailwind build : développement et CI), jamais installé en production
+pytailwindcss==0.3.1
 django-browser-reload==1.21.0   # rechargement automatique en développement (DEBUG), jamais installé en production
 pytest==9.1.1
 pytest-django==4.14.0

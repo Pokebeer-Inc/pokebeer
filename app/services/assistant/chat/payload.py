@@ -22,7 +22,7 @@ def parse(body):
     try:
         data = json.loads(body)
     except (json.JSONDecodeError, UnicodeDecodeError):
-        raise InvalidChatRequest("Format JSON invalide.")
+        raise InvalidChatRequest("Format JSON invalide.") from None
     if not isinstance(data, dict):
         raise InvalidChatRequest("Format JSON invalide.")
     raw = data.get('message')

@@ -27,9 +27,8 @@ def audience():
 
 def publish(summary, by_email, author):
     """Crée l'annonce et notifie tous les membres actifs ; l'e-mail éventuel suit par lots (send_pending_emails)."""
-    if POLICY_NOTICE_PUBLISH.exceeded(GLOBAL_KEY):
+    if not POLICY_NOTICE_PUBLISH.hit(GLOBAL_KEY):
         raise TooManyNotices
-    POLICY_NOTICE_PUBLISH.record(GLOBAL_KEY)
 
     notified = 0
     ids = list(audience().values_list('pk', flat=True))
@@ -53,9 +52,8 @@ def send_pending_emails():
 def _send_batch(notice):
     sent = 0
     for member in audience().filter(pk__gt=notice.email_cursor).order_by('pk').iterator():
-        if POLICY_EMAIL_GLOBAL.exceeded(GLOBAL_KEY):
+        if not POLICY_EMAIL_GLOBAL.hit(GLOBAL_KEY):
             break
-        POLICY_EMAIL_GLOBAL.record(GLOBAL_KEY)
         if mailer.send_templated(member.email, EMAIL_SUBJECT, 'policy_updated', {
             'user': member, 'summary': notice.summary, 'policy_url': settings.PRIVACY_POLICY_URL,
         }):

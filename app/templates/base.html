@@ -1,4 +1,3 @@
-{% load static tailwind_tags %}
 {% load static %}
 <!DOCTYPE html>
 <html data-theme="beer">
@@ -7,15 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <meta name="user-authenticated" content="{% if user.is_authenticated %}true{% else %}false{% endif %}">
-    {% tailwind_css %}
+    <link rel="stylesheet" href="{% static 'css/dist/styles.css' %}">
     <title>Pokebeer</title>
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
     {# Chat (Markdown) et notifications en temps réel : réservés aux membres connectés, rien n'est téléchargé sur les pages publiques (connexion, inscription) #}
     {% if user.is_authenticated %}
-    {# Versions figées + empreintes SRI : un CDN compromis ne peut pas injecter de code #}
-    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js" integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js" integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
+    {% comment %}Versions figées + empreintes SRI : un CDN compromis ne peut pas injecter de code. `defer` : ils ne bloquent pas l'affichage ;
+    ils ne sont utilisés qu'après DOMContentLoaded (chat.js, toast.js), événement qui attend toujours les scripts différés.{% endcomment %}
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js" integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js" integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous" defer></script>
     {% endif %}
     <script src="{% static 'script/http_helpers.js' %}"></script>
     <script src="{% static 'script/html_safe.js' %}"></script>

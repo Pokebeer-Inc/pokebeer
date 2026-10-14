@@ -1,12 +1,12 @@
 import csv
 import io
 import zipfile
-from datetime import date
 from unittest import mock
 
 import pytest
 from django.core.management import call_command
 from django.urls import reverse
+from django.utils import timezone
 
 from app.models import ReverseGeocode
 from app.services.establishments import reverse_geocoding as rg
@@ -144,7 +144,7 @@ class TestBarsPage:
         bar = f.make_bar(name="Le Zinc", address="Lyon")  # géocodeur factice : 48.8566, 2.3522
         brewery = f.make_brewery(name="Brasserie Z")
         ipa, stout = f.make_beer(name="IPA Z", brewery=brewery, style="IPA"), f.make_beer(name="Stout Z", brewery=brewery, style="Stout")
-        for i in range(MIN_GROUP_SIZE):
+        for _i in range(MIN_GROUP_SIZE):
             member = f.make_user(username=f.unique("b_"))
             drink = f.make_drink(member, ipa, note=8)
             f.make_spot(member, latitude=48.8566, longitude=2.3522, drinks=[drink])
@@ -211,7 +211,7 @@ class TestExport:
 
     def test_period_filter_changes_the_exported_data(self, client_for, staff, data):
         from datetime import timedelta
-        f.make_drink(f.make_user(username=f.unique("e_")), f.make_beer(name="Old", style="Stout"), date=date.today() - timedelta(days=200))
+        f.make_drink(f.make_user(username=f.unique("e_")), f.make_beer(name="Old", style="Stout"), date=timezone.localdate() - timedelta(days=200))
         wide = self.read(client_for(staff).get(self.URL(), {"months": "12", "export": "styles-volume"}))
         narrow = self.read(client_for(staff).get(self.URL(), {"months": "3", "export": "styles-volume"}))
         assert ["Stout", "1"] in wide and ["Stout", "1"] not in narrow

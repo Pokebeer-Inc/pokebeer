@@ -7,8 +7,11 @@ node_modules/
 media/
 .DS_Store
 */dist/
+# Fichiers générés (collectstatic, build Tailwind) : produits par la CI au déploiement, jamais versionnés
+staticfiles/
 .pytest_cache/
 .coverage
 htmlcov/
 *firebase-adminsdk*.json
 CLAUDE.md
+.vercel/

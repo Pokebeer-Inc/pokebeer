@@ -1,30 +1,28 @@
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from django.utils import timezone
 from datetime import timedelta
+
+from ...domain.styles import split_styles
 
 def get_user_statistics(user_drinks):
     """Calcule les statistiques utilisateur à partir d'un queryset de dégustations."""
     stats_drinks = user_drinks.filter(beer__is_deleted=False)
-    
-    last_month = timezone.now().date() - timedelta(days=30)
-    
-    averages = stats_drinks.aggregate(
+    last_month = timezone.localdate() - timedelta(days=30)
+    # Une seule requête pour les compteurs et les moyennes ; le style préféré en fait une seconde
+    totals = stats_drinks.aggregate(
+        total_drinks=Count('id'),
+        drinks_last_month=Count('id', filter=Q(date__gte=last_month)),
         avg_note=Avg('note'),
         avg_abv=Avg('beer__degree'),
-        avg_ibu=Avg('beer__bitterness')
+        avg_ibu=Avg('beer__bitterness'),
     )
-
-    loved_drinks = stats_drinks.filter(note__gte=7)
-    
-    pref_style_name = preferred_style(loved_drinks) or "Pas encore défini"
-
     return {
-        'total_drinks': stats_drinks.count(),
-        'drinks_last_month': stats_drinks.filter(date__gte=last_month).count(),
-        'avg_note': averages['avg_note'] or 0,
-        'avg_abv': averages['avg_abv'] or 0,
-        'avg_ibu': averages['avg_ibu'] or 0,
-        'pref_style': pref_style_name,
+        'total_drinks': totals['total_drinks'],
+        'drinks_last_month': totals['drinks_last_month'],
+        'avg_note': totals['avg_note'] or 0,
+        'avg_abv': totals['avg_abv'] or 0,
+        'avg_ibu': totals['avg_ibu'] or 0,
+        'pref_style': preferred_style(stats_drinks.filter(note__gte=7)) or "Pas encore défini",
     }
 
 def preferred_style(drinks):
@@ -34,7 +32,7 @@ def preferred_style(drinks):
     style_counts = {}
     rows = drinks.exclude(beer__style__isnull=True).exclude(beer__style='').values_list('beer__style').annotate(n=Count('id'))
     for style, count in rows:
-        for name in [part.strip() for part in style.split(',') if part.strip()]:
+        for name in split_styles(style):
             style_counts[name] = style_counts.get(name, 0) + count
     return max(style_counts, key=style_counts.get) if style_counts else None
 

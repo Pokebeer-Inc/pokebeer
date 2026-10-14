@@ -14,17 +14,17 @@ class ThrottledLoginMixin:
     throttled_message = "Trop de tentatives de connexion. Réessayez dans quelques minutes."
 
     def clean(self):
+        # Chaque tentative est comptée AVANT le test du mot de passe (de façon atomique) : des essais lancés en parallèle ne peuvent pas
+        # passer ensemble sous le plafond. Seuls les échecs restent comptés.
         ip = client_ip(self.request)
         account = self.cleaned_data.get('username') or ''
-        if LOGIN_BY_IP.exceeded(ip) or (account and LOGIN_BY_ACCOUNT.exceeded(account)):
+        if not LOGIN_BY_IP.hit(ip):
             raise ValidationError(self.throttled_message, code='throttled')
-        try:
-            cleaned = super().clean()
-        except ValidationError:
-            LOGIN_BY_IP.record(ip)
-            if account:
-                LOGIN_BY_ACCOUNT.record(account)
-            raise
+        if account and not LOGIN_BY_ACCOUNT.hit(account):
+            LOGIN_BY_IP.release(ip)
+            raise ValidationError(self.throttled_message, code='throttled')
+        cleaned = super().clean()
+        LOGIN_BY_IP.release(ip)
         if account:
             LOGIN_BY_ACCOUNT.reset(account)  # une connexion réussie ne laisse pas de compteur à un tiers
         return cleaned

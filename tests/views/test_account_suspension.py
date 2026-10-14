@@ -93,9 +93,9 @@ class TestBreweryManagers:
         assert [u["username"] for u in response.json()["users"]] == ["banana"]
 
     def test_cannot_be_added_as_manager(self, auth_client, managed_brewery, suspended):
-        response = auth_client.post(reverse("add_brewery_manager", args=[managed_brewery.slug]), {"username": suspended.username})
-        assert response.status_code == 404
+        auth_client.post(reverse("add_brewery_manager", args=[managed_brewery.slug]), {"username": suspended.username})
         assert not managed_brewery.managers.filter(pk=suspended.pk).exists()
+        assert not managed_brewery.manager_invitations.exists()
 
 
 def test_new_accounts_are_active_by_default():

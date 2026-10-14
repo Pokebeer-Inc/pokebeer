@@ -37,7 +37,7 @@ class Command(BaseCommand):
             if vectors is None:
                 failed += len(batch)
                 continue
-            for beer, vector in zip(batch, vectors):
+            for beer, vector in zip(batch, vectors, strict=False):
                 # update() plutôt que save() : save() recalculerait l'embedding une seconde fois
                 Beer.objects.filter(pk=beer.pk).update(embedding=vector)
             embedded += len(batch)

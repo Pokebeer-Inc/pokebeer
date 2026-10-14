@@ -90,7 +90,7 @@
 {% endif %}
 
 {% url 'create_custom_notebook' as create_url %}
-{% include "partials/notebook_form_modal.html" with modal_id="modal_create_notebook" heading="Nouveau carnet" action=create_url submit_label="Créer le carnet" picker_label="Ajouter des dégustations" drinks=user_drinks_all %}
+{% include "partials/notebook_form_modal.html" with modal_id="modal_create_notebook" heading="Nouveau carnet" action=create_url submit_label="Créer le carnet" picker_label="Ajouter des dégustations" %}
 
 
 {% if active_tab == 'additions' %}
@@ -139,31 +139,14 @@
             </summary>
             
             <div class="flex flex-col gap-2 p-3 border-t border-base-200">
-                {% for beer in my_deleted_beers %}
-                <div class="flex items-center justify-between bg-base-100 p-3 rounded-xl border border-[#d9cfc5] gap-3 relative overflow-hidden">
-                    <a href="{% url 'beer_detail' beer.slug %}" class="absolute inset-0 z-0"></a>
-                    {% include "partials/beer_thumb.html" with beer=beer %}
-                    <div class="flex-1 min-w-0 flex flex-col gap-1 pointer-events-none">
-                        <div class="flex flex-col">
-                            <span class="font-bold text-sm leading-tight truncate line-through">{{ beer.name }}</span>
-                            <a href="{% url 'brewery_detail' beer.brewery.slug %}" class="text-[10px] text-gray-500 truncate pointer-events-auto relative z-10 hover:text-primary transition-colors inline-block w-fit">
-                                {{ beer.brewery.name }}
-                            </a>
-                        </div>
-                        <div class="flex gap-1 mt-0.5">
-                            {% if beer.style %}
-                            <span class="pb-pill">{{ beer.style }}</span>
-                            {% endif %}
-                            <span class="pb-pill">Alc. {{ beer.degree }}%</span>
-                        </div>
-                    </div>
-                    <div class="shrink-0 flex items-center pointer-events-none relative z-10">
-                        <span class="text-[10px] text-error font-bold italic">Supprimée</span>
-                    </div>
+                {% if my_deleted_beers %}
+                <div id="notebook-deleted-beers-container" class="flex flex-col gap-2">
+                    {% include "partials/notebook_deleted_beers.html" %}
                 </div>
-                {% empty %}
+                {% if my_deleted_beers|length == 10 %}{% url 'load_more_generic' 'deleted_beers' as more_url %}{% include "partials/load_more_button.html" with url=more_url container="notebook-deleted-beers-container" label="Charger plus de bières retirées" autoscroll="false" %}{% endif %}
+                {% else %}
                 <p class="text-[10px] text-[#6b625a] text-center">Aucune bière retirée.</p>
-                {% endfor %}
+                {% endif %}
             </div>
         </details>
     </div>

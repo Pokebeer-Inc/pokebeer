@@ -1,7 +1,8 @@
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 
 from app.models import Beer, Drinks
 from app.services.catalog.recommendations import get_recommended_beers
@@ -38,7 +39,7 @@ class TestUserStatistics:
 
     @pytest.mark.parametrize("days_ago, counted", [(0, True), (30, True), (31, False)])
     def test_last_month_window_is_30_days(self, user, days_ago, counted):
-        f.make_drink(user, date=date.today() - timedelta(days=days_ago))
+        f.make_drink(user, date=timezone.localdate() - timedelta(days=days_ago))
         assert get_user_statistics(drinks_of(user))["drinks_last_month"] == int(counted)
 
     def test_preferred_style_splits_multi_styles_and_ignores_disliked_beers(self, user):

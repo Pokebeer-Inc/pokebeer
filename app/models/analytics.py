@@ -15,6 +15,10 @@ class AnalyticsLayout(models.Model):
         verbose_name = "Disposition d'analytics"
         constraints = [models.UniqueConstraint(fields=['user', 'page_key'], name='unique_analytics_layout_per_page')]
 
+    def __str__(self):
+        return f"{self.page_key} ({self.user_id})"
+
+
 class AnalyticsView(models.Model):
     """Vue d'analytics personnalisée : un ensemble de tuiles nommé, propre à un administrateur."""
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='analytics_views')

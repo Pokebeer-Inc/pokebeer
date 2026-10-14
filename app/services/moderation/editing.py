@@ -1,7 +1,7 @@
 """Formulaire d'édition des champs publics d'une fiche (bière, brasserie, bar), partagé par les suggestions des membres et par les retouches
 de l'équipe lors de la validation. Les champs éditables sont déclarés par type de contenu (ModeratedContent.suggest_fields).
 """
-from functools import lru_cache
+from functools import cache
 
 from django import forms
 from django.forms import modelform_factory
@@ -14,7 +14,7 @@ LONG_TEXT = ('description',)
 MAX_VALUE_LENGTH = 2000
 
 
-@lru_cache(maxsize=None)
+@cache
 def _form_class(kind):
     content = CONTENT_TYPES[kind]
     return modelform_factory(content.model, fields=list(content.suggest_fields), widgets={

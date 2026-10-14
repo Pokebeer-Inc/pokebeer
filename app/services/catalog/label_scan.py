@@ -11,7 +11,8 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from . import beer_fields, catalog_matching, match_keys
+from ...domain import match_keys
+from . import beer_fields, catalog_matching
 from ..assistant import llm
 from ..common.images import reencode_as_webp, shrink_to_fit
 

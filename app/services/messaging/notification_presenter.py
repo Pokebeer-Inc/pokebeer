@@ -3,7 +3,7 @@ des notifications non lues, la diffusion temps réel (WebSocket) et le push Andr
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-from . import notification_types
+from ...domain import notification_types
 
 ACHIEVEMENT = 'achievement'
 

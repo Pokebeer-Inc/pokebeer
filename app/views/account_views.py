@@ -1,24 +1,29 @@
 """Compte du membre connecté : profil et réglages, pseudo, suppression du compte."""
 from django.contrib import messages
 from django.contrib.auth import logout, update_session_auth_hash
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 import logging
 
-from ..forms import FeedbackForm, MarketingConsentForm, NotificationPreferenceForm, ProSettingsForm, UserUpdateForm, UsernameForm
+from ..forms import (
+    AccountDeletionForm, FeedbackForm, MarketingConsentForm, NotificationPreferenceForm, ProSettingsForm, UserUpdateForm, UsernameForm, error_summary,
+)
 from ..models import AccountDeletion, Drinks
-from ..services.members import password_reset
-from ..services.members.achievements import check_and_notify_achievements, get_user_achievements
+from ..services.establishments import team
+from ..services.members import account, password_reset
+from ..services.members.achievements import get_user_achievements
 from ..services.support.feedback import FeedbackError, open_thread
 from ..services.members.follows import follow_context
 from ..services.members.inactivity import delete_account
 from ..services.members.profile_stats import get_top_beers_data, get_user_statistics
 from ..services.protection.throttle import USERNAME_ATTEMPTS, USERNAME_CHANGES
+from .utils import picker_context
 
 logger = logging.getLogger(__name__)
+
+TOO_MANY_USERNAME_CHANGES = "Trop de changements de pseudo. Réessayez plus tard."
 
 SETTINGS_SECTIONS = {
     'profile': "Informations et bio",
@@ -33,12 +38,13 @@ SETTINGS_SECTIONS = {
 # liée aux données envoyées) et `done()` (redirection de succès) ; il renvoie une réponse s'il y en a une, sinon la page est réaffichée.
 
 def _save_profile(request, user, forms, done):
-    forms['profile_form'] = UserUpdateForm(request.POST, instance=user)
-    if forms['profile_form'].is_valid():
-        forms['profile_form'].save()
-        check_and_notify_achievements(user)
+    previous_email = user.email  # lue avant la validation : le formulaire recopie les valeurs saisies dans l'instance
+    form = forms['profile_form'] = UserUpdateForm(request.POST, instance=user)
+    if form.is_valid():
+        account.update_profile(form, previous_email)
         messages.success(request, "Profil mis à jour.")
         return done()
+    messages.error(request, "Profil non modifié : " + " ; ".join(error_summary(form)))
 
 
 def _save_privacy(request, user, forms, done):
@@ -115,18 +121,26 @@ def _profile_page_context(user, forms):
         'managed_bars': managed_bars,
         'show_establishments_section': bool(managed_breweries or managed_bars or user.is_bartender or user.is_brewer),
         'pending_claims': user.claims.filter(status='pending').select_related('brewery', 'bar'),
+        'team_invitations': team.invitations_for(user),
         'feedback_threads_count': user.feedbacks.count(),
-        # Choix des fenêtres du Top 3 : seulement les quatre colonnes affichées, pas les dégustations entières
-        'top_choices': list(my_drinks.values('beer', 'beer__slug', 'beer__name', 'note')),
+        # Choix des fenêtres du Top 3 : premières dégustations, la suite par recherche et « Charger plus »
+        'top_picker': picker_context(user, 'top'),
         **follow_context(user),
-        'top_beers_data': get_top_beers_data(user, my_drinks, include_empty=True),
+        'top_beers_data': _with_other_slots(get_top_beers_data(user, my_drinks, include_empty=True)),
         'unlocked_achievements': [a for a in all_achievements if a['tier_level'] > 0],
         'level': level_data['current_level'],
         **get_user_statistics(my_drinks),
     }
 
 
-@login_required(login_url='login')
+def _with_other_slots(top_beers):
+    """Chaque emplacement du Top 3 connaît les bières des deux autres (on ne peut pas les y choisir une seconde fois)."""
+    for item in top_beers:
+        item['other_beer_slugs'] = ','.join(other['beer'].slug for other in top_beers if other is not item and other['beer'])
+        item['picker_uid'] = f"top-{item['slot']}"
+    return top_beers
+
+
 def account_view(request, section=None):
     """Profil (page unique) et réglages : chaque section de réglages a sa page, avec les mêmes formulaires qu'avant."""
     if section is not None and section not in SETTINGS_SECTIONS:
@@ -160,23 +174,23 @@ def account_view(request, section=None):
     return render(request, 'account.html', _profile_page_context(user, forms))
 
 
-@login_required(login_url='login')
 def delete_account_view(request):
-    """Supprime le compte de l'utilisateur et ses données associées (sauf les bières du catalogue)."""
-    if request.method == 'POST':
-        user = request.user
-        # 1. On déconnecte l'utilisateur pour invalider sa session
-        logout(request)
-        # 2. On supprime l'utilisateur (Django gère les CASCADE et les SET_NULL automatiquement) et on en garde la trace
-        delete_account(user, AccountDeletion.Reason.SELF)
-        
-        messages.success(request, "Votre compte et toutes vos données personnelles ont été supprimés. Au revoir !")
-        return redirect('index')
-        
-    return redirect('account')
+    """Supprime le compte de l'utilisateur et ses données associées (sauf les bières du catalogue), après confirmation de son identité
+    (mot de passe actuel, ou pseudo pour un compte sans mot de passe)."""
+    if request.method != 'POST':
+        return redirect('account')
+    form = AccountDeletionForm(request.POST, user=request.user)
+    if not form.is_valid():
+        messages.error(request, "Compte non supprimé : " + " ; ".join(error_summary(form)))
+        return redirect('account_settings_home')
+    user = request.user
+    # La session est fermée d'abord, puis le compte supprimé (CASCADE et SET_NULL gérés par Django), avec une trace sans donnée personnelle
+    logout(request)
+    delete_account(user, AccountDeletion.Reason.SELF)
+    messages.success(request, "Votre compte et toutes vos données personnelles ont été supprimés. Au revoir !")
+    return redirect('index')
 
 @require_POST
-@login_required(login_url='login')
 def update_username_view(request):
     """Change le pseudo du membre connecté (l'URL de son profil public change avec lui).
 
@@ -193,23 +207,25 @@ def update_username_view(request):
         messages.error(request, message)
         return redirect('account')
 
-    if USERNAME_ATTEMPTS.exceeded(key) or USERNAME_CHANGES.exceeded(key):
-        return refuse("Trop de changements de pseudo. Réessayez plus tard.", 429)
-    USERNAME_ATTEMPTS.record(key)
+    if USERNAME_CHANGES.exceeded(key) or not USERNAME_ATTEMPTS.hit(key):
+        return refuse(TOO_MANY_USERNAME_CHANGES, 429)
 
     form = UsernameForm(request.POST, instance=request.user)
     if not form.is_valid():
         return refuse(" ".join(form.errors['username']) if 'username' in form.errors else "Pseudo invalide.", 400)
 
     if form.cleaned_data['username'] != form.initial['username']:
+        if not USERNAME_CHANGES.hit(key):  # compté de façon atomique : deux envois simultanés ne dépassent pas le plafond
+            return refuse(TOO_MANY_USERNAME_CHANGES, 429)
         form.save()
-        USERNAME_CHANGES.record(key)
     if wants_json:
         return JsonResponse({'success': True, 'username': request.user.username})
     messages.success(request, "Pseudo mis à jour.")
     return redirect('account')
 
-@login_required(login_url='login')
 def settings_home_view(request):
     """Page des réglages : toutes les rubriques (informations, notifications, aide) et la déconnexion."""
-    return render(request, 'account_settings_home.html', {'feedback_threads_count': request.user.feedbacks.count()})
+    return render(request, 'account_settings_home.html', {
+        'feedback_threads_count': request.user.feedbacks.count(),
+        'deletion_form': AccountDeletionForm(user=request.user),
+    })

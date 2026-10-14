@@ -1,7 +1,9 @@
 import pytest
 from django.urls import reverse
 
+from app.services.protection.throttle import AUTOCOMPLETE_BY_USER
 from tests import factories as f
+from tests.helpers import exhaust
 
 pytestmark = pytest.mark.django_db
 
@@ -51,3 +53,20 @@ class TestSearchBeer:
 
     def test_sql_injection_attempt_is_harmless(self, auth_client, beer):
         assert search(auth_client, "search_beer", "' OR 1=1 --") == []
+
+
+class TestAutocompleteLimits:
+    @pytest.mark.parametrize("name", ["search_beer", "search_brewery"])
+    def test_get_only(self, auth_client, name):
+        assert auth_client.post(reverse(name), {"term": "test"}).status_code == 405
+
+    @pytest.mark.parametrize("name", ["search_beer", "search_brewery"])
+    def test_throttled_per_member(self, auth_client, other_client, user, name):
+        exhaust(AUTOCOMPLETE_BY_USER, user.pk)
+        assert auth_client.get(reverse(name), {"term": "test"}).status_code == 429
+        assert other_client.get(reverse(name), {"term": "test"}).status_code == 200
+
+    def test_the_manager_member_search_is_throttled_too(self, auth_client, user):
+        brewery = f.make_brewery(managers=[user])
+        exhaust(AUTOCOMPLETE_BY_USER, user.pk)
+        assert auth_client.get(reverse("api_search_users_for_manager", args=[brewery.slug]), {"q": "bob"}).status_code == 429

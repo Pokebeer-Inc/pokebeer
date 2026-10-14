@@ -13,7 +13,7 @@ from django.utils import timezone
 from ...models import PostalCode
 from ..catalog import beer_fields, search
 from ..common import upstream
-from .address import POSTAL_CODE
+from ...domain.address import POSTAL_CODE
 
 URL = 'https://geo.api.gouv.fr/communes'
 MAX_AGE = timedelta(days=90)

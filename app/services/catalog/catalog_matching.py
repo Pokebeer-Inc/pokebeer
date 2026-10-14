@@ -22,13 +22,14 @@ from django.db import connection
 from django.db.models import Q
 
 from ...models import Bar, Beer, Brewery
-from . import match_keys as keys, search
+from ...domain import match_keys as keys
+from . import search
 
 PLACE_CANDIDATES = 10
 BEER_CANDIDATES = 40
 PLACE_MODELS = {keys.BREWERY: Brewery, keys.BAR: Bar}
 SAME_PLACE, OTHER_PLACE, UNKNOWN_PLACE = 'same', 'different', 'unknown'
-TOKEN_SALT = 'catalog-duplicate-confirmation'
+TOKEN_SALT = 'catalog-duplicate-confirmation'  # noqa: S105  (sel de signature public, pas un secret)
 TOKEN_MAX_AGE = 3600  # une confirmation vaut une heure
 MAX_PAIRS = 500       # borne de l'écran d'administration
 
@@ -259,7 +260,8 @@ def duplicate_places(kind):
     différentes ne sont pas des doublons."""
     model = PLACE_MODELS[kind]
     table = model._meta.db_table
-    ids = _pair_ids(f"SELECT a.id, b.id FROM {table} a JOIN {table} b ON a.id < b.id AND a.name_key <> '' AND (a.name_key = b.name_key OR a.match_key %% b.match_key) ORDER BY a.id, b.id LIMIT %s")
+    # Nom de table tiré du modèle (jamais d'une saisie) ; la seule valeur variable passe en paramètre
+    ids = _pair_ids(f"SELECT a.id, b.id FROM {table} a JOIN {table} b ON a.id < b.id AND a.name_key <> '' AND (a.name_key = b.name_key OR a.match_key %% b.match_key) ORDER BY a.id, b.id LIMIT %s")  # noqa: S608
     by_pk = model.objects.in_bulk({pk for pair in ids for pk in pair})
     pairs = []
     for first_id, second_id in ids:
@@ -287,7 +289,7 @@ def duplicate_beers():
     """Paires de bières d'une même brasserie dont les noms se confondent (même nom chez deux brasseries est permis)."""
     table = Beer._meta.db_table
     ids = _pair_ids(
-        f"SELECT a.id, b.id FROM {table} a JOIN {table} b ON a.id < b.id AND a.brewery_id = b.brewery_id "
+        f"SELECT a.id, b.id FROM {table} a JOIN {table} b ON a.id < b.id AND a.brewery_id = b.brewery_id "  # noqa: S608  (table du modèle)
         f"WHERE NOT a.is_deleted AND NOT b.is_deleted AND a.name_key <> '' AND (a.name_key = b.name_key OR a.match_key %% b.match_key) "
         f"ORDER BY a.id, b.id LIMIT %s"
     )

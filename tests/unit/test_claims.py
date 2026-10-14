@@ -213,10 +213,9 @@ class TestDecisions:
 
     def test_nothing_is_announced_if_the_decision_is_rolled_back(self, claim, superuser, django_capture_on_commit_callbacks):
         mail.outbox.clear()
-        with django_capture_on_commit_callbacks(execute=True) as callbacks:
-            with pytest.raises(RuntimeError), transaction.atomic():
-                claims.approve(claim, superuser)
-                raise RuntimeError
+        with django_capture_on_commit_callbacks(execute=True) as callbacks, pytest.raises(RuntimeError), transaction.atomic():
+            claims.approve(claim, superuser)
+            raise RuntimeError
         assert callbacks == [] and mail.outbox == []
 
     def test_a_decided_claim_cannot_be_decided_again(self, claim, superuser):

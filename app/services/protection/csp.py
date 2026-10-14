@@ -27,10 +27,8 @@ def _realtime_origins(supabase_url):
 def build_policy(supabase_url=None, admin=False, nonce=None):
     """En-tête Content-Security-Policy. `nonce` : jeton de la réponse, seul moyen d'exécuter un script en ligne sur le site public.
     L'administration (Alpine.js d'Unfold) exige `'unsafe-inline'` et `'unsafe-eval'`."""
-    if admin or not nonce:
-        script_src = [SELF, "'unsafe-inline'", *CDN_SCRIPTS] + (["'unsafe-eval'"] if admin else [])
-    else:
-        script_src = [SELF, f"'nonce-{nonce}'", *CDN_SCRIPTS]
+    inline = ["'unsafe-inline'", *(["'unsafe-eval'"] if admin else [])] if admin or not nonce else [f"'nonce-{nonce}'"]
+    script_src = [SELF, *inline, *CDN_SCRIPTS]
     directives = {
         'default-src': [SELF],
         'script-src': script_src,

@@ -1,6 +1,7 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
+from django.utils import timezone
 from django.urls import reverse
 
 from app.models import UserAchievementState
@@ -21,7 +22,7 @@ def populated(superuser, geocoder):
     f.make_bar(name="Bar Test", address="Lyon")
     ipa = f.make_beer(name="IPA 1", brewery=brewery, style="IPA, NEIPA / Hazy", degree=6.5, bitterness=50)
     lager = f.make_beer(name="Lager 1", brewery=brewery, style="Lager", degree=4.8)
-    today = date.today()
+    today = timezone.localdate()
     # Une note par membre et par bière : les dégustations plus anciennes portent sur des variantes du même style
     older = {offset: (f.make_beer(name=f"IPA 1 v{offset}", brewery=brewery, style="IPA, NEIPA / Hazy", degree=6.5, bitterness=50),
                       f.make_beer(name=f"Lager 1 v{offset}", brewery=brewery, style="Lager", degree=4.8)) for offset in (20, 45, 100)}
@@ -84,7 +85,7 @@ class TestPeriod:
         period = Period(6, granularity)
         buckets = period.buckets()
         assert buckets[0] <= period.start and buckets[-1] <= period.today < period.next_bucket(buckets[-1])
-        assert all(period.next_bucket(a) == b for a, b in zip(buckets, buckets[1:]))
+        assert all(period.next_bucket(a) == b for a, b in zip(buckets, buckets[1:], strict=False))
 
 
 class TestSeries:

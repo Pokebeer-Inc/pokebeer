@@ -4,11 +4,11 @@ from django.db import models
 
 from ..validators import MAX_TEXT_LENGTH, plain_text_validator
 from ..fields import PublicSlugField
-from ..services.catalog.official_images import bar_image_path, brewery_image_path
+from ..domain.upload_paths import bar_image_path, brewery_image_path
 
 from django.contrib.postgres.indexes import GinIndex
 
-from ..services.catalog import match_keys
+from ..domain import match_keys
 from .mixins import GeocodableMixin, MatchKeyMixin, OfficialImageMixin, PostalAddressMixin, VerifiableMixin
 
 

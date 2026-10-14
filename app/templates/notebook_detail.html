@@ -123,7 +123,7 @@
 
 {% if notebook %}
 {% url 'edit_custom_notebook' notebook.slug as edit_url %}
-{% include "partials/notebook_form_modal.html" with modal_id="modal_edit_notebook" heading="Modifier le carnet" action=edit_url submit_label="Enregistrer les modifications" picker_label="Modifier les dégustations" drinks=user_drinks_all selected=notebook_drink_slugs notebook=notebook %}
+{% include "partials/notebook_form_modal.html" with modal_id="modal_edit_notebook" heading="Modifier le carnet" action=edit_url submit_label="Enregistrer les modifications" picker_label="Modifier les dégustations" selected=notebook_drink_slugs notebook=notebook %}
 
 <dialog id="modal_confirm_delete_notebook" class="modal z-[99999]">
     <div class="modal-box custom-modal-form flex flex-col items-center gap-3 text-center">

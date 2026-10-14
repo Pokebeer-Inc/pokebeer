@@ -2,7 +2,7 @@
 from .core_views import index
 from .load_more import load_more_generic
 from .auth_views import login_view, logout_view, register_pro_view, register_view
-from .onboarding_views import onboarding_birth_view, onboarding_gender_view, onboarding_start_view
+from .onboarding_views import onboarding_birth_view, onboarding_emails_view, onboarding_gender_view, onboarding_start_view
 from .account_views import account_view, delete_account_view, settings_home_view, update_username_view
 from .profile_views import achievements_view, follow_user, public_profile_view, remove_follower, reorder_top_beers, update_top_beer
 from .reaction_views import toggle_reaction_view, toggle_wishlist
@@ -40,28 +40,19 @@ from .notebook_views import (
 )
 from .search_views import all_beers_view, places_directory, search_api
 from .map_views import delete_spot_view, map_view
-from .bar_views import (
-    add_bar_manager,
-    api_search_users_for_bar_manager,
-    bar_detail_view,
-    claim_bar_view,
-    edit_bar_view,
-    remove_bar_manager,
-)
-from .brewery_views import (
-    add_brewery_manager,
-    api_search_users_for_manager,
-    brewery_detail_view,
-    claim_brewery_view,
-    edit_brewery_view,
-    remove_brewery_manager,
-)
 from .suggestion_views import suggest_edit_view
 from .cron_views import purge_inactive_accounts_cron
 from .password_reset_views import PasswordResetCompleteView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetRequestView
 from .privacy_views import PrivacyPolicyView
 from .email_views import assetlinks, email_preferences, email_unsubscribe
-from .place_views import cancel_claim
+from .place_views import BAR_VIEWS, BREWERY_VIEWS, cancel_claim, cancel_invitation, respond_invitation
+
+# Brasseries et bars : mêmes vues, produites une fois par type (place_views.views_for)
+bar_detail_view, edit_bar_view, claim_bar_view = BAR_VIEWS.detail, BAR_VIEWS.edit, BAR_VIEWS.claim
+add_bar_manager, remove_bar_manager, api_search_users_for_bar_manager = BAR_VIEWS.add_manager, BAR_VIEWS.remove_manager, BAR_VIEWS.search_users
+brewery_detail_view, edit_brewery_view, claim_brewery_view = BREWERY_VIEWS.detail, BREWERY_VIEWS.edit, BREWERY_VIEWS.claim
+add_brewery_manager, remove_brewery_manager = BREWERY_VIEWS.add_manager, BREWERY_VIEWS.remove_manager
+api_search_users_for_manager = BREWERY_VIEWS.search_users
 
 __all__ = [
     'index',
@@ -72,6 +63,7 @@ __all__ = [
     'register_view',
     'onboarding_birth_view',
     'onboarding_gender_view',
+    'onboarding_emails_view',
     'onboarding_start_view',
     'account_view',
     'achievements_view',
@@ -153,4 +145,6 @@ __all__ = [
     'email_preferences',
     'email_unsubscribe',
     'cancel_claim',
+    'cancel_invitation',
+    'respond_invitation',
 ]

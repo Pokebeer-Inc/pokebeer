@@ -2,6 +2,8 @@
 from datetime import timedelta
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.test import RequestFactory
 from django.utils import timezone
 
@@ -55,6 +57,31 @@ class TestRule:
         RULE.record("alice@203.0.113.7")
         stored = ThrottleHit.objects.get()
         assert "alice" not in stored.key_hash and "203.0.113.7" not in stored.key_hash and len(stored.key_hash) == 64
+
+
+class TestAtomicHit:
+    def test_admits_until_the_limit_then_counts_nothing_more(self):
+        assert [RULE.hit("1.1.1.1") for _ in range(4)] == [True, True, True, False]
+        assert ThrottleHit.objects.count() == RULE.attempts
+
+    def test_release_gives_back_the_last_attempt(self):
+        for _ in range(3):
+            RULE.hit("1.1.1.1")
+        RULE.release("1.1.1.1")
+        assert RULE.hit("1.1.1.1") and not RULE.hit("1.1.1.1")
+
+    def test_release_only_touches_its_own_key(self):
+        RULE.hit("1.1.1.1")
+        RULE.release("2.2.2.2")
+        assert ThrottleHit.objects.count() == 1
+
+    def test_the_check_and_the_count_hold_a_lock_on_the_key(self):
+        # Verrou consultatif pris AVANT le comptage : pas de fenêtre entre la vérification et l'écriture pour deux requêtes simultanées
+        with CaptureQueriesContext(connection) as captured:
+            RULE.hit("1.1.1.1")
+        sql = [query["sql"] for query in captured.captured_queries]
+        lock = next(i for i, query in enumerate(sql) if "pg_advisory_xact_lock" in query)
+        assert lock < next(i for i, query in enumerate(sql) if "COUNT" in query.upper())
 
 
 class TestClientIp:

@@ -4,36 +4,11 @@ from django.db import models
 from django.utils import timezone
 
 from ..fields import PublicSlugField
-from ..services.messaging import notification_types
+from ..domain import notification_types
 
-# Politique d'envoi appliquée à toute notification créée. Le modèle ne connaît pas son contenu (blocages, préférences : voir
-# services/messaging/notification_policy.py) : elle est branchée au démarrage par apps.py ; sans elle, tout est admis.
-def _admit_all(notifications):
-    return list(notifications)
-
-
-admission_policy = _admit_all
-
-
-def use_admission_policy(policy):
-    global admission_policy
-    admission_policy = policy
-
-
-class NotificationManager(models.Manager):
-    def bulk_create(self, objs, **kwargs):
-        """Intercepte les bulk_create pour retirer les notifications refusées."""
-        valid_objs = admission_policy(objs)
-        
-        # Si après filtrage la liste est vide, on arrête tout
-        if not valid_objs:
-            return []
-            
-        return super().bulk_create(valid_objs, **kwargs)
-    
 class Notification(models.Model):
-    
-    objects = NotificationManager()
+    """Notification adressée à un membre. Le modèle ne décide pas qui peut la recevoir (préférences, blocages) : toute création passe par
+    services/messaging/notifications.py, qui applique la politique d'envoi."""
     slug = PublicSlugField()
     
     NOTIFICATION_TYPES = notification_types.CHOICES
@@ -49,6 +24,7 @@ class Notification(models.Model):
     bar = models.ForeignKey('Bar', on_delete=models.CASCADE, null=True, blank=True)
     spot = models.ForeignKey('BeerSpot', on_delete=models.CASCADE, null=True, blank=True)
     achievement_slug = models.CharField(max_length=100, null=True, blank=True)  # identifiant stable du trophée (voir services/members/achievements.py)
+    achievement_tier = models.PositiveSmallIntegerField(null=True, blank=True)  # palier atteint (1 = Bronze… 4 = Platine) : retiré s'il est perdu
     text_content = models.CharField(max_length=255, null=True, blank=True) 
     
     is_read = models.BooleanField(default=False)
@@ -62,6 +38,9 @@ class Notification(models.Model):
         indexes = [
             models.Index(fields=['recipient', 'is_read', '-created_at'], name='notif_recipient_unread_idx'),  # liste, pop-ups, compteur de non lues
         ]
+
+    def __str__(self):
+        return f"{self.notif_type} -> {self.recipient_id}"
 
     @property
     def place(self):
@@ -100,16 +79,6 @@ class Notification(models.Model):
             
         return "à l'instant"
     
-    def is_allowed(self):
-        """Politique d'envoi : type connu, destinataire actif, préférences, blocages (voir notification_policy)."""
-        return bool(admission_policy([self]))
-
-    def save(self, *args, **kwargs):
-        # On intercepte uniquement les nouvelles notifications (sans ID)
-        if not self.pk and not self.is_allowed():
-            return  # On annule silencieusement
-        super().save(*args, **kwargs)
-
 class UserAchievementState(models.Model):
     """Mémorise les trophées déjà débloqués par l'utilisateur pour ne pas le spammer"""
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE)
@@ -118,3 +87,6 @@ class UserAchievementState(models.Model):
     
     class Meta:
         unique_together = ('user', 'achievement_slug')
+
+    def __str__(self):
+        return f"{self.achievement_slug} niveau {self.tier_level} ({self.user_id})"

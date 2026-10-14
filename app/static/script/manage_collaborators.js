@@ -42,7 +42,7 @@ function searchUsersForCollab() {
                         <form method="post" action="${addUrl}">
                             <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
                             <input type="hidden" name="username" value="${escapeHtml(u.username)}">
-                            <button type="submit" class="btn btn-xs btn-primary btn-outline">Ajouter</button>
+                            <button type="submit" class="btn btn-xs btn-primary btn-outline">Inviter</button>
                         </form>
                     </div>
                 `).join('');

@@ -73,3 +73,6 @@ class CampaignRecipient(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['campaign', 'user'], name='unique_campaign_recipient')]
         indexes = [models.Index(fields=['campaign', 'status'], name='campaign_recipient_status_idx')]
+
+    def __str__(self):
+        return f"{self.campaign_id} -> {self.user_id} ({self.get_status_display()})"

@@ -114,10 +114,9 @@ class TestProductionSettings:
         from unittest import mock
 
         import pokebeer.settings as module
-        with mock.patch.dict(os.environ, {"DEBUG": "False", "DATABASE_URL": "sqlite://:memory:"}):
-            with mock.patch("pokebeer.database.get_databases", return_value={}):
-                reloaded = importlib.reload(module)
-                assert reloaded.SECURE_SSL_REDIRECT and reloaded.SECURE_HSTS_SECONDS >= 31536000 and reloaded.SECURE_HSTS_INCLUDE_SUBDOMAINS
+        with mock.patch.dict(os.environ, {"DEBUG": "False", "DATABASE_URL": "sqlite://:memory:"}), mock.patch("pokebeer.database.get_databases", return_value={}):
+            reloaded = importlib.reload(module)
+            assert reloaded.SECURE_SSL_REDIRECT and reloaded.SECURE_HSTS_SECONDS >= 31536000 and reloaded.SECURE_HSTS_INCLUDE_SUBDOMAINS
         importlib.reload(module)
 
     def test_public_pages_download_no_member_only_script(self, client, google_app):

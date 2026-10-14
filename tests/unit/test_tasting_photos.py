@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
+from app.domain import upload_paths
 from app.services.catalog import tasting_photos as tp
 
 
@@ -49,5 +50,5 @@ class TestProcessing:
         assert not result.getexif()
 
     def test_stored_name_is_random_and_ignores_the_visitor_filename(self):
-        first, second = (tp.tasting_photo_path(None, "../../etc/passwd") for _ in range(2))
+        first, second = (upload_paths.tasting_photo_path(None, "../../etc/passwd") for _ in range(2))
         assert first != second and first.startswith("tastings/") and first.endswith(".webp") and ".." not in first

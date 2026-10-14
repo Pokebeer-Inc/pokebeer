@@ -16,14 +16,12 @@
         <h3 class="text-sm font-bold border-b border-primary pb-1">Modifier mon profil</h3>
         
         {% for field in profile_form %}
-        {% if user.socialaccount_set.all and field.name == 'email' %}
-        <div class="hidden">{{ field }}</div>
-        {% else %}
         <div class="form-control w-full">
-            <label class="label py-0"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
-            {{ field }} 
+            <label class="label py-0" for="{{ field.id_for_label }}"><span class="label-text text-[10px] font-bold">{{ field.label }}</span></label>
+            {{ field }}
+            {% if field.help_text %}<p class="text-[10px] text-gray-500 -mt-2">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="text-xs font-semibold text-error" role="alert">{{ error }}</p>{% endfor %}
         </div>
-        {% endif %}
         {% endfor %}
         <button type="submit" name="btn_profile" class="btn btn-primary btn-sm mt-2 text-white">Valider</button>
     </form>

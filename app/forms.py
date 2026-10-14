@@ -8,10 +8,13 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, SetP
 from django.core.exceptions import ValidationError
 from .auth_forms import ThrottledLoginMixin
 from .services.catalog import catalog_matching, ean
-from .services.messaging import marketing, notification_types
+from .domain import notification_types
+from .domain.styles import format_styles
+from .services.messaging import marketing
 from .services.establishments import postal_codes
 from .services.support.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
 from .services.support.threads import plain_text
+from .services.members import identity
 from .services.members.profile_pictures import process_profile_picture
 from .services.protection.quota import consume_quota
 from .image_form import ProcessedImageMixin
@@ -22,7 +25,9 @@ from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, B
 from django.utils import timezone
 
 
-INVALID_FIELD_STYLE = "border: 2px solid #ef4444;"
+# Apparence des champs : classes de static/style/ui.css (aucun style en ligne, la présentation reste dans les feuilles de style)
+PLAIN_INPUT_CLASS = 'form-control pb-plain-input'
+INVALID_FIELD_CLASS = 'pb-field-invalid'
 
 def clear_invalid_fields(form):
     """Vide et surligne les champs en erreur d'un formulaire lié ; les champs valides restent préremplis.
@@ -36,7 +41,7 @@ def clear_invalid_fields(form):
             continue
         data[form.add_prefix(name)] = ''
         field.widget.attrs['aria-invalid'] = 'true'
-        field.widget.attrs['style'] = f"{field.widget.attrs.get('style', '')} {INVALID_FIELD_STYLE}".strip()
+        field.widget.attrs['class'] = f"{field.widget.attrs.get('class', '')} {INVALID_FIELD_CLASS}".strip()
     form.data = data
 
 def error_summary(*forms):
@@ -78,14 +83,14 @@ class UserRegisterForm(UniqueUsernameMixin, UniqueEmailMixin, UserCreationForm):
         fields = ['username', 'email']
 
     def __init__(self, *args, **kwargs):
-        super(UserRegisterForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         
         # On définit explicitement les labels
         self.fields['username'].label = "Pseudo"
         self.fields['email'].label = "Adresse Email"
         
         # On applique les classes visuelles et le placeholder
-        for field_name, field in self.fields.items():
+        for field in self.fields.values():
             
             field.widget.attrs.update({
                 'class': 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
@@ -104,7 +109,10 @@ class SuspensionNoticeLoginForm(AuthenticationForm):
         password = self.cleaned_data.get('password')
         if username and password:
             suspended = BeerUser.objects.filter(username=username, is_active=False).first()
-            if suspended and suspended.check_password(password):
+            if suspended is None:
+                # Même coût qu'une vérification réelle : le temps de réponse ne révèle pas qu'un pseudo suspendu existe
+                BeerUser().set_password(password)
+            elif suspended.check_password(password):
                 raise ValidationError(self.error_messages['inactive'], code='inactive')
         return super().clean()
 
@@ -120,7 +128,7 @@ class UserLoginForm(ThrottledLoginMixin, SuspensionNoticeLoginForm):
         self.fields['password'].label = "Mot de passe"
         
         # On applique les classes visuelles et le placeholder
-        for field_name, field in self.fields.items():
+        for field in self.fields.values():
             
             field.widget.attrs.update({
                 'class': 'input input-bordered w-full bg-white/80 focus:bg-white transition-colors'
@@ -173,12 +181,40 @@ class UsernameForm(UniqueUsernameMixin, forms.ModelForm):
         labels = {'username': "Pseudo"}
 
 
-class UserUpdateForm(UniqueUsernameMixin, UniqueEmailMixin, forms.ModelForm):
+class IdentityConfirmationMixin:
+    """Champ `confirmation` d'une action sensible : mot de passe actuel, ou pseudo pour un compte sans mot de passe (connexion Google).
+
+    La vérification (et la limite d'essais) est celle de services/members/identity.py."""
+
+    def add_confirmation_field(self, user, required=True, help_text=''):
+        self.confirming_user = user
+        if identity.uses_password(user):
+            field = forms.CharField(label="Mot de passe actuel", strip=False, required=required, help_text=help_text,
+                                    widget=forms.PasswordInput(attrs={'autocomplete': 'current-password'}))
+        else:
+            field = forms.CharField(label="Votre pseudo", max_length=150, required=required, help_text=help_text or "Retapez votre pseudo pour confirmer.",
+                                    widget=forms.TextInput(attrs={'autocomplete': 'off', 'autocapitalize': 'none', 'spellcheck': 'false'}))
+        self.fields['confirmation'] = field
+
+    def confirm_identity(self):
+        """Vrai si l'identité est confirmée ; sinon l'erreur est ajoutée au champ `confirmation`."""
+        try:
+            identity.confirm(self.confirming_user, self.cleaned_data.get('confirmation'))
+        except identity.IdentityNotConfirmed as error:
+            self.add_error('confirmation', str(error))
+            return False
+        return True
+
+
+class UserUpdateForm(UniqueEmailMixin, IdentityConfirmationMixin, forms.ModelForm):
+    """Adresse e-mail et biographie. Le pseudo se change à part (update_username_view, limité en débit).
+
+    Changer d'adresse exige le mot de passe actuel ; l'adresse d'un compte sans mot de passe (connexion Google) n'est pas modifiable."""
+
     class Meta:
         model = BeerUser
-        fields = ['username', 'email', 'bio']
+        fields = ['email', 'bio']
         labels = {
-            'username': "Nom d'utilisateur",
             'email': "Adresse Email",
             'bio': "Ma Biographie"
         }
@@ -187,12 +223,42 @@ class UserUpdateForm(UniqueUsernameMixin, UniqueEmailMixin, forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        super(UserUpdateForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+        if identity.uses_password(self.instance):
+            self.add_confirmation_field(self.instance, required=False, help_text="Requis uniquement pour changer d'adresse e-mail.")
+        else:
+            self.fields['email'].disabled = True  # Django ignore alors toute valeur envoyée pour ce champ
+            self.fields['email'].help_text = "Adresse de votre compte Google : elle ne peut pas être modifiée ici."
         for field in self.fields.values():
-            field.widget.attrs.update({
-                'class': 'form-control',
-                'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;'
-            })
+            field.widget.attrs['class'] = PLAIN_INPUT_CLASS
+
+    @property
+    def email_changed(self):
+        return 'email' in self.changed_data
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.email_changed and 'email' not in self.errors:
+            if not cleaned_data.get('confirmation'):
+                self.add_error('confirmation', "Saisissez votre mot de passe actuel pour changer d'adresse e-mail.")
+            else:
+                self.confirm_identity()
+        return cleaned_data
+
+
+class AccountDeletionForm(IdentityConfirmationMixin, forms.Form):
+    """Suppression du compte : confirmée par le mot de passe actuel, ou par le pseudo pour un compte sans mot de passe."""
+
+    def __init__(self, *args, user, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_confirmation_field(user)
+        self.fields['confirmation'].widget.attrs['class'] = 'pb-input w-full'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not self.errors:
+            self.confirm_identity()
+        return cleaned_data
 
 class ProfilePictureForm(forms.ModelForm):
     """Seul champ modifiable : la photo ; le fichier est validé et ré-encodé avant d'être stocké."""
@@ -405,7 +471,7 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             initial = kwargs.setdefault('initial', {})
             initial['brewery_name'] = kwargs['instance'].brewery.name
             
-        super(BeerForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         
         if self.instance.pk:
             del self.fields['ean']  # le code-barres se pose à l'ajout, pas à la modification
@@ -418,10 +484,7 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             existing_classes = field.widget.attrs.get('class', '')
             # L'image est gérée par le composant partials/image_field.html
             if field_name not in ('image', 'remove_image'):
-                field.widget.attrs.update({
-                    'class': f'form-control placeholder:text-gray-400 {existing_classes}'.strip(),
-                    'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;'
-                })
+                field.widget.attrs['class'] = f'{PLAIN_INPUT_CLASS} is-tight placeholder:text-gray-400 {existing_classes}'.strip()
 
     @staticmethod
     def may_edit_image(user, beer):
@@ -482,17 +545,12 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
         except catalog_matching.DuplicateFound as found:
             self.inspection = found.inspection
             # Erreur non rattachée à un champ : le nom saisi n'est pas vidé, le membre garde de quoi corriger
-            raise forms.ValidationError([forms.ValidationError(message, code='duplicate') for message in found.messages])
+            raise forms.ValidationError([forms.ValidationError(message, code='duplicate') for message in found.messages]) from None
         return data
 
     def clean_style(self):
         style = self.cleaned_data.get('style')
-        if style:
-            # Sépare par la virgule, enlève les espaces inutiles, et met une majuscule à chaque style
-            styles = [s.strip().capitalize() for s in style.split(',') if s.strip()]
-            # Reconstruit une belle chaîne "Style 1, Style 2"
-            return ", ".join(styles)
-        return style
+        return format_styles(style) if style else style
     
 class CustomNotebookForm(forms.ModelForm):
     title = forms.CharField(max_length=150, label="Titre", validators=[plain_text_validator])
@@ -542,7 +600,7 @@ class DrinkForm(ProcessedImageMixin, forms.ModelForm):
     CHOICE_FIELDS = ('venue_type', 'company', 'serving_format')  # boutons à choix unique, affichés par le gabarit
 
     def __init__(self, *args, user=None, **kwargs):
-        super(DrinkForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.user = user
         self.fields['note'].required = False
         for name in self.CHOICE_FIELDS:
@@ -562,17 +620,15 @@ class DrinkForm(ProcessedImageMixin, forms.ModelForm):
     def _post_clean(self):
         super()._post_clean()
         # Le quota n'est consommé qu'une fois tout le formulaire valide : une erreur de saisie ne fait pas perdre d'envoi
-        if not self.errors and self.user and self.uploaded_image('photo'):
-            if not consume_quota(self.user, DAILY_LIMIT, QUOTA_SCOPE):
-                self.add_error('photo', ValidationError("Limite quotidienne d'envois de photos atteinte, réessayez demain.", code='quota'))
+        if not self.errors and self.user and self.uploaded_image('photo') and not consume_quota(self.user, DAILY_LIMIT, QUOTA_SCOPE):
+            self.add_error('photo', ValidationError("Limite quotidienne d'envois de photos atteinte, réessayez demain.", code='quota'))
 
 class FeedbackForm(forms.Form):
     """Premier message d'un échange avec l'équipe."""
     message = forms.CharField(
         max_length=MAX_FEEDBACK_LENGTH, label="Votre suggestion, remarque ou bug",
         widget=forms.Textarea(attrs={
-            'rows': 4, 'maxlength': MAX_FEEDBACK_LENGTH, 'class': 'form-control',
-            'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;',
+            'rows': 4, 'maxlength': MAX_FEEDBACK_LENGTH, 'class': PLAIN_INPUT_CLASS,
         }),
     )
 
@@ -604,12 +660,12 @@ class MarketingConsentForm(forms.Form):
         widget=forms.CheckboxInput(attrs={'class': 'toggle toggle-sm toggle-primary'}),
     )
 
-    def __init__(self, *args, user, **kwargs):
-        self.user = user
+    def __init__(self, *args, user, source=marketing.ACCOUNT, **kwargs):
+        self.user, self.source = user, source
         super().__init__(*args, initial={'marketing_opt_in': user.marketing_opt_in}, **kwargs)
 
     def save(self):
-        return marketing.set_consent(self.user, self.cleaned_data['marketing_opt_in'], marketing.ACCOUNT)
+        return marketing.set_consent(self.user, self.cleaned_data['marketing_opt_in'], self.source)
 
 
 class ReportForm(forms.Form):

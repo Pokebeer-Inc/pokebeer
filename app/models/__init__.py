@@ -8,8 +8,8 @@ from .analytics import AnalyticsLayout, AnalyticsView, AnalyticsTile
 from .feedback import Feedback, FeedbackMessage
 from .reports import Report
 from .moderation import ModerationEntryQuerySet, ModerationEntry
-from .notifications import NotificationManager, Notification, UserAchievementState
-from .claims import EstablishmentClaim
+from .notifications import Notification, UserAchievementState
+from .claims import EstablishmentClaim, ManagerInvitation
 from .campaigns import EmailCampaign, CampaignRecipient
 from .system import PolicyNotice, ThrottleHit, AccountDeletion, QuotaUsage
 from . import signals  # noqa: F401  (branche les réactions automatiques)

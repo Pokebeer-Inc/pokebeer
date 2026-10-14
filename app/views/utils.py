@@ -1,10 +1,12 @@
+from dataclasses import dataclass
 from functools import wraps
 
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from ..models import BeerUser, UserBlock
+from ..forms import DrinkForm
+from ..services.catalog.selectors import member_marks, pickable_drinks
 from ..services.protection.throttle import client_ip
 
 MAX_OFFSET = 100_000
@@ -20,34 +22,83 @@ def parse_offset(request):
         return None
     return int(raw)
 
-def get_blocked_users(user):
-    """Retourne la liste des IDs d'utilisateurs avec qui il y a un blocage."""
-    if not user.is_authenticated: return []
-    blocked_by_me = UserBlock.objects.filter(blocker=user).values_list('blocked_id', flat=True)
-    blocking_me = UserBlock.objects.filter(blocked=user).values_list('blocker_id', flat=True)
-    return list(set(blocked_by_me) | set(blocking_me))
-
-def get_excluded_users(user):
-    """Retourne la liste des IDs d'utilisateurs à masquer : blocages et comptes suspendus.
-
-    Réservé aux cas qui ont besoin des identifiants eux-mêmes ; pour filtrer une requête, préférer `exclude_hidden_users`."""
-    suspended = BeerUser.objects.filter(is_active=False).values_list('id', flat=True)
-    return list(set(get_blocked_users(user)) | set(suspended))
+TOO_MANY_ATTEMPTS = "Trop de tentatives. Réessayez dans quelques minutes."
+TOO_MANY_SEARCHES = "Trop de recherches, réessayez dans un moment."
 
 
-def limit_posts(rule):
-    """Décorateur de vue : chaque envoi de formulaire (POST) compte pour la limite par IP ; au-delà, refus 429."""
+def by_ip(request):
+    return client_ip(request)
+
+
+def by_user(request):
+    return request.user.pk
+
+
+def throttle(rule, key=by_ip, methods=None, json=False, message=TOO_MANY_ATTEMPTS):
+    """Décorateur de vue : chaque requête (des méthodes `methods`, toutes par défaut) consomme une tentative de `rule` pour la clé
+    `key(request)`, de façon atomique ; au-delà, refus 429 (JSON `{"error": message}` pour une API, texte sinon).
+
+    La clé `by_user` suppose un membre connecté : c'est le cas de toute vue non marquée `login_not_required` (LoginRequiredMiddleware)."""
     def decorator(view):
         @wraps(view)
         def wrapper(request, *args, **kwargs):
-            if request.method == 'POST':
-                ip = client_ip(request)
-                if rule.exceeded(ip):
-                    return HttpResponse("Trop de tentatives. Réessayez dans quelques minutes.", status=429, content_type='text/plain; charset=utf-8')
-                rule.record(ip)
+            if (methods is None or request.method in methods) and not rule.hit(key(request)):
+                if json:
+                    return JsonResponse({'error': message}, status=429)
+                return HttpResponse(message, status=429, content_type='text/plain; charset=utf-8')
             return view(request, *args, **kwargs)
         return wrapper
     return decorator
+
+
+def limit_posts(rule):
+    """Chaque envoi de formulaire (POST) compte pour la limite par IP ; au-delà, refus 429."""
+    return throttle(rule, methods=('POST',))
+
+
+def beer_list_context(user, beers):
+    """Contexte d'une liste de bières à noter : les bières, celles déjà notées ou à goûter par le membre, et le formulaire de notation."""
+    rated, wished = member_marks(user, [beer.id for beer in beers])
+    return {'beers': beers, 'rating_form': DrinkForm(), 'rated_beer_ids': rated, 'wishlist_beer_ids': wished}
+
+
+@dataclass(frozen=True)
+class PickerMode:
+    """Sélecteur de dégustations : type de case, nom du champ envoyé, valeur (slug de la dégustation ou de la bière)."""
+    input_type: str
+    name: str
+    value: str
+    catalog_only: bool = False
+
+    @property
+    def row_context(self):
+        return {'input_type': self.input_type, 'name': self.name, 'value': self.value}
+
+
+PICKER_MODES = {
+    'drinks': PickerMode('checkbox', 'drinks', 'drink'),            # carnets, lieux de la carte : une case par dégustation
+    'top': PickerMode('radio', 'beer_slug', 'beer', catalog_only=True),  # Top 3 : une bière dégustée, encore au catalogue
+}
+PICKER_PAGE = 10  # = taille d'une page de « Charger plus »
+
+
+def picker_context(user, mode_key):
+    """Contexte de partials/drink_picker.html : premières lignes, total et adresse de la suite (chargeur `pick_drinks`)."""
+    mode = PICKER_MODES[mode_key]
+    drinks = pickable_drinks(user, catalog_only=mode.catalog_only)
+    first = list(drinks[:PICKER_PAGE + 1])
+    return {
+        **mode.row_context, 'drinks': first[:PICKER_PAGE], 'has_more': len(first) > PICKER_PAGE,
+        'total': drinks.count() if len(first) > PICKER_PAGE else len(first),
+        'url': f"{reverse('load_more_generic', args=['pick_drinks'])}?mode={mode_key}",
+    }
+
+
+def chosen_tab(value, tabs, aliases=None, default=None):
+    """Onglet demandé s'il fait partie de `tabs` (les anciens noms, français, passent par `aliases` : adresses déjà enregistrées ou
+    envoyées), sinon `default`. Le paramètre n'est jamais cru tel quel."""
+    value = (aliases or {}).get(value, value)
+    return value if value in tabs else default
 
 
 def previous_page(request, default='index'):

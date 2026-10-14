@@ -3,7 +3,7 @@ from django.contrib.auth.models import AnonymousUser
 
 from app.models import Notification, UserAchievementState
 from app.services.members.achievements import TIER_NAMES, check_and_notify_achievements, get_user_achievements
-from app.views.utils import get_excluded_users
+from app.services.members.visibility import is_blocked_between
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -118,11 +118,11 @@ class TestAchievementNotifications:
         assert not UserAchievementState.objects.exists()
 
 
-class TestExcludedUsers:
+class TestBlockedBetween:
     def test_block_is_symmetric(self, user, other_user):
         f.block(user, other_user)
-        assert get_excluded_users(user) == [other_user.id]
-        assert get_excluded_users(other_user) == [user.id]
+        assert is_blocked_between(user, other_user) and is_blocked_between(other_user, user)
+        assert user.is_blocked_with(other_user.pk)
 
-    def test_anonymous_excludes_nobody(self):
-        assert get_excluded_users(AnonymousUser()) == []
+    def test_anonymous_is_blocked_with_nobody(self, user):
+        assert not is_blocked_between(AnonymousUser(), user)

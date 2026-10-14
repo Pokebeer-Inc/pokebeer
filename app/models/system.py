@@ -21,6 +21,9 @@ class PolicyNotice(models.Model):
         verbose_name = "Annonce de la politique de confidentialité"
         verbose_name_plural = "Annonces de la politique de confidentialité"
 
+    def __str__(self):
+        return f"{self.created_at:%d/%m/%Y} : {self.summary}"
+
 
 class ThrottleHit(models.Model):
     """Tentative comptabilisée par la limitation de débit. La clé (IP, pseudo…) n'est conservée que hachée."""
@@ -33,6 +36,9 @@ class ThrottleHit(models.Model):
             models.Index(fields=['scope', 'key_hash', 'created_at'], name='throttle_lookup_idx'),
             models.Index(fields=['created_at'], name='throttle_created_idx'),  # purge des tentatives expirées (ThrottleHit.created_at < ...)
         ]
+
+    def __str__(self):
+        return f"{self.scope} {self.created_at:%d/%m/%Y %H:%M}"
 
 
 class AccountDeletion(models.Model):
@@ -52,7 +58,11 @@ class AccountDeletion(models.Model):
         ordering = ['-deleted_at']
         verbose_name = "Compte supprimé"
         verbose_name_plural = "Comptes supprimés"
-        
+
+    def __str__(self):
+        return f"Compte {self.user_id} ({self.get_reason_display()})"
+
+
 class QuotaUsage(models.Model):
     """Appels d'un membre à un service à quota (chat IA, lecture d'étiquette, code-barres, photo…) sur une journée, par usage (`scope`)."""
     user = models.ForeignKey('BeerUser', on_delete=models.CASCADE, related_name='quota_usages')

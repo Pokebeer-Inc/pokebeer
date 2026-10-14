@@ -148,32 +148,9 @@
                 <textarea name="description" id="spot-desc" class="textarea textarea-bordered h-16 bg-white shrink-0"></textarea>
             </div>
             
-            <div class="form-control w-full mt-2">
-                <label class="label py-1"><span class="label-text text-xs font-bold">Mes dégustations bues ici</span></label>
-                <div class="h-24 overflow-y-auto border border-base-300 bg-base-200 p-2 rounded-box flex flex-col">
-                    {% for drink in user_drinks %}
-                    <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300 rounded px-1 transition-colors drink-item" 
-                    data-drink-slug="{{ drink.slug }}" 
-                    data-is-deleted="{% if drink.beer.is_deleted %}true{% else %}false{% endif %}">
-                    <input type="checkbox" name="drinks" value="{{ drink.slug }}" data-beer-slug="{{ drink.beer.slug }}" class="checkbox checkbox-sm checkbox-primary drink-checkbox" />
-                    <span class="label-text text-xs font-semibold">
-                        {{ drink.beer.name }} 
-                        {% if drink.note is not null %}
-                        <span class="text-[10px] text-gray-500 font-normal">({{ drink.note }}/10)</span>
-                        {% endif %}
-                        {% if drink.beer.is_deleted %}
-                        <span class="badge badge-error badge-xs ml-1 opacity-70">Supprimée</span>
-                        {% endif %}
-                    </span>
-                </label>
-                {% empty %}
-                <div class="flex flex-col items-center justify-center flex-1 h-full text-center py-2">
-                    <p class="text-[10px] text-gray-500 italic mb-2">Vous n'avez noté aucune bière.</p>
-                    <a href="{% url 'add_beer' %}" class="btn btn-primary btn-xs text-black border-secondary">Ajouter une bière</a>
-                </div>
-                {% endfor %}
+            <div class="w-full mt-2" id="spot-drinks">
+                {% include "partials/drink_picker.html" with label="Mes dégustations bues ici" uid="spot" picker=picker hide_deleted=True %}
             </div>
-        </div>
         
         <div class="form-control w-full mt-2" id="friends-section">
             <label class="label py-1"><span class="label-text text-xs font-bold">Partager avec des amis (Abonnés)</span></label>

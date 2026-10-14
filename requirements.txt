@@ -15,7 +15,6 @@ Django==6.0.8
 django-allauth==65.16.1
 django-cleanup==9.0.0
 django-storages==1.14.6
-django-tailwind==4.4.2
 django-unfold==0.102.0
 eval_type_backport==0.4.0
 firebase_admin==7.7.0
@@ -58,7 +57,6 @@ pycparser==3.11
 pydantic==2.14.0
 pydantic_core==2.50.0
 PyJWT==2.15.0
-pytailwindcss==0.3.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-slugify==8.0.4

@@ -1,0 +1,12 @@
+{% comment %}Lignes d'un sélecteur de dégustations (partials/drink_picker.html et « Charger plus »). Les cases ne sont jamais cochées ici :
+static/script/picker.js applique la sélection en cours. Contexte : drinks, input_type (checkbox|radio), name, value (drink|beer).{% endcomment %}
+{% for drink in drinks %}
+<label class="pb-picker-row" data-picker-item data-beer-slug="{{ drink.beer.slug }}" data-is-deleted="{% if drink.beer.is_deleted %}true{% else %}false{% endif %}">
+    <input type="{{ input_type|default:'checkbox' }}" name="{{ name|default:'drinks' }}" value="{% if value == 'beer' %}{{ drink.beer.slug }}{% else %}{{ drink.slug }}{% endif %}" class="{% if input_type == 'radio' %}radio radio-sm{% else %}checkbox checkbox-sm{% endif %} checkbox-primary shrink-0">
+    <span class="min-w-0 flex-1">
+        <span class="block text-sm font-semibold leading-tight truncate">{{ drink.beer.name }}{% if drink.beer.is_deleted %} <span class="badge badge-error badge-xs ml-1 opacity-70">Supprimée</span>{% endif %}</span>
+        <span class="block text-[10px] text-[#6b625a] truncate">{{ drink.beer.brewery.name }}</span>
+    </span>
+    {% if drink.note is not None %}<span class="pb-pill is-primary !text-xs shrink-0">{{ drink.note }}/10</span>{% endif %}
+</label>
+{% endfor %}

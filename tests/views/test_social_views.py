@@ -2,6 +2,7 @@ import pytest
 from django.urls import reverse
 
 from app.models import Beer, BeerUser, DrinkReaction, Drinks, Feedback, Notification, UserFollow
+from app.services.protection.throttle import IDENTITY_CONFIRM_BY_USER
 from tests import factories as f
 from tests.helpers import assert_redirects, messages_of, post_json
 
@@ -18,12 +19,44 @@ class TestAccount:
         assert response.context["total_drinks"] == 1
 
     def test_profile_update(self, auth_client, user):
-        auth_client.post(self.URL, {"btn_profile": "", "username": "alice", "email": "new@example.test", "bio": "Hop"})
+        auth_client.post(self.URL, {"btn_profile": "", "email": "new@example.test", "bio": "Hop", "confirmation": f.PASSWORD})
         user.refresh_from_db()
         assert (user.email, user.bio) == ("new@example.test", "Hop")
 
-    def test_profile_update_cannot_take_another_username(self, auth_client, user, other_user):
-        auth_client.post(self.URL, {"btn_profile": "", "username": other_user.username, "email": user.email})
+    def test_bio_alone_needs_no_password(self, auth_client, user):
+        auth_client.post(self.URL, {"btn_profile": "", "email": user.email, "bio": "Hop"})
+        user.refresh_from_db()
+        assert user.bio == "Hop"
+
+    @pytest.mark.parametrize("confirmation", ["", "wrong-password"])
+    def test_email_change_requires_the_current_password(self, auth_client, user, confirmation):
+        previous = user.email
+        response = auth_client.post(self.URL, {"btn_profile": "", "email": "thief@example.test", "bio": "", "confirmation": confirmation})
+        user.refresh_from_db()
+        assert user.email == previous and response.status_code == 200
+
+    def test_the_previous_address_is_warned(self, auth_client, user, mailoutbox):
+        previous = user.email
+        auth_client.post(self.URL, {"btn_profile": "", "email": "new@example.test", "bio": "", "confirmation": f.PASSWORD})
+        (message,) = mailoutbox
+        assert message.to == [previous] and "new@example.test" in message.body
+
+    def test_password_guessing_is_throttled(self, auth_client, user):
+        for _ in range(IDENTITY_CONFIRM_BY_USER.attempts):
+            auth_client.post(self.URL, {"btn_profile": "", "email": "thief@example.test", "bio": "", "confirmation": "nope"})
+        auth_client.post(self.URL, {"btn_profile": "", "email": "new@example.test", "bio": "", "confirmation": f.PASSWORD})
+        user.refresh_from_db()
+        assert user.email != "new@example.test"
+
+    def test_a_google_account_cannot_change_its_address(self, client_for):
+        member = f.make_user(password=None)
+        previous = member.email
+        client_for(member).post(self.URL, {"btn_profile": "", "email": "new@example.test", "bio": "Hop", "confirmation": member.username})
+        member.refresh_from_db()
+        assert (member.email, member.bio) == (previous, "Hop")
+
+    def test_profile_form_no_longer_changes_the_username(self, auth_client, user, other_user):
+        auth_client.post(self.URL, {"btn_profile": "", "username": "renamed", "email": user.email, "bio": ""})
         user.refresh_from_db()
         assert user.username == "alice"
 
@@ -68,11 +101,30 @@ class TestDeleteAccount:
     def test_post_deletes_personal_data_but_keeps_catalogue(self, auth_client, user):
         added = f.make_beer(added_by=user)
         f.make_drink(user, added)
-        auth_client.post(self.URL)
+        auth_client.post(self.URL, {"confirmation": f.PASSWORD})
         assert not BeerUser.objects.filter(pk=user.pk).exists()
         assert not Drinks.objects.exists()
         assert Beer.objects.get(pk=added.pk).added_by is None
         assert "_auth_user_id" not in auth_client.session
+
+
+    @pytest.mark.parametrize("confirmation", ["", "wrong-password"])
+    def test_the_password_is_required(self, auth_client, user, confirmation):
+        response = auth_client.post(self.URL, {"confirmation": confirmation})
+        assert_redirects(response, reverse("account_settings_home"))
+        assert BeerUser.objects.filter(pk=user.pk).exists()
+
+    def test_a_google_account_confirms_with_its_username(self, client_for):
+        member = f.make_user(password=None)
+        client = client_for(member)
+        client.post(self.URL, {"confirmation": "someone-else"})
+        assert BeerUser.objects.filter(pk=member.pk).exists()
+        client.post(self.URL, {"confirmation": member.username.upper()})
+        assert not BeerUser.objects.filter(pk=member.pk).exists()
+
+    def test_the_settings_modal_asks_for_the_password(self, auth_client):
+        html = auth_client.get(reverse("account_settings_home")).content.decode()
+        assert 'name="confirmation"' in html and 'type="password"' in html
 
 
 class TestPublicProfile:

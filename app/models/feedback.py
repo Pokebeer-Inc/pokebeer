@@ -21,14 +21,14 @@ class Feedback(models.Model):
         verbose_name = "Feedback / Suggestion"
         ordering = ['-created_at']
 
-    @property
-    def last_team_message(self):
-        """Dernière réponse de l'équipe, utilisée par le texte des notifications."""
-        from ..services.support.feedback import last_team_message
-        return last_team_message(self)
-
     def __str__(self):
         return f"Feedback de {self.user.username} ({self.get_status_display()})"
+
+    @property
+    def last_team_message(self):
+        """Dernière réponse de l'équipe (None s'il n'y en a pas), utilisée par le texte des notifications ; exploite le prefetch de `messages`."""
+        team = [message for message in self.messages.all() if message.author_kind == FeedbackMessage.Author.TEAM]
+        return team[-1] if team else None
     
 class FeedbackMessage(models.Model):
     """Message d'un échange avec l'équipe, après le premier message du membre (stocké dans Feedback.message)."""

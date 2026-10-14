@@ -2,6 +2,7 @@
 from django.db.models import Q
 
 from ...models import BeerSpot, BeerUser, Drinks
+from ..members.achievements import check_and_notify_achievements
 from ..messaging.notifications import notify
 from ..members.visibility import exclude_blocked
 
@@ -19,7 +20,7 @@ def invitable_friends(user, usernames):
 
 def can_edit(spot, user):
     """Le créateur du lieu et ses amis invités peuvent le modifier."""
-    return user == spot.user or user in spot.friends.all()
+    return spot.user_id == user.pk or spot.friends.filter(pk=user.pk).exists()
 
 
 def create_spot(user, fields, drink_slugs, friend_ids):
@@ -30,6 +31,7 @@ def create_spot(user, fields, drink_slugs, friend_ids):
         notify('spot_invite', friend_ids, sender=user, spot=spot)
     if drink_slugs:
         spot.drinks.set(participant_drinks(spot, drink_slugs))
+    check_and_notify_achievements(user)
     return spot
 
 
@@ -58,3 +60,4 @@ def update_spot(spot, editor, fields, drink_slugs, friend_ids):
     to_notify = set(spot.friends.values_list('id', flat=True)) | {spot.user.id}
     to_notify -= {editor.id, *new_friends}
     notify('spot_updated', to_notify, sender=editor, spot=spot)
+    check_and_notify_achievements(editor)

@@ -2,6 +2,7 @@
 from datetime import date
 
 import pytest
+from django.utils import timezone
 from django.urls import reverse
 
 from app.models import Drinks
@@ -113,7 +114,7 @@ class TestTastingContext:
     def test_context_fields_are_optional_and_saved(self, auth_client, user):
         beer = f.make_beer()
         auth_client.post(reverse("rate_beer", args=[beer.slug]), {
-            "date": date.today().isoformat(), "note": 7, "comment": "Très bien",
+            "date": timezone.localdate().isoformat(), "note": 7, "comment": "Très bien",
             "venue_type": "bar", "company": "friends", "serving_format": "pint", "price": "6.50",
         })
         drink = Drinks.objects.get(drinker=user, beer=beer)
@@ -121,13 +122,13 @@ class TestTastingContext:
 
     def test_editing_without_the_context_fields_keeps_them(self, auth_client, user):
         drink = f.make_drink(user, venue_type="home", company="alone", serving_format="can", price="3.20")
-        auth_client.post(reverse("modify_rate_beer", args=[drink.slug]), {"date": date.today().isoformat(), "note": 9, "comment": "Mieux"})
+        auth_client.post(reverse("modify_rate_beer", args=[drink.slug]), {"date": timezone.localdate().isoformat(), "note": 9, "comment": "Mieux"})
         drink.refresh_from_db()
         assert (drink.venue_type, drink.company, drink.serving_format, str(drink.price), drink.note) == ("home", "alone", "can", "3.20", 9)
 
     def test_invalid_choice_is_refused(self, auth_client, user):
         beer = f.make_beer()
-        auth_client.post(reverse("rate_beer", args=[beer.slug]), {"date": date.today().isoformat(), "comment": "x", "venue_type": "moon"})
+        auth_client.post(reverse("rate_beer", args=[beer.slug]), {"date": timezone.localdate().isoformat(), "comment": "x", "venue_type": "moon"})
         assert not Drinks.objects.filter(drinker=user, beer=beer).exists()
 
     def test_the_add_page_offers_every_field_across_its_steps(self, auth_client):
@@ -573,9 +574,8 @@ class TestTastingModal:
             assert auth_client.get(reverse("all_beers"), {"tab": "beers"}).status_code == 200
 
     def test_a_rating_sent_from_the_wizard_is_saved_with_its_context(self, auth_client, user, beer):
-        from datetime import date
         response = auth_client.post(reverse("rate_beer", args=[beer.slug]), {
-            "date": date.today().isoformat(), "note": "8", "comment": "Top", "venue_type": "bar", "company": "friends",
+            "date": timezone.localdate().isoformat(), "note": "8", "comment": "Top", "venue_type": "bar", "company": "friends",
             "serving_format": "bottle", "price": "4.50",
         })
         assert response.status_code == 302
@@ -631,7 +631,7 @@ class TestNotebookModals:
     def test_each_tasting_shows_its_brewery_and_can_be_searched(self, auth_client, user):
         f.make_drink(user, f.make_beer(name="Zinc Witbier", brewery=f.make_brewery(name="Brasserie du Port")))
         modal = self.modal(auth_client.get(reverse("notebook")).content.decode(), "modal_create_notebook")
-        assert "Brasserie du Port" in modal and 'data-search="zinc witbier brasserie du port"' in modal
+        assert "Brasserie du Port" in modal and f'data-picker-url="{reverse("load_more_generic", args=["pick_drinks"])}?mode=drinks"' in modal
         assert "data-picker-search" in modal and "data-picker-all" in modal and "data-picker-none" in modal and "data-picker-count" in modal
 
     def test_a_member_without_tastings_gets_an_explanation_instead_of_an_empty_box(self, auth_client):
@@ -642,8 +642,9 @@ class TestNotebookModals:
         inside, outside = f.make_drink(user, f.make_beer(name="Dedans")), f.make_drink(user, f.make_beer(name="Dehors"))
         notebook = f.make_notebook(user, title="Soirée", description="Une note", drinks=[inside])
         modal = self.modal(auth_client.get(reverse("notebook_detail", args=[notebook.slug])).content.decode(), "modal_edit_notebook")
-        assert modal.count(" checked>") == 1 and modal.index(inside.slug) < modal.index(" checked>") < modal.index(outside.slug)
-        assert 'value="Soirée"' in modal and "Une note" in modal and "<b data-picker-count>1</b> sélectionnée sur 2" in modal.replace("\n", " ")
+        # La sélection est donnée au script (picker.js), qui la garde d'une page de résultats à l'autre
+        assert f'data-selected="{inside.slug}"' in modal and inside.slug in modal and outside.slug in modal
+        assert 'value="Soirée"' in modal and "Une note" in modal and "sur 2" in modal
         assert 'aria-label="Fermer"' in modal and f'action="{reverse("edit_custom_notebook", args=[notebook.slug])}"' in modal
 
     def test_the_picker_does_not_query_per_tasting(self, auth_client, user, django_assert_max_num_queries):
@@ -706,7 +707,7 @@ class TestBeerPageDesign:
 
     def test_editing_from_the_modal_updates_the_context_and_can_clear_it(self, auth_client, user):
         drink = f.make_drink(user, f.make_beer(), note=5, venue_type="home", company="alone", price="3.00")
-        today = date.today().isoformat()
+        today = timezone.localdate().isoformat()
         auth_client.post(reverse("modify_rate_beer", args=[drink.slug]), {"date": today, "note": 6, "comment": "x", "venue_type": "bar", "company": "", "serving_format": "can", "price": "4.20"})
         drink.refresh_from_db()
         assert (drink.venue_type, drink.company, drink.serving_format, str(drink.price)) == ("bar", "", "can", "4.20")

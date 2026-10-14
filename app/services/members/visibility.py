@@ -25,4 +25,4 @@ def exclude_hidden_users(queryset, user, field):
 
 def is_blocked_between(user, other):
     """Vrai s'il existe un blocage entre ces deux membres, dans un sens ou dans l'autre."""
-    return UserBlock.objects.filter(Q(blocker=user, blocked=other) | Q(blocker=other, blocked=user)).exists()
+    return user.is_authenticated and user.is_blocked_with(other)
