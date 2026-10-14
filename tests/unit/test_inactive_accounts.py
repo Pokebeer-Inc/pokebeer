@@ -1,5 +1,5 @@
 """RGPD : avertissement puis suppression des comptes inactifs."""
-from datetime import timedelta
+from datetime import timedelta, UTC
 
 import pytest
 from django.core.management import call_command
@@ -127,7 +127,7 @@ class TestActivity:
 class TestSelfDeletion:
     def test_manual_deletion_is_logged(self, user, client_for):
         pk = user.pk
-        client_for(user).post(reverse("delete_account"))
+        client_for(user).post(reverse("delete_account"), {"confirmation": f.PASSWORD})
         entry = AccountDeletion.objects.get()
         assert (entry.user_id, entry.reason) == (pk, "self")
 
@@ -168,9 +168,9 @@ def test_command_purges(user):
 
 
 def test_month_arithmetic_clamps_to_month_end():
-    from datetime import datetime, timezone as tz
-    assert inactivity._months_before(datetime(2026, 3, 31, tzinfo=tz.utc), 1).day == 28
-    assert inactivity._months_before(datetime(2026, 10, 4, tzinfo=tz.utc), 24).year == 2024
+    from datetime import datetime
+    assert inactivity._months_before(datetime(2026, 3, 31, tzinfo=UTC), 1).day == 28
+    assert inactivity._months_before(datetime(2026, 10, 4, tzinfo=UTC), 24).year == 2024
 
 
 class TestInactivityEmails:

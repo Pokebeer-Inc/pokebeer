@@ -2,11 +2,28 @@
 import secrets
 
 from django.conf import settings
+from django.contrib.auth import middleware as auth_middleware
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect
 
 from .services.protection import csp
 from .services.members import inactivity
+
+
+class LoginRequiredMiddleware(auth_middleware.LoginRequiredMiddleware):
+    """Toute page exige d'être connecté, sauf celles marquées `@login_not_required` (connexion, inscription, mot de passe oublié, liens des
+    e-mails, fichiers publics…) : une nouvelle vue est protégée par défaut, un oubli ne peut plus l'exposer.
+
+    L'administration garde son propre contrôle (sa page de connexion et les droits staff) : ses adresses ne passent pas par ici."""
+
+    def __init__(self, get_response):
+        super().__init__(get_response)
+        self.admin_prefix = f'/{settings.ADMIN_URL}'
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        if request.path.startswith(self.admin_prefix):
+            return None
+        return super().process_view(request, view_func, view_args, view_kwargs)
 
 
 class ActivityMiddleware:

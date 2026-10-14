@@ -1,6 +1,5 @@
 """Lieux posés sur la carte par les membres et cache de géocodage inverse."""
 
-from datetime import date
 from django.db import models
 from django.utils import timezone
 
@@ -14,7 +13,7 @@ class BeerSpot(models.Model):
     slug = PublicSlugField()
     title = models.CharField(max_length=150, verbose_name="Titre du lieu")
     description = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, null=True, verbose_name="Description / Souvenirs")
-    date = models.DateField(default=date.today, verbose_name="Date")
+    date = models.DateField(default=timezone.localdate, verbose_name="Date")
     latitude = models.FloatField()
     longitude = models.FloatField()
     
@@ -64,12 +63,12 @@ class ReverseGeocode(models.Model):
         verbose_name = "Géocodage inverse"
         constraints = [models.UniqueConstraint(fields=['lat_e4', 'lon_e4'], name='unique_reverse_geocode_position')]
 
+    def __str__(self):
+        return f"{self.lat_e4 / 10_000:.4f}, {self.lon_e4 / 10_000:.4f} - {self.city or '?'}"
+
     @property
     def is_resolved(self):
         return self.resolved_at is not None
-
-    def __str__(self):
-        return f"{self.lat_e4 / 10_000:.4f}, {self.lon_e4 / 10_000:.4f} - {self.city or '?'}"
 
 
 class PostalCode(models.Model):
@@ -81,3 +80,6 @@ class PostalCode(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['code', 'city'], name='unique_postal_code_city')]
+
+    def __str__(self):
+        return f"{self.code} {self.city or '(inconnu)'}"

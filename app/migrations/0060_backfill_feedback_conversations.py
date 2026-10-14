@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.db import migrations
 
-from app.services.common.slugs import generate_slug
+from app.domain.slugs import generate_slug
 
 
 def forward(apps, schema_editor):

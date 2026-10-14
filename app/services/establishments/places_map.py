@@ -8,23 +8,22 @@ PUBLIC_FIELDS = ('slug', 'name', 'description', 'street', 'postal_code', 'city',
                  'latitude', 'longitude', 'is_verified', 'verified_at')
 
 
+def _marker(kind, place):
+    return {
+        'type': kind.key,
+        'type_label': kind.label,
+        'url': kind.detail_path(place),
+        'managers_count': place.managers_count,
+        'address': place.address,
+        **{field: getattr(place, field) for field in PUBLIC_FIELDS if field != 'verified_at'},
+        'verified_at': place.verified_at.date().isoformat() if place.verified_at else None,
+    }
+
+
 def places_for_map():
-    places = []
-    for kind in PLACE_KINDS:
-        queryset = (
-            kind.model.objects
-            .filter(latitude__isnull=False, longitude__isnull=False)
-            .annotate(managers_count=Count('managers'))
-            .only(*PUBLIC_FIELDS)
-        )
-        for place in queryset:
-            places.append({
-                'type': kind.key,
-                'type_label': kind.label,
-                'url': kind.detail_path(place),
-                'managers_count': place.managers_count,
-                'address': place.address,
-                **{field: getattr(place, field) for field in PUBLIC_FIELDS if field != 'verified_at'},
-                'verified_at': place.verified_at.date().isoformat() if place.verified_at else None,
-            })
-    return places
+    return [
+        _marker(kind, place)
+        for kind in PLACE_KINDS
+        for place in (kind.model.objects.filter(latitude__isnull=False, longitude__isnull=False)
+                      .annotate(managers_count=Count('managers')).only(*PUBLIC_FIELDS))
+    ]

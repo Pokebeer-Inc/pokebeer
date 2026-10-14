@@ -1,8 +1,9 @@
 import pytest
 
 from app.models import Notification, UserBlock
-from app.services.messaging import notification_types
+from app.domain import notification_types
 from app.services.messaging.notifications import create_notifications, notify
+from app.services.messaging.notifications import save_notifications
 from tests import factories as f
 
 pytestmark = pytest.mark.django_db
@@ -24,7 +25,7 @@ class TestRegistry:
         with pytest.raises(KeyError):
             f.make_notification(user, "not_a_type")
         with pytest.raises(KeyError):
-            Notification.objects.bulk_create([Notification(recipient=user, notif_type="not_a_type")])
+            save_notifications([Notification(recipient=user, notif_type="not_a_type")])
 
 
 class TestPolicy:

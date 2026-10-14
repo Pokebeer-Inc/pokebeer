@@ -1,6 +1,5 @@
 """Suggestion de modification d'une fiche (bière, brasserie, bar) par un membre qui ne peut pas la modifier directement."""
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 from django.views.decorators.http import require_POST
 
@@ -9,7 +8,6 @@ from ..services.moderation.suggestions import SuggestionError, propose
 from .utils import previous_page
 
 
-@login_required(login_url='login')
 @require_POST
 def suggest_edit_view(request, kind, slug):
     """Enregistre la suggestion (relue par l'équipe) puis renvoie sur la fiche."""

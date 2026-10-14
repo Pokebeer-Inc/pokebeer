@@ -19,19 +19,16 @@ def test_models_and_migrations_are_in_sync():
     call_command("makemigrations", "--check", "--dry-run", stdout=StringIO())
 
 
-def test_collected_static_files_are_up_to_date():
-    """Vercel ne lance pas collectstatic : staticfiles/ (versionné) doit refléter les sources, sinon la prod sert d'anciens scripts."""
-    stale = []
-    for source_dir in map(Path, settings.STATICFILES_DIRS):
-        for source in source_dir.rglob("*"):
-            relative = source.relative_to(source_dir)
-            # css/dist est le build Tailwind, régénéré par la CI : sa sortie varie d'une machine à l'autre
-            if not source.is_file() or source.name.startswith(".") or "dist" in relative.parts:
-                continue
-            collected = Path(settings.STATIC_ROOT) / relative
-            if not collected.is_file() or collected.read_bytes() != source.read_bytes():
-                stale.append(str(relative))
-    assert not stale, f"staticfiles/ obsolète pour {sorted(stale)} : lancez `docker compose exec web python manage.py collectstatic --noinput` et commitez le résultat."
+def test_generated_static_files_are_not_versioned():
+    """staticfiles/ (collectstatic) est produit par le déploiement : le versionner réintroduirait des copies obsolètes des sources."""
+    ignored = Path(settings.BASE_DIR, ".gitignore").read_text().splitlines()
+    assert "staticfiles/" in ignored
+
+
+def test_vercel_receives_the_generated_static_files():
+    """Un .vercelignore remplace .gitignore pour l'envoi à Vercel : il ne doit pas exclure les fichiers que le déploiement génère."""
+    ignored = Path(settings.BASE_DIR, ".vercelignore").read_text().splitlines()
+    assert "staticfiles/" not in ignored and ".env" in ignored and "media/" in ignored
 
 
 def test_every_app_route_is_named():

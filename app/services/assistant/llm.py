@@ -57,10 +57,7 @@ def conversation_sources(response):
 
 def reserve_call(model):
     """Réserve un appel dans le budget par minute de ce modèle (chaque modèle a ses propres limites) ; False s'il est dépensé."""
-    if CHAT_MODEL_CALLS.exceeded(model):
-        return False
-    CHAT_MODEL_CALLS.record(model)
-    return True
+    return CHAT_MODEL_CALLS.hit(model)
 
 
 def embed(texts, budgeted=True):

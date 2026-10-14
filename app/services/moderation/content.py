@@ -5,7 +5,9 @@ from django.db import transaction
 from django.urls import reverse
 
 from app.models import Bar, Beer, BeerUser, Brewery, Drinks, ModerationEntry, Notification
-from app.services.catalog import catalog_matching
+from app.services.catalog import catalog_matching, permissions as beer_permissions
+from app.services.establishments import removal
+from app.services.establishments.team import is_manager
 from app.services.members.achievements import check_and_notify_achievements
 from app.services.catalog.drinks import delete_drink
 from app.services.members.profile_pictures import delete_stored_picture
@@ -122,9 +124,7 @@ class BeerContent(ModeratedContent):
     suggest_fields = ('name', 'description', 'style', 'degree', 'bitterness')
 
     def can_edit(self, obj, user):
-        # Même règle que la page de modification : le gérant de la brasserie, ou le créateur tant que la fiche n'est pas vérifiée
-        is_manager = obj.brewery.managers.filter(pk=user.pk).exists()
-        return is_manager or (obj.added_by_id == user.pk and not obj.is_verified)
+        return beer_permissions.can_edit(user, obj)  # même règle que la page de modification
 
     def suggestion_errors(self, target, cleaned):
         # Le modèle ne contrôle pas le nom d'une bière au sein de sa brasserie (champ hors formulaire) : même règle que la modification directe
@@ -194,7 +194,7 @@ class EstablishmentContent(ModeratedContent):
     )
 
     def can_edit(self, obj, user):
-        return obj.managers.filter(pk=user.pk).exists()
+        return is_manager(user, obj)
 
     def authors(self, obj):
         return list(obj.managers.all())
@@ -210,6 +210,9 @@ class BreweryContent(EstablishmentContent):
 
     def url(self, obj):
         return reverse('brewery_detail', args=[obj.slug])
+
+    def remove(self, obj, entry):
+        removal.delete_brewery(obj, delete_beers=True)  # l'avertissement ci-dessous a annoncé les bières supprimées avec elle
 
     def cascade_warning(self, obj):
         count = obj.beer_set.count()

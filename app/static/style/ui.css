@@ -187,3 +187,8 @@ a.pb-pending { pointer-events: none; opacity: 0.7; }
 
 /* Appui immédiat : les puces et les boutons de choix réagissent dès le toucher */
 .pb-chip:active, .pb-choice:active { transform: scale(0.96); }
+
+/* Champs des formulaires générés par Django (forms.PLAIN_INPUT_CLASS) et champ refusé, vidé pour être ressaisi (forms.clear_invalid_fields) */
+.pb-plain-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; box-sizing: border-box; }
+.pb-field-invalid { border: 2px solid #ef4444 !important; }
+.pb-plain-input.is-tight { margin-bottom: 0; }

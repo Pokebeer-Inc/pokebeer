@@ -30,7 +30,7 @@ class TestNotebookPages:
         notebook = f.make_notebook(user, drinks=[inside])
         context = auth_client.get(reverse("notebook_detail", args=[notebook.slug])).context
         assert list(context["my_drinks"]) == [inside]
-        assert context["notebook_drink_slugs"] == [inside.slug]
+        assert context["notebook_drink_slugs"] == inside.slug
         assert context["styles"] == ["IPA", "Stout"]
 
     def test_all_drinks_view_paginates_to_ten(self, auth_client, user):

@@ -26,6 +26,9 @@ class SuggestionError(ModerationError):
     """Suggestion refusée, avec un message explicable au membre ou à l'équipe."""
 
 
+TOO_MANY_SUGGESTIONS = "Vous avez déjà beaucoup suggéré aujourd'hui : merci, réessayez demain."
+
+
 def menu_context(content, obj, user):
     """Ce qu'une page de fiche doit savoir pour proposer (ou non) « Suggérer une modification »."""
     allowed = content.can_suggest(obj, user)
@@ -55,7 +58,7 @@ def propose(kind, slug, user, data):
     if not content.can_suggest(target, user):
         raise SuggestionError("Vous pouvez modifier cette fiche directement.")
     if SUGGESTION_BY_USER.exceeded(user.pk):
-        raise SuggestionError("Vous avez déjà beaucoup suggéré aujourd'hui : merci, réessayez demain.")
+        raise SuggestionError(TOO_MANY_SUGGESTIONS)
     if ModerationEntry.objects.pending().suggestions().filter(kind=kind, object_id=target.pk, suggested_by=user).exists():
         raise SuggestionError("Votre suggestion pour cette fiche est déjà en attente : merci de patienter.")
 
@@ -67,7 +70,8 @@ def propose(kind, slug, user, data):
     if not changes:
         raise SuggestionError("Aucune modification : changez au moins un champ.")
 
-    SUGGESTION_BY_USER.record(user.pk)
+    if not SUGGESTION_BY_USER.hit(user.pk):  # compté de façon atomique : des envois simultanés ne dépassent pas le plafond
+        raise SuggestionError(TOO_MANY_SUGGESTIONS)
     return ModerationEntry.objects.create(
         kind=kind, action=Action.SUGGESTED, object_id=target.pk, suggested_by=user,
         label=content.title(target)[:255], context=content.context(target)[:255], changes=changes,

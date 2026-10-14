@@ -20,12 +20,12 @@ def send_welcome(user):
     Le compte est « réservé » avant l'envoi (mise à jour conditionnelle) : deux déclenchements simultanés n'envoient qu'un message.
     Au-delà du plafond quotidien, ou en cas de panne, rien n'est envoyé et l'inscription n'en est jamais affectée.
     """
-    if WELCOME_EMAIL_GLOBAL.exceeded(GLOBAL_KEY):
+    if not WELCOME_EMAIL_GLOBAL.hit(GLOBAL_KEY):
         return False
     claimed = BeerUser.objects.filter(pk=user.pk, welcome_sent_at__isnull=True).update(welcome_sent_at=timezone.now())
     if not claimed:
+        WELCOME_EMAIL_GLOBAL.release(GLOBAL_KEY)
         return False
-    WELCOME_EMAIL_GLOBAL.record(GLOBAL_KEY)
     sent = mailer.send_templated(user.email, SUBJECT, 'welcome', {
         'user': user, 'highlights': app_links.highlights(), 'preferences_url': marketing.preferences_url(user),
     })

@@ -1,0 +1,6 @@
+{% extends "emails/_layout.html" %}
+{% block content %}
+<p>Bonjour {{ user.username }},</p>
+<p>L'adresse e-mail de votre compte Pokebeer a été remplacée par <strong>{{ new_email }}</strong> le <strong>{{ when }}</strong>. Ce message est le dernier envoyé à cette adresse.</p>
+<p style="font-size:13px;color:#57534e;">Si c'est bien vous, aucune action n'est nécessaire. Sinon, écrivez-nous immédiatement à {{ support_email }} : nous rétablirons l'accès à votre compte.</p>
+{% endblock %}

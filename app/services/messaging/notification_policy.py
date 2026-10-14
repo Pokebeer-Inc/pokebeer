@@ -1,13 +1,12 @@
 """Qui a le droit de recevoir quoi : appliqué à toute notification créée, quel que soit l'appelant."""
-from . import notification_types
+from django.db.models import Q
+
+from ...domain import notification_types
+from ...models import BeerUser, UserBlock
 
 
 def filter_allowed(notifications):
     """Ne garde que les notifications autorisées, en un nombre constant de requêtes."""
-    # Imports locaux : ce module est appelé depuis models.py
-    from django.db.models import Q
-    from ...models import BeerUser, UserBlock
-
     notifications = list(notifications)
     for notif in notifications:
         notification_types.get(notif.notif_type)  # rejette les types inconnus
@@ -35,9 +34,8 @@ def filter_allowed(notifications):
 def _is_allowed(notif, recipient, blocked_pairs):
     if recipient is None or not recipient.is_active:
         return False
-    if notif.sender_id:
-        if notif.sender_id == notif.recipient_id or (notif.recipient_id, notif.sender_id) in blocked_pairs:
-            return False
+    if notif.sender_id and (notif.sender_id == notif.recipient_id or (notif.recipient_id, notif.sender_id) in blocked_pairs):
+        return False
 
     notif_type = notification_types.get(notif.notif_type)
     if notif_type.is_system:

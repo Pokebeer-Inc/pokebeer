@@ -10,9 +10,9 @@ from django.urls import reverse
 from app.forms import BeerForm
 from app.models import Beer, Brewery
 from app.services.catalog import catalog_matching as cm
-from app.services.protection.throttle import CATALOG_CHECK_BY_USER, Rule
+from app.services.protection.throttle import CATALOG_CHECK_BY_USER
 from tests import factories as f
-from tests.helpers import messages_of
+from tests.helpers import exhaust, messages_of
 from tests.views.test_beer_views import add_beer_data
 
 pytestmark = pytest.mark.django_db
@@ -176,8 +176,8 @@ class TestLiveCheckApi:
         html = self.get(auth_client, name="Nouvelle", brewery='Brasserie <b>"du"</b> Coin').json()["html"]
         assert "<b>" not in html
 
-    def test_it_is_throttled_per_member(self, auth_client, other_client, coin, monkeypatch):
-        monkeypatch.setattr("app.views.api_views.CATALOG_CHECK_BY_USER", Rule("catalog-check", 2, CATALOG_CHECK_BY_USER.window))
+    def test_it_is_throttled_per_member(self, auth_client, user, other_client, coin):
+        exhaust(CATALOG_CHECK_BY_USER, user.pk, remaining=2)
         codes = [self.get(auth_client, name="Punk", brewery="Zythos").status_code for _ in range(3)]
         assert codes == [200, 200, 429] and self.get(other_client, name="Punk", brewery="Zythos").status_code == 200
 

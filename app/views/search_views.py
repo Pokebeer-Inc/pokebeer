@@ -3,8 +3,6 @@
 La page complète et l'API de rafraîchissement (saisie en direct) produisent le même bloc de résultats par le même code :
 `build_results`. Sans JavaScript, la page fonctionne par simples liens et envoi du formulaire.
 """
-from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -12,12 +10,12 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_GET
 
-from ..forms import DrinkForm
-from ..models import Beer, Drinks
 from ..services.establishments import place_directory, place_filters
 from ..services.catalog import search
+from ..services.catalog.styles import catalog_styles
 from ..services.establishments.places import BAR, BREWERY, with_targets
 from ..services.catalog.selectors import get_filtered_bars, get_filtered_beers, get_filtered_breweries, get_filtered_users, search_query
+from .utils import beer_list_context, chosen_tab
 
 PAGE = 10        # éléments d'un onglet avant « Charger plus »
 PREVIEW = 3      # éléments de chaque rubrique dans l'onglet « Tout »
@@ -38,47 +36,21 @@ def normalize_tab(value):
 
 def active_tab(request, default='beers'):
     """Onglet demandé ; `uq` (ancien paramètre de la recherche de membres) ouvre l'onglet Members."""
-    tab = normalize_tab(request.GET.get('tab'))
-    if tab in TAB_KEYS:
-        return tab
-    return 'members' if request.GET.get('uq') else default
-
-
-BEER_STYLES_CACHE_KEY = 'beer_styles'
-BEER_STYLES_CACHE_SECONDS = 600  # le cache est aussi vidé dès qu'une bière est ajoutée, modifiée ou retirée (models/signals.py)
-
-
-def beer_styles():
-    """Styles du catalogue pour le filtre (un champ peut en contenir plusieurs, séparés par des virgules). Gardés en cache : la liste ne
-    change qu'avec le catalogue, et la relire à chaque recherche parcourait toute la colonne."""
-    def compute():
-        raw = Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='').values_list('style', flat=True).distinct()
-        return sorted({style.strip() for value in raw for style in value.split(',') if style.strip()})
-    return cache.get_or_set(BEER_STYLES_CACHE_KEY, compute, BEER_STYLES_CACHE_SECONDS)
-
-
-def _beer_context(request, beers):
-    ids = [beer.id for beer in beers]
-    return {
-        'beers': beers,
-        'rating_form': DrinkForm(),
-        'rated_beer_ids': list(Drinks.objects.filter(drinker=request.user, beer__in=ids).values_list('beer', flat=True)),
-        'wishlist_beer_ids': list(request.user.wishlist_beers.filter(id__in=ids).values_list('id', flat=True)),
-    }
+    return chosen_tab(request.GET.get('tab'), TAB_KEYS, LEGACY_TABS) or ('members' if request.GET.get('uq') else default)
 
 
 def _filter_context(request, tab):
     """Panneau de filtres de l'onglet : gabarit, valeurs proposées et état (les filtres appartiennent à l'onglet affiché)."""
     if tab == 'beers':
         return {
-            'filter_template': 'partials/beer_filters_panel.html', 'styles': beer_styles(),
+            'filter_template': 'partials/beer_filters_panel.html', 'styles': catalog_styles(),
             'filtered': any(request.GET.get(param) for param in FILTER_PARAMS),
         }
     if tab in PLACE_TABS:
         kind = PLACE_TABS[tab]
         return {
             'filter_template': 'partials/place_filters.html', 'cities': place_filters.cities(kind.model),
-            'styles': beer_styles() if kind is BREWERY else [], 'is_brewery_tab': kind is BREWERY,
+            'styles': catalog_styles() if kind is BREWERY else [], 'is_brewery_tab': kind is BREWERY,
             'filtered': place_filters.is_filtered(request.GET),
         }
     return {}
@@ -113,7 +85,7 @@ def build_results(request, default_tab='beers'):
                 ('members', "Membres", 'users', _preview(request, get_filtered_users)),
             ]
             if beers:
-                context.update(_beer_context(request, beers))
+                context.update(beer_list_context(request.user, beers))
         return context
     if tab == 'nearby':
         # Rien à chercher côté serveur : la page publie l'annuaire et le navigateur classe par distance (la position reste sur l'appareil)
@@ -126,18 +98,16 @@ def build_results(request, default_tab='beers'):
         if name in context:
             context[name] = with_targets(context[name], kind)
     if context.get('beers'):
-        context.update(_beer_context(request, context['beers']))
+        context.update(beer_list_context(request.user, context['beers']))
     context.update(_filter_context(request, tab))
     return context
 
 
-@login_required(login_url='login')
 def all_beers_view(request):
     """Page de recherche : barre unique, onglets et résultats."""
     return render(request, 'all_beers.html', build_results(request))
 
 
-@login_required(login_url='login')
 @require_GET
 @cache_control(private=True, max_age=300)
 @gzip_page  # JSON public sans secret : la compression ne présente pas le risque BREACH des pages
@@ -146,7 +116,6 @@ def places_directory(request):
     return JsonResponse({'places': place_directory.directory()})
 
 
-@login_required(login_url='login')
 @require_GET
 def search_api(request):
     """Bloc de résultats seul (saisie en direct, changement d'onglet ou de filtre)."""

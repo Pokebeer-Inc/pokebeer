@@ -1,9 +1,29 @@
-# Contrôle statique de la CI : erreurs de syntaxe et défauts évidents (imports ou variables inutilisés, noms indéfinis).
+# Contrôle statique de la CI : erreurs, défauts évidents, sécurité (bandit), bonnes pratiques Django, dates sans fuseau, complexité.
 line-length = 200
 extend-exclude = ["app/migrations", "staticfiles", "theme", "node_modules"]
 
 [lint]
-select = ["E9", "F"]
+select = [
+    "E9", "F",   # erreurs de syntaxe, imports ou variables inutilisés, noms indéfinis
+    "B",         # pièges courants (bugbear)
+    "S",         # sécurité (bandit)
+    "DJ",        # bonnes pratiques Django
+    "DTZ",       # dates et heures sans fuseau
+    "UP",        # syntaxe Python à jour
+    "SIM",       # simplifications
+    "PIE",       # instructions inutiles
+    "PERF",      # boucles coûteuses
+    "C90",       # complexité des fonctions
+]
+ignore = [
+    "DJ001",     # CharField null=True : schéma existant, le changer demanderait une migration de données sans bénéfice
+]
+
+[lint.mccabe]
+max-complexity = 12
 
 [lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]  # ré-exports volontaires
+# Tests : assert, mots de passe et commandes de test sont attendus
+"tests/**" = ["S101", "S105", "S106", "S107", "S603", "S607", "S311", "S112"]
+"app/dev_seed/**" = ["S311"]  # données de développement générées au hasard (aucun usage de sécurité)

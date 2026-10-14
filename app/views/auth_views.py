@@ -2,7 +2,7 @@ import logging
 
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_not_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.core.exceptions import NON_FIELD_ERRORS
@@ -19,6 +19,7 @@ from .utils import limit_posts
 
 logger = logging.getLogger(__name__)
 
+@login_not_required
 @limit_posts(SIGNUP_BY_IP)
 def register_view(request):
     """Handles user registration."""
@@ -41,6 +42,7 @@ def register_view(request):
     return render(request, 'register.html', {'form': form})
 
 
+@login_not_required
 def login_view(request):
     """Handles user login."""
     if request.user.is_authenticated:
@@ -69,7 +71,6 @@ def login_view(request):
 
 
 @require_POST  # un lien ou une image venus d'un autre site ne doivent pas pouvoir déconnecter un membre
-@login_required(login_url='login')
 def logout_view(request):
     # L'appareil ne doit plus recevoir les notifications de ce compte une fois déconnecté
     BeerUser.objects.filter(pk=request.user.pk).update(fcm_token=None)
@@ -95,6 +96,7 @@ def _register_pending_manager(kind, user_form, pro_form, plan):
     return user, place
 
 
+@login_not_required
 @limit_posts(PRO_SIGNUP_BY_IP)
 def register_pro_view(request, pro_type):
     kind = PLACE_KINDS_BY_KEY.get(pro_type)

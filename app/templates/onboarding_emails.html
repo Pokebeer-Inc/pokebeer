@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/wizard.css' %}">
+<main class="max-w-md mx-auto pt-4">
+    <header>
+        <p class="text-sm text-gray-600">Étape <b>{{ step }}</b> sur {{ total }}</p>
+        <h1 class="pb-title text-2xl font-bold">Vos e-mails</h1>
+        <div class="wizard-progress mt-2" role="progressbar" aria-valuemin="1" aria-valuemax="{{ total }}" aria-valuenow="{{ step }}" aria-label="Progression de l'inscription"><i style="width: {% widthratio step total 100 %}%"></i></div>
+    </header>
+
+    <form method="post" novalidate class="wizard-step is-current mt-4" style="display:block; animation: wizard-in 0.25s ease">
+        {% csrf_token %}
+        <p class="text-base text-gray-700">Souhaitez-vous recevoir les nouveautés et les offres de Pokebeer par e-mail ? Vous pourrez changer d'avis à tout moment dans les réglages, ou depuis le lien présent dans chaque e-mail.</p>
+
+        <label class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm cursor-pointer mt-4" for="{{ form.marketing_opt_in.id_for_label }}">
+            <span class="flex flex-col pr-4">
+                <span class="label-text font-bold text-sm">{{ form.marketing_opt_in.label }}</span>
+                <span class="text-xs text-gray-500 mt-0.5">Les e-mails indispensables (mot de passe, sécurité, compte) sont toujours envoyés.</span>
+            </span>
+            {{ form.marketing_opt_in }}
+        </label>
+
+        <button type="submit" class="btn btn-primary w-full mt-5 h-auto min-h-12 border-2 border-secondary text-black text-base normal-case">Terminer</button>
+        <div class="flex items-center justify-between mt-3">
+            <a href="{% url 'onboarding_gender' %}" class="text-sm text-gray-600 underline">Retour</a>
+        </div>
+    </form>
+</main>
+{% endblock %}

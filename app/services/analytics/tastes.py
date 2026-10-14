@@ -7,17 +7,13 @@ from django.db.models.functions import ExtractMonth
 from ...models import Beer, Drinks
 from .blocks import Chart, Note, Table
 from .series import growth, month_name
+from ...domain.styles import split_styles  # « IPA, NEIPA / Hazy » compte pour chacun de ses styles
 
 MIN_STYLE_VOLUME = 5  # sous ce volume, une variation en % n'est que du bruit
 MIN_RATINGS = 3
 
 ABV_BUCKETS = ((0, 4, '< 4 %'), (4, 5, '4–5 %'), (5, 6, '5–6 %'), (6, 7.5, '6–7,5 %'), (7.5, 9, '7,5–9 %'), (9, 101, '≥ 9 %'))
 IBU_BUCKETS = ((0, 15, '< 15'), (15, 30, '15–30'), (30, 45, '30–45'), (45, 60, '45–60'), (60, 10_000, '≥ 60'))
-
-
-def split_styles(raw):
-    """« IPA, NEIPA / Hazy » compte pour chacun de ses styles."""
-    return [name.strip() for name in (raw or '').split(',') if name.strip()]
 
 
 def style_stats(drinks):

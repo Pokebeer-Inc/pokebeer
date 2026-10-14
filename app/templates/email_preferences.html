@@ -1,10 +1,8 @@
 {% extends "password_reset/_layout.html" %}
 {% block heading %}Vos e-mails Pokebeer{% endblock %}
 {% block body %}
-{% if saved is not None %}
-<p class="text-sm text-gray-700" role="status">
-    {% if saved %}Merci ! Vous recevrez les nouveautés de Pokebeer par e-mail.{% else %}C'est noté : vous ne recevrez plus d'e-mails promotionnels.{% endif %}
-</p>
+{% if unsubscribed %}
+<p class="text-sm text-gray-700" role="status">C'est noté : vous ne recevrez plus d'e-mails promotionnels.</p>
 {% else %}
 <p class="text-sm text-gray-700">
     Bonjour {{ member.username }}. Actuellement, vous
@@ -13,14 +11,14 @@
 </p>
 {% endif %}
 <p class="text-sm text-gray-600">Les e-mails indispensables (mot de passe, sécurité, informations sur votre compte) restent envoyés dans tous les cas.</p>
+{% if member.marketing_opt_in and not unsubscribed %}
 <form method="post" class="flex flex-col gap-2 mt-4">
     {% csrf_token %}
-    {% if saved is None and member.marketing_opt_in or saved %}
     <button type="submit" name="choice" value="refuse" class="btn btn-outline w-full">Ne plus recevoir les nouveautés</button>
-    {% else %}
-    <button type="submit" name="choice" value="accept" class="btn btn-primary w-full">Oui, je veux recevoir les nouveautés</button>
-    {% if saved is None %}<button type="submit" name="choice" value="refuse" class="btn btn-ghost w-full">Non merci</button>{% endif %}
-    {% endif %}
 </form>
+{% else %}
+<p class="text-sm text-gray-600 mt-4">Pour recevoir à nouveau les nouveautés, activez-les dans les réglages de votre compte :
+    <a href="{% url 'account_settings' 'notifications' %}" class="text-primary hover:underline font-bold">Notifications et e-mails</a> (connexion requise).</p>
+{% endif %}
 <p class="text-center mt-6 text-sm text-gray-600"><a href="{% url 'index' %}" class="text-primary hover:underline font-bold">Retour à Pokebeer</a></p>
 {% endblock %}

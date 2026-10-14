@@ -1,0 +1,102 @@
+name: Deploy production
+
+# Mise en production dans le bon ordre : tests (workflow « Django CI ») -> migrations de la base -> mise en ligne sur Vercel.
+# Le déploiement automatique de Vercel est coupé pour la branche main (vercel.json, git.deploymentEnabled) : sinon le nouveau code
+# serait en ligne avant ses migrations (colonne manquante = pages en erreur). Les déploiements de prévisualisation restent automatiques.
+#
+# Les migrations doivent rester compatibles avec le code encore en ligne pendant les quelques secondes qui séparent `migrate` de la
+# mise en ligne : on ajoute d'abord (colonne, table), on supprime dans une version suivante.
+#
+# Secrets requis (Settings > Secrets and variables > Actions, environnement « production ») :
+#   PRODUCTION_DATABASE_URL, VERCEL_TOKEN (vercel.com/account/tokens), VERCEL_ORG_ID et VERCEL_PROJECT_ID (.vercel/project.json après `vercel link`).
+on:
+  workflow_run:
+    workflows: ["Django CI"]
+    types: [completed]
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  VERCEL_CLI: vercel@59.26.0
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    # Uniquement si les tests ont réussi sur un push (jamais sur une pull request)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    steps:
+    - name: Checkout the tested commit
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+    - name: Check that the secrets are configured
+      env:
+        PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: |
+        missing=0
+        for name in PRODUCTION_DATABASE_URL VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+          if [ -z "${!name}" ]; then
+            echo "::error::Secret $name manquant (Settings > Secrets and variables > Actions)."
+            missing=1
+          fi
+        done
+        exit $missing
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+        cache-dependency-path: requirements.txt
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt   # inclut la compilation de Tailwind (jamais installée dans la fonction en ligne)
+
+    - name: Apply migrations
+      env:
+        DEBUG: 'False'
+        DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY || 'migration-only-not-used-at-runtime' }}
+      run: python manage.py migrate --noinput
+
+    - name: Set up Node.js (Tailwind et Vercel CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+
+    # Vercel ne lance jamais collectstatic : les fichiers statiques sont générés ici et envoyés avec le code (voir .vercelignore)
+    - name: Build the static files
+      env:
+        DEBUG: 'False'
+        DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY || 'migration-only-not-used-at-runtime' }}
+      run: |
+        python manage.py tailwind install
+        python manage.py tailwind build
+        python manage.py collectstatic --noinput
+
+    - name: Build and deploy to Vercel
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: |
+        npx --yes "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+        npx --yes "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
+        npx --yes "$VERCEL_CLI" deploy --prebuilt --prod --token="$VERCEL_TOKEN"

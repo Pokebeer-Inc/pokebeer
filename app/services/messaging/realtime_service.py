@@ -90,7 +90,7 @@ def _send_pushes(candidates):
         except Exception as e:
             logger.warning("Erreur d'envoi FCM (%s notifications) : %s", len(chunk), e)
             continue
-        for (notif, _html, _url), response in zip(chunk, batch.responses):
+        for (notif, _html, _url), response in zip(chunk, batch.responses, strict=False):
             if response.success:
                 delivered.append(notif)
             elif isinstance(response.exception, (messaging.UnregisteredError, messaging.SenderIdMismatchError)):

@@ -1,28 +1,27 @@
-{% comment %}Choix de dégustations pour un carnet : recherche, compteur, « tout sélectionner » (visibles) et liste défilante. Les cases gardent le nom « drinks ».
-Paramètres : drinks (dégustations avec bière et brasserie chargées), selected (slugs déjà cochés, facultatif), label, uid. Comportement : static/script/picker.js.{% endcomment %}
-<fieldset class="mb-4" data-picker>
+{% comment %}Sélecteur de dégustations du membre (carnets, Top 3, lieux de la carte) : recherche côté serveur, chargement progressif, sélection
+conservée d'une page à l'autre (static/script/picker.js). Paramètres :
+  picker : contexte donné par views/utils.picker_context (premières lignes, total, adresse de chargement) ;
+  label, uid ; selected / disabled_beers : slugs séparés par des virgules (facultatif) ; empty_choice : libellé d'un choix « aucun » (radio).{% endcomment %}
+<fieldset class="mb-4" data-picker data-picker-url="{{ picker.url }}" data-picker-name="{{ picker.name }}" data-selected="{{ selected|default:'' }}" data-disabled-beers="{{ disabled_beers|default:'' }}"{% if hide_deleted %} data-hide-deleted="true"{% endif %}>
     <legend class="pb-label flex w-full items-baseline justify-between"><span>{{ label }}</span>
-        <span class="font-normal text-[#6b625a]"><b data-picker-count>{{ selected|length }}</b> sélectionnée{{ selected|length|pluralize }} sur {{ drinks|length }}</span></legend>
-    {% if drinks %}
+        {% if picker.input_type == 'checkbox' %}<span class="font-normal text-[#6b625a]">Sélection : <b data-picker-count>0</b> sur {{ picker.total }}</span>{% endif %}</legend>
+    {% if picker.total %}
     <input type="search" id="picker-search-{{ uid }}" data-picker-search class="pb-input" placeholder="Rechercher une bière ou une brasserie" aria-label="Rechercher parmi mes dégustations" autocomplete="off">
+    {% if picker.input_type == 'checkbox' %}
     <div class="flex gap-2 my-2">
         <button type="button" data-picker-all class="pb-chip">Tout sélectionner</button>
         <button type="button" data-picker-none class="pb-chip">Tout effacer</button>
     </div>
-    <div class="pb-picker-list" role="group" aria-label="{{ label }}">
-        {% for drink in drinks %}
-        <label class="pb-picker-row" data-picker-item data-search="{{ drink.beer.name|lower }} {{ drink.beer.brewery.name|lower }}">
-            <input type="checkbox" name="drinks" value="{{ drink.slug }}" class="checkbox checkbox-sm checkbox-primary shrink-0" {% if drink.slug in selected %}checked{% endif %}>
-            <span class="min-w-0 flex-1">
-                <span class="block text-sm font-semibold leading-tight truncate">{{ drink.beer.name }}</span>
-                <span class="block text-[10px] text-[#6b625a] truncate">{{ drink.beer.brewery.name }}</span>
-            </span>
-            {% if drink.note is not None %}<span class="pb-pill is-primary !text-xs shrink-0">{{ drink.note }}/10</span>{% endif %}
-        </label>
-        {% endfor %}
+    {% endif %}
+    <div class="pb-picker-list mt-2" role="group" aria-label="{{ label }}">
+        {% if empty_choice %}
+        <label class="pb-picker-row" data-picker-item><input type="radio" name="{{ picker.name }}" value="" class="radio radio-sm radio-primary shrink-0"><span class="text-sm">{{ empty_choice }}</span></label>
+        {% endif %}
+        <div data-picker-rows>{% include "partials/picker_rows.html" with drinks=picker.drinks input_type=picker.input_type name=picker.name value=picker.value %}</div>
         <p data-picker-empty class="p-3 text-sm text-[#6b625a] text-center" hidden>Aucune bière ne correspond.</p>
+        <button type="button" data-picker-more class="btn btn-ghost btn-xs w-full"{% if not picker.has_more %} hidden{% endif %}>Charger plus</button>
     </div>
     {% else %}
-    <p class="pb-card p-3 text-sm text-[#6b625a] text-center">Vous n'avez pas encore de dégustation à ajouter.</p>
+    <p class="pb-card p-3 text-sm text-[#6b625a] text-center">Vous n'avez pas encore de dégustation à choisir.</p>
     {% endif %}
 </fieldset>

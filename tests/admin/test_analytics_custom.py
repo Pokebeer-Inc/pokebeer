@@ -1,7 +1,8 @@
 import json
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
+from django.utils import timezone
 from django.db import connection
 from django.test import Client
 from django.test.utils import CaptureQueriesContext
@@ -43,7 +44,7 @@ def populated(geocoder):
             f.make_drink(member, beer, note=8)
     f.make_drink(members[0], beers[2], note=4)  # le Stout n'a qu'un seul dégustateur
     for member in members:
-        f.make_spot(member, date=date.today() - timedelta(days=1))
+        f.make_spot(member, date=timezone.localdate() - timedelta(days=1))
     return brewery
 
 
@@ -256,7 +257,7 @@ class TestSecurity:
     def test_other_administrators_views_are_invisible_and_untouchable(self, client_for, superuser, my_view):
         tile = service.add_tile(my_view, "T", validate(spec()))
         intruder = client_for(superuser)
-        for name, kwargs in [("admin_analytics_view", {}), ("admin_analytics_tile_new", {})]:
+        for name, _kwargs in [("admin_analytics_view", {}), ("admin_analytics_tile_new", {})]:
             assert intruder.get(reverse(name, args=[my_view.pk])).status_code == 404
         assert intruder.get(reverse("admin_analytics_tile_edit", args=[my_view.pk, tile.pk])).status_code == 404
         for url in (reverse("admin_analytics_view_rename", args=[my_view.pk]), reverse("admin_analytics_view_delete", args=[my_view.pk]),

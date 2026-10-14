@@ -1,6 +1,6 @@
-from django.db.models import Case, When, Value, IntegerField, OuterRef, Q, Max, Prefetch, Count, Subquery, Exists
+from django.db.models import Case, Count, Exists, F, IntegerField, Max, OuterRef, Prefetch, Q, Subquery, Value, When
 
-from ...models import Bar, Beer, BeerUser, Brewery, Drinks
+from ...models import Bar, Beer, BeerUser, Brewery, DrinkReaction, Drinks
 from ..establishments import place_filters
 from . import search
 from ..establishments.places import BAR, BREWERY
@@ -26,6 +26,15 @@ def filter_by_beer_traits(queryset, params, prefix=''):
     if style:
         queryset = queryset.filter(**{f'{prefix}style__icontains': style})
     return queryset
+
+
+def rating_bounds(params):
+    """Fourchette de notes demandée (?rating_min=, ?rating_max=), bornée à 0-10 et remise dans l'ordre (valeurs invalides ignorées)."""
+    def number(name, default):
+        value = params.get(name, '')
+        return min(10, max(0, int(value))) if value.isdigit() else default
+    low, high = number('rating_min', 0), number('rating_max', 10)
+    return (low, high) if low <= high else (high, low)
 
 
 # Tris proposés : clé du paramètre ?sort= -> champs de tri
@@ -76,6 +85,55 @@ def get_filtered_beers(request):
         
     return beers
 
+def with_reaction_counts(drinks):
+    """Ajoute à chaque dégustation ses pouces : likes, dislikes et score (likes - dislikes)."""
+    return drinks.annotate(
+        likes=Count('reactions', filter=Q(reactions__is_like=True)), dislikes=Count('reactions', filter=Q(reactions__is_like=False)),
+    ).annotate(score=F('likes') - F('dislikes'))
+
+
+def visible_tastings_of(beer, user):
+    """Dégustations d'une bière que `user` peut voir : ni blocage, ni compte suspendu."""
+    return exclude_hidden_users(Drinks.objects.filter(beer=beer), user, 'drinker')
+
+
+def beer_reviews(beer, user):
+    """Avis des AUTRES membres sur une bière, les mieux notés par la communauté d'abord, avec la réaction de `user` (user_reaction)."""
+    reaction = DrinkReaction.objects.filter(user=user, drink=OuterRef('pk')).values('is_like')[:1]
+    return (with_reaction_counts(visible_tastings_of(beer, user).exclude(drinker=user)).select_related('drinker')
+            .annotate(user_reaction=Subquery(reaction)).order_by('-score', '-date', '-id'))
+
+
+def deleted_beers_added_by(user):
+    """Bières proposées par le membre puis retirées du catalogue, les plus récentes d'abord ; `tasted` : il peut encore ouvrir la fiche."""
+    return (Beer.objects.filter(added_by=user, is_deleted=True).select_related('brewery')
+            .annotate(tasted=Exists(Drinks.objects.filter(drinker=user, beer=OuterRef('pk')))).order_by('-id'))
+
+
+def pickable_drinks(user, query='', catalog_only=False):
+    """Dégustations du membre proposées dans un sélecteur (carnet, Top 3, carte), cherchées par bière ou brasserie, les plus récentes d'abord.
+
+    `catalog_only` : seulement les bières encore au catalogue (le Top 3 ne peut pas contenir une bière retirée)."""
+    drinks = Drinks.objects.filter(drinker=user).select_related('beer', 'beer__brewery')
+    if catalog_only:
+        drinks = drinks.filter(beer__is_deleted=False)
+    drinks = search.search(drinks, query, 'beer__name', 'beer__brewery__name')
+    return drinks.order_by(search.RANK_FIELD, '-date', '-id')
+
+
+def brewery_beers(brewery):
+    """Bières du catalogue d'une brasserie, par nom (ordre stable pour la pagination)."""
+    return Beer.objects.filter(brewery=brewery, is_deleted=False).order_by('name', 'id')
+
+
+def member_marks(user, beer_ids):
+    """(bières déjà notées, bières de la liste « À goûter ») du membre parmi `beer_ids` : deux petites requêtes, quelle que soit la liste."""
+    beer_ids = list(beer_ids)
+    rated = list(Drinks.objects.filter(drinker=user, beer__in=beer_ids).values_list('beer', flat=True))
+    wished = list(user.wishlist_beers.filter(id__in=beer_ids).values_list('id', flat=True))
+    return rated, wished
+
+
 def get_filtered_users(request):
     """Extrait la logique de filtrage des utilisateurs pour la réutiliser."""
     user_query = search_query(request)
@@ -118,18 +176,16 @@ def get_filtered_notebook_drinks(request):
     if notebook_slug:
         drinks = drinks.filter(notebooks__slug=notebook_slug)
 
-    query = request.GET.get('q')
-    if query:
-        drinks = drinks.filter(Q(beer__name__icontains=query) | Q(beer__brewery__name__icontains=query))
+    drinks = search.search(drinks, request.GET.get('q'), 'beer__name', 'beer__brewery__name')
 
     drinks = filter_by_beer_traits(drinks, request.GET, prefix='beer__')
 
     # Fourchette de notes : appliquée seulement si elle restreint (0-10 laisserait de côté les avis sans note)
-    rating_min, rating_max = request.GET.get('rating_min', ''), request.GET.get('rating_max', '')
-    if rating_min.isdigit() and int(rating_min) > 0:
-        drinks = drinks.filter(note__gte=min(10, int(rating_min)))
-    if rating_max.isdigit() and int(rating_max) < 10:
-        drinks = drinks.filter(note__lte=int(rating_max))
+    rating_min, rating_max = rating_bounds(request.GET)
+    if rating_min > 0:
+        drinks = drinks.filter(note__gte=rating_min)
+    if rating_max < 10:
+        drinks = drinks.filter(note__lte=rating_max)
 
     # Logique de Tri : un tri inconnu ou absent donne la dégustation la plus récente d'abord
     drinks = drinks.order_by(*DRINK_SORTS.get(request.GET.get('sort', 'date_desc'), DRINK_SORTS['date_desc']))

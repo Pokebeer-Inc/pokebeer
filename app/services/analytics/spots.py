@@ -2,7 +2,6 @@
 aux bars et à la demande régionale. Aucune information nominative n'est conservée au-delà de l'identifiant de membre,
 qui ne sert qu'à compter des membres distincts (k-anonymat)."""
 from dataclasses import dataclass
-from typing import Optional
 
 from ...models import BeerSpot, ReverseGeocode
 from ..establishments import reverse_geocoding as rg
@@ -18,7 +17,7 @@ class SpotPoint:
     lon: float
     cell: tuple
     place_kind: str = ''          # vide tant que le lieu n'est pas géocodé
-    is_urban: Optional[bool] = None
+    is_urban: bool | None = None
     city: str = ''
     department: str = ''
     region: str = ''

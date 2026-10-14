@@ -4,7 +4,7 @@ Ajouter une donnée = ajouter une entrée ici. Aucune dimension ne permet d'iden
 les regroupements non temporels sont soumis au k-anonymat (voir engine).
 """
 from dataclasses import dataclass
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from django.db.models import Avg, Count, F
 from django.db.models.functions import ExtractIsoWeekDay, ExtractMonth
@@ -37,9 +37,9 @@ class Dataset:
     queryset: Callable
     measures: dict
     dimensions: dict
-    date_field: Optional[str] = None       # champ filtré par la période ; None = jeu de données sans date
-    member_field: Optional[str] = None     # champ « membre » : sert uniquement à compter des membres distincts
-    brewery_path: Optional[str] = None     # chemin du slug de brasserie, si le filtre « brasserie » s'applique
+    date_field: str | None = None       # champ filtré par la période ; None = jeu de données sans date
+    member_field: str | None = None     # champ « membre » : sert uniquement à compter des membres distincts
+    brewery_path: str | None = None     # chemin du slug de brasserie, si le filtre « brasserie » s'applique
 
 
 def _time():

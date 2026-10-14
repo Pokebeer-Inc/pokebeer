@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import importlib.util
 import os
 from dotenv import load_dotenv
 from django.utils.translation import gettext_lazy as _
@@ -55,8 +56,11 @@ SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# Nombre de proxys de confiance devant l'application (Vercel : 1) ; sert à lire la vraie IP du visiteur.
-TRUSTED_PROXY_COUNT = int(os.getenv('TRUSTED_PROXY_COUNT', 1))
+# Nombre de proxys de confiance devant l'application ; sert à lire la vraie IP du visiteur et l'hôte/le protocole d'origine.
+# Par défaut 1 sur Vercel (variable VERCEL fournie par la plateforme), 0 ailleurs : sans proxy (image Docker exposée directement),
+# croire X-Forwarded-For / X-Forwarded-Host laisserait un visiteur choisir son IP (contournement des limites) ou l'hôte de la requête.
+TRUSTED_PROXY_COUNT = int(os.getenv('TRUSTED_PROXY_COUNT') or (1 if os.getenv('VERCEL') else 0))
+BEHIND_PROXY = TRUSTED_PROXY_COUNT > 0
 
 # Chemin de l'administration (avec « / » final) : le changer évite les robots qui visent /admin/.
 ADMIN_URL = os.getenv('ADMIN_URL', 'admin/')
@@ -78,8 +82,6 @@ SOCIALACCOUNT_LOGIN_ON_GET = False
 
 INSTALLED_APPS = [
     'storages',
-    'tailwind',
-    'theme',
     "unfold",
     "unfold.contrib.forms", 
     'django.contrib.admin',
@@ -106,6 +108,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'app.middleware.LoginRequiredMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -177,7 +180,8 @@ LANGUAGES = [
     ('en', _('English')),
 ]
 
-TIME_ZONE = 'UTC'
+# Fuseau des membres (France) : jours des quotas, dates des dégustations, regroupements par jour des analytics. La base stocke toujours en UTC.
+TIME_ZONE = 'Europe/Paris'
 
 USE_I18N = True
 
@@ -204,9 +208,9 @@ AUTH_USER_MODEL = "app.BeerUser"
 
 # Django envoie « same-origin » par défaut : OpenStreetMap reçoit alors des tuiles sans Referer et répond 403
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = True
-USE_X_FORWARDED_PORT = True
+# En-têtes X-Forwarded-* crus uniquement derrière un proxy de confiance (qui les réécrit) : sinon le visiteur les fournit lui-même
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if BEHIND_PROXY else None
+USE_X_FORWARDED_HOST = USE_X_FORWARDED_PORT = BEHIND_PROXY
 
 CSRF_COOKIE_HTTPONLY = False  # DOIT être False pour que le JS puisse lire le cookie via document.cookie
 # RGPD (minimisation de la conservation) : la session reste ouverte 6 mois, et ce délai est prolongé à chaque visite (voir ActivityMiddleware) :
@@ -254,18 +258,15 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 # Choix assumés pour `check --deploy` : SAMEORIGIN (l'administration s'affiche dans ses propres cadres) et pas de liste de préchargement HSTS
 SILENCED_SYSTEM_CHECKS = ['security.W019', 'security.W021']
 
-#Nom du dossier contenant TailwindCSS
+# Outils de développement (requirements-dev.txt, jamais installés en production) : la compilation de Tailwind (`manage.py tailwind build`,
+# application `theme`) et le rechargement automatique. Les pages ne dépendent que de la feuille compilée (static/css/dist/styles.css).
 TAILWIND_APP_NAME = "theme"
+if importlib.util.find_spec('tailwind'):
+    INSTALLED_APPS += ['tailwind', 'theme']
 
 if DEBUG:
-    # Add django_browser_reload only in DEBUG mode
     INSTALLED_APPS += ["django_browser_reload"]
-
-if DEBUG:
-    # Add django_browser_reload middleware only in DEBUG mode
-    MIDDLEWARE += [
-        "django_browser_reload.middleware.BrowserReloadMiddleware",
-    ]
+    MIDDLEWARE += ["django_browser_reload.middleware.BrowserReloadMiddleware"]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media').replace('\\', '/')
@@ -527,3 +528,22 @@ UNFOLD = {
 # Notification Android
 # Configuration Firebase
 FIREBASE_CREDENTIALS_JSON = os.environ.get('FIREBASE_CREDENTIALS_JSON')
+
+# Journaux : tout passe par la sortie standard (Vercel, Docker les collectent). Les erreurs des requêtes (500) y figurent avec leur trace ;
+# le niveau de l'application est réglable sans redéploiement de code (LOG_LEVEL).
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {'format': '{levelname} {name} {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'},
+    },
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'loggers': {
+        'app': {'handlers': ['console'], 'level': os.getenv('LOG_LEVEL') or 'INFO', 'propagate': False},
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
+        'django.security': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+    },
+}

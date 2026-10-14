@@ -11,5 +11,5 @@ def get_secure_channel_name(user):
     coupe l'écoute de quiconque aurait obtenu l'ancien nom. Il ne contient pas l'identifiant et ne révèle rien sur le compte.
     """
     key = settings.SECRET_KEY.encode('utf-8')
-    msg = f"{user.pk}:{user.password}".encode('utf-8')
+    msg = f"{user.pk}:{user.password}".encode()
     return f"room_{hmac.new(key, msg, hashlib.sha256).hexdigest()[:32]}"

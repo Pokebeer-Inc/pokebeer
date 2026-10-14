@@ -39,10 +39,11 @@ def request_password_reset(email):
     La demande est comptée qu'un compte existe ou non (pas d'oracle), et au-delà des plafonds elle est ignorée sans le dire.
     """
     email = email.strip().lower()
-    if PASSWORD_RESET_BY_EMAIL.exceeded(email) or PASSWORD_RESET_GLOBAL.exceeded(GLOBAL_KEY):
+    if not PASSWORD_RESET_BY_EMAIL.hit(email):
         return
-    PASSWORD_RESET_BY_EMAIL.record(email)
-    PASSWORD_RESET_GLOBAL.record(GLOBAL_KEY)
+    if not PASSWORD_RESET_GLOBAL.hit(GLOBAL_KEY):
+        PASSWORD_RESET_BY_EMAIL.release(email)
+        return
 
     for user in BeerUser.objects.filter(email__iexact=email, is_active=True):
         if user.has_usable_password():

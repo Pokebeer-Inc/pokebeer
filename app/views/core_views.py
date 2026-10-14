@@ -1,5 +1,4 @@
 from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
@@ -20,7 +19,6 @@ def unrated_beers_for(user):
 
 
 @ensure_csrf_cookie
-@login_required(login_url='login')
 def index(request):
     """Recherche = accueil : sans saisie, recommandations et fil d'activité ; avec `q` ou un onglet, les résultats."""
     user = request.user

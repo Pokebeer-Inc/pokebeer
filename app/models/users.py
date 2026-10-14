@@ -1,13 +1,16 @@
 """Membres, abonnements et blocages."""
 
 from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin, UserManager
+from django.contrib.postgres.indexes import HashIndex
+from django.db.models import Q
 from django.db.models.functions import Lower
 from django.db import models
 from django.utils import timezone
 
 from ..validators import MAX_BIO_LENGTH, username_validator
-from ..services.members.avatars import initials_avatar_url
-from ..services.members.profile_pictures import profile_picture_path, profile_pictures_storage
+from ..domain.avatars import initials_avatar_url
+from ..domain.upload_paths import profile_picture_path
+from ..storages import profile_pictures_storage
 
 
 STAFF_GROUP = 'Staff'
@@ -80,6 +83,11 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     
     class Meta:
         verbose_name = "Utilisateur"
+        indexes = [
+            # Un appareil n'appartient qu'à un compte : chaque enregistrement de jeton cherche ses autres propriétaires. Index de hachage
+            # (égalité seulement, sans limite de longueur : un jeton peut dépasser la taille maximale d'une entrée B-tree).
+            HashIndex(fields=['fcm_token'], name='user_fcm_token_idx', condition=Q(fcm_token__isnull=False)),
+        ]
         constraints = [
             # « Alice » et « alice » désigneraient deux comptes différents : l'unicité ignore la casse
             models.UniqueConstraint(Lower('username'), name='unique_username_ci', violation_error_message="Ce pseudo est déjà utilisé."),
@@ -174,6 +182,10 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+    def is_blocked_with(self, other):
+        """Vrai s'il existe un blocage entre ce membre et `other` (instance ou identifiant), dans un sens ou dans l'autre."""
+        return UserBlock.objects.between(self, other).exists()
     
 class UserFollow(models.Model):
     follower = models.ForeignKey(BeerUser, related_name='following', on_delete=models.CASCADE)
@@ -182,13 +194,24 @@ class UserFollow(models.Model):
 
     class Meta:
         unique_together = ('follower', 'followed')
+
+    def __str__(self):
+        return f"{self.follower_id} suit {self.followed_id}"
     
+class UserBlockQuerySet(models.QuerySet):
+    def between(self, user, other):
+        """Blocages entre ces deux membres, dans un sens ou dans l'autre (identifiants ou instances)."""
+        return self.filter(Q(blocker=user, blocked=other) | Q(blocker=other, blocked=user))
+
+
 class UserBlock(models.Model):
     blocker = models.ForeignKey(BeerUser, on_delete=models.CASCADE, related_name='blocking')
     blocked = models.ForeignKey(BeerUser, on_delete=models.CASCADE, related_name='blocked_by')
     created_at = models.DateTimeField(auto_now_add=True)
     # Date à laquelle on a invité le bloqueur à signaler le membre s'il a rencontré un problème (une seule fois)
     report_invited_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    objects = UserBlockQuerySet.as_manager()
 
     class Meta:
         unique_together = ('blocker', 'blocked')

@@ -27,10 +27,15 @@ class TestPreferencesPage:
         assert response.status_code == 200 and not consent(user)
         assert BeerUser.objects.get(pk=user.pk).marketing_consent_source == "email_link"
 
-    def test_and_come_back(self, client, user):
+    def test_the_link_cannot_subscribe_again(self, client, user):
         marketing.set_consent(user, False, "account")
-        client.post(prefs(token_of(user)), {"choice": "accept"})
-        assert consent(user)
+        assert client.post(prefs(token_of(user)), {"choice": "accept"}).status_code == 400
+        assert not consent(user)
+
+    def test_an_unsubscribed_member_is_sent_to_the_account_settings(self, client, user):
+        marketing.set_consent(user, False, "account")
+        html = client.get(prefs(token_of(user))).content.decode()
+        assert reverse("account_settings", args=["notifications"]) in html and 'value="accept"' not in html
 
     def test_get_changes_nothing(self, client, user):
         assert client.get(prefs(token_of(user))).status_code == 200 and consent(user)

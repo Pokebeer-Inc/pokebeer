@@ -2,33 +2,30 @@ import logging
 import time
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
-from django.db.models import Q
-from django.db.models.functions import Greatest, Left, Length
-from django.utils.text import slugify
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_not_required
 from django.core.exceptions import ValidationError
 
 from ..models import Beer, Brewery
-from ..services.catalog.match_keys import MAX_NAME_LENGTH
+from ..domain.match_keys import MAX_NAME_LENGTH
 from ..services.members.visibility import exclude_blocked
 from django.template.loader import render_to_string
 
-from ..services.catalog import catalog_matching, ean, label_scan, product_lookup
+from ..services.catalog import catalog_matching, ean, label_scan, product_lookup, search
 from ..services.establishments import postal_codes
 from ..services.common import upstream
 from ..services.protection.throttle import (
+    AUTOCOMPLETE_BY_USER,
     CATALOG_CHECK_BY_USER,
     CHAT_BURST_BY_USER,
     CHAT_GLOBAL,
     CHAT_GLOBAL_KEY,
     POSTAL_LOOKUP_BY_IP,
-    client_ip,
 )
 from ..services.assistant.ai import analyze_label, ask_zythologue
 from ..services.assistant.chat import ChatBusy, ChatUnavailable, payload as chat_payload
 from ..services.protection.quota import CHAT, EAN_LOOKUP, LABEL_SCAN, consume_quota, refund_quota
-from ..services.common.slugs import SUFFIX_LENGTH
+from .utils import TOO_MANY_SEARCHES, by_user, throttle
 
 logger = logging.getLogger(__name__)
 
@@ -57,16 +54,16 @@ def _post_chat_message(request):
     except chat_payload.InvalidChatRequest as error:
         return _chat_error(str(error), 400)
 
-    user_id = request.user.pk
-    if CHAT_GLOBAL.exceeded(CHAT_GLOBAL_KEY):
+    # Budget global réservé d'abord (atomique), puis rendu si la demande est finalement refusée
+    if not CHAT_GLOBAL.hit(CHAT_GLOBAL_KEY):
         return _chat_error("Gaétan est très sollicité aujourd'hui, revenez demain !", 503)
-    if CHAT_BURST_BY_USER.exceeded(user_id):
+    if not CHAT_BURST_BY_USER.hit(request.user.pk):
+        CHAT_GLOBAL.release(CHAT_GLOBAL_KEY)
         return _chat_error("Doucement, Gaétan reprend son souffle : réessayez dans une minute.", 429)
-    CHAT_BURST_BY_USER.record(user_id)
     pending = chat_request.location and _take_pending_location(request, chat_request.message)
     if not pending and not consume_quota(request.user, settings.CHAT_DAILY_LIMIT, CHAT, settings.CHAT_WEEKLY_LIMIT):
+        CHAT_GLOBAL.release(CHAT_GLOBAL_KEY)
         return _chat_error("Gaétan a assez parlé pour le moment, revenez demain !", 429)
-    CHAT_GLOBAL.record(CHAT_GLOBAL_KEY)
 
     history = request.session.get('chat_history', [])
     try:
@@ -91,7 +88,6 @@ def _post_chat_message(request):
 
 
 @require_http_methods(["GET", "POST", "DELETE"])
-@login_required(login_url='login')
 def chat_api(request):
     """Endpoint API : historique de la discussion avec Gaétan (GET), nouveau message (POST), nouvelle conversation (DELETE)."""
     if request.method == 'GET':
@@ -104,7 +100,6 @@ def chat_api(request):
     return _post_chat_message(request)
 
 @require_POST
-@login_required(login_url='login')
 def analyze_beer_label(request):
     if 'image' not in request.FILES:
         return JsonResponse({"error": "Aucune image reçue."}, status=400)
@@ -135,7 +130,6 @@ def analyze_beer_label(request):
         refund_quota(request.user, LABEL_SCAN)  # une panne de l'IA ne coûte pas son essai au membre
         return JsonResponse({"error": "L'analyse de l'étiquette a échoué. Réessayez plus tard."}, status=500)
 
-@login_required(login_url='login')
 @require_POST
 def lookup_ean(request):
     """Bière correspondant à un code-barres : d'abord le catalogue (sans service extérieur ni quota), puis Open Food Facts."""
@@ -157,13 +151,10 @@ def lookup_ean(request):
         return JsonResponse({"success": False, "not_found": True, "error": "Code-barres inconnu."})
     return JsonResponse({"success": True, "source": "openfoodfacts", "ean": code, "data": beer})
 
-@login_required(login_url='login')
 @require_GET
+@throttle(CATALOG_CHECK_BY_USER, key=by_user, json=True, message="Trop de vérifications, réessayez dans un moment.")
 def check_catalog(request):
     """Doublons possibles pendant la saisie : le panneau HTML (même gabarit que le formulaire) et la brasserie à utiliser telle quelle."""
-    if CATALOG_CHECK_BY_USER.exceeded(request.user.pk):
-        return JsonResponse({"error": "Trop de vérifications, réessayez dans un moment."}, status=429)
-    CATALOG_CHECK_BY_USER.record(request.user.pk)
     name = request.GET.get('name', '').strip()[:MAX_NAME_LENGTH]
     brewery_name = request.GET.get('brewery', '').strip()[:MAX_NAME_LENGTH]
     postal_code = request.GET.get('postal', '').strip()
@@ -181,14 +172,12 @@ def check_catalog(request):
         "apply_brewery": same.name if same else None,
     })
 
+@login_not_required  # l'inscription d'un gérant en a besoin
 @require_GET
+@throttle(POSTAL_LOOKUP_BY_IP, json=True, message=TOO_MANY_SEARCHES)
 def postal_code_lookup(request):
     """Communes d'un code postal (données publiques), pour remplir la ville d'un formulaire d'établissement. Ouvert sans connexion : l'inscription
     d'un gérant en a besoin ; limité par adresse IP."""
-    ip = client_ip(request)
-    if POSTAL_LOOKUP_BY_IP.exceeded(ip):
-        return JsonResponse({"error": "Trop de recherches, réessayez dans un moment."}, status=429)
-    POSTAL_LOOKUP_BY_IP.record(ip)
     code = request.GET.get('code', '').strip()
     if not postal_codes.is_valid_format(code):
         return JsonResponse({"cities": [], "known": False, "available": True})
@@ -198,39 +187,24 @@ def postal_code_lookup(request):
         return JsonResponse({"cities": [], "known": False, "available": False})  # l'annuaire ne répond pas : la saisie n'est pas bloquée
     return JsonResponse({"cities": cities, "known": bool(cities), "available": True})
 
-@login_required(login_url='login')
+@require_GET
+@throttle(AUTOCOMPLETE_BY_USER, key=by_user, json=True, message=TOO_MANY_SEARCHES)
 def search_brewery(request):
-    """API pour l'autocomplétion des brasseries"""
+    """Autocomplétion des brasseries (recherche indexée : sans casse ni accents, tolérante aux fautes)."""
     query = request.GET.get('term', '')
     if len(query) < 2:
         return JsonResponse([], safe=False)
-    
-    breweries = Brewery.objects.filter(name__icontains=query)[:10]
-    results = [b.name for b in breweries]
-    return JsonResponse(results, safe=False)
+    breweries = search.breweries(Brewery.objects.only('name'), query).order_by(search.RANK_FIELD, 'name')[:10]
+    return JsonResponse([brewery.name for brewery in breweries], safe=False)
 
-@login_required(login_url='login')
+
+@require_GET
+@throttle(AUTOCOMPLETE_BY_USER, key=by_user, json=True, message=TOO_MANY_SEARCHES)
 def search_beer(request):
-    """API pour vérifier si une bière existe déjà (Recherche optimisée)"""
+    """Bières du catalogue au nom proche de la saisie, pour signaler un doublon possible (recherche indexée, sans accents)."""
     query = request.GET.get('term', '')
     if len(query) < 2:
         return JsonResponse([], safe=False)
-        
-    query_slug = slugify(query) # Permet de matcher même si l'utilisateur oublie un accent
-        
-    # Le slug se termine par un jeton aléatoire : on ne compare que sa partie lisible
-    beers = exclude_blocked(Beer.objects.annotate(
-        readable_slug=Left('slug', Greatest(Length('slug') - SUFFIX_LENGTH, 0))
-    ).filter(
-        (Q(name__icontains=query) | Q(readable_slug__icontains=query_slug)),
-        is_deleted=False
-    ), request.user, 'added_by').select_related('brewery')[:5]
-    
-    results = [
-        {
-            'name': b.name, 
-            'slug': b.slug, 
-            'brewery': b.brewery.name
-        } for b in beers
-    ]
-    return JsonResponse(results, safe=False)
+    beers = exclude_blocked(Beer.objects.filter(is_deleted=False), request.user, 'added_by').select_related('brewery')
+    beers = search.search(beers, query, 'name').order_by(search.RANK_FIELD, 'name')[:5]
+    return JsonResponse([{'name': b.name, 'slug': b.slug, 'brewery': b.brewery.name} for b in beers], safe=False)

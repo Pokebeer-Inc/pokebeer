@@ -77,8 +77,16 @@ def stats(campaign):
 
 def launch(campaign, by):
     """Fige les destinataires et passe la campagne en envoi. L'envoi lui-même suit par lots (send_batch)."""
-    if CAMPAIGN_LAUNCH.exceeded(GLOBAL_KEY):
+    if not CAMPAIGN_LAUNCH.hit(GLOBAL_KEY):
         raise TooManyLaunches("Plusieurs campagnes viennent d'être lancées : attendez avant d'en lancer une autre.")
+    try:
+        return _freeze_recipients(campaign, by)
+    except CampaignError:
+        CAMPAIGN_LAUNCH.release(GLOBAL_KEY)  # rien n'a été lancé : le lancement ne compte pas
+        raise
+
+
+def _freeze_recipients(campaign, by):
     with transaction.atomic():
         campaign = EmailCampaign.objects.select_for_update().get(pk=campaign.pk)
         if campaign.status != Status.DRAFT:
@@ -93,7 +101,6 @@ def launch(campaign, by):
         campaign.status, campaign.launched_at, campaign.launched_by = Status.SENDING, timezone.now(), by
         campaign.save(update_fields=['status', 'launched_at', 'launched_by'])
         campaign.custom_members.clear()  # donnée devenue inutile : les destinataires sont figés dans CampaignRecipient
-    CAMPAIGN_LAUNCH.record(GLOBAL_KEY)
     return campaign
 
 
@@ -140,14 +147,16 @@ def send_batch(campaign, limit=None):
     sent = 0
     pending = campaign.recipients.filter(status=Delivery.PENDING).select_related('user').order_by('pk')
     for recipient in pending.iterator(chunk_size=CHUNK):
-        if CAMPAIGN_EMAIL_GLOBAL.exceeded(GLOBAL_KEY) or (limit is not None and sent >= limit):
+        if limit is not None and sent >= limit:
             return sent
         if not CampaignRecipient.objects.filter(pk=recipient.pk, status=Delivery.PENDING).update(status=Delivery.SENDING):
             continue  # pris en charge par un autre envoi en parallèle
         if not _still_eligible(campaign, recipient.user):
             CampaignRecipient.objects.filter(pk=recipient.pk).update(status=Delivery.SKIPPED)
             continue
-        CAMPAIGN_EMAIL_GLOBAL.record(GLOBAL_KEY)
+        if not CAMPAIGN_EMAIL_GLOBAL.hit(GLOBAL_KEY):  # quota du jour épuisé : le destinataire attend le prochain lot
+            CampaignRecipient.objects.filter(pk=recipient.pk).update(status=Delivery.PENDING)
+            return sent
         ok = _deliver(campaign, recipient.user)
         CampaignRecipient.objects.filter(pk=recipient.pk).update(
             status=Delivery.SENT if ok else Delivery.FAILED, sent_at=timezone.now() if ok else None,

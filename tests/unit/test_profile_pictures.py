@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
+from app.domain import upload_paths
 from app.services.members import profile_pictures as pp
 
 
@@ -54,5 +55,5 @@ class TestProcessing:
         assert not image.getexif()
 
     def test_filename_is_random_and_never_the_visitor_one(self):
-        names = {pp.profile_picture_path(None, "../../evil.php") for _ in range(2)}
+        names = {upload_paths.profile_picture_path(None, "../../evil.php") for _ in range(2)}
         assert len(names) == 2 and all(n.endswith(".webp") and "/" not in n for n in names)

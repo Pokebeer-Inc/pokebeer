@@ -15,10 +15,11 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
-from django.conf.urls.static import static
+from django.contrib.auth.decorators import login_not_required
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.views.decorators.http import require_GET
+from django.views.static import serve
 
 from app.admin.duplicates import duplicates_view
 
@@ -27,11 +28,15 @@ urlpatterns = [
     path(f'{settings.ADMIN_URL}duplicates/', admin.site.admin_view(require_GET(duplicates_view)), name='admin_duplicates'),
     path(settings.ADMIN_URL, admin.site.urls),
     path('', include("app.urls"))
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
 
 if settings.DEBUG:
-    # Include django_browser_reload URLs only in DEBUG mode
+    from django_browser_reload.views import events
+
     urlpatterns += [
-        path("__reload__/", include("django_browser_reload.urls")),
+        # Fichiers envoyés, servis localement en développement ; publics comme ceux du bucket en production
+        re_path(rf'^{settings.MEDIA_URL.strip("/")}/(?P<path>.*)$', login_not_required(serve), {'document_root': settings.MEDIA_ROOT}),
+        # Rechargement automatique (outil de développement), y compris sur les pages publiques
+        path("__reload__/", include(([path("events/", login_not_required(events), name="events")], "django_browser_reload"))),
     ]
 

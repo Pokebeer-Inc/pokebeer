@@ -3,7 +3,6 @@ import html
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from django.utils.html import strip_tags
 
@@ -30,7 +29,7 @@ class Entry:
     """Une bulle de conversation. `created_at` est facultatif : la date de la décision d'un signalement n'est pas conservée."""
     author_kind: str
     body: str
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     @property
     def is_team(self):

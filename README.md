@@ -29,3 +29,10 @@ La CI lance `ruff`, `pip-audit`, `manage.py check --deploy` et la suite de tests
 - `app/services/` : la logique métier, rangée par domaine (`members`, `catalog`, `establishments`, `messaging`, `assistant`, `protection`, `common`, `support`, `analytics`, `moderation`) ; voir `app/services/README.md` pour le rôle de chaque module.
 - `app/views/` : les vues, une par route de `app/urls.py`, importées explicitement dans `app/views/__init__.py`.
 - `app/templates/partials/notifications/<type>.html` : le texte de chaque type de notification (voir `app/services/messaging/notification_types.py`).
+
+### Mise en production
+
+Un push sur `main` déclenche, dans l'ordre : la CI (`Django CI`), puis `Deploy production` qui applique les migrations à la base de production et
+met seulement ensuite le code en ligne sur Vercel (le déploiement automatique de Vercel est coupé pour `main` dans `vercel.json`).
+Secrets GitHub requis (environnement `production`) : `PRODUCTION_DATABASE_URL`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+Une migration doit rester compatible avec le code encore en ligne pendant la mise en ligne : ajouter d'abord, supprimer dans une version suivante.

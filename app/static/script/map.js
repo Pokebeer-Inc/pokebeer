@@ -126,6 +126,11 @@ document.addEventListener("DOMContentLoaded", function() {
         requestedMarker.fire('click');
     }
 
+    function resetDrinkPicker(selection) {
+        const picker = document.querySelector('#spot-drinks [data-picker]');
+        if (picker) PokebeerPicker.reset(picker, selection);
+    }
+
     // Gestion de l'ouverture de la modale d'édition
     window.openEditModal = function(spotSlug) {
         const data = spotsData[spotSlug];
@@ -139,27 +144,9 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById('spot-lat').value = data.lat;
         document.getElementById('spot-lng').value = data.lng;
 
-        // Gestion de l'affichage des bières
-        document.querySelectorAll('.drink-item').forEach(item => {
-            const isDeleted = item.getAttribute('data-is-deleted') === 'true';
-            const drinkSlug = item.getAttribute('data-drink-slug');
-            
-            item.style.display = (!isDeleted || data.drink_slugs.includes(drinkSlug)) ? 'flex' : 'none';
-        });
-
-        // Gestion du cochage / grisage des bières
-        document.querySelectorAll('.drink-checkbox').forEach(cb => {
-            const beerSlug = cb.getAttribute('data-beer-slug');
-            cb.checked = data.drink_slugs.includes(cb.value);
-            
-            if (data.other_beer_slugs.includes(beerSlug)) {
-                cb.disabled = true;
-                cb.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                cb.disabled = false;
-                cb.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
-        });
+        // Dégustations : celles du lieu cochées ; les bières déjà ajoutées par d'autres indisponibles ; les bières retirées masquées sauf si
+        // elles sont déjà rattachées (picker.js)
+        resetDrinkPicker({ selected: data.drink_slugs, disabledBeers: data.other_beer_slugs });
 
         // Gestion des droits (créateur)
         const friendsSection = document.getElementById('friends-section');
@@ -195,14 +182,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Remise à zéro des champs
         document.querySelectorAll('.friend-checkbox').forEach(cb => cb.checked = false);
-        document.querySelectorAll('.drink-checkbox').forEach(cb => {
-            cb.checked = false;
-            cb.disabled = false;
-            cb.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
-        });
-        document.querySelectorAll('.drink-item').forEach(item => {
-            item.style.display = item.getAttribute('data-is-deleted') === 'true' ? 'none' : 'flex';
-        });
+        resetDrinkPicker({});
         
         document.getElementById('form-delete-spot').style.display = 'none';
         document.getElementById('friends-section').style.display = 'block';

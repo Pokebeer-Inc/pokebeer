@@ -121,10 +121,11 @@ class TestNotificationPolicyWiring:
         imports = [line for line in Path(settings.BASE_DIR, "app", "models", "notifications.py").read_text().splitlines() if line.startswith(("import", "from"))]
         assert not any("notification_policy" in line for line in imports)
 
-    def test_the_policy_is_connected_at_startup(self, user, other_user):
+    def test_the_service_applies_the_policy(self, user, other_user):
         from app.models import Notification
+        from app.services.messaging.notifications import save_notifications
         f.block(user, other_user)
-        assert Notification.objects.bulk_create([Notification(recipient=user, sender=other_user, notif_type="follow")]) == []
+        assert save_notifications([Notification(recipient=user, sender=other_user, notif_type="follow")]) == []
 
 
 class TestLoadMoreRegistry:
@@ -132,7 +133,8 @@ class TestLoadMoreRegistry:
         from app.views import load_more
         assert set(load_more.LOADERS) == {
             "search_beers", "search_users", "search_breweries", "search_bars", "wishlist_tiles", "notebook_drinks", "added_beers",
-            "notebook_feedback", "followers", "following", "public_added_beers", "public_drinks",
+            "notebook_feedback", "followers", "following", "public_added_beers", "public_drinks", "brewery_beers", "beer_reviews", "deleted_beers",
+            "pick_drinks",
         }
 
     def test_a_new_list_only_needs_a_declared_loader(self, auth_client, monkeypatch):

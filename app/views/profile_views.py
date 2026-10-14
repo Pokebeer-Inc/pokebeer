@@ -1,6 +1,5 @@
 """Profil public d'un membre, abonnements, Top 3 et trophées."""
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Max, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,15 +8,17 @@ from django.views.decorators.http import require_POST
 from urllib.parse import urlsplit
 import json
 
-from ..models import Beer, BeerUser, Drinks, UserBlock, UserFollow
-from ..services.members.achievements import check_and_notify_achievements, get_user_achievements
+from ..models import Beer, BeerUser, Drinks, UserFollow
+from ..services.members import social
+from ..services.members.achievements import get_user_achievements
 from ..services.members.follows import follow_context
-from ..services.messaging.notifications import notify
 from ..services.members.profile_stats import get_top_beers_data, get_user_statistics
 from ..services.members.visibility import is_blocked_between
-from .utils import previous_page
+from .utils import chosen_tab, previous_page
 
-@login_required(login_url='login')
+PROFILE_TABS = ('tastings', 'additions')
+PROFILE_TAB_ALIASES = {'degustations': 'tastings', 'ajouts': 'additions'}  # anciens noms français
+
 def public_profile_view(request, username):
     """Affiche le profil public d'un autre utilisateur."""
     # Si l'utilisateur clique sur son propre profil, on le redirige vers son compte privé
@@ -30,16 +31,14 @@ def public_profile_view(request, username):
     )
     
     # Vérification blocage mutuel
-    if UserBlock.objects.filter(Q(blocker=request.user, blocked=profile_user) | 
-                                Q(blocker=profile_user, blocked=request.user)).exists():
+    if is_blocked_between(request.user, profile_user):
         messages.error(request, "Ce profil n'est pas accessible.")
         return redirect('index')
     
     # Toutes les dégustations servent aux statistiques ; seule la liste de l'onglet affiché est chargée (10 premières)
     user_drinks = Drinks.objects.filter(drinker=profile_user).select_related('beer', 'beer__brewery').order_by('-date')
 
-    requested_tab = {'degustations': 'tastings', 'ajouts': 'additions'}.get(request.GET.get('tab'), request.GET.get('tab'))  # anciens noms français acceptés
-    active_tab = requested_tab if requested_tab in ('tastings', 'additions') else 'tastings'
+    active_tab = chosen_tab(request.GET.get('tab'), PROFILE_TABS, PROFILE_TAB_ALIASES, default='tastings')
     shown_drinks, added_beers = [], []
     if active_tab == 'tastings':
         shown_drinks = list(user_drinks[:10])
@@ -84,43 +83,31 @@ def public_profile_view(request, username):
     return render(request, 'public_profile.html', context)
 
 @require_POST
-@login_required(login_url='login')
 def follow_user(request, username):
     """Gère l'action de s'abonner ou se désabonner."""
     user_to_follow = get_object_or_404(BeerUser, username=username, is_active=True)
-
-    if is_blocked_between(request.user, user_to_follow):
-        # Même réponse qu'un profil inexistant : on ne révèle pas qui a bloqué qui
-        raise Http404
-    if request.user != user_to_follow:
-        follow_record = UserFollow.objects.filter(follower=request.user, followed=user_to_follow)
-        if follow_record.exists():
-            follow_record.delete() # Se désabonner
-            messages.info(request, f"Vous ne suivez plus {username}.")
-        else:
-            UserFollow.objects.create(follower=request.user, followed=user_to_follow) # S'abonner
-            notify('follow', [user_to_follow], sender=request.user)
+    try:
+        following = social.toggle_follow(request.user, user_to_follow)
+    except social.Unreachable:
+        raise Http404 from None  # même réponse qu'un profil inexistant : on ne révèle pas qui a bloqué qui
+    if user_to_follow != request.user:
+        if following:
             messages.success(request, f"Vous suivez maintenant {username} !")
-            
-    check_and_notify_achievements(request.user)
+        else:
+            messages.info(request, f"Vous ne suivez plus {username}.")
     return redirect(previous_page(request))
 
-@login_required(login_url='login')
-def remove_follower(request, username):
-    """Permet à un utilisateur de supprimer quelqu'un de ses abonnés."""
-    follower_to_remove = get_object_or_404(BeerUser, username=username)
-    
-    # On cherche le lien où follower_to_remove suit request.user
-    follow_record = UserFollow.objects.filter(follower=follower_to_remove, followed=request.user)
-    
-    if request.method == 'POST' and follow_record.exists():
-        follow_record.delete()
-        messages.info(request, f"{username} a été retiré de vos abonnés.")
-        
-    return redirect(previous_page(request, 'account'))
 
 @require_POST
-@login_required(login_url='login')
+def remove_follower(request, username):
+    """Permet à un utilisateur de supprimer quelqu'un de ses abonnés."""
+    follower = get_object_or_404(BeerUser, username=username)
+    if social.remove_follower(request.user, follower):
+        messages.info(request, f"{username} a été retiré de vos abonnés.")
+    return redirect(previous_page(request, 'account'))
+
+
+@require_POST
 def update_top_beer(request, slot):
     """Met à jour l'un des 3 slots du Top 3 de l'utilisateur."""
     if slot not in [1, 2, 3]:
@@ -140,22 +127,17 @@ def update_top_beer(request, slot):
             messages.error(request, f"{beer.name} est déjà dans votre Top 3 !")
             return redirect('account')
 
-        if slot == 1: user.top_beer_1 = beer
-        elif slot == 2: user.top_beer_2 = beer
-        elif slot == 3: user.top_beer_3 = beer
+        setattr(user, f'top_beer_{slot}', beer)
         messages.success(request, f"Bière ajoutée à votre Top {slot} !")
     else:
         # Si aucun slug n'est fourni, on vide l'emplacement
-        if slot == 1: user.top_beer_1 = None
-        elif slot == 2: user.top_beer_2 = None
-        elif slot == 3: user.top_beer_3 = None
+        setattr(user, f'top_beer_{slot}', None)
         messages.info(request, f"Emplacement Top {slot} vidé.")
 
     user.save(update_fields=['top_beer_1', 'top_beer_2', 'top_beer_3'])
     return redirect('account')
 
 @require_POST
-@login_required(login_url='login')
 def reorder_top_beers(request):
     """API du glisser-déposer du Top 3 : `order` donne, pour chaque position, l'ancien emplacement qui vient s'y placer.
 
@@ -176,7 +158,6 @@ def reorder_top_beers(request):
     user.save(update_fields=['top_beer_1', 'top_beer_2', 'top_beer_3'])
     return JsonResponse({'success': True})
 
-@login_required(login_url='login')
 def achievements_view(request):
     """Page des trophées, hauts faits et cosmétiques."""
     achievements, level_data = get_user_achievements(request.user)

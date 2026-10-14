@@ -115,6 +115,6 @@ def converse(client, system_prompt, history, user_message, tools, reserve_call=l
         # Chaque appel du modèle reçoit une réponse (l'API l'exige), mais seuls les premiers sont exécutés
         messages += [
             {'role': 'tool', 'tool_call_id': call.id, 'name': call.function.name, 'content': json.dumps(result, ensure_ascii=False)}
-            for call, result in zip(calls, results)
+            for call, result in zip(calls, results, strict=False)
         ]
     return ChatReply(BLOCKED_REPLY)  # inatteignable : le dernier tour n'a pas d'outil

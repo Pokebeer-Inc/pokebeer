@@ -1,5 +1,4 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from urllib.parse import urlencode
@@ -8,10 +7,14 @@ from django.db.models import Count, Q, Max
 
 from ..forms import CustomNotebookForm, DrinkForm, error_summary
 from ..models import Beer, Drinks, CustomNotebook
-from ..services.catalog.selectors import get_filtered_notebook_drinks, get_wishlist_beers
+from ..services.catalog.selectors import deleted_beers_added_by, get_filtered_notebook_drinks, get_wishlist_beers, rating_bounds
+from ..services.catalog import notebooks
+from ..services.catalog.styles import styles_in
 from ..services.members.profile_stats import get_user_statistics
+from .utils import chosen_tab, picker_context
 
 NOTEBOOK_TABS = ('tastings', 'to-taste', 'additions')
+NOTEBOOK_TAB_ALIASES = {'carnet': 'tastings', 'collections': 'tastings', 'degustations': 'tastings', 'gouter': 'to-taste', 'ajouts': 'additions'}
 CARNET_PAGE = 10
 WISHLIST_SORT_OPTIONS = (('date_desc', "Récentes"), ('name_asc', "A à Z"), ('degree_desc', "Plus fortes"), ('ibu_desc', "Plus amères"))
 
@@ -27,15 +30,6 @@ SORT_LABELS = {value: label for _, options in SORT_GROUPS for value, label in op
 DEGREE_OPTIONS = (('light', "Légères (moins de 5 %)"), ('regular', "Normales (5 à 8 %)"), ('strong', "Fortes (plus de 8 %)"))
 IBU_OPTIONS = (('low', "Douces (moins de 20)"), ('medium', "Moyennes (20 à 50)"), ('high', "Amères (plus de 50)"))
 MAX_FILTER_TEXT = 100
-
-
-def rating_bounds(params):
-    """Fourchette de notes demandée, bornée à 0-10 (valeurs invalides ignorées)."""
-    def number(name, default):
-        value = params.get(name, '')
-        return min(10, max(0, int(value))) if value.isdigit() else default
-    low, high = number('rating_min', 0), number('rating_max', 10)
-    return (low, high) if low <= high else (high, low)
 
 
 def filter_summary(params):
@@ -77,16 +71,12 @@ def drinks_list_context(request, drinks):
     }
 
 
-@login_required(login_url='login')
 def notebook_view(request):
     """Page racine du Carnet : statistiques, puis l'onglet choisi (collections, à goûter ou ajouts)."""
     user = request.user
 
-    # Onglets : tastings (par défaut : les collections), to-taste (à goûter), additions (ajouts) ; les anciens noms français restent acceptés
-    active_tab = request.GET.get('tab', 'tastings')
-    active_tab = {'carnet': 'tastings', 'collections': 'tastings', 'degustations': 'tastings', 'gouter': 'to-taste', 'ajouts': 'additions'}.get(active_tab, active_tab)
-    if active_tab not in NOTEBOOK_TABS:
-        active_tab = 'tastings'
+    # Onglets : tastings (par défaut : les collections), to-taste (à goûter), additions (ajouts)
+    active_tab = chosen_tab(request.GET.get('tab'), NOTEBOOK_TABS, NOTEBOOK_TAB_ALIASES, default='tastings')
 
     user_drinks_all = Drinks.objects.filter(drinker=user).select_related('beer', 'beer__brewery').order_by('-date')
     context = {
@@ -98,10 +88,11 @@ def notebook_view(request):
     }
 
     if active_tab == 'tastings':
+        picker = picker_context(user, 'drinks')  # fenêtre « Nouveau carnet »
         context.update({
             'custom_notebooks': CustomNotebook.objects.filter(user=user).annotate(drink_count=Count('drinks')),
-            'user_drinks_all': user_drinks_all,  # cases à cocher de la fenêtre « Nouveau carnet »
-            'drink_total': user_drinks_all.count(),
+            'picker': picker,
+            'drink_total': picker['total'],
         })
     elif active_tab == 'to-taste':
         wishlist = list(get_wishlist_beers(request)[:CARNET_PAGE])
@@ -113,15 +104,13 @@ def notebook_view(request):
         context.update({
             'my_added_beers': Beer.objects.filter(added_by=user, is_deleted=False).annotate(
                 user_note=Max('drinks__note', filter=Q(drinks__drinker=user))).order_by('-id')[:10],
-            'my_deleted_beers': Beer.objects.filter(added_by=user, is_deleted=True).annotate(
-                user_note=Max('drinks__note', filter=Q(drinks__drinker=user))).order_by('-id'),
+            'my_deleted_beers': list(deleted_beers_added_by(user)[:CARNET_PAGE]),
             'feedback_on_my_beers': Drinks.objects.filter(beer__added_by=user).exclude(drinker=user)
                 .select_related('drinker', 'beer').order_by('-date')[:10],
         })
     return render(request, 'notebook.html', context)
 
 
-@login_required(login_url='login')
 def notebook_wishlist_fragment(request):
     """Liste « À goûter » (recherche et tri en direct : fragment HTML échangé par htmx)."""
     sort = request.GET.get('sort') if request.GET.get('sort') in dict(WISHLIST_SORT_OPTIONS) else 'date_desc'
@@ -134,20 +123,12 @@ def notebook_wishlist_fragment(request):
     })
 
 
-@login_required(login_url='login')
 def notebook_drinks_fragment(request):
     """Liste filtrée des dégustations d'un carnet (échangée par htmx à chaque saisie ou changement de filtre)."""
     drinks = list(get_filtered_notebook_drinks(request)[:CARNET_PAGE])
     return render(request, 'partials/notebook_drinks_fragment.html', drinks_list_context(request, drinks))
 
 
-def _styles_of(drinks):
-    """Styles présents dans ces dégustations (un champ peut en contenir plusieurs, séparés par des virgules)."""
-    raw = drinks.exclude(beer__style__isnull=True).exclude(beer__style='').values_list('beer__style', flat=True).distinct()
-    return sorted({style.strip() for value in raw for style in value.split(',') if style.strip()})
-
-
-@login_required(login_url='login')
 def notebook_detail_view(request, notebook_slug=None):
     """Page d'un carnet (ou de toutes les bières) : recherche, filtres et tri en direct, puis la liste."""
     user = request.user
@@ -162,19 +143,19 @@ def notebook_detail_view(request, notebook_slug=None):
         notebook_drink_slugs = list(notebook.drinks.values_list('slug', flat=True))
 
     my_drinks = list(get_filtered_notebook_drinks(request)[:CARNET_PAGE])
-    user_drinks_all = Drinks.objects.filter(drinker=user).select_related('beer', 'beer__brewery').order_by('-date')  # fenêtre « Modifier le carnet »
-    scope = notebook.drinks.all() if notebook else user_drinks_all
+    scope = notebook.drinks.all() if notebook else Drinks.objects.filter(drinker=user)
 
+    rating_min, rating_max = rating_bounds(request.GET)
     context = {
         'notebook': notebook,
-        'styles': _styles_of(scope),
-        'user_drinks_all': user_drinks_all,
-        'notebook_drink_slugs': notebook_drink_slugs,
+        'styles': styles_in(scope),
+        'picker': picker_context(user, 'drinks'),  # fenêtre « Modifier le carnet »
+        'notebook_drink_slugs': ','.join(notebook_drink_slugs),
         'sort_groups': SORT_GROUPS,
         'degree_options': DEGREE_OPTIONS,
         'ibu_options': IBU_OPTIONS,
-        'rating_min': rating_bounds(request.GET)[0],
-        'rating_max': rating_bounds(request.GET)[1],
+        'rating_min': rating_min,
+        'rating_max': rating_max,
         'selected_degree': request.GET.get('degree', ''),
         'selected_ibu': request.GET.get('ibu', ''),
         'selected_style': request.GET.get('style', ''),
@@ -184,30 +165,22 @@ def notebook_detail_view(request, notebook_slug=None):
     return render(request, 'notebook_detail.html', context)
 
 @require_POST
-@login_required(login_url='login')
 def create_custom_notebook(request):
     """Crée un nouveau carnet personnalisé."""
-    if request.user.custom_notebooks.count() >= 50:
-        messages.error(request, "Vous avez atteint la limite de 50 carnets.")
-        return redirect('notebook')
-        
     form = CustomNotebookForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Le carnet n'a pas pu être créé : " + " ; ".join(error_summary(form)))
         return redirect('notebook')
-
-    notebook = form.save(commit=False)
-    notebook.user = request.user
-    notebook.save()
-    drink_slugs = request.POST.getlist('drinks')
-    if drink_slugs:
-        notebook.drinks.set(Drinks.objects.filter(slug__in=drink_slugs, drinker=request.user))
-    messages.success(request, "Carnet créé avec succès !")
-        
+    try:
+        notebooks.create(request.user, form, request.POST.getlist('drinks'))
+    except notebooks.NotebookLimitReached:
+        messages.error(request, f"Vous avez atteint la limite de {notebooks.MAX_NOTEBOOKS} carnets.")
+    else:
+        messages.success(request, "Carnet créé avec succès !")
     return redirect('notebook')
 
+
 @require_POST
-@login_required(login_url='login')
 def delete_custom_notebook(request, notebook_slug):
     """Supprime un carnet personnalisé."""
     notebook = get_object_or_404(CustomNotebook, slug=notebook_slug, user=request.user)
@@ -216,7 +189,6 @@ def delete_custom_notebook(request, notebook_slug):
     return redirect('notebook')
 
 @require_POST
-@login_required(login_url='login')
 def edit_custom_notebook(request, notebook_slug):
     """Modifie le titre, la description et les bières d'un carnet personnalisé."""
     notebook = get_object_or_404(CustomNotebook, slug=notebook_slug, user=request.user)
@@ -226,8 +198,7 @@ def edit_custom_notebook(request, notebook_slug):
         messages.error(request, "Le carnet n'a pas pu être modifié : " + " ; ".join(error_summary(form)))
         return redirect('notebook_detail', notebook_slug=notebook.slug)
 
-    form.save()
-    notebook.drinks.set(Drinks.objects.filter(slug__in=request.POST.getlist('drinks'), drinker=request.user))
+    notebooks.update(notebook, form, request.POST.getlist('drinks'))
     messages.success(request, "Le carnet a été modifié avec succès.")
         
     return redirect('notebook_detail', notebook_slug=notebook.slug)

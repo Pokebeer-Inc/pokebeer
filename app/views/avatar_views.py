@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import redirect
@@ -23,7 +22,6 @@ def _reserve_upload_slot(user):
 
 
 @require_POST
-@login_required(login_url='login')
 def update_profile_picture(request):
     """Remplace la photo de profil du membre connecté (jamais celle d'un autre : aucun identifiant n'est accepté)."""
     user = request.user

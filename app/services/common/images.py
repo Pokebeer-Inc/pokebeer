@@ -1,10 +1,11 @@
 """Contrôle commun des images envoyées par les membres : taille, format réel (jamais le type déclaré) et dimensions."""
 import logging
 from io import BytesIO
-from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.db import transaction
+from django.db.models.signals import post_delete
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,24 @@ def reencode_as_webp(upload, max_bytes, resize, name, quality=85):
     return ContentFile(buffer.getvalue(), name=name)
 
 
+def delete_files_on_delete(model, *fields):
+    """Les fichiers d'un objet supprimé (par son auteur, la modération ou la suppression du compte) ne doivent pas rester dans le bucket :
+    ils sont effacés une fois la suppression validée."""
+    def handler(sender, instance, **kwargs):
+        for field in fields:
+            stored = getattr(instance, field)
+            if stored:
+                storage, name = stored.storage, stored.name
+                transaction.on_commit(lambda storage=storage, name=name: delete_stored_file(storage, name))
+    post_delete.connect(handler, sender=model, weak=False, dispatch_uid=f'delete_files_{model.__name__}')
+
+
+def connect_signals():
+    from ...models import Bar, Beer, BeerUser, Brewery, Drinks
+    for model, field in ((BeerUser, 'avatar'), (Drinks, 'photo'), (Beer, 'image'), (Brewery, 'image'), (Bar, 'image')):
+        delete_files_on_delete(model, field)
+
+
 def delete_stored_file(storage, name):
     """Supprime un fichier du stockage ; un échec de stockage ne doit jamais casser la requête."""
     if not name:
@@ -63,8 +82,3 @@ def shrink_to_fit(image, max_side):
     if max(image.size) <= max_side:
         return image
     return ImageOps.contain(image, (max_side, max_side), Image.Resampling.LANCZOS)
-
-
-def random_webp_path(folder):
-    """Chemin de stockage aléatoire : le nom du fichier envoyé n'est jamais utilisé (pas de collision ni de chemin imposé)."""
-    return f'{folder}/{uuid4().hex}.webp'

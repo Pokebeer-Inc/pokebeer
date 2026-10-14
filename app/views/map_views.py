@@ -1,14 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
 
-from ..models import Drinks, BeerSpot, UserFollow
+from ..models import BeerSpot, UserFollow
 from ..forms import BeerSpotForm, error_summary
-from ..services.members.achievements import check_and_notify_achievements
 from ..services.members.visibility import exclude_hidden_users
 from ..services.establishments import place_directory, spots
+from .utils import picker_context
 
 def _save_spot(request):
     """Création ou modification (si `spot_slug` est envoyé) d'un lieu à partir de la fenêtre de la carte."""
@@ -19,7 +18,7 @@ def _save_spot(request):
 
     data = form.cleaned_data
     fields = {
-        'title': data['title'], 'description': data['description'], 'date': data['date'] or timezone.now().date(),
+        'title': data['title'], 'description': data['description'], 'date': data['date'] or timezone.localdate(),
         'latitude': data['lat'], 'longitude': data['lng'],
     }
     drink_slugs = request.POST.getlist('drinks')
@@ -35,18 +34,12 @@ def _save_spot(request):
     else:
         spots.create_spot(request.user, fields, drink_slugs, friend_ids)
         messages.success(request, "Point ajouté avec succès !")
-
-    check_and_notify_achievements(request.user)
     return redirect('map')
 
 
-@login_required(login_url='login')
 def map_view(request):
     # Les abonnés de l'utilisateur (les gens qui LE suivent)
     followers = UserFollow.objects.filter(followed=request.user, follower__is_active=True).select_related('follower')
-    
-    # Ses dégustations
-    user_drinks = Drinks.objects.filter(drinker=request.user).select_related('beer').order_by('-date')
     
     if request.method == 'POST':
         return _save_spot(request)
@@ -61,7 +54,7 @@ def map_view(request):
     bars, breweries = markers['bar'], markers['brewery']
 
     context = {
-        'user_drinks': user_drinks,
+        'picker': picker_context(request.user, 'drinks'),  # dégustations bues au lieu
         'user_spots': user_spots,
         'followers': followers,
         'bars': bars,
@@ -69,7 +62,6 @@ def map_view(request):
     }
     return render(request, 'map.html', context)
 
-@login_required(login_url='login')
 def delete_spot_view(request, spot_slug):
     """Permet au propriétaire de supprimer son spot sur la carte."""
     spot = get_object_or_404(BeerSpot, slug=spot_slug, user=request.user)

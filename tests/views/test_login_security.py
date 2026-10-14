@@ -39,6 +39,17 @@ class TestSiteLogin:
         attempt(client, user.username, "guess")
         assert calls == []
 
+    def test_a_successful_login_does_not_count_against_the_ip(self, client, google_app, user):
+        attempt(client, user.username, f.PASSWORD)
+        assert not LOGIN_BY_IP.exceeded("198.51.100.10") and not ThrottleHit.objects.filter(scope=LOGIN_BY_IP.scope).exists()
+
+    def test_an_unknown_username_costs_as_much_as_a_suspended_one(self, client, google_app, monkeypatch):
+        # Pas de raccourci mesurable : sans compte suspendu de ce nom, un mot de passe est quand même haché
+        hashed = []
+        monkeypatch.setattr("app.models.BeerUser.set_password", lambda self, raw: hashed.append(raw))
+        attempt(client, "nobody-here", "secret")
+        assert "secret" in hashed
+
     def test_other_visitors_are_unaffected(self, client, google_app, user):
         for index in range(LOGIN_BY_IP.attempts):
             attempt(client, f"ghost{index}")

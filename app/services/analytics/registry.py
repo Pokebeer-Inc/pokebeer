@@ -1,6 +1,6 @@
 """Catalogue des pages d'analytics : ajouter une page = ajouter une entrée (ouvert/fermé)."""
 from dataclasses import dataclass
-from typing import Callable
+from collections.abc import Callable
 
 from . import bars, habits, geography, places, tastes, trends, trophies
 

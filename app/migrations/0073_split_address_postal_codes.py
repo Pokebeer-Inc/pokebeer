@@ -3,7 +3,7 @@
 import django.utils.timezone
 from django.db import migrations, models
 
-from app.services.establishments import address as address_service
+from app.domain import address as address_service
 
 BATCH = 500
 

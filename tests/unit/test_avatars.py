@@ -2,7 +2,7 @@ from urllib.parse import unquote
 
 import pytest
 
-from app.services.members.avatars import initials_avatar_url
+from app.domain.avatars import initials_avatar_url
 
 
 def svg(username):

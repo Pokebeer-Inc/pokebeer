@@ -4,6 +4,7 @@ La position de l'appareil n'est jamais envoyée au serveur : celui-ci publie la 
 navigateur calcule les distances. Pas de position en paramètre, donc rien à journaliser, à conserver ni à protéger côté serveur.
 """
 from django.core.cache import cache
+from django.db.models.signals import post_delete, post_save
 
 from .places import PLACE_KINDS
 
@@ -13,9 +14,18 @@ CACHE_SECONDS = 300  # une fiche modifiée apparaît au plus tard après ce dél
 MARKERS_CACHE_KEY = 'places-map-markers'
 
 
-def forget():
-    """Vide les listes en cache : appelé quand une fiche est ajoutée, modifiée ou supprimée (models/signals.py)."""
-    cache.delete_many([CACHE_KEY, MARKERS_CACHE_KEY])
+TROPHY_URLS_CACHE_KEY = 'trophy-urls'  # lien du trophée « Ours doré » vers la fiche de sa brasserie (services/members/achievements.py)
+
+
+def forget(**kwargs):
+    """Vide les listes en cache : appelé quand une fiche est ajoutée, modifiée ou supprimée (connect_signals)."""
+    cache.delete_many([CACHE_KEY, MARKERS_CACHE_KEY, TROPHY_URLS_CACHE_KEY])
+
+
+def connect_signals():
+    for kind in PLACE_KINDS:
+        for signal in (post_save, post_delete):
+            signal.connect(forget, sender=kind.model, dispatch_uid=f'forget_places_{kind.key}_{signal is post_save}')
 
 
 def map_markers():

@@ -1,0 +1,3 @@
+{% comment %}Bouton « Charger plus » (static/script/load_more_generic.js). Paramètres : url (route load_more_generic), container (id de la liste), label,
+offset (10 par défaut), query (paramètres fixes, ex. "brewery=slug"), autoscroll ("false" : chargement au clic seulement).{% endcomment %}
+<button type="button" class="btn-load-more-generic btn btn-outline btn-primary btn-sm w-full mt-3" data-offset="{{ offset|default:10 }}" data-container="{{ container }}" data-url="{{ url }}{% if query %}?{{ query }}{% endif %}"{% if autoscroll %} data-autoscroll="{{ autoscroll }}"{% endif %}>{{ label }}</button>

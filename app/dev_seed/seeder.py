@@ -1,6 +1,6 @@
 import random
 from collections import Counter, defaultdict
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 from allauth.socialaccount.models import SocialApp
@@ -127,7 +127,7 @@ class DevDatabaseSeeder:
                 brewery=brewery,
                 added_by=brewer if brewery in managed else self.admin,
             )
-            for brewery, spec in zip(breweries, data.BREWERIES)
+            for brewery, spec in zip(breweries, data.BREWERIES, strict=False)
             for name, style, degree, ibu, description in spec["beers"]
         ])
 
@@ -142,7 +142,7 @@ class DevDatabaseSeeder:
         self._grant(BARTENDER, [bartender])
 
     def _seed_drinks(self):
-        today = date.today()
+        today = timezone.localdate()
         self.drinks = self._bulk(Drinks, [
             Drinks(
                 drinker=user,

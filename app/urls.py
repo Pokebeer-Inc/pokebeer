@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_not_required
 from django.urls import path, include
 from django.views.generic import RedirectView
 from . import views
@@ -29,6 +30,7 @@ urlpatterns = [
     path('welcome/', views.onboarding_start_view, name='onboarding'),
     path('welcome/birth-date/', views.onboarding_birth_view, name='onboarding_birth'),
     path('welcome/gender/', views.onboarding_gender_view, name='onboarding_gender'),
+    path('welcome/emails/', views.onboarding_emails_view, name='onboarding_emails'),
     path('account/', views.account_view, name='account'),
     path('account/settings/', views.settings_home_view, name='account_settings_home'),
     path('account/settings/<slug:section>/', views.account_view, name='account_settings'),
@@ -43,12 +45,12 @@ urlpatterns = [
     path('delete-account/', views.delete_account_view, name='delete_account'),
     path('cron/purge-inactive-accounts/', views.purge_inactive_accounts_cron, name='cron_purge_inactive_accounts'),
     # Les pages de connexion et d'inscription d'allauth contourneraient nos protections : on les renvoie vers les nôtres
-    path('accounts/login/', RedirectView.as_view(pattern_name='login', query_string=True), name='allauth_login_redirect'),
-    path('accounts/signup/', RedirectView.as_view(pattern_name='register', query_string=True), name='allauth_signup_redirect'),
+    path('accounts/login/', login_not_required(RedirectView.as_view(pattern_name='login', query_string=True)), name='allauth_login_redirect'),
+    path('accounts/signup/', login_not_required(RedirectView.as_view(pattern_name='register', query_string=True)), name='allauth_signup_redirect'),
     # Réinitialisation et mot de passe d'allauth : remplacés par notre parcours (limité en débit, sans fuite d'information)
-    path('accounts/password/reset/', RedirectView.as_view(pattern_name='password_reset'), name='allauth_reset_redirect'),
-    path('accounts/password/change/', RedirectView.as_view(pattern_name='account'), name='allauth_password_change_redirect'),
-    path('accounts/password/set/', RedirectView.as_view(pattern_name='account'), name='allauth_password_set_redirect'),
+    path('accounts/password/reset/', login_not_required(RedirectView.as_view(pattern_name='password_reset')), name='allauth_reset_redirect'),
+    path('accounts/password/change/', login_not_required(RedirectView.as_view(pattern_name='account')), name='allauth_password_change_redirect'),
+    path('accounts/password/set/', login_not_required(RedirectView.as_view(pattern_name='account')), name='allauth_password_set_redirect'),
     path('accounts/', include('allauth.urls')),
     path('update-top-beer/<int:slot>/', views.update_top_beer, name='update_top_beer'),
     path('reorder-top-beers/', views.reorder_top_beers, name='reorder_top_beers'),
@@ -110,6 +112,8 @@ urlpatterns = [
     path('bar/<slug:bar_slug>/claim/', views.claim_bar_view, name='claim_bar'),
     path('bar/<slug:bar_slug>/add-manager/', views.add_bar_manager, name='add_bar_manager'),
     path('bar/<slug:bar_slug>/remove-manager/<str:username>/', views.remove_bar_manager, name='remove_bar_manager'),
+    path('team-invitations/<slug:invitation_slug>/respond/', views.respond_invitation, name='respond_invitation'),
+    path('team-invitations/<slug:invitation_slug>/cancel/', views.cancel_invitation, name='cancel_invitation'),
 
     # ==========================================
     # Dégustations (Avis) & Lieux (Spots)

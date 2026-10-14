@@ -18,7 +18,8 @@ def capacity_left():
 
 
 def _send(to, subject, template, context):
-    INACTIVITY_EMAIL_GLOBAL.record(GLOBAL_KEY)
+    if not INACTIVITY_EMAIL_GLOBAL.hit(GLOBAL_KEY):  # quota du jour épuisé (vérifié et compté d'un seul geste)
+        return False
     return mailer.send_templated(to, subject, template, {
         **context, 'months': settings.INACTIVE_ACCOUNT_MONTHS, 'warning_days': settings.INACTIVE_ACCOUNT_WARNING_DAYS,
     })

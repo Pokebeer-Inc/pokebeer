@@ -1,6 +1,7 @@
 """Réinitialisation du mot de passe : demande, lien reçu par e-mail, confirmation."""
 from django.conf import settings
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import login_not_required
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.generic import FormView, TemplateView
@@ -14,7 +15,7 @@ from .utils import limit_posts
 __all__ = ['PasswordResetRequestView', 'PasswordResetDoneView', 'PasswordResetConfirmView', 'PasswordResetCompleteView']
 
 
-@method_decorator(limit_posts(PASSWORD_RESET_BY_IP), name='dispatch')
+@method_decorator([login_not_required, limit_posts(PASSWORD_RESET_BY_IP)], name='dispatch')
 class PasswordResetRequestView(FormView):
     template_name = 'password_reset/request.html'
     form_class = PasswordResetRequestForm
@@ -27,11 +28,12 @@ class PasswordResetRequestView(FormView):
         return super().form_valid(form)
 
 
+@method_decorator(login_not_required, name='dispatch')
 class PasswordResetDoneView(TemplateView):
     template_name = 'password_reset/done.html'
 
 
-@method_decorator(limit_posts(PASSWORD_RESET_CONFIRM_BY_IP), name='dispatch')
+@method_decorator([login_not_required, limit_posts(PASSWORD_RESET_CONFIRM_BY_IP)], name='dispatch')
 class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
     """Le jeton de l'URL est déplacé en session par Django avant l'affichage du formulaire (il ne fuit pas via le Referer)."""
     template_name = 'password_reset/confirm.html'
@@ -49,5 +51,6 @@ class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
         return response
 
 
+@method_decorator(login_not_required, name='dispatch')
 class PasswordResetCompleteView(TemplateView):
     template_name = 'password_reset/complete.html'

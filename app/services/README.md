@@ -1,21 +1,28 @@
 # Services
 
-La logique métier du site, rangée par domaine. Les vues (`app/views/`) et les modèles (`app/models/`) s'appuient sur ces modules ; chacun a son objectif décrit en tête de fichier.
+La logique métier du site, rangée par domaine ; chacun des modules a son objectif décrit en tête de fichier.
+
+Sens des dépendances : `app/domain/` (règles pures : slugs, clés de comparaison des noms, adresses, styles, avatars, chemins d'upload,
+registre des types de notifications) <- `app/models/` <- `app/services/` <- `app/views/`. Les vues valident les formulaires et répondent ;
+enregistrements, notifications et trophées qui en découlent sont décidés ici. Les signaux qui appellent un service sont déclarés par le
+service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'être connecté sauf celles marquées `@login_not_required`.
 
 ## `members/` — Membres : comptes, rôles, relations, confidentialité, trophées
 
 | Module | Rôle |
 |---|---|
 | `achievements.py` | Trophées des membres : calcul des paliers et notifications de progression. |
-| `avatars.py` | Avatar par défaut : initiale du pseudo sur fond ambre, généré localement (aucun service externe). |
+| `account.py` | Profil du membre connecté : enregistrement et ce qui en découle (avis de sécurité, trophées). |
 | `blocks.py` | Blocages entre membres : invitation à signaler quand un même membre est bloqué par plusieurs personnes. |
 | `follows.py` | Abonnés et abonnements d'un membre : comptés en base, affichés par pages (une fenêtre de profil ne charge pas des milliers de lignes). |
+| `identity.py` | Confirmation d'identité (mot de passe, ou pseudo pour un compte Google) avant une action sensible, et avis de sécurité. |
 | `inactivity.py` | RGPD : suppression des comptes inactifs. |
 | `inactivity_mail.py` | E-mails liés à la suppression des comptes inactifs (adresse d'envoi : celle du service, comme la réinitialisation du mot de passe). |
 | `password_reset.py` | Réinitialisation du mot de passe par e-mail. |
 | `profile_pictures.py` | Photos de profil : validation stricte puis ré-encodage, stockage dans un bucket dédié. |
 | `profile_stats.py` | Statistiques du profil (moyennes, style préféré, bières du Top 3) calculées par la base. |
 | `roles.py` | Rôles utilisateur : groupes Django cumulatifs (Contributeur toujours conservé) + drapeau superuser pour Admin. |
+| `social.py` | Abonnements et blocages entre membres (règles, notifications). |
 | `visibility.py` | Qui peut voir quoi : blocages entre membres et comptes suspendus, appliqués à une requête par sous-requête SQL (aucun identifiant chargé en mémoire). |
 | `welcome.py` | E-mail de bienvenue envoyé à la création d'un compte (formulaire, établissement pro ou connexion Google). |
 
@@ -32,24 +39,27 @@ La logique métier du site, rangée par domaine. Les vues (`app/views/`) et les 
 |---|---|
 | `beer_drafts.py` | Ajout d'une bière en plusieurs étapes : étapes, brouillon enregistré en base et validation étape par étape. |
 | `beer_fields.py` | Champs d'une bière reçus d'une source extérieure (IA, base de produits) : réduits aux champs connus, convertis et bornés. |
+| `beers.py` | Cycle de vie d'une bière : ajout avec la première dégustation, modification, retrait (notifications, trophées). |
 | `catalog_matching.py` | Détection des doublons du catalogue : une seule règle, partagée par le formulaire d'ajout, la vérification en direct (API) et |
-| `drinks.py` | Suppression d'une dégustation : règle partagée entre l'utilisateur (sa note) et la modération (son avis). |
+| `drinks.py` | Dégustations : notation d'une bière, modification, suppression (règle partagée avec la modération). |
 | `ean.py` | Codes-barres EAN : validation (longueur et clé de contrôle) et forme normalisée. |
 | `embeddings.py` | Vecteur de recherche sémantique des bières (chat IA) : recalculé quand le texte qui le décrit change. |
 | `label_scan.py` | Analyse d'une étiquette de bière : consigne envoyée à l'IA et validation stricte de sa réponse. |
-| `match_keys.py` | Clés de comparaison des noms de bières et de brasseries : ce qui reste d'un nom quand on enlève ce qui ne l'identifie pas. |
+| `notebooks.py` | Carnets personnalisés : création (plafonnée), modification, dégustations qu'ils contiennent. |
 | `official_images.py` | Images officielles (bières, brasseries, bars) : mêmes garanties que les photos de dégustation (voir images.reencode_as_webp). |
+| `permissions.py` | Droits sur une bière : qui peut la modifier ou la retirer, qui voit une bière retirée. |
 | `product_lookup.py` | Recherche d'une bière par son code-barres dans Open Food Facts (base de produits collaborative, accès libre). |
+| `reactions.py` | Pouces sur les avis et liste « À goûter ». |
 | `recommendations.py` | Recommandations de bières de l'accueil, d'après ce que le membre a aimé. |
 | `search.py` | Recherche unique : bières, brasseries, bars et membres. |
 | `selectors.py` | Requêtes de l'application : bières, membres, brasseries, bars, carnet, fil d'activité, liste « À goûter ». |
+| `styles.py` | Styles du catalogue pour les filtres, en cache vidé à chaque changement de bière. |
 | `tasting_photos.py` | Photos de dégustation : validation stricte puis ré-encodage, stockées dans media/tastings/ (Supabase en production). |
 
 ## `establishments/` — Brasseries et bars : adresse, géolocalisation, annuaire, revendication, certification, lieux de la carte
 
 | Module | Rôle |
 |---|---|
-| `address.py` | Adresse postale d'un établissement : découpage en rue, code postal et ville, et recomposition. |
 | `claims.py` | Revendication d'un établissement : qui peut gérer une brasserie ou un bar, et comment on s'en assure. |
 | `nominatim.py` | Nominatim (OpenStreetMap) : le seul endroit qui l'interroge, pour la recherche d'une adresse et pour le géocodage inverse. |
 | `place_directory.py` | Annuaire des bars et brasseries localisés, pour classer les lieux par distance « Près de moi ». |
@@ -57,10 +67,12 @@ La logique métier du site, rangée par domaine. Les vues (`app/views/`) et les 
 | `place_geocoding.py` | Coordonnées des brasseries et des bars : calculées à partir de leur adresse (Nominatim) quand elle change. |
 | `places.py` | Ce qui distingue une brasserie d'un bar ; tout le reste (édition, équipe, carte admin) est partagé. |
 | `places_map.py` | Données de la carte admin : toutes les brasseries et tous les bars géolocalisés, sous une forme unique. |
+| `removal.py` | Suppression d'une brasserie qui a des bières : transfert vers une autre, ou suppression explicite. |
 | `postal_codes.py` | Code postal -> commune(s), pour que la ville d'un établissement vienne du code postal et non d'une saisie libre. |
 | `reverse_geocoding.py` | Géocodage inverse des lieux (OpenStreetMap/Nominatim) avec cache : type de lieu, ville, région, urbain ou rural. |
 | `siret_registry.py` | Contrôle d'un SIRET dans l'annuaire officiel des entreprises (recherche-entreprises.api.gouv.fr, sans clé). |
 | `spots.py` | Lieux posés sur la carte par les membres : création, modification, qui est invité et qui est prévenu. |
+| `team.py` | Équipe d'un établissement : gérants, invitations (le rôle n'est donné qu'à l'acceptation), retraits. |
 | `verification.py` | Certification (coche « vérifié ») d'un bar, d'une brasserie ou d'une bière : règle unique partagée par l'admin. |
 
 ## `messaging/` — Notifications (liste, push, temps réel) et e-mails (transactionnels, promotionnels, campagnes)
@@ -73,8 +85,7 @@ La logique métier du site, rangée par domaine. Les vues (`app/views/`) et les 
 | `marketing.py` | Choix des e-mails promotionnels et liens signés pour le gérer sans se connecter. |
 | `notification_policy.py` | Qui a le droit de recevoir quoi : appliqué à toute notification créée, quel que soit l'appelant. |
 | `notification_presenter.py` | Représentation d'une notification pour le navigateur et les appareils : une seule construction, utilisée par l'API |
-| `notification_types.py` | Registre des types de notifications : source unique de vérité. |
-| `notifications.py` | Point d'entrée unique pour envoyer des notifications. |
+| `notifications.py` | Point d'entrée unique pour créer et envoyer des notifications ; la politique d'envoi s'applique ici. |
 | `policy_notice.py` | Annonce d'une modification de la politique de confidentialité. |
 | `realtime_service.py` | Diffusion des notifications : temps réel (Supabase) et push Android (Firebase), plafond de 3 alertes par jour et par membre. |
 | `security.py` | Nom du canal temps réel privé d'un membre (dérivé de la SECRET_KEY et du mot de passe). |
@@ -103,12 +114,11 @@ La logique métier du site, rangée par domaine. Les vues (`app/views/`) et les 
 | `throttle.py` | Limitation de débit des actions sensibles (connexion, inscription), partagée entre toutes les instances. |
 | `timing.py` | Temps de réponse constant pour les actions qui ne doivent pas révéler l'existence d'un compte. |
 
-## `common/` — Briques partagées : contrôle des images, identifiants publics (slugs), appels aux API extérieures
+## `common/` — Briques partagées : contrôle des images, appels aux API extérieures
 
 | Module | Rôle |
 |---|---|
 | `images.py` | Contrôle commun des images envoyées par les membres : taille, format réel (jamais le type déclaré) et dimensions. |
-| `slugs.py` | Génération des identifiants publics (slugs) des objets. |
 | `upstream.py` | Appel d'une API publique extérieure (Open Food Facts, annuaire des entreprises, communes) : un seul chemin, prudent. |
 
 ## `analytics/` — Statistiques de l'administration (pages prédéfinies et tuiles personnalisées)

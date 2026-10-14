@@ -12,6 +12,17 @@
 </div>
 {% endfor %}
 
+{% for invitation in team_invitations %}
+<div class="mb-3 rounded-box border border-primary/60 bg-primary/10 p-3 text-xs text-gray-800" role="status">
+    <p class="font-bold">Invitation à rejoindre une équipe</p>
+    <p>{% if invitation.invited_by %}{{ invitation.invited_by.username }} vous invite{% else %}Vous êtes invité(e){% endif %} à gérer <span class="font-bold">{{ invitation.place.name }}</span> avec son équipe.</p>
+    <form method="post" action="{% url 'respond_invitation' invitation.slug %}" class="mt-2 flex gap-2">
+        {% csrf_token %}
+        <button type="submit" name="answer" value="accept" class="btn btn-xs btn-primary text-black">Accepter</button>
+        <button type="submit" name="answer" value="decline" class="btn btn-xs btn-outline">Refuser</button>
+    </form>
+</div>
+{% endfor %}
 
 <div class="flex justify-end gap-1 -mb-2">
     <a href="{% url 'notifications' %}" class="btn btn-sm btn-ghost btn-circle indicator" aria-label="Notifications">
@@ -42,7 +53,6 @@
         </form>
     </div>
     <link rel="stylesheet" href="{% static 'style/avatar_edit.css' %}">
-    <script src="{% static 'script/avatar_upload.js' %}"></script>
     <script src="{% static 'script/avatar_upload.js' %}"></script>
     <link rel="stylesheet" href="{% static 'style/avatar_edit.css' %}">
     <h1 class="pb-title text-2xl font-bold mt-1">
@@ -205,22 +215,7 @@
         
         <form method="post" action="{% url 'update_top_beer' item.slot %}" class="flex flex-col gap-3">
             {% csrf_token %}
-            <div class="form-control w-full">
-                <label class="pb-label" for="top-select-{{ item.slot }}">Sélectionnez une bière dégustée</label>
-                <select id="top-select-{{ item.slot }}" name="beer_slug" class="pb-select">
-                    <option value="">-- Vider l'emplacement --</option>
-                    {% for drink in top_choices %}
-                    <option value="{{ drink.beer__slug }}" 
-                    {% if item.beer and item.beer.id == drink.beer %}
-                    selected
-                    {% elif drink.beer == user.top_beer_1_id or drink.beer == user.top_beer_2_id or drink.beer == user.top_beer_3_id %}
-                    disabled class="text-gray-400 bg-gray-50 italic"
-                    {% endif %}>
-                    {{ drink.beer__name }} {% if drink.note is not null %}(Note: {{ drink.note }}/10){% endif %}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
+            {% include "partials/drink_picker.html" with label="Sélectionnez une bière dégustée" uid=item.picker_uid picker=top_picker selected=item.beer.slug disabled_beers=item.other_beer_slugs empty_choice="Vider l'emplacement" %}
         <button type="submit" class="btn btn-primary w-full mt-3 text-black border-secondary">Enregistrer</button>
     </form>
 </div>

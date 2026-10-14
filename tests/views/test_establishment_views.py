@@ -1,7 +1,11 @@
+from datetime import timedelta
+
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
-from app.models import BeerUser, Notification
+from app.models import BeerUser, ManagerInvitation, Notification, UserBlock
+from app.services.establishments import team
 from tests import factories as f
 from tests.helpers import assert_redirects
 
@@ -87,11 +91,13 @@ class TestManagers:
     def remove(self, client, brewery, member):
         return client.post(reverse("remove_brewery_manager", args=[brewery.slug, member.username]))
 
-    def test_manager_adds_a_collaborator(self, auth_client, managed_brewery, other_user):
+    def test_manager_invites_a_collaborator_who_gets_no_role_before_accepting(self, auth_client, managed_brewery, other_user):
         self.add(auth_client, managed_brewery, other_user)
-        assert managed_brewery.managers.filter(pk=other_user.pk).exists()
-        assert BeerUser.objects.get(pk=other_user.pk).is_brewer
-        assert Notification.objects.get().notif_type == "manager_added"
+        assert not managed_brewery.managers.filter(pk=other_user.pk).exists()
+        assert not BeerUser.objects.get(pk=other_user.pk).is_brewer
+        invitation = ManagerInvitation.objects.get()
+        assert (invitation.invitee, invitation.brewery, invitation.status) == (other_user, managed_brewery, "pending")
+        assert Notification.objects.get().notif_type == "manager_invited"
 
     def test_non_manager_cannot_add(self, other_client, brewery, other_user):
         self.add(other_client, brewery, other_user)
@@ -115,6 +121,92 @@ class TestManagers:
     def test_non_manager_cannot_remove(self, other_client, user, managed_brewery):
         self.remove(other_client, managed_brewery, user)
         assert managed_brewery.managers.filter(pk=user.pk).exists()
+
+
+class TestInvitations:
+    @pytest.fixture
+    def invitation(self, auth_client, managed_brewery, other_user):
+        auth_client.post(reverse("add_brewery_manager", args=[managed_brewery.slug]), {"username": other_user.username})
+        return ManagerInvitation.objects.get()
+
+    def respond(self, client, invitation, answer):
+        return client.post(reverse("respond_invitation", args=[invitation.slug]), {"answer": answer})
+
+    def test_the_invitee_sees_it_on_the_profile(self, other_client, invitation):
+        html = other_client.get(reverse("account")).content.decode()
+        assert reverse("respond_invitation", args=[invitation.slug]) in html
+
+    def test_accepting_grants_the_team_and_the_role(self, other_client, user, other_user, managed_brewery, invitation):
+        response = self.respond(other_client, invitation, "accept")
+        assert_redirects(response, reverse("brewery_detail", args=[managed_brewery.slug]))
+        assert managed_brewery.managers.filter(pk=other_user.pk).exists() and BeerUser.objects.get(pk=other_user.pk).is_brewer
+        invitation.refresh_from_db()
+        assert invitation.status == "accepted"
+        assert Notification.objects.get(notif_type="manager_invitation_accepted").recipient == user
+        assert not Notification.objects.filter(notif_type="manager_invited").exists()
+
+    def test_declining_grants_nothing(self, other_client, user, other_user, managed_brewery, invitation):
+        self.respond(other_client, invitation, "decline")
+        assert not managed_brewery.managers.filter(pk=other_user.pk).exists() and not BeerUser.objects.get(pk=other_user.pk).is_brewer
+        invitation.refresh_from_db()
+        assert invitation.status == "declined"
+        assert Notification.objects.get(notif_type="manager_invitation_declined").recipient == user
+
+    def test_only_the_invitee_can_answer(self, client_for, managed_brewery, invitation):
+        intruder = f.make_user()
+        self.respond(client_for(intruder), invitation, "accept")
+        assert not managed_brewery.managers.filter(pk=intruder.pk).exists()
+        invitation.refresh_from_db()
+        assert invitation.status == "pending"
+
+    def test_an_answer_is_given_once(self, other_client, other_user, managed_brewery, invitation):
+        self.respond(other_client, invitation, "decline")
+        self.respond(other_client, invitation, "accept")
+        assert not managed_brewery.managers.filter(pk=other_user.pk).exists()
+
+    def test_it_expires(self, other_client, other_user, managed_brewery, invitation):
+        ManagerInvitation.objects.update(created_at=timezone.now() - team.INVITATION_VALIDITY - timedelta(minutes=1))
+        self.respond(other_client, invitation, "accept")
+        assert not managed_brewery.managers.filter(pk=other_user.pk).exists()
+
+    def test_it_dies_with_the_inviter_access(self, other_client, user, other_user, managed_brewery, invitation):
+        managed_brewery.managers.remove(user)
+        self.respond(other_client, invitation, "accept")
+        assert not managed_brewery.managers.filter(pk=other_user.pk).exists()
+        invitation.refresh_from_db()
+        assert invitation.status == "cancelled"
+
+    def test_a_manager_can_withdraw_it(self, auth_client, other_client, other_user, managed_brewery, invitation):
+        auth_client.post(reverse("cancel_invitation", args=[invitation.slug]))
+        invitation.refresh_from_db()
+        assert invitation.status == "cancelled" and not Notification.objects.filter(notif_type="manager_invited").exists()
+        self.respond(other_client, invitation, "accept")
+        assert not managed_brewery.managers.filter(pk=other_user.pk).exists()
+
+    def test_an_outsider_cannot_withdraw_it(self, client_for, invitation):
+        client_for(f.make_user()).post(reverse("cancel_invitation", args=[invitation.slug]))
+        invitation.refresh_from_db()
+        assert invitation.status == "pending"
+
+    def test_no_duplicate_while_pending(self, auth_client, managed_brewery, other_user, invitation):
+        auth_client.post(reverse("add_brewery_manager", args=[managed_brewery.slug]), {"username": other_user.username})
+        assert ManagerInvitation.objects.count() == 1
+
+    def test_blocked_members_cannot_be_invited_nor_found(self, auth_client, user, managed_brewery):
+        blocker = f.make_user(username="blocker")
+        UserBlock.objects.create(blocker=blocker, blocked=user)
+        auth_client.post(reverse("add_brewery_manager", args=[managed_brewery.slug]), {"username": blocker.username})
+        assert not ManagerInvitation.objects.exists()
+        found = auth_client.get(reverse("api_search_users_for_manager", args=[managed_brewery.slug]), {"q": "blocker"}).json()["users"]
+        assert found == []
+
+    def test_pending_invitees_are_not_proposed_again(self, auth_client, managed_brewery, other_user, invitation):
+        found = auth_client.get(reverse("api_search_users_for_manager", args=[managed_brewery.slug]), {"q": other_user.username[:3]}).json()["users"]
+        assert other_user.username not in [u["username"] for u in found]
+
+    def test_the_manager_sees_pending_invitations(self, auth_client, managed_brewery, invitation):
+        html = auth_client.get(reverse("brewery_detail", args=[managed_brewery.slug])).content.decode()
+        assert reverse("cancel_invitation", args=[invitation.slug]) in html
 
 
 class TestManagerSearchApi:
@@ -182,11 +274,13 @@ class TestBarManagement:
         managed_bar.refresh_from_db()
         assert managed_bar.name == "Le Comptoir"
 
-    def test_manager_adds_then_removes_a_collaborator(self, auth_client, managed_bar, other_user):
+    def test_manager_adds_then_removes_a_collaborator(self, auth_client, other_client, managed_bar, other_user):
         auth_client.post(reverse("add_bar_manager", args=[managed_bar.slug]), {"username": other_user.username})
+        assert not BeerUser.objects.get(pk=other_user.pk).is_bartender
+        invitation = ManagerInvitation.objects.get(bar=managed_bar)
+        other_client.post(reverse("respond_invitation", args=[invitation.slug]), {"answer": "accept"})
         assert managed_bar.managers.filter(pk=other_user.pk).exists()
         assert BeerUser.objects.get(pk=other_user.pk).is_bartender
-        assert Notification.objects.get(notif_type="manager_added").bar == managed_bar
 
         auth_client.post(reverse("remove_bar_manager", args=[managed_bar.slug, other_user.username]))
         assert not BeerUser.objects.get(pk=other_user.pk).is_bartender

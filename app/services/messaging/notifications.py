@@ -1,6 +1,14 @@
-"""Point d'entrée unique pour envoyer des notifications."""
+"""Point d'entrée unique pour créer et envoyer des notifications : la politique d'envoi (type connu, destinataire actif, préférences,
+blocages : voir notification_policy) s'applique ici à toute notification, quel que soit l'appelant."""
 from ...models import Notification
+from .notification_policy import filter_allowed
 from .realtime_service import broadcast_notifications
+
+
+def save_notifications(notifications):
+    """Enregistre les notifications admises par la politique d'envoi (en une requête) et les renvoie ; les autres sont écartées."""
+    allowed = filter_allowed(notifications)
+    return Notification.objects.bulk_create(allowed) if allowed else []
 
 
 def create_notifications(notif_type, recipients, sender=None, **refs):
@@ -8,13 +16,10 @@ def create_notifications(notif_type, recipients, sender=None, **refs):
 
     `refs` : objets liés (beer=, brewery=, bar=, spot=, report=, feedback=) ou `text_content=`.
     """
-    notifications = [
-        Notification(
-            recipient_id=getattr(recipient, 'pk', recipient), sender=sender, notif_type=notif_type, **refs,
-        )
+    return save_notifications(
+        Notification(recipient_id=getattr(recipient, 'pk', recipient), sender=sender, notif_type=notif_type, **refs)
         for recipient in recipients
-    ]
-    return Notification.objects.bulk_create(notifications)
+    )
 
 
 def notify(notif_type, recipients, sender=None, **refs):

@@ -1,4 +1,7 @@
-"""Choix des e-mails promotionnels sans connexion (lien signé reçu par e-mail) et fichier de vérification des App Links Android."""
+"""Désinscription des e-mails promotionnels sans connexion (lien signé reçu par e-mail) et fichier de vérification des App Links Android.
+
+Le lien ne permet que de se désinscrire : se réabonner passe par les réglages du compte, connecté."""
+from django.contrib.auth.decorators import login_not_required
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.cache import cache_control, never_cache
@@ -11,9 +14,6 @@ from .utils import limit_posts
 
 __all__ = ['email_preferences', 'email_unsubscribe', 'assetlinks']
 
-CHOICES = {'accept': True, 'refuse': False}
-
-
 def _member_or_404(token):
     """Un jeton falsifié et un compte supprimé donnent la même réponse : rien ne permet de sonder les comptes."""
     user = marketing.user_for_token(token)
@@ -22,32 +22,34 @@ def _member_or_404(token):
     return user
 
 
+@login_not_required
 @never_cache
 @limit_posts(EMAIL_PREFERENCES_BY_IP)
 @require_http_methods(['GET', 'POST'])
 def email_preferences(request, token):
-    """Page de désinscription ou de retour aux e-mails promotionnels : deux boutons, protégés par le jeton signé et par CSRF."""
+    """Page de désinscription des e-mails promotionnels (protégée par le jeton signé et par CSRF). Se réabonner : réglages du compte."""
     user = _member_or_404(token)
-    saved = None
+    unsubscribed = False
     if request.method == 'POST':
-        choice = CHOICES.get(request.POST.get('choice'))
-        if choice is None:
+        if request.POST.get('choice') != 'refuse':
             return HttpResponse(status=400)
-        marketing.set_consent(user, choice, marketing.EMAIL_LINK)
-        saved = choice
-    response = render(request, 'email_preferences.html', {'member': user, 'token': token, 'saved': saved})
+        marketing.unsubscribe(user)
+        unsubscribed = True
+    response = render(request, 'email_preferences.html', {'member': user, 'token': token, 'unsubscribed': unsubscribed})
     response['Referrer-Policy'] = 'no-referrer'  # le jeton est dans l'adresse
     return response
 
 
+@login_not_required
 @csrf_exempt  # appelé par le client de messagerie (RFC 8058), sans cookie : le jeton signé tient lieu d'authentification
 @require_POST
 def email_unsubscribe(request, token):
     """Désinscription en un clic depuis Gmail, Apple Mail… : ne sait que refuser, jamais accepter."""
-    marketing.set_consent(_member_or_404(token), False, marketing.EMAIL_LINK)
+    marketing.unsubscribe(_member_or_404(token))
     return HttpResponse(status=200)
 
 
+@login_not_required
 @require_GET
 @cache_control(public=True, max_age=3600)
 def assetlinks(request):

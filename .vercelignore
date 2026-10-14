@@ -1,0 +1,21 @@
+# Fichiers envoyés à Vercel : le contenu de .gitignore n'est PAS utilisé quand ce fichier existe.
+# staticfiles/ (collectstatic) et le CSS Tailwind compilé sont générés par le workflow de déploiement et doivent donc partir avec le code.
+.env
+.env.*
+!.env.example
+*.jks
+*firebase-adminsdk*.json
+media/
+node_modules/
+.git/
+.github/
+tests/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+__pycache__/
+*.pyc
+.DS_Store
+docker-compose.yml
+Dockerfile

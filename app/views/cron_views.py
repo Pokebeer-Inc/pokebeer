@@ -3,6 +3,7 @@ import hmac
 from django.core.management import call_command
 
 from django.conf import settings
+from django.contrib.auth.decorators import login_not_required
 from django.http import HttpResponseForbidden, JsonResponse
 from django.views.decorators.http import require_GET
 
@@ -13,6 +14,7 @@ from ..services.messaging.policy_notice import send_pending_emails
 __all__ = ['purge_inactive_accounts_cron']
 
 
+@login_not_required  # authentifiée par le secret de la tâche planifiée (Authorization: Bearer)
 @require_GET
 def purge_inactive_accounts_cron(request):
     """Tâche quotidienne (Vercel Cron) : comptes inactifs (avertissement, suppression) suite des e-mails d'annonce de politique et des campagnes e-mail."""

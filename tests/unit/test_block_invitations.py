@@ -53,7 +53,7 @@ class TestInviteBlockersToReport:
         blockers(other_user, REPEATED_BLOCK_THRESHOLD)
         invite_blockers_to_report(other_user)
         from django.urls import reverse
-        from app.services.messaging import notification_types
+        from app.domain import notification_types
         assert notification_types.get("block_follow_up").url_for(invitations().first()) == reverse("blocked_users")
 
 

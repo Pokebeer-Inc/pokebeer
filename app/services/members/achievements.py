@@ -1,74 +1,96 @@
 """Trophées des membres : calcul des paliers et notifications de progression."""
 from dataclasses import dataclass
+from functools import cached_property
+from collections.abc import Callable
 
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.urls import reverse
 
 from ...models import Beer, BeerUser, Drinks, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction, Brewery
-from ..messaging.notifications import send_notifications
+from ..establishments.place_directory import TROPHY_URLS_CACHE_KEY
+from ..messaging.notifications import save_notifications, send_notifications
 
 TIER_NAMES = ["Bloqué", "Bronze", "Argent", "Or", "Platine"]
 TIER_SLUGS = ["locked", "bronze", "silver", "gold", "platinum"]
 TIER_XP_REWARDS = [0, 500, 1000, 1500, 2000]
 
+
+class MemberCounts:
+    """Valeurs que mesurent les trophées pour un membre, calculées à la demande et une seule fois (les dégustations en une requête)."""
+
+    def __init__(self, user):
+        self.user = user
+
+    @cached_property
+    def tastings(self):
+        # Brasserie Ours doré : clé de comparaison (sans accents, ponctuation ni mots creux), « L'Ours-Doré » ou « Ours  doré » sont reconnus
+        return Drinks.objects.filter(drinker=self.user).aggregate(
+            total=Count('id'),
+            bad=Count('id', filter=Q(note__lt=2)),
+            guinness=Max('note', filter=Q(beer__name__icontains='guinness')),
+            ours=Count('id', filter=Q(beer__brewery__match_key__contains='ours') & Q(beer__brewery__match_key__contains='dore')),
+        )
+
+    def added_beers(self):
+        return Beer.objects.filter(added_by=self.user, is_deleted=False).count()
+
+    def follows(self):
+        return UserFollow.objects.filter(follower=self.user).count()
+
+    def spots(self):
+        return BeerSpot.objects.filter(user=self.user).count()
+
+    def reactions(self):
+        return DrinkReaction.objects.filter(user=self.user).count()
+
+    def bio_mentions(self, word):
+        return 1 if self.user.bio and word in self.user.bio.lower() else 0
+
+
 @dataclass(frozen=True)
 class Trophy:
-    """Définition d'un trophée : de quoi le reconnaître, jamais comment on compte (voir `_counters`).
+    """Définition complète d'un trophée : ce qu'il mesure (`measure`, sur un MemberCounts) et ses paliers.
 
+    `slug` : identifiant stable (la progression des membres, UserAchievementState et Notification, est rangée par identifiant).
     `points_per_unit` : points d'expérience gagnés par unité comptée (en plus des points des paliers)."""
-    slug: str  # identifiant stable : la progression des membres (UserAchievementState, Notification) est rangée par identifiant, jamais par nom
+    slug: str
     name: str
     description: str
     thresholds: tuple
+    measure: Callable[[MemberCounts], int]
     category: str = "global"
     hidden: bool = False
     points_per_unit: int = 0
 
 
-# Ajouter un trophée = une ligne ici + son compteur dans `_counters`
+# Ajouter un trophée = une ligne ici (rien d'autre à modifier)
 TROPHIES = (
-    Trophy("poche", "Poche", "Ajouter des bières au catalogue", (1, 10, 100, 500), points_per_unit=100),
-    Trophy("juge", "Juge", "Noter des bières", (5, 10, 100, 500), points_per_unit=100),
-    Trophy("communaute", "Communautaire", "S'abonner à d'autres membres", (10, 100, 500, 1000)),
-    Trophy("voyageur", "Voyageur", "Placer des lieux sur la carte", (5, 50, 250, 500), points_per_unit=200),
-    Trophy("bad_trip", "Mauvaise cuite", "Noter des bières en dessous de 2/10", (5, 50, 250, 500)),
-    Trophy("cesar", "César", "Ajouter des pouces pour réagir aux avis", (10, 50, 100, 500), points_per_unit=50),
-    Trophy("irlandais", "Irlandais", "Noter une Guinness avec une excellente note", (5, 6, 8, 10), hidden=True),
-    Trophy("picon", "Copain de Gaétan", "Mentionner le Picon dans sa biographie", (1, 1, 1, 1), hidden=True),
-    Trophy("ours", "Ours doré", "Boire une bière de la brasserie de l'Ours Doré", (1, 1, 1, 1), category="brewery"),
+    Trophy("poche", "Poche", "Ajouter des bières au catalogue", (1, 10, 100, 500), MemberCounts.added_beers, points_per_unit=100),
+    Trophy("juge", "Juge", "Noter des bières", (5, 10, 100, 500), lambda c: c.tastings['total'], points_per_unit=100),
+    Trophy("communaute", "Communautaire", "S'abonner à d'autres membres", (10, 100, 500, 1000), MemberCounts.follows),
+    Trophy("voyageur", "Voyageur", "Placer des lieux sur la carte", (5, 50, 250, 500), MemberCounts.spots, points_per_unit=200),
+    Trophy("bad_trip", "Mauvaise cuite", "Noter des bières en dessous de 2/10", (5, 50, 250, 500), lambda c: c.tastings['bad']),
+    Trophy("cesar", "César", "Ajouter des pouces pour réagir aux avis", (10, 50, 100, 500), MemberCounts.reactions, points_per_unit=50),
+    Trophy("irlandais", "Irlandais", "Noter une Guinness avec une excellente note", (5, 6, 8, 10), lambda c: c.tastings['guinness'] or 0, hidden=True),
+    Trophy("picon", "Copain de Gaétan", "Mentionner le Picon dans sa biographie", (1, 1, 1, 1), lambda c: c.bio_mentions('picon'), hidden=True),
+    Trophy("ours", "Ours doré", "Boire une bière de la brasserie de l'Ours Doré", (1, 1, 1, 1), lambda c: 1 if c.tastings['ours'] else 0,
+           category="brewery"),
 )
 
 # Nom affiché de chaque trophée, par identifiant stable
 ACHIEVEMENT_NAMES = {trophy.slug: trophy.name for trophy in TROPHIES}
 
-
-def _counters(user):
-    """Valeur actuelle de chaque trophée pour ce membre : {identifiant: nombre}. Un minimum de requêtes (les dégustations en une seule)."""
-    # Brasserie Ours doré : clé de comparaison (sans accents, ponctuation ni mots creux), « L'Ours-Doré » ou « Ours  doré » sont reconnus comme « Ours Doré »
-    tastings = Drinks.objects.filter(drinker=user).aggregate(
-        total=Count('id'),
-        bad=Count('id', filter=Q(note__lt=2)),
-        guinness=Max('note', filter=Q(beer__name__icontains='guinness')),
-        ours=Count('id', filter=Q(beer__brewery__match_key__contains='ours') & Q(beer__brewery__match_key__contains='dore')),
-    )
-    return {
-        "poche": Beer.objects.filter(added_by=user, is_deleted=False).count(),
-        "juge": tastings['total'],
-        "communaute": UserFollow.objects.filter(follower=user).count(),
-        "voyageur": BeerSpot.objects.filter(user=user).count(),
-        "bad_trip": tastings['bad'],
-        "cesar": DrinkReaction.objects.filter(user=user).count(),
-        "irlandais": tastings['guinness'] or 0,
-        "picon": 1 if user.bio and 'picon' in user.bio.lower() else 0,
-        "ours": 1 if tastings['ours'] else 0,
-    }
+TROPHY_URLS_CACHE_SECONDS = 3600
 
 
 def _trophy_urls():
-    """Page liée à un trophée, quand il y en a une (la fiche de la brasserie de l'Ours Doré)."""
-    ours = Brewery.objects.filter(match_key__contains='ours').filter(match_key__contains='dore').order_by('id').first()
-    return {"ours": reverse('brewery_detail', args=[ours.slug])} if ours else {}
+    """Page liée à un trophée, quand il y en a une (la fiche de la brasserie de l'Ours Doré). Gardée en cache : elle change rarement."""
+    def compute():
+        ours = Brewery.objects.filter(match_key__contains='ours').filter(match_key__contains='dore').order_by('id').only('slug').first()
+        return {"ours": reverse('brewery_detail', args=[ours.slug])} if ours else {}
+    return cache.get_or_set(TROPHY_URLS_CACHE_KEY, compute, TROPHY_URLS_CACHE_SECONDS)
 
 
 def _build_achievement(trophy, current_val, url=None):
@@ -127,12 +149,13 @@ def _level(total_points):
 
 def get_user_achievements(user):
     """Calcule et retourne la liste des hauts faits d'un utilisateur, et son niveau."""
-    counters = _counters(user)
+    counts = MemberCounts(user)
+    values = {trophy.slug: trophy.measure(counts) for trophy in TROPHIES}
     urls = _trophy_urls()
-    achievements = [_build_achievement(trophy, counters[trophy.slug], urls.get(trophy.slug)) for trophy in TROPHIES]
+    achievements = [_build_achievement(trophy, values[trophy.slug], urls.get(trophy.slug)) for trophy in TROPHIES]
 
     # Points des unités comptées, plus ceux des médailles débloquées
-    total_points = sum(counters[trophy.slug] * trophy.points_per_unit for trophy in TROPHIES)
+    total_points = sum(values[trophy.slug] * trophy.points_per_unit for trophy in TROPHIES)
     total_points += sum(TIER_XP_REWARDS[ach['tier_level']] for ach in achievements)
     return achievements, _level(total_points)
 
@@ -140,66 +163,39 @@ def get_user_achievements(user):
 def check_and_notify_achievements(user):
     """Compare les paliers actuels à ceux déjà enregistrés, crée les notifications des paliers gagnés et retire celles des paliers perdus.
 
-    Le compte du membre est verrouillé pendant la comparaison : deux appels simultanés (double clic, deux onglets) ne peuvent ni créer
-    deux fois le même état, ni notifier deux fois le même palier. Les notifications sont diffusées une fois la transaction terminée."""
-    if not user.is_authenticated: return
-    achievements, _ = get_user_achievements(user)
-
+    Le compte du membre est verrouillé pendant le calcul ET la comparaison : deux appels simultanés (double clic, deux onglets) ne peuvent ni
+    créer deux fois le même état, ni notifier deux fois le même palier, ni comparer des valeurs déjà dépassées. Les notifications sont
+    diffusées une fois la transaction terminée."""
+    if not user.is_authenticated:
+        return
     with transaction.atomic():
         BeerUser.objects.select_for_update().get(pk=user.pk)  # verrou : un seul calcul à la fois pour ce membre
-        existing_states = {state.achievement_slug: state for state in UserAchievementState.objects.filter(user=user)}
-
-        notifications_to_create = []
-        states_to_update = []
-        states_to_create = []
+        achievements, _ = get_user_achievements(user)
+        states = {state.achievement_slug: state for state in UserAchievementState.objects.filter(user=user)}
+        new_states, changed_states, gained = [], [], []
 
         for ach in achievements:
-            state = existing_states.get(ach['slug'])
-
-            if not state:
-                # L'état n'existe pas encore
-                state = UserAchievementState(user=user, achievement_slug=ach['slug'], tier_level=0)
-                states_to_create.append(state)
-                existing_states[ach['slug']] = state
-
-            # Cas 1 : On passe à un niveau supérieur
-            if ach['tier_level'] > state.tier_level and ach['tier_level'] > 0:
-                notifications_to_create.append(
-                    Notification(
-                        recipient=user,
-                        notif_type='achievement',
-                        achievement_slug=ach['slug'],
-                        text_content=f"{ach['name']} ({ach['tier_name']})"
-                    )
-                )
-
-            # Cas 2 : On descend de niveau
-            elif ach['tier_level'] < state.tier_level:
-                # Nettoyage en 1 seule requête avec __in
-                lost_tiers = [TIER_NAMES[t] for t in range(ach['tier_level'] + 1, state.tier_level + 1)]
-                lost_texts = [f"{ach['name']} ({tier})" for tier in lost_tiers]
-                Notification.objects.filter(
-                    recipient=user,
-                    notif_type='achievement',
-                    achievement_slug=ach['slug'],
-                    text_content__in=lost_texts
-                ).delete()
-
-            # Préparer la mise à jour
-            if ach['tier_level'] != state.tier_level:
-                state.tier_level = ach['tier_level']
-                # On ajoute à states_to_update SEULEMENT si ce n'est pas un nouvel objet
-                # (les nouveaux objets seront insérés avec le bon tier_level via bulk_create)
+            slug, level = ach['slug'], ach['tier_level']
+            state = states.get(slug)
+            if state is None:
+                state = UserAchievementState(user=user, achievement_slug=slug, tier_level=0)
+                new_states.append(state)
+            if level > state.tier_level:
+                gained.append(Notification(
+                    recipient=user, notif_type='achievement', achievement_slug=slug, achievement_tier=level,
+                    text_content=f"{ach['name']} ({ach['tier_name']})",
+                ))
+            elif level < state.tier_level:
+                # Paliers perdus (ex. bière retirée) : leurs notifications disparaissent, en une requête
+                Notification.objects.filter(recipient=user, notif_type='achievement', achievement_slug=slug, achievement_tier__gt=level).delete()
+            if level != state.tier_level:
+                state.tier_level = level
                 if state.pk:
-                    states_to_update.append(state)
+                    changed_states.append(state)
 
-        # Exécution des requêtes en base de données par lots
-        if states_to_create:
-            UserAchievementState.objects.bulk_create(states_to_create)
-        if states_to_update:
-            UserAchievementState.objects.bulk_update(states_to_update, ['tier_level'])
-        created = Notification.objects.bulk_create(notifications_to_create) if notifications_to_create else []
+        UserAchievementState.objects.bulk_create(new_states)
+        UserAchievementState.objects.bulk_update(changed_states, ['tier_level'])
+        created = save_notifications(gained)
 
     if created:
-        # On pousse les trophées dans le WebSocket, hors transaction (appel réseau)
-        send_notifications(created)
+        send_notifications(created)  # diffusion (appel réseau) hors transaction

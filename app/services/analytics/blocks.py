@@ -1,6 +1,6 @@
 """Blocs d'affichage indépendants du rendu : chaque page d'analytics renvoie une liste de blocs."""
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from django.utils.text import slugify
 
@@ -9,7 +9,7 @@ from django.utils.text import slugify
 class Kpi:
     label: str
     value: Any
-    delta: Optional[float] = None  # variation en % par rapport à la période précédente
+    delta: float | None = None  # variation en % par rapport à la période précédente
     hint: str = ""
     block_type: str = field(default="kpi", init=False)
     id: str = field(init=False)

@@ -1,0 +1,7 @@
+{% autoescape off %}Bonjour {{ user.username }},
+
+L'adresse e-mail de votre compte Pokebeer a été remplacée par {{ new_email }} le {{ when }}. Ce message est le dernier envoyé à cette adresse.
+
+Si c'est bien vous, aucune action n'est nécessaire. Sinon, écrivez-nous immédiatement à {{ support_email }} : nous rétablirons l'accès à votre compte.
+
+L'équipe Pokebeer{% endautoescape %}

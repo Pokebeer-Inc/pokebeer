@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from app.models import BeerUser, Feedback, Notification, UserBlock
 from app.services.support import feedback as conversations
-from app.services.messaging import notification_types
+from app.domain import notification_types
 from tests import factories as f
 from tests.helpers import assert_redirects
 
