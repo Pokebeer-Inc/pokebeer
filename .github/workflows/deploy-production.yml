@@ -93,6 +93,10 @@ jobs:
         python manage.py tailwind build
         python manage.py collectstatic --noinput
 
+    # `vercel build` installe les dépendances Python de la fonction avec uv
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v6
+
     - name: Build and deploy to Vercel
       env:
         VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
