@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import importlib.util
 import os
+from botocore.config import Config
 from dotenv import load_dotenv
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse_lazy
@@ -286,6 +287,10 @@ AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'eu-west-1')
 # Nécessaire pour Supabase S3
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_ADDRESSING_STYLE = 'path'
+# boto3 >= 1.36 ajoute par défaut des sommes de contrôle (CRC32, encodage « aws-chunked ») que Supabase Storage ne comprend pas : il répond une
+# erreur vide (« ClientError: An error occurred () when calling the PutObject operation »), d'où un 500 à chaque envoi de photo.
+# On ne les envoie que lorsque l'opération les exige.
+AWS_S3_CLIENT_CONFIG = Config(request_checksum_calculation='when_required', response_checksum_validation='when_required')
 # Ne pas écraser les fichiers avec le même nom (ajoutera des caractères aléatoires)
 AWS_S3_FILE_OVERWRITE = False
 
