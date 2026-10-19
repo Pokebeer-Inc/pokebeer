@@ -8,6 +8,7 @@
 //   data-stop="click mousedown" ne laisse pas ces événements remonter aux parents (comme event.stopPropagation())
 //   data-no-contextmenu         désactive le menu contextuel
 //   data-prevent-submit         empêche l'envoi du formulaire
+//   data-submit-form="id"       clic : envoie le formulaire indiqué avec l'attente visible du bouton (Pending.submitForm)
 //   data-history-back           clic : revient à la page précédente (le lien href sert si l'historique est vide)
 //   data-remove-on-error        retire l'image si elle ne se charge pas
 (function () {
@@ -65,6 +66,11 @@
             const dialog = closer.dataset.modalClose ? document.getElementById(closer.dataset.modalClose) : closer.closest('dialog');
             if (dialog) dialog.close();
         }
+    });
+
+    document.addEventListener('click', event => {
+        const submitter = event.target instanceof Element && event.target.closest('[data-submit-form]');
+        if (submitter && window.Pending) window.Pending.submitForm(submitter, submitter.dataset.submitForm);
     });
 
     document.addEventListener('click', event => {
