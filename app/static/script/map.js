@@ -57,6 +57,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // Chargement des Bars et Brasseries
     const placesContainer = document.getElementById('places-data-container');
     const placeMarkers = {}; // « bar:slug » / « brewery:slug » -> marqueur, pour ouvrir un établissement depuis la recherche
+    const placeIndex = [];   // { name, haystack (nom sans casse ni accents), marker } : recherche locale, sans requête réseau
     if (placesContainer) {
         document.querySelectorAll('.place-data-item').forEach(item => {
             const lat = parseFloat(item.dataset.lat);
@@ -67,6 +68,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             const marker = L.marker([lat, lng], {icon: PokebeerPins.forPlace(type), title: name}).addTo(type === 'bar' ? layers.bar : layers.brewery);
             placeMarkers[type + ':' + item.dataset.slug] = marker;
+            placeIndex.push({ name: name, haystack: normalizeText(name), marker: marker });
             mapBounds.push([lat, lng]);
             
             // Événement au clic : Ouverture de la modale et chargement du contenu
@@ -325,80 +327,113 @@ document.addEventListener("DOMContentLoaded", function() {
     let searchMarker = null;
     let searchTitle = '';
 
+    const MIN_QUERY_LENGTH = 3;
+    const MAX_LOCAL_RESULTS = 5;
+    const remoteCache = new Map(); // requête normalisée -> résultats Nominatim : « Paris » et « paris » ne coûtent qu'un appel
+
+    const searchInput = () => document.getElementById('map-search-input');
+    const resultsList = () => document.getElementById('map-search-results');
+
+    // Bars et brasseries déjà chargés sur la carte : aucun appel réseau, insensible à la casse et aux accents
+    function findLocalPlaces(query) {
+        const words = normalizeText(query).split(/\s+/).filter(Boolean);
+        return placeIndex.filter(entry => words.every(word => entry.haystack.includes(word))).slice(0, MAX_LOCAL_RESULTS);
+    }
+
+    // Géocodage Nominatim : uniquement sur action explicite (Entrée ou bouton), jamais pendant la frappe ; un même terme n'est demandé qu'une fois
+    async function findRemotePlaces(query) {
+        const key = normalizeText(query);
+        if (!remoteCache.has(key)) {
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8`);
+            if (!response.ok) throw new Error('Nominatim ' + response.status);
+            const data = await response.json();
+            remoteCache.set(key, Array.isArray(data) ? data : []);
+        }
+        return remoteCache.get(key);
+    }
+
+    // Une ligne de la liste ; le libellé vient de la base ou d'un service tiers : toujours textContent
+    function addResultRow(label, onSelect) {
+        const li = document.createElement('li');
+        li.setAttribute('role', 'option');
+        li.innerHTML = `<a class="text-sm py-2 border-b border-base-300 last:border-none cursor-pointer block w-full hover:bg-primary/30 font-medium">
+                            <span class="truncate block w-full"></span>
+                        </a>`;
+        li.querySelector('span').textContent = label;
+        li.onclick = () => {
+            onSelect();
+            resultsList().classList.add('hidden');
+            searchInput().value = label.split(',')[0];
+        };
+        resultsList().appendChild(li);
+    }
+
+    function addResultNote(text, classes) {
+        const li = document.createElement('li');
+        li.className = classes;
+        li.textContent = text;
+        resultsList().appendChild(li);
+    }
+
+    function showLocalPlace(entry) {
+        mapInstance.setView(entry.marker.getLatLng(), 16);
+        entry.marker.fire('click');
+    }
+
+    function showRemotePlace(place) {
+        mapInstance.setView([place.lat, place.lon], 16);
+        if (searchMarker) mapInstance.removeLayer(searchMarker);
+
+        searchTitle = place.display_name.split(',')[0].trim().slice(0, 150);
+        searchMarker = L.marker([place.lat, place.lon], {icon: PokebeerPins.search()}).addTo(mapInstance);
+
+        // Le bouton lit la position du repère de recherche : aucune valeur du service tiers n'est copiée dans un attribut
+        const popupContent = `
+            <div class="flex flex-col gap-2 max-w-[220px]">
+                <span class="text-sm font-bold leading-tight">${escapeHtml(place.display_name)}</span>
+                <button type="button" data-on-click="addSpotAtSearchResult" data-no-event class="btn btn-sm btn-primary border-secondary text-black normal-case w-full mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                    Ajouter une dégustation ici
+                </button>
+                <button type="button" data-on-click="clearSearchMarker" data-no-event class="btn btn-xs btn-outline border-error text-error flex gap-1 w-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    Effacer
+                </button>
+            </div>
+        `;
+        searchMarker.bindPopup(popupContent).openPopup();
+    }
+
     window.searchLocation = async function() {
-        const query = document.getElementById('map-search-input').value.trim();
-        const resultsContainer = document.getElementById('map-search-results');
-        
+        const query = searchInput().value.trim();
+        const resultsContainer = resultsList();
+
         // Empêche les requêtes inutiles pour 1 ou 2 lettres
-        if (query.length < 3) {
+        if (query.length < MIN_QUERY_LENGTH) {
             resultsContainer.classList.add('hidden');
             return;
         }
 
-        // Affichage du loader pendant la recherche
-        resultsContainer.innerHTML = '<li class="p-2 flex justify-center"><span class="loading loading-spinner loading-sm"></span></li>';
+        resultsContainer.replaceChildren();
         resultsContainer.classList.remove('hidden');
+        findLocalPlaces(query).forEach(entry => addResultRow(entry.name, () => showLocalPlace(entry)));
+
+        // Loader pendant l'appel au service gratuit OpenStreetMap
+        const loader = document.createElement('li');
+        loader.className = 'p-2 flex justify-center';
+        loader.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
+        resultsContainer.appendChild(loader);
 
         try {
-            // Appel à l'API gratuite OpenStreetMap
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8`);
-            const data = await response.json();
-
-            resultsContainer.innerHTML = ''; // On vide le loader
-
-            // Gestion d'aucun résultat
-            if (data.length === 0) {
-                resultsContainer.innerHTML = '<li class="p-2 text-center text-xs text-gray-500 italic">Aucun résultat trouvé</li>';
-                return;
-            }
-
-            // Construction de la liste des résultats
-            data.forEach(place => {
-                const li = document.createElement('li');
-                li.setAttribute('role', 'option');
-                li.innerHTML = `<a class="text-sm py-2 border-b border-base-300 last:border-none cursor-pointer block w-full hover:bg-primary/30 font-medium">
-                                    <span class="truncate block w-full"></span>
-                                </a>`;
-                // Texte renvoyé par un service tiers : jamais interprété comme du HTML
-                li.querySelector('span').textContent = place.display_name;
-                
-                // Action au clic : focus sur la carte
-                li.onclick = () => {
-                    if (mapInstance) {
-                        mapInstance.setView([place.lat, place.lon], 16);
-                        
-                        if (searchMarker) {
-                            mapInstance.removeLayer(searchMarker);
-                        }
-                        
-                        searchTitle = place.display_name.split(',')[0].trim().slice(0, 150);
-                        searchMarker = L.marker([place.lat, place.lon], {icon: PokebeerPins.search()}).addTo(mapInstance);
-                        
-                        // Le bouton lit la position du repère de recherche : aucune valeur du service tiers n'est copiée dans un attribut
-                        const popupContent = `
-                            <div class="flex flex-col gap-2 max-w-[220px]">
-                                <span class="text-sm font-bold leading-tight">${escapeHtml(place.display_name)}</span>
-                                <button type="button" data-on-click="addSpotAtSearchResult" data-no-event class="btn btn-sm btn-primary border-secondary text-black normal-case w-full mt-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-                                    Ajouter une dégustation ici
-                                </button>
-                                <button type="button" data-on-click="clearSearchMarker" data-no-event class="btn btn-xs btn-outline border-error text-error flex gap-1 w-full">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                    Effacer
-                                </button>
-                            </div>
-                        `;
-                        searchMarker.bindPopup(popupContent).openPopup();
-                    }
-                    
-                    resultsContainer.classList.add('hidden');
-                    document.getElementById('map-search-input').value = place.display_name.split(',')[0];
-                };
-                resultsContainer.appendChild(li);
-            });
+            const data = await findRemotePlaces(query);
+            loader.remove();
+            data.forEach(place => addResultRow(place.display_name, () => showRemotePlace(place)));
+            if (!resultsContainer.children.length) addResultNote('Aucun résultat trouvé', 'p-2 text-center text-xs text-gray-500 italic');
         } catch (error) {
             console.error("Erreur de géocodage :", error);
-            resultsContainer.innerHTML = '<li class="p-2 text-center text-xs text-error">Erreur de connexion</li>';
+            loader.remove();
+            // Les lieux locaux restent utilisables même si le service tiers ne répond pas
+            addResultNote('Erreur de connexion', 'p-2 text-center text-xs text-error');
         }
     };
 

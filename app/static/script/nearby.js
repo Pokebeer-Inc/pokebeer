@@ -24,7 +24,7 @@
         return '100+ km';
     }
 
-    const normalize = text => (text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const normalize = normalizeText; // text_normalize.js
 
     // Seul un chemin du site est suivi : jamais une adresse absolue ni « //hôte »
     const safePath = url => typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') ? url : '#';
