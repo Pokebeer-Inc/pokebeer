@@ -19,6 +19,7 @@
     {% endif %}
     <script src="{% static 'script/http_helpers.js' %}"></script>
     <script src="{% static 'script/html_safe.js' %}"></script>
+    <script src="{% static 'script/text_normalize.js' %}"></script>
     <script src="{% static 'script/ui_actions.js' %}"></script>
     {# htmx : seulement des requêtes vers ce site, ni eval ni scripts dans les fragments, pas d'historique conservé dans le navigateur #}
     <meta name="htmx-config" content='{"selfRequestsOnly":true,"allowEval":false,"allowScriptTags":false,"historyCacheSize":0,"includeIndicatorStyles":false}'>
