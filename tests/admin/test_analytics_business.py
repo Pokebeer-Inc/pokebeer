@@ -266,11 +266,11 @@ class TestNewMeasures:
 
     def test_brewery_report_shows_its_views(self, market):
         blocks = by_id(PAGES_BY_KEY["places"].build(Period(12, "month"), {"brewery": market["free"].slug}))
-        assert blocks["kpi-vues-fiche-brasserie"].value == 9 and "brewery-views-trend" in blocks
+        assert blocks["kpi-vues-fiche"].value == 9 and "brewery-views-trend" in blocks
 
     def test_bar_profile_shows_its_views(self, market):
         blocks = by_id(PAGES_BY_KEY["bars"].build(Period(12, "month"), {"bar": market["bar"].slug}))
-        assert blocks["kpi-vues-fiche-du-bar"].value == 7
+        assert blocks["kpi-vues-fiche"].value == 7
 
     def test_catalogue_lists_unmet_demand_families_and_unknown_styles(self, market):
         f.make_beer(name="Mystère", brewery=market["free"], style="Zythos exotique")

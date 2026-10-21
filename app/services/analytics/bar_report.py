@@ -13,11 +13,13 @@ from django.db.models.functions import ExtractIsoWeekDay, ExtractMonth
 from ...domain.styles import split_styles
 from ...models import BeerSpot, Drinks, PageView
 from . import consumption, forecasts, geo, page_views
-from .blocks import Chart, Kpi, Note, Table
+from .blocks import Chart, Insight, Kpi, Note, Table
+from .formatting import fr
 from .date import date_range
 from .habits import WEEKDAYS
 from .privacy import MIN_GROUP_SIZE, is_publishable
-from .profiles import audience_blocks, community_average_price, context_blocks, price_blocks
+from .profiles import (audience_blocks, audience_insights, community_average_price, context_blocks, context_insights, price_blocks,
+                       price_insight)
 from .reports import PlaceReport, Section
 from .series import month_name
 from .spots import spot_points
@@ -148,30 +150,63 @@ def _visit_profile(ctx):
     return blocks
 
 
+def _rhythm_insights(charts):
+    """Jour et mois les plus fréquentés, d'après les graphiques de rythme."""
+    out = []
+    for chart, names, template in ((charts[0], WEEKDAYS, "Le jour le plus fréquenté autour de votre bar : {name} ({n} lieux)."),
+                                   (charts[1], [month_name(m) for m in range(1, 13)], "Le mois le plus fréquenté : {name} ({n} lieux).")):
+        data = chart.series[0]['data']
+        if data and max(data):
+            out.append(Insight(template.format(name=names[data.index(max(data))].lower(), n=max(data))))
+    return out
+
+
 @needs_activity
 def _overview(ctx):
-    return [Kpi(f'Lieux autour de {ctx.bar.name}', len(ctx.near)), Kpi('Membres distincts', ctx.members), *_visit_profile(ctx), *_rhythm(ctx.spot_ids)]
+    rhythm = _rhythm(ctx.spot_ids)
+    insights = [Insight(f"{ctx.members} membres différents ont placé un lieu à moins de {NEAR_BAR_M} m de votre bar ({len(ctx.near)} lieux au total)."),
+                *_rhythm_insights(rhythm)]
+    return [*insights, Kpi('Lieux autour du bar', len(ctx.near)), Kpi('Membres distincts', ctx.members), *_visit_profile(ctx), *rhythm]
+
+
+def _drink_insights(style_table, beer_table):
+    out = []
+    over = [row for row in style_table.rows if isinstance(row[-1], (int, float)) and row[-1] > 1.2]
+    if over:
+        best = max(over, key=lambda row: row[-1])
+        out.append(Insight(f"{best[0]} est sur-représenté chez vous (x{fr(best[-1], 1)} par rapport à la moyenne) : à mettre en avant.", "good"))
+    if beer_table.rows:
+        out.append(Insight(f"La bière la plus bue autour de votre bar : {beer_table.rows[0][0]}."))
+    return out
 
 
 @needs_activity
 def _drinks(ctx):
-    return [_style_mix(ctx.tastings, ctx.period), _top_beers(ctx.tastings)]
+    styles, beers = _style_mix(ctx.tastings, ctx.period), _top_beers(ctx.tastings)
+    return [*_drink_insights(styles, beers), styles, beers]
 
 
 @needs_activity
 def _customers(ctx):
-    return [*context_blocks(ctx.drinks, 'bar-ctx'), *price_blocks(ctx.drinks, 'bar-price', community_average_price(ctx.community)),
+    community_price = community_average_price(ctx.community)
+    insights = [*audience_insights(ctx.drinks, ctx.period.today), *context_insights(ctx.drinks), *price_insight(ctx.drinks, community_price)]
+    return [*insights, *context_blocks(ctx.drinks, 'bar-ctx'), *price_blocks(ctx.drinks, 'bar-price', community_price),
             *audience_blocks(ctx.drinks, 'bar-audience', ctx.period.today)]
 
 
 def _visibility(ctx):
     scoped = page_views.scoped(ctx.period, **{PageView.Kind.BAR: [ctx.bar.pk]})
-    return [*page_views.kpis('fiche du bar', scoped), page_views.trend('bar-views-trend', f'Vues de la fiche de {ctx.bar.name}', scoped, ctx.period)]
+    views, visitors = page_views.totals(scoped)
+    insights = [Insight(f"Votre fiche a été consultée {fr(views)} fois par {fr(visitors)} visiteurs sur la période.")] if is_publishable(visitors) else []
+    return [*insights, *page_views.kpis('fiche', scoped), page_views.trend('bar-views-trend', 'Vues de votre fiche', scoped, ctx.period)]
 
 
 def _market(ctx):
     """Repères de la communauté, sans rapport avec le bar lui-même : quels styles montent, et les prix pratiqués."""
-    return [*forecasts.style_momentum(ctx.period), *consumption.price_charts(ctx.community)]
+    momentum, *rest = forecasts.style_momentum(ctx.period)
+    risers = [row[0] for row in momentum.rows if row[-1] == 'En hausse nette']
+    insights = [Insight(f"Styles qui montent nettement sur Pokebeer : {', '.join(risers[:3])}.", "good")] if risers else []
+    return [*insights, momentum, *rest, *consumption.price_charts(ctx.community)]
 
 
 class BarReport(PlaceReport):

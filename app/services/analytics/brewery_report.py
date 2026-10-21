@@ -13,16 +13,18 @@ from django.db.models import Avg, Count, Exists, OuterRef, Q
 from ...domain.styles import split_styles
 from ...models import Beer, BeerSpot, BeerUser, Drinks, PageView
 from . import forecasts, page_views
-from .blocks import Chart, Kpi, Note, Table
+from .blocks import Chart, Insight, Kpi, Note, Table
 from .formatting import euros, fr
 from .privacy import MIN_GROUP_SIZE, is_publishable
-from .profiles import audience_blocks, community_average_price, context_blocks, price_blocks
+from .profiles import (audience_blocks, audience_insights, community_average_price, context_blocks, context_insights, price_blocks,
+                       price_insight)
 from .reports import PlaceReport, Section
 from .series import count_series, growth, month_name, trend_chart
 from .spots import spot_points
 from .tastes import MIN_RATINGS, MIN_STYLE_VOLUME, style_stats
 
 HIDDEN = f'< {MIN_GROUP_SIZE}'
+MIN_DELTA_BASE = 5  # sous ce volume sur la période précédente, un pourcentage d'évolution n'est que du bruit : on ne l'affiche pas
 
 
 class BreweryContext:
@@ -56,6 +58,19 @@ class BreweryContext:
     @cached_property
     def community_average(self):
         return self.community.aggregate(avg=Avg('note'))['avg']
+
+    @cached_property
+    def previous(self):
+        """Dégustations de la brasserie sur la période précédente de même durée (pour les évolutions)."""
+        return Drinks.objects.filter(beer__brewery=self.brewery, date__gte=self.period.previous_start, date__lt=self.period.start)
+
+    @cached_property
+    def previous_total(self):
+        return self.previous.count()
+
+    @cached_property
+    def previous_members(self):
+        return self.previous.values('drinker').distinct().count()
 
     @cached_property
     def ranks(self):
@@ -124,29 +139,31 @@ def _market_share_by_style(drinks, community):
                  subtitle=f'Styles de la brasserie ayant au moins {MIN_STYLE_VOLUME} dégustations sur Pokebeer ({total} dégustations au total sur la période)')
 
 
-def _loyalty(drinks):
-    """Part des dégustateurs qui ont noté au moins deux bières différentes de la brasserie : l'attachement à la marque, pas à une bière."""
-    per_drinker = drinks.values('drinker').annotate(beers=Count('beer', distinct=True))
-    counts = [row['beers'] for row in per_drinker]
+def _loyalty_counts(drinks):
+    """(dégustateurs fidèles, dégustateurs) : fidèle = a noté au moins deux bières différentes de la brasserie (attachement à la marque, pas à une bière).
+    None sous le seuil d'anonymat."""
+    counts = [row['beers'] for row in drinks.values('drinker').annotate(beers=Count('beer', distinct=True))]
     if not is_publishable(len(counts)):
-        return []
-    loyal = sum(1 for beers in counts if beers >= 2)
-    return [Kpi('Dégustateurs fidèles', f'{round(loyal / len(counts) * 100)} %', hint=f'{loyal} sur {len(counts)} ont noté au moins 2 bières de la brasserie')]
+        return None
+    return sum(1 for beers in counts if beers >= 2), len(counts)
 
 
 def _audience_reach(brewery, drinks, period):
-    """Vues de la fiche et de ses bières, évolution, et dégustations obtenues pour 100 visiteurs des fiches bière."""
+    """Vues de la fiche et de ses bières, évolution, et dégustations obtenues pour 100 visiteurs des fiches bière. Renvoie (blocs, constats)."""
     beer_ids = list(Beer.objects.filter(brewery=brewery, is_deleted=False).values_list('pk', flat=True))
     page = page_views.scoped(period, **{PageView.Kind.BREWERY: [brewery.pk]})
     beers = page_views.scoped(period, **{PageView.Kind.BEER: beer_ids})
-    blocks = [*page_views.kpis('fiche brasserie', page), *page_views.kpis('fiches de ses bières', beers)]
-    _views, visitors = page_views.totals(beers)
+    blocks = [*page_views.kpis('fiche', page), *page_views.kpis('bières', beers)]
+    insights = []
+    views, visitors = page_views.totals(beers)
     if is_publishable(visitors):
-        blocks.append(Kpi('Dégustations pour 100 visiteurs', round(drinks.count() / visitors * 100, 1),
-                          hint='dégustations de la période rapportées aux visiteurs de ses fiches bière : mesure l\'envie de goûter après avoir regardé'))
-    blocks.append(page_views.trend('brewery-views-trend', f'Vues des fiches de {brewery.name}', page_views.scoped(
+        per_hundred = round(drinks.count() / visitors * 100, 1)
+        blocks.append(Kpi('Dégustations pour 100 visiteurs', per_hundred,
+                          hint='mesure l\'envie de goûter après avoir regardé une de vos fiches bière'))
+        insights.append(Insight(f"Vos fiches bière ont reçu {fr(views)} vues ({fr(visitors)} visiteurs) ; cela fait {fr(per_hundred, 1)} dégustations pour 100 visiteurs."))
+    blocks.append(page_views.trend('brewery-views-trend', 'Vues de vos fiches', page_views.scoped(
         period, **{PageView.Kind.BREWERY: [brewery.pk], PageView.Kind.BEER: beer_ids}), period))
-    return blocks
+    return blocks, insights
 
 
 def _recommendations(brewery, period):
@@ -211,49 +228,119 @@ def _regional_demand(brewery, period):
     ]
 
 
+def _trend_insight(label, current, previous, months):
+    """« Vos dégustations ont progressé de 12 % par rapport aux 12 mois précédents. » ; rien sans période précédente."""
+    change = growth(current, previous) if previous >= MIN_DELTA_BASE else None
+    if change is None:
+        return []
+    if abs(change) < 3:
+        return [Insight(f"{label} : stable par rapport aux {months} mois précédents.")]
+    word, tone = ("ont progressé", "good") if change > 0 else ("ont reculé", "warn")
+    return [Insight(f"{label} {word} de {fr(abs(round(change)))} % par rapport aux {months} mois précédents.", tone)]
+
+
+def _rating_insight(average, community_average):
+    if average is None or community_average is None:
+        return []
+    gap = average - community_average
+    if abs(gap) < 0.1:
+        return [Insight("Vos bières sont notées comme la moyenne de la communauté.")]
+    side, tone = ("au-dessus", "good") if gap > 0 else ("en dessous", "warn")
+    return [Insight(f"Vos bières sont notées {fr(abs(gap), 1)} point {side} de la moyenne de la communauté.", tone)]
+
+
 def _overview(ctx):
     brewery, period = ctx.brewery, ctx.period
     rank = ctx.ranks.index(brewery.pk) + 1 if brewery.pk in ctx.ranks else None
     blocks = [
-        Kpi(f'Dégustations de {brewery.name}', ctx.own_total, hint=f'rang {rank} sur {len(ctx.ranks)} brasseries' if rank else 'aucune dégustation sur la période'),
-        Kpi('Part des dégustations', f'{fr(ctx.own_total / ctx.total * 100, 1)} %' if ctx.total else '—', hint='part de marché sur Pokebeer'),
+        Kpi('Dégustations', ctx.own_total, growth(ctx.own_total, ctx.previous_total) if ctx.previous_total >= MIN_DELTA_BASE else None,
+            hint=f'n°{rank} sur {len(ctx.ranks)} brasseries' if rank else 'aucune dégustation sur la période'),
+        Kpi('Part de marché', f'{fr(ctx.own_total / ctx.total * 100, 1)} %' if ctx.total else '—', hint='des dégustations sur Pokebeer'),
     ]
     if not ctx.publishable:
         return blocks + needs_audience(lambda _ctx: [])(ctx)
+    loyalty = _loyalty_counts(ctx.drinks)
     blocks += [
-        Kpi('Dégustateurs distincts', ctx.members),
-        Kpi('Note moyenne', round(ctx.average, 2) if ctx.average is not None else '—',
+        Kpi('Dégustateurs', ctx.members, growth(ctx.members, ctx.previous_members) if ctx.previous_members >= MIN_DELTA_BASE else None),
+        Kpi('Note moyenne', fr(round(ctx.average, 2), 2) if ctx.average is not None else '—',
             hint=f'communauté : {fr(ctx.community_average, 2)}' if ctx.community_average is not None else ''),
-        *_loyalty(ctx.drinks),
     ]
-    blocks.append(trend_chart('brewery-trend', f'Dégustations de {brewery.name} et prévision', count_series(ctx.drinks, 'date', period), period,
-                              unit_name='Dégustations', band=True, subtitle='Tendance, moyenne mobile et fourchette à 80 % (fiable avec 6 intervalles complets ou plus)'))
+    insights = [*_trend_insight('Vos dégustations', ctx.own_total, ctx.previous_total, period.months), *_rating_insight(ctx.average, ctx.community_average)]
+    if loyalty:
+        loyal, total = loyalty
+        blocks.append(Kpi('Dégustateurs fidèles', f'{fr(round(loyal / total * 100))} %', hint=f'{loyal} sur {total} ont noté au moins 2 de vos bières'))
+        if loyal:
+            insights.append(Insight(f"{fr(round(loyal / total * 100))} % de vos dégustateurs ont noté au moins deux de vos bières."))
+    blocks.append(trend_chart('brewery-trend', 'Dégustations dans le temps', count_series(ctx.drinks, 'date', period), period,
+                              unit_name='Dégustations', band=True, subtitle='Avec la tendance prévue (fiable à partir de 6 intervalles complets)'))
     own_ratings, own_n = _rating_share(ctx.drinks)
     community_ratings, _ = _rating_share(ctx.community)
     if own_n:
-        blocks.append(Chart('brewery-ratings', 'Répartition des notes : brasserie et communauté', 'bar', [str(n) for n in range(11)],
-                            [{'name': brewery.name, 'data': own_ratings}, {'name': 'Communauté', 'data': community_ratings}],
-                            subtitle='Parts en %. Une brasserie plus à droite que la communauté plaît davantage'))
-    return blocks
+        blocks.append(Chart('brewery-ratings', 'Répartition des notes', 'bar', [str(n) for n in range(11)],
+                            [{'name': 'Vous', 'data': own_ratings}, {'name': 'Communauté', 'data': community_ratings}],
+                            subtitle='Part des avis pour chaque note (en %)'))
+    return [*insights, *blocks]
+
+
+def _numeric(value):
+    return isinstance(value, (int, float))
+
+
+def _beer_insights(table):
+    """Constats tirés du tableau des bières : la mieux notée, la plus bue, la plus souhaitée (seules les lignes publiables comptent)."""
+    rows = [row for row in table.rows if _numeric(row[1])]
+    out = []
+    rated = [row for row in rows if _numeric(row[3])]
+    if rated:
+        best = max(rated, key=lambda row: row[3])
+        out.append(Insight(f"Votre bière la mieux notée : {best[0]} ({fr(best[3], 1)}/10).", "good"))
+    if rows:
+        top = max(rows, key=lambda row: row[1])
+        out.append(Insight(f"La plus bue : {top[0]} ({top[1]} dégustations)."))
+    wished = max(table.rows, key=lambda row: row[6], default=None)
+    if wished and wished[6]:
+        out.append(Insight(f"{wished[6]} membre(s) ont {wished[0]} dans leur liste « à goûter »."))
+    return out
 
 
 @needs_audience
 def _beers(ctx):
-    return [_beer_table(ctx.drinks, ctx.brewery, ctx.community), _market_share_by_style(ctx.drinks, ctx.community)]
+    table = _beer_table(ctx.drinks, ctx.brewery, ctx.community)
+    return [*_beer_insights(table), table, _market_share_by_style(ctx.drinks, ctx.community)]
 
 
 @needs_audience
 def _audience(ctx):
-    return [*audience_blocks(ctx.drinks, 'brewery-audience', ctx.period.today), *context_blocks(ctx.drinks, 'brewery-ctx'),
-            *price_blocks(ctx.drinks, 'brewery-price', community_average_price(ctx.community))]
+    insights = [*audience_insights(ctx.drinks, ctx.period.today), *context_insights(ctx.drinks)]
+    community_price = community_average_price(ctx.community)
+    insights += price_insight(ctx.drinks, community_price)
+    return [*insights, *audience_blocks(ctx.drinks, 'brewery-audience', ctx.period.today), *context_blocks(ctx.drinks, 'brewery-ctx'),
+            *price_blocks(ctx.drinks, 'brewery-price', community_price)]
 
 
 def _visibility(ctx):
-    return _audience_reach(ctx.brewery, ctx.drinks, ctx.period)
+    blocks, insights = _audience_reach(ctx.brewery, ctx.drinks, ctx.period)
+    return [*insights, *blocks]
+
+
+def _market_insights(gaps, rising, momentum):
+    out = []
+    if gaps.rows:
+        style, count = gaps.rows[0][0], gaps.rows[0][1]
+        out.append(Insight(f"Les membres boivent beaucoup de {style} ({count} dégustations) et vous n'en proposez pas : une piste de nouveauté.", "good"))
+    if rising.rows:
+        out.append(Insight(f"Votre style {rising.rows[0][0]} progresse ({rising.rows[0][2]}) : à mettre en avant."))
+    risers = [row[0] for row in momentum.rows if row[-1] == 'En hausse nette']
+    if risers:
+        out.append(Insight(f"Styles qui montent nettement sur Pokebeer : {', '.join(risers[:3])}.", "good"))
+    return out
 
 
 def _market(ctx):
-    return [*_recommendations(ctx.brewery, ctx.period), *_regional_demand(ctx.brewery, ctx.period), *forecasts.style_momentum(ctx.period)]
+    gaps, rising, own_months = _recommendations(ctx.brewery, ctx.period)
+    own_zones, potential_zones = _regional_demand(ctx.brewery, ctx.period)
+    momentum, *momentum_rest = forecasts.style_momentum(ctx.period)
+    return [*_market_insights(gaps, rising, momentum), gaps, rising, own_months, own_zones, potential_zones, momentum, *momentum_rest]
 
 
 class BreweryReport(PlaceReport):

@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from ..services.analytics import access, export, layout
+from ..services.analytics import access, export, layout, presentation
 from ..services.analytics.periods import MONTH_CHOICES, Period
 from ..services.analytics.privacy import MIN_GROUP_SIZE
 from ..services.protection.throttle import PRO_ANALYTICS_BY_USER
@@ -54,7 +54,7 @@ def pro_analytics_place(request, kind, slug, section=None):
         raise Http404
 
     period = Period.from_params(request.GET)  # valeurs validées contre une liste blanche
-    blocks = report_class(place, period).blocks(current.key)
+    blocks = report_class(place, period).blocks(current.key, insights=True)
 
     target = request.GET.get('export')
     if target:
@@ -64,12 +64,17 @@ def pro_analytics_place(request, kind, slug, section=None):
             raise Http404
         return reply
 
-    notes, tiles = layout.arrange(blocks, [], [])
+    insights = [block for block in blocks if block.block_type == 'insight']
+    notes, tiles = layout.arrange([block for block in blocks if block.block_type != 'insight'], [], [])
     query = urlencode({'months': period.months})
+    here = _place_url(place_kind, place, section)
     return render(request, 'pro_analytics.html', {
-        'kind': place_kind, 'place': place, 'section': current, 'period': period, 'month_choices': MONTH_CHOICES,
+        'kind': place_kind, 'place': place, 'section': current, 'period': period,
+        'periods': [{'months': m, 'url': f'{here}?{urlencode({"months": m})}', 'active': m == period.months} for m in MONTH_CHOICES],
         'tabs': [{'section': s, 'url': f'{_place_url(place_kind, place, s.key)}?{query}', 'active': s.key == current.key} for s in report_class.SECTIONS],
-        'notes': notes, 'tiles': tiles, 'exportable_ids': {block.id for block in export.exportable(blocks)},
+        'insights': insights, 'notes': notes, 'empty': not tiles,
+        'tiles': [{'block': tile.block, 'table': presentation.present(tile.block) if tile.block.block_type == 'table' else None} for tile in tiles],
+        'exportable_ids': {block.id for block in export.exportable(blocks)},
         'query': query, 'detail_url': place_kind.detail_path(place),
         'managed_count': len(access.managed_places(request.user)), 'min_group': MIN_GROUP_SIZE,
     })

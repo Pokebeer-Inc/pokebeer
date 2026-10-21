@@ -11,10 +11,10 @@ from statistics import median
 
 from django.db.models import Avg, Count, Sum
 
-from .formatting import euros
 from ...domain.styles import split_styles
 from ...models import BeerUser, Drinks
-from .blocks import Chart, Kpi, Note
+from .blocks import Chart, Insight, Kpi, Note
+from .formatting import euros, fr
 from .privacy import MIN_GROUP_SIZE, is_publishable
 
 AGE_BANDS = ((0, 24, 'Moins de 25 ans'), (25, 34, '25–34 ans'), (35, 44, '35–44 ans'), (45, 54, '45–54 ans'), (55, 200, '55 ans et plus'))
@@ -107,7 +107,7 @@ def context_blocks(drinks, prefix):
     ):
         rows, hidden = published(drinks, field, lambda value, labels=labels: labels.get(value, value))
         if rows:
-            blocks.append(_donut(f'{prefix}-{key}', title, rows, 'Dégustations pour lesquelles le membre l\'a indiqué (information facultative)'))
+            blocks.append(_donut(f'{prefix}-{key}', title, rows, 'Parmi les dégustations où l\'information est renseignée'))
         notes.append(_hidden_note(hidden, title))
     return blocks + [note for note in notes if note]
 
@@ -157,8 +157,7 @@ def audience_blocks(drinks, prefix, today):
         rows = [{'label': label, 'n': counts[label]} for label in order if is_publishable(counts[label])]
         hidden = sum(counts[label] for label in order if not is_publishable(counts[label]))
         if rows:
-            blocks.append(_donut(f'{prefix}-{key}', title, rows, 'Dégustateurs distincts ; données d\'inscription, jamais montrées aux autres membres',
-                                 name='Dégustateurs'))
+            blocks.append(_donut(f'{prefix}-{key}', title, rows, 'Part des dégustateurs, selon les informations données à l\'inscription', name='Dégustateurs'))
         if hidden:
             notes.append(Note(f"{hidden} dégustateur(s) de « {title} » masqué(s) : moins de {MIN_GROUP_SIZE} par catégorie."))
     return blocks + notes
@@ -216,3 +215,66 @@ def style_by_segment(drinks, seg, index, chart_id, title, order):
 
 def average_note(drinks):
     return drinks.aggregate(avg=Avg('note'))['avg']
+
+
+# Façon de dire le lieu, la compagnie et le format dans une phrase (« se boivent surtout au bar »)
+VENUE_PHRASES = {'bar': 'au bar', 'home': 'à la maison', 'restaurant': 'au restaurant', 'event': 'lors d\'événements', 'brewery': 'à la brasserie', 'other': 'ailleurs'}
+COMPANY_PHRASES = {'alone': 'seuls', 'friends': 'entre amis', 'couple': 'en couple', 'family': 'en famille', 'work': 'entre collègues'}
+GENDER_PHRASES = {'Femmes': 'femmes', 'Hommes': 'hommes', 'Autre': 'personnes d\'un autre genre'}
+FORMAT_PHRASES = {'pint': 'en pinte', 'half': 'en demi', 'bottle': 'en bouteille', 'can': 'en canette', 'other': 'dans un autre format'}
+
+
+def _top_share(drinks, field, phrases):
+    """(expression, part en %) de la valeur la plus fréquente d'un champ de contexte parmi les dégustations où il est renseigné, ou None
+    si aucune valeur n'est publiable. La part est calculée sur toutes les dégustations renseignées, groupes masqués compris."""
+    rows, _hidden = published(drinks, field, lambda value: value)
+    known = drinks.exclude(**{field: ''}).count()
+    if not rows or not known:
+        return None
+    top = max(rows, key=lambda row: row['n'])
+    return phrases.get(top['label'], top['label']), top['n'] / known * 100
+
+
+def context_insights(drinks):
+    """Phrases sur le contexte de consommation : où, avec qui et dans quel format on boit."""
+    out = []
+    for field, phrases, template in (
+        ('venue_type', VENUE_PHRASES, "Elles se boivent surtout {phrase} ({share} % des dégustations où le lieu est indiqué)."),
+        ('company', COMPANY_PHRASES, "On les boit le plus souvent {phrase} ({share} % des réponses)."),
+        ('serving_format', FORMAT_PHRASES, "Le format le plus servi : {phrase} ({share} % des réponses)."),
+    ):
+        top = _top_share(drinks, field, phrases)
+        if top:
+            out.append(Insight(template.format(phrase=top[0], share=fr(round(top[1])))))
+    return out
+
+
+def price_insight(drinks, community_average):
+    """Prix moyen payé comparé à la communauté, en une phrase."""
+    average = community_average_price(drinks)
+    if average is None or not community_average:
+        return []
+    gap = (average - community_average) / community_average * 100
+    position = "dans la moyenne" if abs(gap) < 3 else (f"{fr(round(abs(gap)))} % au-dessus" if gap > 0 else f"{fr(round(abs(gap)))} % en dessous")
+    return [Insight(f"Prix moyen payé : {euros(average)}, {position} de la communauté ({euros(community_average)}).")]
+
+
+def audience_insights(drinks, today):
+    """Phrases sur l'âge et le genre dominants des dégustateurs (seulement les tranches publiables)."""
+    seg = segments(drinks, today)
+    out = []
+    for index, template in (
+        (0, "Votre clientèle se concentre sur les {label} ({share} % des dégustateurs dont l'âge est connu)."),
+        (1, "{share} % de vos dégustateurs sont des {label} (parmi ceux qui ont indiqué leur genre)."),
+    ):
+        counts = defaultdict(int)
+        for pair in seg.values():
+            value = pair[index]
+            if value and value != UNDISCLOSED:
+                counts[value] += 1
+        total = sum(counts.values())
+        publishable = {label: n for label, n in counts.items() if is_publishable(n)}
+        if publishable and total:
+            label = max(publishable, key=publishable.get)
+            out.append(Insight(template.format(label=GENDER_PHRASES.get(label, label) if index else label, share=fr(round(publishable[label] / total * 100)))))
+    return out

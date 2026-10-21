@@ -32,6 +32,7 @@ class Chart:
     subtitle: str = ""
     stacked: bool = False
     dashed: list = field(default_factory=list)  # indices des séries en pointillés (prévisions)
+    band: tuple | None = None  # (indice de la série basse, indice de la série haute) : fourchette dessinée comme une zone ombrée
     block_type: str = field(default="chart", init=False)
 
     def spec(self):
@@ -65,3 +66,12 @@ class Note:
     """Avertissement ou précision méthodologique affichée au lecteur."""
     text: str
     block_type: str = field(default="note", init=False)
+
+
+@dataclass
+class Insight:
+    """Constat en une phrase, calculé à partir des chiffres de la section (« Votre note est 0,4 point au-dessus de la communauté »).
+    Affiché en tête de section pour les gérants ; absent des pages de l'administration. `tone` : good, neutral ou warn."""
+    text: str
+    tone: str = "neutral"
+    block_type: str = field(default="insight", init=False)

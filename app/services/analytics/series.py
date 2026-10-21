@@ -130,7 +130,7 @@ def trend_chart(chart_id, title, values, period, subtitle="", unit_name="Valeur"
         {'name': unit_name, 'data': values + padding},
         {'name': f'Moyenne mobile ({MOVING_AVERAGE_WINDOW})', 'data': moving_average(values) + padding},
     ]
-    dashed = []
+    dashed, shaded = [], None
     if predicted:
         series.append({'name': 'Prévision (indicative)', 'data': _forecast_line(values, predicted)})
         dashed = [2]
@@ -138,7 +138,8 @@ def trend_chart(chart_id, title, values, period, subtitle="", unit_name="Valeur"
             for name, bound in zip(('Fourchette basse (80 %)', 'Fourchette haute (80 %)'), forecast_band(values), strict=True):
                 series.append({'name': name, 'data': _forecast_line(values, bound)})
                 dashed.append(len(series) - 1)
-    return Chart(chart_id, title, 'line', labels + future, series, subtitle=subtitle, dashed=dashed)
+            shaded = (len(series) - 2, len(series) - 1)
+    return Chart(chart_id, title, 'line', labels + future, series, subtitle=subtitle, dashed=dashed, band=shaded)
 
 
 def month_name(number):

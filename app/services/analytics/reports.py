@@ -41,12 +41,15 @@ class PlaceReport:
         """La section de cette clé, ou None."""
         return next((section for section in cls.SECTIONS if section.key == key), None)
 
-    def blocks(self, key=None):
-        """Blocs d'une section, ou de toutes à la suite (ordre des sections) quand `key` est omis."""
+    def blocks(self, key=None, insights=False):
+        """Blocs d'une section, ou de toutes à la suite (ordre des sections) quand `key` est omis. Les constats (Insight), destinés aux gérants,
+        ne sont renvoyés que sur demande."""
         sections = (self.section(key),) if key else self.SECTIONS
         blocks, seen_notes = [], set()
         for section in sections:
             for block in section.build(self.context):
+                if block.block_type == 'insight' and not insights:
+                    continue
                 if block.block_type == 'note':  # plusieurs sections peuvent expliquer la même absence de données : une seule note suffit
                     if block.text in seen_notes:
                         continue
