@@ -10,10 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const mapElement = document.getElementById("places-map");
 
     const map = L.map(mapElement).setView([46.6, 2.4], 5);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap"
-    }).addTo(map);
+    PokebeerBasemap.addTo(map);
     new ResizeObserver(function () { map.invalidateSize(); }).observe(mapElement);
 
     const layer = L.layerGroup().addTo(map);

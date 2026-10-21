@@ -2,14 +2,12 @@
 
 Le fichier envoyé n'est jamais conservé tel quel (voir images.reencode_as_webp) ; le nom est aléatoire et l'URL non devinable.
 """
-from ..common.images import reencode_as_webp, shrink_to_fit
+from ..common.images import PHOTO_MAX_SIDE as MAX_SIDE, PHOTO_MAX_UPLOAD_BYTES as MAX_UPLOAD_BYTES, process_photo  # noqa: F401  (réexportés)
 
-MAX_UPLOAD_BYTES = 4 * 1024 * 1024  # Vercel refuse de toute façon les requêtes de plus de 4,5 Mo
-MAX_SIDE = 1280
 DAILY_LIMIT = 30
 QUOTA_SCOPE = 'tasting_photo'
 
 
 def process_tasting_photo(upload):
     """Valide l'envoi et renvoie une image WebP bornée à MAX_SIDE pixels, prête à être stockée (ValidationError sinon)."""
-    return reencode_as_webp(upload, MAX_UPLOAD_BYTES, lambda image: shrink_to_fit(image, MAX_SIDE), name='tasting.webp', quality=82)
+    return process_photo(upload, 'tasting.webp')

@@ -62,8 +62,8 @@ def delete_files_on_delete(model, *fields):
 
 
 def connect_signals():
-    from ...models import Bar, Beer, BeerUser, Brewery, Drinks
-    for model, field in ((BeerUser, 'avatar'), (Drinks, 'photo'), (Beer, 'image'), (Brewery, 'image'), (Bar, 'image')):
+    from ...models import Bar, Beer, BeerSpot, BeerUser, Brewery, Drinks
+    for model, field in ((BeerUser, 'avatar'), (Drinks, 'photo'), (BeerSpot, 'photo'), (Beer, 'image'), (Brewery, 'image'), (Bar, 'image')):
         delete_files_on_delete(model, field)
 
 
@@ -75,6 +75,15 @@ def delete_stored_file(storage, name):
         storage.delete(name)
     except Exception:
         logger.exception("Suppression du fichier %s impossible", name)
+
+
+PHOTO_MAX_UPLOAD_BYTES = 4 * 1024 * 1024  # Vercel refuse de toute façon les requêtes de plus de 4,5 Mo
+PHOTO_MAX_SIDE = 1280
+
+
+def process_photo(upload, name):
+    """Photo libre d'un membre (dégustation, souvenir) : validée puis ré-encodée en WebP, grand côté borné (ValidationError sinon)."""
+    return reencode_as_webp(upload, PHOTO_MAX_UPLOAD_BYTES, lambda image: shrink_to_fit(image, PHOTO_MAX_SIDE), name=name, quality=82)
 
 
 def shrink_to_fit(image, max_side):

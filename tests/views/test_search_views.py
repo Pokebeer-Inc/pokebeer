@@ -235,13 +235,13 @@ class TestPlaceCards:
 
 
 def test_no_emoji_in_the_source_code():
-    """Aucun emoji ni symbole décoratif (croix, flèches, coches) dans le code : les icônes sont des SVG, les libellés du texte."""
+    """Aucun emoji ni symbole décoratif (croix, flèches, coches) dans notre code (les bibliothèques hébergées dans vendor/ n'en font pas partie) : les icônes sont des SVG, les libellés du texte."""
     import re
     from pathlib import Path
     emoji = re.compile("[\u2190-\u21FF\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF\u2800-\u28FF\u2B00-\u2BFF\U0001F000-\U0001FAFF]")
     offenders = [
         str(path) for root in ("app", "pokebeer") for path in Path(root).rglob("*")
-        if path.suffix in {".py", ".html", ".txt", ".js", ".css"} and "migrations" not in path.parts and emoji.search(path.read_text(errors="ignore"))
+        if path.suffix in {".py", ".html", ".txt", ".js", ".css"} and not {"migrations", "vendor"} & set(path.parts) and emoji.search(path.read_text(errors="ignore"))
     ]
     assert not offenders, offenders
 

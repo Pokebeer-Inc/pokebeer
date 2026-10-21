@@ -1,7 +1,9 @@
 """Lieux posés sur la carte par les membres : création, modification, qui est invité et qui est prévenu."""
+from django.db import transaction
 from django.db.models import Q
 
 from ...models import BeerSpot, BeerUser, Drinks
+from ..common.images import delete_stored_file
 from ..members.achievements import check_and_notify_achievements
 from ..messaging.notifications import notify
 from ..members.visibility import exclude_blocked
@@ -37,10 +39,16 @@ def create_spot(user, fields, drink_slugs, friend_ids):
 
 def update_spot(spot, editor, fields, drink_slugs, friend_ids):
     """Modifie le lieu. L'éditeur remplace SES dégustations rattachées (sans doublon de bière avec celles des autres) ; seul le créateur gère
-    la liste des amis. Les nouveaux amis reçoivent l'invitation, les autres membres concernés une notification de mise à jour."""
+    la liste des amis. Les nouveaux amis reçoivent l'invitation, les autres membres concernés une notification de mise à jour.
+    `fields['photo']` : le nouveau fichier, ou None pour retirer la photo ; absent, la photo reste. L'ancien fichier est effacé une fois
+    la modification validée."""
+    previous = spot.photo
+    previous_file = (previous.storage, previous.name) if previous and 'photo' in fields else None
     for name, value in fields.items():
         setattr(spot, name, value)
     spot.save()
+    if previous_file:
+        transaction.on_commit(lambda: delete_stored_file(*previous_file))
 
     editor_drinks = spot.drinks.filter(drinker=editor)
     spot.drinks.remove(*editor_drinks)

@@ -84,6 +84,18 @@
     // Prérempli une photo (ex. celle prise pour l'analyse IA) ; sans effet si le membre en a choisi une lui-même.
     // Une photo qui vient d'un scan précédent est remplacée : elle appartenait à une autre bière.
     window.ImageFields = {
+        // Remet le champ à l'état d'un formulaire neuf (url vide) ou d'une modification (url de la photo actuelle)
+        reset(input, url) {
+            if (!input) return;
+            const { root, remove, hint } = parts(input);
+            delete input.dataset.fromScan;
+            input.value = '';
+            root.dataset.originalUrl = url || '';
+            if (remove) remove.checked = false;
+            if (hint) hint.classList.add('hidden');
+            show(input, url);
+        },
+
         preset(input, file) {
             if (!input || (input.files.length && input.dataset.fromScan !== '1')) return;
             input.dataset.fromScan = '1';

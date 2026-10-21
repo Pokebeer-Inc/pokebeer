@@ -1,0 +1,8 @@
+{% comment %}Bulle d'un bar ou d'une brasserie (static/script/map.js) : image, nom, description, code postal et ville, lien vers la fiche.{% endcomment %}
+<div class="text-sm font-montserrat min-w-40">
+    {% include "partials/map_popup_image.html" with url=place.image_url alt=place.name %}
+    <strong class="pb-title block text-base">{{ place.name }}</strong>
+    {% if place.description %}<p class="pb-popup-desc">{{ place.description|truncatechars:160 }}</p>{% endif %}
+    {% if place.postal_code or place.city %}<span class="text-[10px] text-gray-500 block mb-1">{{ place.postal_code }} {{ place.city }}</span>{% endif %}
+    <button type="button" data-on-click="openPlaceModal" data-no-event data-args='["{{ detail_url }}"]' class="underline hover:no-underline text-xs font-bold">Voir la fiche</button>
+</div>

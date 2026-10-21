@@ -3,13 +3,23 @@ from django.core.files.storage import storages
 from django.utils.functional import LazyObject
 
 PROFILE_PICTURES = 'profile_pictures'
+SPOT_PHOTOS = 'spot_photos'
 
 
-class _ProfilePictureStorage(LazyObject):
+class _NamedStorage(LazyObject):
+    def __init__(self, name):
+        super().__init__()
+        self.__dict__['_storage_name'] = name
+
     def _setup(self):
-        self._wrapped = storages[PROFILE_PICTURES]
+        self._wrapped = storages[self._storage_name]
 
 
 def profile_pictures_storage():
     """Bucket dédié aux photos de profil (public en lecture)."""
-    return _ProfilePictureStorage()
+    return _NamedStorage(PROFILE_PICTURES)
+
+
+def spot_photos_storage():
+    """Bucket dédié aux photos des souvenirs de la carte (public en lecture)."""
+    return _NamedStorage(SPOT_PHOTOS)

@@ -7,10 +7,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const map = L.map('place-map').setView([lat, lng], 15);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
+    PokebeerBasemap.addTo(map);
 
     // Même repère que sur la grande carte : jaune pour un bar, orange pour une brasserie
     L.marker([lat, lng], { icon: window.PokebeerPins.forPlace(mapEl.getAttribute('data-kind')), keyboard: false }).addTo(map);

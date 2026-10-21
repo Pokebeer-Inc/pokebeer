@@ -2,9 +2,8 @@
 .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
 .leaflet-container a { color: inherit !important; }
 
-/* Carte aux couleurs du thème : les tuiles sont réchauffées vers la crème de l'application */
+/* Carte aux couleurs du thème : le fond vectoriel est dessiné à ces couleurs (static/script/basemap.js) */
 .leaflet-container { background: var(--color-base-100); font-family: 'Montserrat', sans-serif; }
-.leaflet-tile-pane { filter: sepia(0.32) saturate(0.82) hue-rotate(-8deg) brightness(1.04) contrast(0.94); }
 
 /* Repères */
 .pb-pin-wrap { background: none; border: 0; }
@@ -20,6 +19,9 @@
 .leaflet-popup-content-wrapper { background: var(--color-base-200); color: var(--color-secondary); border: 1px solid #d9cfc5; border-radius: 1rem; box-shadow: 0 6px 18px rgba(51, 51, 51, 0.2); }
 .leaflet-popup-tip { background: var(--color-base-200); border: 1px solid #d9cfc5; }
 .leaflet-popup-content { margin: 0.75rem 1rem; }
+/* Contenu commun des bulles (souvenirs, bars, brasseries) : image en tête, puis titre et description */
+.pb-popup-image { display: block; width: 100%; height: 7rem; margin-bottom: 0.5rem; object-fit: cover; border-radius: 0.6rem; background: var(--color-base-100); }
+.pb-popup-desc { margin-bottom: 0.5rem; padding-left: 0.5rem; border-left: 2px solid var(--color-secondary); font-size: 0.75rem; font-style: italic; color: #4b5563; }
 .leaflet-popup-close-button { color: var(--color-secondary) !important; }
 .leaflet-tooltip { background: var(--color-base-200); color: var(--color-secondary); border: 1px solid #d9cfc5; border-radius: 0.5rem; font-weight: 600; }
 

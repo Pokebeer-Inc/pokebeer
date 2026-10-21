@@ -48,7 +48,8 @@
     <div class="spot-data-item"
     data-slug="{{ spot.slug }}"
     data-title="{{ spot.title }}"
-    data-desc="{{ spot.description }}"
+    data-desc="{{ spot.description|default_if_none:'' }}"
+    data-photo-url="{{ spot.photo_url|default:'' }}"
     data-date-val="{{ spot.date|date:'Y-m-d' }}"
     data-lat="{{ spot.latitude|stringformat:'f' }}"
     data-lng="{{ spot.longitude|stringformat:'f' }}"
@@ -58,18 +59,16 @@
     data-friend-usernames="{% for f in spot.friends.all %}{{ f.username }},{% endfor %}">
     
     <div class="popup-template">
-        <div class="text-sm font-montserrat relative pr-5 min-w-40">
-            <button data-on-click="openEditModal" data-no-event data-args='["{{ spot.slug }}"]' class="absolute top-0 right-0 text-gray-600 hover:text-black z-50 p-1" title="Modifier">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-            </button>
+        <div class="text-sm font-montserrat min-w-40">
             
+            {% include "partials/map_popup_image.html" with url=spot.photo_url alt="Photo du lieu" %}
             <strong class="pb-title block text-base">{{ spot.title }}</strong>
             <span class="text-[10px] text-gray-500 block mb-1">{{ spot.date|date:"d M Y" }}</span>
             <span class="text-[10px] text-gray-500 block mb-1">
                 {% if spot.user == request.user %}Créé par vous{% else %}Partagé par {{ spot.user.username }}{% endif %}
             </span>
             
-            {% if spot.description %}<p class="italic text-xs text-gray-600 mb-2 border-l-2 border-secondary pl-2">{{ spot.description }}</p>{% endif %}
+            {% if spot.description %}<p class="pb-popup-desc">{{ spot.description }}</p>{% endif %}
             
             {% if spot.drinks.count > 0 %}
             <strong class="text-[10px] uppercase block border-t border-base-200 pt-1 mt-1">Bières bues ici :</strong>
@@ -84,6 +83,12 @@
                 {% endfor %}
             </ul>
             {% endif %}
+
+            {# Bouton en bas de la bulle : loin de la croix de fermeture, assez large pour le doigt #}
+            <button type="button" data-on-click="openEditModal" data-no-event data-args='["{{ spot.slug }}"]' class="btn btn-sm btn-outline border-secondary w-full mt-3 gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                Modifier
+            </button>
         </div>
     </div>
 </div>
@@ -91,11 +96,11 @@
 </div>
 <div id="places-data-container" class="hidden">
     {% for bar in bars %}
-    <div class="place-data-item" data-type="bar" data-slug="{{ bar.slug }}" data-url="{% url 'bar_detail' bar.slug %}" data-lat="{{ bar.latitude|stringformat:'f' }}" data-lng="{{ bar.longitude|stringformat:'f' }}" data-name="{{ bar.name }}"></div>
+    <div class="place-data-item" data-type="bar" data-slug="{{ bar.slug }}" data-lat="{{ bar.latitude|stringformat:'f' }}" data-lng="{{ bar.longitude|stringformat:'f' }}" data-name="{{ bar.name }}"></div>
     {% endfor %}
     
     {% for brewery in breweries %}
-    <div class="place-data-item" data-type="brewery" data-slug="{{ brewery.slug }}" data-url="{% url 'brewery_detail' brewery.slug %}" data-lat="{{ brewery.latitude|stringformat:'f' }}" data-lng="{{ brewery.longitude|stringformat:'f' }}" data-name="{{ brewery.name }}"></div>
+    <div class="place-data-item" data-type="brewery" data-slug="{{ brewery.slug }}" data-lat="{{ brewery.latitude|stringformat:'f' }}" data-lng="{{ brewery.longitude|stringformat:'f' }}" data-name="{{ brewery.name }}"></div>
     {% endfor %}
 </div>
 
@@ -107,7 +112,7 @@
         <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-50 bg-base-100" data-modal-close="modal_add_spot">{% include "partials/icon.html" with name="close" %}</button>
         <h3 id="modal-title" class="pb-title text-xl font-bold mb-4 text-center shrink-0">Ajouter un lieu</h3>
         
-        <form method="post" class="flex flex-col gap-3">
+        <form method="post" enctype="multipart/form-data" class="flex flex-col gap-3">
             {% csrf_token %}
             <input type="hidden" name="spot_slug" id="spot-slug">
             
@@ -147,6 +152,8 @@
                 <label class="label py-1"><span class="label-text text-xs font-bold">Souvenirs (Optionnel)</span></label>
                 <textarea name="description" id="spot-desc" class="textarea textarea-bordered h-16 bg-white shrink-0"></textarea>
             </div>
+
+            {% include "partials/image_field.html" with name="photo" field_id="spot-photo" remove_name="remove_photo" %}
             
             <div class="w-full mt-2" id="spot-drinks">
                 {% include "partials/drink_picker.html" with label="Mes dégustations bues ici" uid="spot" picker=picker hide_deleted=True %}

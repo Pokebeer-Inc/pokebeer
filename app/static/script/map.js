@@ -6,16 +6,16 @@ document.addEventListener("DOMContentLoaded", function() {
     // 1. Initialisation de la carte
     const map = L.map('map', {zoomControl: false}).setView([46.603354, 1.888334], 5);
     L.control.zoom({ position: 'bottomleft' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap France'
-    }).addTo(map);
+    PokebeerBasemap.addTo(map);
 
     new ResizeObserver(() => {
         map.invalidateSize();
     }).observe(document.getElementById('map'));
 
     mapInstance = map;
+
+    // Mêmes dimensions pour toutes les bulles (souvenirs, bars, brasseries)
+    const POPUP_OPTIONS = { minWidth: 200, maxWidth: 260 };
 
     // Repères aux couleurs du thème (scripts/pins.js) ; chaque famille a sa couche, que les puces du haut affichent ou masquent
     const layers = { bar: L.layerGroup().addTo(map), brewery: L.layerGroup().addTo(map), spot: L.layerGroup().addTo(map) };
@@ -38,6 +38,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 title: item.dataset.title,
                 description: item.dataset.desc,
                 date: item.dataset.dateVal,
+                photo_url: item.dataset.photoUrl,
                 lat: lat,
                 lng: lng,
                 is_owner: item.dataset.isOwner === 'true',
@@ -49,10 +50,58 @@ document.addEventListener("DOMContentLoaded", function() {
 
             // Ajout direct du marqueur sur la carte
             const marker = L.marker([lat, lng], {icon: PokebeerPins.spot(), title: item.dataset.title}).addTo(layers.spot);
-            marker.bindPopup(popupHtml);
+            marker.bindPopup(popupHtml, POPUP_OPTIONS);
             mapBounds.push([lat, lng]);
         });
     }
+
+    // Bulle d'un bar ou d'une brasserie : fragment HTML rendu par Django (échappé), demandé une seule fois par lieu
+    const POPUP_LOADING = '<span class="loading loading-spinner loading-sm"></span>';
+    const POPUP_ERROR = '<p class="text-xs text-error">Impossible de charger ce lieu.</p>';
+
+    function loadPlacePopupOnOpen(marker, type, slug) {
+        marker.once('popupopen', event => {
+            fetch(`/map/place/${encodeURIComponent(type)}/${encodeURIComponent(slug)}/`)
+                .then(response => (response.ok ? response.text() : Promise.reject(new Error(response.status))))
+                .then(html => event.popup.setContent(html))
+                .catch(() => {
+                    event.popup.setContent(POPUP_ERROR);
+                    loadPlacePopupOnOpen(marker, type, slug); // nouvel essai à la prochaine ouverture
+                });
+        });
+    }
+
+    // Fenêtre de la fiche complète d'un bar ou d'une brasserie (lien « Voir la fiche » de la bulle)
+    window.openPlaceModal = function(url) {
+        // Chemin interne uniquement : jamais une adresse extérieure
+        if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) return;
+        map.closePopup();
+        const modal = document.getElementById('modal_place');
+        const contentDiv = document.getElementById('modal_place_content');
+        contentDiv.innerHTML = '<div class="flex justify-center p-20"><span class="loading loading-spinner loading-lg"></span></div>';
+        modal.showModal();
+
+        fetch(url)
+            .then(response => response.text())
+            .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                // Extrait UNIQUEMENT le contenu utile (le block content) pour éviter les doublons de navbar
+                const extractedContent = doc.querySelector('.p-4.flex-1.mb-16');
+                if (!extractedContent) {
+                    contentDiv.innerHTML = '<p class="text-center p-10 text-error">Erreur lors du chargement des données.</p>';
+                    return;
+                }
+                contentDiv.innerHTML = extractedContent.innerHTML;
+                // La croix de la fenêtre remplace le bouton « Retour » de la page, et la mini-carte ferait doublon avec la carte
+                const backBtn = contentDiv.querySelector('a[href="javascript:history.back()"]');
+                if (backBtn) backBtn.style.display = 'none';
+                const miniMap = contentDiv.querySelector('#place-map');
+                if (miniMap) miniMap.parentElement.remove();
+            })
+            .catch(() => {
+                contentDiv.innerHTML = '<p class="text-center p-10 text-error">Impossible de joindre le serveur.</p>';
+            });
+    };
 
     // Chargement des Bars et Brasseries
     const placesContainer = document.getElementById('places-data-container');
@@ -63,7 +112,6 @@ document.addEventListener("DOMContentLoaded", function() {
             const lat = parseFloat(item.dataset.lat);
             const lng = parseFloat(item.dataset.lng);
             const type = item.dataset.type;
-            const url = item.dataset.url;
             const name = item.dataset.name;
 
             const marker = L.marker([lat, lng], {icon: PokebeerPins.forPlace(type), title: name}).addTo(type === 'bar' ? layers.bar : layers.brewery);
@@ -71,46 +119,9 @@ document.addEventListener("DOMContentLoaded", function() {
             placeIndex.push({ name: name, haystack: normalizeText(name), marker: marker });
             mapBounds.push([lat, lng]);
             
-            // Événement au clic : Ouverture de la modale et chargement du contenu
-            marker.on('click', function() {
-                const modal = document.getElementById('modal_place');
-                const contentDiv = document.getElementById('modal_place_content');
-                
-                // Affiche le loader
-                contentDiv.innerHTML = '<div class="flex justify-center p-20"><span class="loading loading-spinner loading-lg"></span></div>';
-                modal.showModal();
-
-                // Aspire la page ciblée
-                fetch(url)
-                    .then(response => response.text())
-                    .then(html => {
-                        // Transforme le texte HTML en vrai document parcourable
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, 'text/html');
-                        
-                        // Extrait UNIQUEMENT le contenu utile (le block content) pour éviter les doublons de navbar
-                        const extractedContent = doc.querySelector('.p-4.flex-1.mb-16');
-                        
-                        if (extractedContent) {
-                            contentDiv.innerHTML = extractedContent.innerHTML;
-                            
-                            // UX 1 : Cache le bouton "Retour" natif de la page aspirée puisqu'on a déjà la croix de la modale
-                            const backBtn = contentDiv.querySelector('a[href="javascript:history.back()"]');
-                            if (backBtn) backBtn.style.display = 'none';
-
-                            // UX 2 : Supprime la mini-carte pour éviter une redondance sur la page map
-                            const miniMap = contentDiv.querySelector('#place-map');
-                            if (miniMap) miniMap.parentElement.remove();
-                            
-                        } else {
-                            contentDiv.innerHTML = '<p class="text-center p-10 text-error">Erreur lors du chargement des données.</p>';
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Erreur Fetch:', err);
-                        contentDiv.innerHTML = '<p class="text-center p-10 text-error">Impossible de joindre le serveur.</p>';
-                    });
-            });
+            // Bulle au clic : son contenu (image, nom, description, ville) n'est demandé au serveur qu'à la première ouverture
+            marker.bindPopup(POPUP_LOADING, POPUP_OPTIONS);
+            loadPlacePopupOnOpen(marker, type, item.dataset.slug);
         });
     }
 
@@ -126,6 +137,10 @@ document.addEventListener("DOMContentLoaded", function() {
     if (requestedMarker) {
         map.setView(requestedMarker.getLatLng(), 16);
         requestedMarker.fire('click');
+    }
+
+    function resetPhotoField(url) {
+        window.ImageFields.reset(document.querySelector('#modal_add_spot [data-image-input]'), url);
     }
 
     function resetDrinkPicker(selection) {
@@ -145,6 +160,7 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById('spot-date').value = data.date;
         document.getElementById('spot-lat').value = data.lat;
         document.getElementById('spot-lng').value = data.lng;
+        resetPhotoField(data.photo_url);
 
         // Dégustations : celles du lieu cochées ; les bières déjà ajoutées par d'autres indisponibles ; les bières retirées masquées sauf si
         // elles sont déjà rattachées (picker.js)
@@ -175,6 +191,7 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById('spot-slug').value = ""; 
         document.getElementById('spot-title').value = title || "";
         document.getElementById('spot-desc').value = "";
+        resetPhotoField('');
         
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('spot-date').value = today;

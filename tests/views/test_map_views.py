@@ -1,4 +1,5 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
@@ -27,6 +28,16 @@ class TestMapPage:
         spots = auth_client.get(URL).context["user_spots"]
 
         assert set(spots) == {own, shared}
+
+    def test_a_spot_without_description_leaves_the_edit_field_empty(self, auth_client, user):
+        """Sans description (NULL), la fenêtre de modification ne doit pas se remplir du texte « None » (qui serait ensuite enregistré)."""
+        f.make_spot(user, description=None)
+        assert 'data-desc=""' in auth_client.get(URL).content.decode()
+
+    def test_the_popup_has_a_visible_edit_button(self, auth_client, user):
+        spot = f.make_spot(user)
+        html = auth_client.get(URL).content.decode()
+        assert f"data-on-click=\"openEditModal\" data-no-event data-args='[\"{spot.slug}\"]'" in html
 
     def test_only_geolocated_places_are_listed(self, auth_client, geocoder):
         geocoded = f.make_bar(address="Lyon")
@@ -157,3 +168,104 @@ class TestDeleteSpot:
         spot = f.make_spot(user, friends=[other_user])
         assert other_client.post(reverse("delete_spot", args=[spot.slug])).status_code == 404
         assert BeerSpot.objects.exists()
+
+
+class TestSpotPhoto:
+    def test_photo_is_optional(self, auth_client):
+        auth_client.post(URL, spot_data())
+        spot = BeerSpot.objects.get()
+        assert not spot.photo and spot.photo_url is None
+
+    def test_photo_is_stored_as_webp_at_the_root_of_its_bucket(self, auth_client):
+        auth_client.post(URL, spot_data(photo=f.make_image_upload()))
+        spot = BeerSpot.objects.get()
+        assert spot.photo.name.endswith(".webp") and "/" not in spot.photo.name
+        assert spot.photo_url == spot.photo.url
+
+    def test_invalid_file_refuses_the_spot(self, auth_client):
+        response = auth_client.post(URL, spot_data(photo=SimpleUploadedFile("a.png", b"not an image")))
+        assert not BeerSpot.objects.exists()
+        assert any("Photo :" in message for message in messages_of(response))
+
+    def test_daily_quota_is_enforced(self, auth_client, monkeypatch):
+        monkeypatch.setattr("app.forms.SPOT_PHOTO_DAILY_LIMIT", 0)
+        auth_client.post(URL, spot_data(photo=f.make_image_upload()))
+        assert not BeerSpot.objects.exists()
+
+    def test_photo_can_be_replaced_and_removed(self, auth_client, user, django_capture_on_commit_callbacks):
+        spot = f.make_spot(user)
+        auth_client.post(URL, spot_data(spot_slug=spot.slug, photo=f.make_image_upload()))
+        spot.refresh_from_db()
+        first = spot.photo.name
+        assert first
+
+        with django_capture_on_commit_callbacks(execute=True):
+            auth_client.post(URL, spot_data(spot_slug=spot.slug, photo=f.make_image_upload()))
+        spot.refresh_from_db()
+        assert spot.photo.name != first and not spot.photo.storage.exists(first)
+
+        second = spot.photo.name
+        with django_capture_on_commit_callbacks(execute=True):
+            auth_client.post(URL, spot_data(spot_slug=spot.slug, remove_photo="on"))
+        spot.refresh_from_db()
+        assert not spot.photo and not spot.photo_url and not spot.photo.storage.exists(second)
+
+    def test_editing_without_a_photo_keeps_the_existing_one(self, auth_client, user):
+        spot = f.make_spot(user)
+        auth_client.post(URL, spot_data(spot_slug=spot.slug, photo=f.make_image_upload()))
+        spot.refresh_from_db()
+        kept = spot.photo.name
+        auth_client.post(URL, spot_data(spot_slug=spot.slug, title="Renommé"))
+        spot.refresh_from_db()
+        assert spot.photo.name == kept
+
+    def test_deleting_the_spot_deletes_its_photo(self, auth_client, user, django_capture_on_commit_callbacks):
+        spot = f.make_spot(user)
+        auth_client.post(URL, spot_data(spot_slug=spot.slug, photo=f.make_image_upload()))
+        spot.refresh_from_db()
+        storage, name = spot.photo.storage, spot.photo.name
+        with django_capture_on_commit_callbacks(execute=True):
+            auth_client.post(reverse("delete_spot", args=[spot.slug]))
+        assert not storage.exists(name)
+
+    def test_stranger_cannot_change_the_photo(self, other_client, user):
+        spot = f.make_spot(user)
+        other_client.post(URL, spot_data(spot_slug=spot.slug, photo=f.make_image_upload()))
+        spot.refresh_from_db()
+        assert not spot.photo
+
+    def test_popup_shows_the_photo(self, auth_client, user):
+        spot = f.make_spot(user)
+        auth_client.post(URL, spot_data(spot_slug=spot.slug, photo=f.make_image_upload()))
+        spot.refresh_from_db()
+        assert spot.photo_url in auth_client.get(URL).content.decode()
+
+
+class TestPlacePopup:
+    def popup(self, client, kind, place):
+        return client.get(reverse("map_place_popup", args=[kind, place.slug]))
+
+    def test_shows_image_name_description_and_address_in_that_order(self, auth_client, geocoder):
+        bar = f.make_bar(name="Le Troubadour", description="Un bar chaleureux", postal_code="69001", city="Lyon", image=f.make_image_upload())
+        html = self.popup(auth_client, "bar", bar).content.decode()
+        positions = [html.index(text) for text in (bar.image.url, "Le Troubadour", "Un bar chaleureux", "69001 Lyon")]
+        assert positions == sorted(positions)
+        assert reverse("bar_detail", args=[bar.slug]) in html
+
+    def test_no_image_means_no_image_tag(self, auth_client, geocoder):
+        brewery = f.make_brewery(name="Sans image")
+        html = self.popup(auth_client, "brewery", brewery).content.decode()
+        assert "Sans image" in html and "<img" not in html
+
+    def test_text_is_escaped(self, auth_client, geocoder):
+        bar = f.make_bar(name="Bar", description="<script>alert(1)</script>")
+        assert "<script>alert(1)" not in self.popup(auth_client, "bar", bar).content.decode()
+
+    def test_unknown_kind_or_slug_is_404(self, auth_client, geocoder):
+        bar = f.make_bar()
+        assert self.popup(auth_client, "cave", bar).status_code == 404
+        assert auth_client.get(reverse("map_place_popup", args=["bar", "inconnu"])).status_code == 404
+
+    def test_requires_login(self, client, geocoder):
+        bar = f.make_bar()
+        assert self.popup(client, "bar", bar).status_code == 302
