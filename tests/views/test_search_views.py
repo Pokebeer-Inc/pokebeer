@@ -320,7 +320,7 @@ class TestPlacesDirectoryCache:
         first = auth_client.get(reverse("api_places"), HTTP_ACCEPT_ENCODING="gzip")
         assert first.status_code == 200 and first.headers.get("Content-Encoding") == "gzip"
         assert "private" in first.headers["Cache-Control"]
-        with django_assert_num_queries(2):  # session et membre seulement : l'annuaire vient du cache
+        with django_assert_num_queries(2):  # session et membre seulement (le jour d'activité est déjà enregistré par la première requête) : l'annuaire vient du cache
             second = auth_client.get(reverse("api_places"))
         assert second.status_code == 200
         cache.clear()

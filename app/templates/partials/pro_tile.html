@@ -1,0 +1,34 @@
+{% comment %}Une tuile d'analytics pour un gérant (chiffre, graphique ou tableau). Paramètres : block, table (tableau mis en forme, pour les blocs Table).{% endcomment %}
+<article class="pa-tile pa-tile--{{ block.block_type }}">
+    {% if block.block_type == 'kpi' %}
+        <p class="pa-kpi-label">{{ block.title }}</p>
+        <p class="pa-kpi-value">{{ block.value }}</p>
+        {% if block.delta is not None %}<p class="pa-delta {% if block.delta >= 0 %}is-up{% else %}is-down{% endif %}">{% if block.delta >= 0 %}{% include "partials/icon.html" with name="chevron-up" size="12" %}+{% else %}{% include "partials/icon.html" with name="chevron-down" size="12" %}{% endif %}{{ block.delta|floatformat:"-1" }} %</p><p class="pa-hint">par rapport à la période précédente</p>{% endif %}
+        {% if block.hint %}<p class="pa-hint">{{ block.hint }}</p>{% endif %}
+
+    {% else %}
+        <header class="pa-tile-head">
+            <div class="min-w-0">
+                <h2 class="pa-tile-title">{{ block.title }}</h2>
+                {% if block.subtitle %}<p class="pa-hint">{{ block.subtitle }}</p>{% endif %}
+            </div>
+            {% if block.id in exportable_ids %}<a href="?{{ query }}&export={{ block.id }}" class="pa-export" title="Exporter en CSV" aria-label="Exporter {{ block.title }} en CSV">{% include "partials/icon.html" with name="download" size="16" %}</a>{% endif %}
+        </header>
+
+        {% if block.block_type == 'chart' %}
+            {{ block.spec|json_script:block.id }}
+            <div class="analytics-chart" data-spec-id="{{ block.id }}"></div>
+
+        {% elif block.block_type == 'table' %}
+            <div class="pa-table-wrap">
+                <table class="pa-table">
+                    <thead><tr>{% for label, numeric in table.columns %}<th scope="col" {% if numeric %}class="is-num"{% endif %}>{{ label }}</th>{% endfor %}</tr></thead>
+                    <tbody>
+                        {% for row in table.rows %}<tr>{% for cell in row %}<td class="{% if cell.numeric %}is-num{% endif %} {% if cell.tone %}is-{{ cell.tone }}{% endif %}">{% if cell.bar is not None %}<span class="pa-bar-cell"><span class="pa-bar-fill" data-width="{{ cell.bar }}"></span><span class="pa-bar-text">{{ cell.text }}</span></span>{% else %}{{ cell.text }}{% endif %}</td>{% endfor %}</tr>
+                        {% empty %}<tr><td colspan="{{ block.columns|length }}" class="pa-empty">Pas encore assez de données pour ce tableau.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    {% endif %}
+</article>

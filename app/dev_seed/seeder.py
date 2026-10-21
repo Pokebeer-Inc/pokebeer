@@ -12,14 +12,19 @@ from django.db import transaction
 from django.utils import timezone
 
 from app.models import (
-    Bar, Beer, BeerSpot, BeerUser, Brewery, CustomNotebook, DrinkReaction, Drinks,
-    Feedback, FeedbackMessage, Notification, Report, UserBlock, UserFollow,
+    ActivityDay, Bar, Beer, BeerSpot, BeerUser, Brewery, CatalogMiss, CustomNotebook, DrinkReaction, Drinks,
+    Feedback, FeedbackMessage, Notification, PageView, Report, UserBlock, UserFollow,
 )
+from app.services.catalog import style_registry
 
 from . import data
 
 CONTRIBUTOR, BREWER, BARTENDER, STAFF = "Contributeur", "Brasseur", "Bartender", "Staff"
 MANAGED_ESTABLISHMENTS = 2
+ACTIVITY_DAYS = 90      # historique d'activité et de vues généré
+OPT_OUT_SHARE = 0.1     # part des membres opposés aux statistiques d'âge et de genre
+CONTEXT_SHARE = 0.65    # part des dégustations avec lieu, compagnie, format et prix renseignés
+FORMAT_PRICES = {"pint": (5.5, 8.0), "half": (3.0, 4.5), "bottle": (6.0, 12.0), "can": (3.0, 5.5)}
 
 
 class DevDatabaseSeeder:
@@ -43,6 +48,7 @@ class DevDatabaseSeeder:
         self._seed_breweries_and_beers()
         self._seed_bars()
         self._seed_drinks()
+        self._seed_tracking()
         self._seed_social()
         self._seed_moderation()
         return dict(self.counts)
@@ -87,6 +93,10 @@ class DevDatabaseSeeder:
                 is_superuser=spec.get("is_superuser", False),
                 password=self.password_hash,
                 onboarding_done=True,
+                created_at=timezone.now() - timedelta(days=self.rng.randint(0, 365)),
+                birth_date=timezone.localdate() - timedelta(days=self.rng.randint(20, 62) * 365 + self.rng.randint(0, 364)),
+                gender=self.rng.choice(("femme", "femme", "homme", "homme", "homme", "autre", "nsp", "")),
+                demographic_stats=self.rng.random() >= OPT_OUT_SHARE,
             )
             for spec in data.USERS
         ])
@@ -120,7 +130,8 @@ class DevDatabaseSeeder:
         self.beers = self._bulk(Beer, [
             Beer(
                 name=name,
-                style=style,
+                style=style_registry.canonicalize(style),  # bulk_create n'appelle ni save() ni les signaux : le référentiel est appliqué ici
+                style_family=style_registry.family_of(style_registry.canonicalize(style)),
                 degree=Decimal(str(degree)),
                 bitterness=ibu,
                 description=description,
@@ -141,6 +152,19 @@ class DevDatabaseSeeder:
         self._bulk(through, [through(bar_id=bar.pk, beeruser_id=bartender.pk) for bar in bars[:MANAGED_ESTABLISHMENTS]])
         self._grant(BARTENDER, [bartender])
 
+    def _context(self):
+        """Lieu, compagnie, format et prix d'une dégustation (vides pour une partie d'entre elles : ces champs sont facultatifs)."""
+        if self.rng.random() > CONTEXT_SHARE:
+            return {}
+        serving_format = self.rng.choice(tuple(FORMAT_PRICES))
+        low, high = FORMAT_PRICES[serving_format]
+        return {
+            "venue_type": self.rng.choice(("bar", "bar", "home", "home", "restaurant", "event", "brewery")),
+            "company": self.rng.choice(("friends", "friends", "alone", "couple", "family", "work")),
+            "serving_format": serving_format,
+            "price": Decimal(str(round(self.rng.uniform(low, high), 1))),
+        }
+
     def _seed_drinks(self):
         today = timezone.localdate()
         self.drinks = self._bulk(Drinks, [
@@ -150,6 +174,7 @@ class DevDatabaseSeeder:
                 note=self.rng.randint(3, 10),
                 comment=self.rng.choice(data.DRINK_COMMENTS),
                 date=today - timedelta(days=self.rng.randint(0, 365)),
+                **self._context(),
             )
             for user in self.members
             for beer in self.rng.sample(self.beers, self.rng.randint(5, 12))
@@ -157,6 +182,33 @@ class DevDatabaseSeeder:
         self.drinks_by_user = defaultdict(list)
         for drink in self.drinks:
             self.drinks_by_user[drink.drinker.pk].append(drink)
+
+    def _seed_tracking(self):
+        """Historique de visites, vues des fiches et demandes sans résultat sur les ACTIVITY_DAYS derniers jours : de quoi remplir les pages d'analytics."""
+        today = timezone.localdate()
+        days = [today - timedelta(days=offset) for offset in range(ACTIVITY_DAYS)]
+        self._bulk(ActivityDay, [
+            ActivityDay(user=user, day=day)
+            for user in self.members
+            for day in days
+            if day >= user.created_at.date() and self.rng.random() < self.rng.choice((0.05, 0.15, 0.4))
+        ])
+        targets = ([(PageView.Kind.BEER, beer.pk) for beer in self.beers] + [(PageView.Kind.BREWERY, pk) for pk in {beer.brewery_id for beer in self.beers}]
+                   + [(PageView.Kind.BAR, bar.pk) for bar in Bar.objects.all()])
+        views = []
+        for kind, object_id in targets:
+            popularity = self.rng.choice((1, 2, 5, 12))
+            for day in days:
+                if self.rng.random() < 0.5:
+                    count = self.rng.randint(1, popularity)
+                    views.append(PageView(kind=kind, object_id=object_id, day=day, views=count + self.rng.randint(0, 3), visitors=count))
+        self._bulk(PageView, views)
+        wanted = (("beer_search", "blonde sans gluten"), ("beer_search", "gose a la framboise"), ("beer_search", "bière du nord"),
+                  ("brewery_search", "brasserie de la bastille"), ("ean", "3080216050079"), ("label", ""))
+        self._bulk(CatalogMiss, [
+            CatalogMiss(source=source, key=key, day=day, count=self.rng.randint(1, 4))
+            for source, key in wanted for day in days if self.rng.random() < 0.15
+        ])
 
     def _seed_social(self):
         self._seed_follows()

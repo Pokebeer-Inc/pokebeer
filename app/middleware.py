@@ -8,6 +8,7 @@ from django.shortcuts import redirect
 
 from .services.protection import csp
 from .services.members import inactivity
+from .services.tracking import activity
 
 
 class LoginRequiredMiddleware(auth_middleware.LoginRequiredMiddleware):
@@ -35,6 +36,7 @@ class ActivityMiddleware:
         if user.is_authenticated and inactivity.record_activity(user):
             # Session glissante : prolongée à chaque visite enregistrée (au plus toutes les 12 h, pas à chaque requête)
             request.session.set_expiry(settings.SESSION_COOKIE_AGE)
+        activity.record_today(request)  # une écriture par membre et par jour, voir services/tracking/activity.py
         return self.get_response(request)
 
 

@@ -72,6 +72,9 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
 
     birth_date = models.DateField(null=True, blank=True, verbose_name="Date de naissance")
     gender = models.CharField(max_length=5, choices=Gender.choices, blank=True, default='', verbose_name="Genre")
+    # Statistiques anonymes : l'âge (en tranches) et le genre sont comptés dans des agrégats d'au moins 3 membres, qui peuvent être partagés
+    # avec des brasseries et des bars. Le membre peut s'y opposer à tout moment : il est alors exclu de tout calcul qui utilise ces deux données.
+    demographic_stats = models.BooleanField(default=True, verbose_name="Âge et genre dans les statistiques anonymes")
     onboarding_done = models.BooleanField(default=False, verbose_name="Inscription terminée",
                                           help_text="Faux tant que le membre n'a pas passé les pages qui suivent l'inscription ; les comptes existants sont considérés terminés.")
 

@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const recap = document.getElementById('wizard-recap');
     const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
     const eanField = form.querySelector('[name="beer-ean"]');
+    const menuMode = form.dataset.mode === 'menu';  // ajout depuis la carte d'un bar : pas d'avis ni de contexte
     let current = 1;
     let dirty = false;
     let submitting = false;
@@ -66,11 +67,12 @@ document.addEventListener('DOMContentLoaded', function () {
         data.append('csrfmiddlewaretoken', csrf);
         data.append('step', step);
         data.append('strict', strict ? '1' : '0');
+        data.append('mode', form.dataset.mode || '');
         controls.forEach(control => {
             if ((control.type === 'radio' || control.type === 'checkbox') && !control.checked) return;
             data.append(control.name, control.value);
         });
-        if (controls.some(c => c.name === 'notebooks') || panelOf(step) === panels[4]) data.append('notebooks_present', '1');
+        if (!menuMode && (controls.some(c => c.name === 'notebooks') || panelOf(step) === panels[4])) data.append('notebooks_present', '1');
         return data;
     }
 
@@ -109,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!dirty) return;
         const controls = Array.from(form.querySelectorAll('input, select, textarea')).filter(c => c.type !== 'file' && c.name && c.name !== 'csrfmiddlewaretoken');
         const data = formDataFor(controls, step, false);
-        data.append('notebooks_present', '1');
+        if (!menuMode) data.append('notebooks_present', '1');
         if (navigator.sendBeacon) navigator.sendBeacon(form.dataset.draftUrl, data);
         else fetch(form.dataset.draftUrl, { method: 'POST', credentials: 'same-origin', body: data, keepalive: true });
         dirty = false;
@@ -138,10 +140,14 @@ document.addEventListener('DOMContentLoaded', function () {
             ['Alcool', valueOf('beer-degree') && valueOf('beer-degree') + ' %', 2], ['Style', valueOf('beer-style'), 2],
             ['Amertume', valueOf('beer-bitterness') && valueOf('beer-bitterness') + ' IBU', 2],
             ['Description', valueOf('beer-description').slice(0, 140), 3], ['Photo de la bière', fileOf('beer-image'), 3],
-            ['Commentaire', valueOf('drink-comment').slice(0, 140), 4], ['Note', valueOf('drink-note') && valueOf('drink-note') + ' / 10', 4],
-            ['Date', valueOf('drink-date'), 4], ['Photo de l\'avis', fileOf('drink-photo'), 4],
-            ['Lieu', choiceOf('drink-venue_type'), 5], ['Avec qui', choiceOf('drink-company'), 5],
-            ['Format', choiceOf('drink-serving_format'), 5], ['Prix', valueOf('drink-price') && valueOf('drink-price') + ' €', 5],
+            ...(menuMode ? [
+                ['Format à la carte', choiceOf('menu-serving_format'), 4], ['Prix à la carte', valueOf('menu-price') && valueOf('menu-price') + ' €', 4],
+            ] : [
+                ['Commentaire', valueOf('drink-comment').slice(0, 140), 4], ['Note', valueOf('drink-note') && valueOf('drink-note') + ' / 10', 4],
+                ['Date', valueOf('drink-date'), 4], ['Photo de l\'avis', fileOf('drink-photo'), 4],
+                ['Lieu', choiceOf('drink-venue_type'), 5], ['Avec qui', choiceOf('drink-company'), 5],
+                ['Format', choiceOf('drink-serving_format'), 5], ['Prix', valueOf('drink-price') && valueOf('drink-price') + ' €', 5],
+            ]),
         ];
         recap.replaceChildren(...rows.map(([label, value, step]) => {
             const row = document.createElement('button');

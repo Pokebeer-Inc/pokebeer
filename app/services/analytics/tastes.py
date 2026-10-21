@@ -79,11 +79,6 @@ def build(period, params):
         labels, counts = _bucketed(rows, buckets, field_name)
         blocks.append(Chart(chart_id, title, 'bar', labels, [{'name': 'Dégustations', 'data': counts}]))
 
-    ratings = {row['note']: row['n'] for row in current.exclude(note__isnull=True).values('note').annotate(n=Count('pk'))}
-    blocks.append(Chart('ratings', 'Répartition des notes', 'bar', [str(n) for n in range(11)],
-                        [{'name': 'Avis', 'data': [ratings.get(n, 0) for n in range(11)]}],
-                        subtitle='Des notes toutes élevées ou toutes basses signalent un manque de discrimination'))
-
     top_beers = (current.values('beer__name', 'beer__brewery__name')
                  .annotate(n=Count('pk'), avg=Avg('note'), rated=Count('note')).filter(rated__gte=MIN_RATINGS).order_by('-avg', '-n')[:10])
     blocks.append(Table('top-beers', 'Bières les mieux notées', ['Bière', 'Brasserie', 'Dégustations', 'Note moyenne'],

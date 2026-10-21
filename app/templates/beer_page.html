@@ -75,6 +75,11 @@
         <p class="text-sm text-gray-600 mb-3">Note moyenne <b class="text-secondary">{{ average_note|floatformat:1 }}/10</b> · {{ rating_count }} avis</p>
         {% endif %}
 
+        {% if serving_bars.count %}
+        <p class="text-sm text-gray-600 mb-3">Servie dans {{ serving_bars.count }} bar{{ serving_bars.count|pluralize }} :
+            {% for bar in serving_bars.bars %}<a href="{% url 'bar_detail' bar.slug %}" class="font-semibold text-secondary underline">{{ bar.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}{% if serving_bars.count > serving_bars.bars|length %} et d'autres{% endif %}.</p>
+        {% endif %}
+
         <p class="text-base text-gray-700 mb-2">{{ beer.description }}</p>
         
         {% if beer.added_by %}

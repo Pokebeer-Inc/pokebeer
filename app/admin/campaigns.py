@@ -75,7 +75,7 @@ class EmailCampaignForm(forms.ModelForm):
 @admin.register(EmailCampaign)
 class EmailCampaignAdmin(ModelAdmin):
     form = EmailCampaignForm
-    change_form_after_template = "admin/campaign_actions.html"
+    change_form_outer_after_template = "admin/campaign_actions.html"  # hors du formulaire de la page : un <form> imbriqué est ignoré par le navigateur
     list_display = ("subject", "kind", "audience", "status_display", "delivery_display", "created_at", "created_by")
     list_filter = ("kind", "audience", "status")
     ordering = ("-created_at",)

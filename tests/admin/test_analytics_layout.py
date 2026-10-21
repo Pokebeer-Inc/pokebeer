@@ -56,12 +56,12 @@ class TestSaveEndpoint:
     def test_layout_is_saved_and_applied_to_the_page(self, client_for, staff):
         client = client_for(staff)
         assert save(client, order=["trend-drinks"], hidden=["kpi-degustations"]).json() == {"ok": True}
-        assert save(client, order=["trend-users", "trend-drinks"], hidden=["trend-bars"]).status_code == 200
+        assert save(client, order=["trend-users", "trend-drinks"], hidden=["trend-active"]).status_code == 200
         response = client.get(reverse("admin_analytics", args=["trends"]))
         tiles = response.context["tiles"]
         assert [t.block.id for t in tiles[:2]] == ["trend-users", "trend-drinks"]
-        assert {t.block.id for t in tiles if t.hidden} == {"trend-bars"}
-        assert 'data-tile-id="trend-bars"' in response.content.decode()
+        assert {t.block.id for t in tiles if t.hidden} == {"trend-active"}
+        assert 'data-tile-id="trend-active"' in response.content.decode()
 
     def test_layout_is_private_to_each_member(self, client_for, staff, superuser):
         save(client_for(staff), order=["trend-users"])

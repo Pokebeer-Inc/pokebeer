@@ -1,0 +1,21 @@
+{% comment %}Carte d'un bar sur sa fiche. Paramètres : bar, menu_entries, is_manager. Les prix ne s'affichent que si le gérant les a saisis.{% endcomment %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'style/menu.css' %}">
+<section class="mt-2" aria-labelledby="bar-menu-title">
+    <h2 id="bar-menu-title" class="pb-section"><span>À la carte</span>{% if is_manager %}<a href="{% url 'bar_menu' bar.slug %}">Gérer la carte</a>{% endif %}</h2>
+    {% if menu_entries %}
+    <ul class="pb-card mn-public">
+        {% for entry in menu_entries|slice:":12" %}{% include "partials/bar_menu_row.html" %}{% endfor %}
+    </ul>
+    {% if menu_entries|length > 12 %}
+    <details class="pb-card mn-more mt-2">
+        <summary>Voir les {{ menu_entries|length|add:"-12" }} autres bières</summary>
+        <ul class="mn-public">{% for entry in menu_entries|slice:"12:" %}{% include "partials/bar_menu_row.html" %}{% endfor %}</ul>
+    </details>
+    {% endif %}
+    {% elif is_manager %}
+    <p class="pb-card p-3 text-sm text-gray-600">Votre carte est vide. <a href="{% url 'bar_menu' bar.slug %}" class="underline font-semibold">Ajoutez les bières que vous servez</a> : vos clients les verront ici et vos statistiques en tiendront compte.</p>
+    {% else %}
+    <p class="pb-card p-3 text-sm text-gray-600">Ce bar n'a pas encore renseigné sa carte.</p>
+    {% endif %}
+</section>

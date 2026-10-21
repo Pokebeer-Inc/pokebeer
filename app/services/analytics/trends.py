@@ -3,7 +3,7 @@ from collections import Counter
 
 from django.db.models import Count, Min
 
-from ...models import Bar, BeerSpot, BeerUser, Brewery, Drinks
+from ...models import BeerUser, Drinks
 from .blocks import Kpi, Note
 from .date import date_range
 from .series import count_series, growth, trend_chart
@@ -14,9 +14,6 @@ def _metrics():
         ('drinks', 'Dégustations', Drinks.objects.all(), 'date', None),
         ('active', 'Membres actifs (au moins une dégustation)', Drinks.objects.all(), 'date', Count('drinker', distinct=True)),
         ('users', 'Nouveaux membres', BeerUser.objects.all(), 'created_at', None),
-        ('spots', 'Lieux placés sur la carte', BeerSpot.objects.all(), 'date', None),
-        ('breweries', 'Nouvelles brasseries', Brewery.objects.all(), 'created_at', None),
-        ('bars', 'Nouveaux bars', Bar.objects.all(), 'created_at', None),
     ]
 
 

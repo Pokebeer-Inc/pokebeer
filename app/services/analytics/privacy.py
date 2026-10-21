@@ -1,6 +1,7 @@
-"""Anonymat : on n'affiche jamais un groupe assez petit pour identifier un membre (k-anonymat)."""
+"""Anonymat : on n'affiche jamais un groupe assez petit pour identifier un membre (k-anonymat). Seuil : ANALYTICS_MIN_GROUP_SIZE (réglages)."""
+from django.conf import settings
 
-MIN_GROUP_SIZE = 3
+MIN_GROUP_SIZE = settings.ANALYTICS_MIN_GROUP_SIZE
 
 
 def is_publishable(distinct_members):

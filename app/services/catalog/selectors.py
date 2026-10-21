@@ -260,3 +260,16 @@ def get_wishlist_beers(request):
         wished = BeerUser.wishlist_beers.through.objects.filter(beer=OuterRef('pk'), beeruser_id=request.user.pk)
         beers = beers.annotate(wished_id=Subquery(wished.values('id')[:1])).order_by('-wished_id', '-id')
     return beers
+
+
+MIN_PICK_LENGTH = 2
+
+
+def find_beers_to_pick(user, term, limit=8):
+    """Bières du catalogue à proposer dans un sélecteur (carte d'un bar) : nom, brasserie ou style proche de la saisie, sans casse ni accents,
+    tolérant aux fautes, hors bières de membres bloqués. Liste vide pour une saisie trop courte."""
+    term = (term or '').strip()
+    if len(term) < MIN_PICK_LENGTH:
+        return []
+    beers = exclude_blocked(Beer.objects.filter(is_deleted=False), user, 'added_by').select_related('brewery')
+    return list(search.beers(beers, term).order_by(search.RANK_FIELD, 'name')[:limit])

@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from ...forms import BeerForm, DrinkForm
+from ...forms import BeerForm, DrinkForm, MenuEntryForm
 from ...models import BeerDraft
 from ...validators import MAX_TEXT_LENGTH
 
@@ -25,6 +25,22 @@ STEPS = (
 )
 LAST_STEP = len(STEPS)
 
+# Ajout depuis la carte d'un bar (mode « menu ») : les mêmes trois premières étapes, puis le prix et le format à la carte à la place de l'avis
+# et du contexte (le gérant n'a pas goûté la bière pour la servir : aucune note n'est demandée).
+MENU = 'menu'
+MENU_STEPS = (*STEPS[:3], ('carte', "À la carte", (), ('price', 'serving_format')), ('recap', "Vérification", (), ()))
+MODES = {'': STEPS, MENU: MENU_STEPS}
+# Second formulaire de chaque mode : (préfixe des champs, classe)
+SECOND_FORMS = {'': ('drink', DrinkForm), MENU: ('menu', MenuEntryForm)}
+
+
+def steps_for(mode=''):
+    return MODES[mode]
+
+
+def last_step(mode=''):
+    return len(MODES[mode])
+
 # Champs textuels conservés dans le brouillon, avec leur taille maximale (au-delà on tronque : la vraie validation a lieu à l'envoi).
 # Les fichiers, les jetons de confirmation de doublon et tout autre champ sont ignorés.
 DRAFT_FIELDS = {
@@ -32,6 +48,7 @@ DRAFT_FIELDS = {
     'beer-degree': 10, 'beer-style': 200, 'beer-bitterness': 6, 'beer-description': MAX_TEXT_LENGTH, 'beer-ean': 20,
     'drink-note': 3, 'drink-date': 10, 'drink-comment': MAX_TEXT_LENGTH,
     'drink-venue_type': 12, 'drink-company': 10, 'drink-serving_format': 10, 'drink-price': 10,
+    'menu-price': 10, 'menu-serving_format': 10,
 }
 MAX_NOTEBOOKS = 50
 
@@ -51,10 +68,10 @@ def sanitize_notebooks(posted):
     return [slug[:60] for slug in getter('notebooks') if isinstance(slug, str)][:MAX_NOTEBOOKS]
 
 
-def step_of_field(prefix, name):
+def step_of_field(prefix, name, mode=''):
     """Numéro (à partir de 1) de l'étape qui porte ce champ ; None s'il n'appartient à aucune."""
-    for number, (_, _, beer_fields, drink_fields) in enumerate(STEPS, start=1):
-        if name in (beer_fields if prefix == 'beer' else drink_fields):
+    for number, (_, _, beer_fields, other_fields) in enumerate(MODES[mode], start=1):
+        if name in (beer_fields if prefix == 'beer' else other_fields):
             return number
     return None
 
@@ -68,19 +85,24 @@ def get_draft(user):
     return BeerDraft.objects.filter(user=user).first()
 
 
-def save_lenient(user, posted, step):
+def save_lenient(user, posted, step, mode=''):
     """Enregistre ce que contient l'envoi sans rien valider (quitter la page, retour en arrière) : on garde au moins ces données."""
     purge_stale()
     draft, _ = BeerDraft.objects.get_or_create(user=user)
     draft.data = {**draft.data, **sanitize(posted)}
     if 'notebooks_present' in posted:
         draft.data['notebooks'] = sanitize_notebooks(posted)
-    draft.current_step = min(max(step, 1), LAST_STEP)
+    draft.current_step = min(max(step, 1), last_step(mode))
     draft.save()
     return draft
 
 
-def validate_step(user, step, posted, draft=None):
+def _second_form(mode, data, user):
+    prefix, form_class = SECOND_FORMS[mode]
+    return form_class(data, prefix=prefix, **({'user': user} if form_class is DrinkForm else {}))
+
+
+def validate_step(user, step, posted, draft=None, mode=''):
     """Valide une étape avec les données du brouillon et de l'envoi. Retourne {'errors': [messages], 'fields': [id de champ]} (vides si valide)."""
     merged = {**(draft.data if draft else {}), **sanitize(posted)}
     data = dict(merged)
@@ -88,13 +110,13 @@ def validate_step(user, step, posted, draft=None):
         if posted.get(token):
             data[token] = posted.get(token)
     beer_form = BeerForm(data, prefix='beer', user=user)
-    drink_form = DrinkForm(data, prefix='drink', user=user)
+    other_form = _second_form(mode, data, user)
     beer_form.is_valid()
-    drink_form.is_valid()
+    other_form.is_valid()
 
-    _, _, beer_fields, drink_fields = STEPS[step - 1]
+    _, _, beer_fields, other_fields = MODES[mode][step - 1]
     messages, fields = [], []
-    for form, names in ((beer_form, beer_fields), (drink_form, drink_fields)):
+    for form, names in ((beer_form, beer_fields), (other_form, other_fields)):
         for name in names:
             for message in form.errors.get(name, []):
                 label = str(form.fields[name].label or name).replace(' (Optionnel)', '')
@@ -105,18 +127,18 @@ def validate_step(user, step, posted, draft=None):
     return {'errors': messages, 'fields': fields}
 
 
-def first_step_with_errors(beer_form, drink_form):
+def first_step_with_errors(beer_form, other_form, mode=''):
     """Étape à rouvrir après un envoi final refusé : la première qui porte une erreur (la dernière si l'erreur ne se rattache à aucune)."""
     steps = set()
-    for prefix, form in (('beer', beer_form), ('drink', drink_form)):
+    for prefix, form in (('beer', beer_form), (SECOND_FORMS[mode][0], other_form)):
         for name in form.errors:
             if name == '__all__':
                 if prefix == 'beer':
                     steps.add(1)
                 continue
-            number = step_of_field(prefix, name)
+            number = step_of_field(prefix, name, mode)
             if number:
                 steps.add(number)
     if steps:
         return min(steps)
-    return LAST_STEP if (beer_form.errors or drink_form.errors) else 1
+    return last_step(mode) if (beer_form.errors or other_form.errors) else 1

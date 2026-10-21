@@ -81,6 +81,8 @@ def build_block(tile_pk, title, raw_spec, period, filters=None):
         return _with_ids(kpi, tile_pk)
 
     dimension = dataset.dimensions[spec.dimension]
+    if dimension.scope:
+        queryset = queryset.filter(**dimension.scope(dataset))
     rows, hidden = _grouped_rows(dataset, dimension, spec, period, queryset)
     subtitle = f'{dataset.label} · par {dimension.label.lower()}'
     if hidden:

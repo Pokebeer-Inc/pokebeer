@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/pro_analytics.css' %}">
+
+<header class="pa-hero">
+    <a href="{% if managed_count > 1 %}{% url 'pro_analytics' %}{% else %}{% url 'account' %}{% endif %}" class="pa-back" aria-label="Retour">
+        {% include "partials/icon.html" with name="arrow-left" size="18" %}
+    </a>
+    {% if place.image_url %}<img src="{{ place.image_url }}" alt="" class="pa-avatar" width="48" height="48">{% else %}<span class="pa-avatar pa-avatar--letter" aria-hidden="true">{{ place.name|slice:":1"|upper }}</span>{% endif %}
+    <div class="pa-hero-text">
+        <p class="pa-eyebrow">Statistiques · {{ kind.label }}</p>
+        <h1 class="pb-title pa-name">{{ place.name }}</h1>
+    </div>
+    <a href="{{ detail_url }}" class="pa-link">Voir la fiche</a>
+</header>
+
+<nav class="pa-tabs" aria-label="Sections des statistiques" data-pa-tabs>
+    {% for tab in tabs %}<a href="{{ tab.url }}" class="pa-tab" {% if tab.active %}aria-current="page"{% endif %}>{{ tab.section.title }}</a>{% endfor %}
+</nav>
+
+<div class="pa-bar">
+    <div class="pa-periods" role="group" aria-label="Période">
+        {% for p in periods %}<a href="{{ p.url }}" class="pa-period" {% if p.active %}aria-current="true"{% endif %}>{{ p.months }} mois</a>{% endfor %}
+    </div>
+    {% if exportable_ids %}
+    <details class="pa-menu">
+        <summary class="pa-link" aria-label="Exporter">Exporter</summary>
+        <div class="pa-menu-panel"><a href="?{{ query }}&export=all">Toute la section (ZIP de CSV)</a></div>
+    </details>
+    {% endif %}
+</div>
+
+<p class="pa-intro">{{ section.description }}</p>
+
+{% if insights %}
+<section class="pa-insights pb-card" aria-label="En bref">
+    <h2 class="pa-insights-title">En bref</h2>
+    <ul>
+        {% for insight in insights %}<li class="pa-insight pa-insight--{{ insight.tone }}"><span class="pa-dot" aria-hidden="true"></span><span>{{ insight.text }}</span></li>{% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if menu_url %}<p class="pa-actions"><a href="{{ menu_url }}" class="pb-chip is-primary">Gérer ma carte</a></p>{% endif %}
+
+{% if empty %}
+<section class="pa-empty-state pb-card">
+    {% if empty_text %}
+    <h2 class="pb-title">Rien à afficher pour l'instant</h2>
+    <p>{{ empty_text }}</p>
+    {% else %}
+    <h2 class="pb-title">Pas encore assez de données</h2>
+    <p>Les statistiques n'apparaissent qu'à partir de {{ min_group }} membres distincts, pour qu'aucun ne soit reconnaissable. Plus votre fiche est complète et partagée, plus vite elles se remplissent.</p>
+    {% endif %}
+    {% if not menu_url %}<a href="{{ detail_url }}" class="pb-chip is-primary">Voir ma fiche</a>{% endif %}
+</section>
+{% endif %}
+
+<div class="pa-grid">
+    {% for tile in tiles %}{% include "partials/pro_tile.html" with block=tile.block table=tile.table %}{% endfor %}
+</div>
+
+<details class="pa-about">
+    <summary>À propos de ces chiffres</summary>
+    <ul>
+        <li>Les statistiques sont agrégées et anonymes : un groupe de moins de {{ min_group }} membres n'est jamais affiché.</li>
+        <li>Les comparaisons portent sur la moyenne de la communauté Pokebeer, jamais sur un autre établissement.</li>
+        <li>Les dégustations sont celles déclarées par les membres ; lieu, compagnie, format et prix sont facultatifs et peuvent être partiels.</li>
+        {% for note in notes %}<li>{{ note.text }}</li>{% endfor %}
+    </ul>
+</details>
+
+<script src="{% static 'script/apexcharts.min.js' %}"></script>
+<script src="{% static 'script/analytics_charts.js' %}"></script>
+<script src="{% static 'script/pro_analytics.js' %}"></script>
+{% endblock %}

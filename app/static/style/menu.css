@@ -1,0 +1,38 @@
+/* Carte d'un bar : gestion (gérants) et affichage public. Mêmes composants que le reste du site (pb-card, pb-chip). */
+.mn-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.mn-back { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9999px; flex-shrink: 0; }
+.mn-back:hover { background: rgba(0, 0, 0, .06); }
+.mn-head > div { flex: 1; min-width: 0; }
+.mn-eyebrow { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #6b625a; }
+.mn-title { font-size: 22px; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.mn-link { font-size: 12px; font-weight: 600; color: #6b625a; text-decoration: underline; text-underline-offset: 3px; flex-shrink: 0; }
+.mn-intro { font-size: 13px; color: #6b625a; margin-bottom: 12px; }
+.mn-section-title { font-size: 15px; font-weight: 700; margin: 14px 0 8px; }
+.mn-add { padding: 12px 14px; }
+.mn-add .mn-section-title { margin-top: 0; }
+.mn-search { width: 100%; }
+.mn-hint { font-size: 12px; color: #6b625a; margin-top: 6px; }
+.mn-results { display: grid; gap: 6px; margin-top: 8px; }
+.mn-result { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--color-base-100); }
+.mn-result > div { display: flex; flex-direction: column; }
+.mn-served { font-size: 12px; font-weight: 600; color: #2f7d32; flex-shrink: 0; }
+.mn-new { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid #d9cfc5; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.mn-new svg { margin-top: 2px; }
+.mn-list { display: grid; gap: 8px; }
+.mn-entry { padding: 10px 12px; }
+.mn-entry-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.mn-beer { font-weight: 700; display: block; overflow-wrap: anywhere; }
+.mn-brewery { font-size: 12px; color: #6b625a; display: block; }
+.mn-remove { font-size: 12px; font-weight: 600; color: #cd1904; text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; cursor: pointer; flex-shrink: 0; }
+.mn-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
+.mn-field { display: grid; gap: 2px; font-size: 11px; color: #6b625a; }
+.mn-field input, .mn-field select { width: 112px; min-width: 0; }
+.mn-empty { padding: 14px; font-size: 14px; color: #6b625a; }
+
+/* Affichage public sur la fiche du bar et sur la fiche d'une bière */
+.mn-public { display: grid; gap: 0; overflow: hidden; }
+.mn-public li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid rgba(217, 207, 197, .6); }
+.mn-public li:last-child { border-bottom: 0; }
+.mn-price { font-size: 13px; font-weight: 700; white-space: nowrap; text-align: right; }
+.mn-price small { display: block; font-weight: 500; color: #6b625a; font-size: 11px; }
+.mn-more summary { cursor: pointer; font-size: 13px; font-weight: 600; padding: 10px 12px; color: #6b625a; }

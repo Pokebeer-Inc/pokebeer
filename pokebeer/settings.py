@@ -359,6 +359,10 @@ NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
 LABEL_DAILY_LIMIT = 20
 # Recherche par code-barres (Open Food Facts) : plafond quotidien par membre, délai et identification de l'application
 EAN_DAILY_LIMIT = 60
+
+# Statistiques anonymes : nombre minimal de membres distincts pour publier un groupe (jamais moins de 3). À relever (10 conseillé) avant de
+# transmettre des chiffres hors de l'équipe : plus le seuil est haut, plus la ré-identification d'un membre est improbable.
+ANALYTICS_MIN_GROUP_SIZE = max(3, int(os.getenv('ANALYTICS_MIN_GROUP_SIZE', '3')))
 # Services publics extérieurs (Open Food Facts, annuaire des entreprises, communes) : délai et identification de l'application
 UPSTREAM_TIMEOUT = 4
 UPSTREAM_USER_AGENT = f'Pokebeer/1.0 ({os.getenv("EMAIL_HOST_USER", "pokebeer.assistance@gmail.com")})'
@@ -431,6 +435,12 @@ UNFOLD = {
                         "link": reverse_lazy("admin:app_accountdeletion_changelist"),
                         "permission": lambda request: request.user.is_superuser,
                     },
+                    {
+                        "title": _("Difficulté des trophées"),
+                        "icon": "emoji_events",
+                        "link": reverse_lazy("admin_analytics", args=["trophies"]),
+                        "permission": lambda request: request.user.is_staff,
+                    },
                 ],
             },
             {
@@ -489,12 +499,18 @@ UNFOLD = {
                      "permission": lambda request: request.user.is_staff}
                     for title, icon, key in (
                         ("Tendances", "trending_up", "trends"),
+                        ("Prévisions", "query_stats", "forecasts"),
                         ("Goûts", "sports_bar", "tastes"),
+                        ("Consommation", "payments", "consumption"),
+                        ("Audience", "groups", "audience"),
                         ("Habitudes", "schedule", "habits"),
+                        ("Engagement", "touch_app", "engagement"),
                         ("Géographie", "public", "geography"),
                         ("Établissements", "storefront", "places"),
                         ("Bars", "local_bar", "bars"),
-                        ("Trophées", "emoji_events", "trophies"),
+                        ("Professionnels", "business_center", "pros"),
+                        ("Catalogue", "inventory_2", "catalogue"),
+                        ("Communauté", "forum", "health"),
                     )
                 ] + [
                     {"title": _("Custom"), "icon": "dashboard_customize", "link": reverse_lazy("admin_analytics_custom"),
@@ -523,7 +539,13 @@ UNFOLD = {
                         "icon": "chair_counter", 
                         "link": reverse_lazy("admin:app_bar_changelist"),
                         "permission": lambda request: request.user.is_superuser,
-                    },                                 
+                    },
+                    {
+                        "title": _("Styles de bière"),
+                        "icon": "category",
+                        "link": reverse_lazy("admin:app_style_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
                 ],
             },  
         ],

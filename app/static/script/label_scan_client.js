@@ -80,7 +80,8 @@
         // La photo du scan illustre à la fois la fiche de la bière et l'avis : le membre ne la reprend pas une seconde fois
         if (blob && window.ImageFields) {
             [['id_beer-image', 'beer.jpg'], ['id_drink-photo', 'tasting.jpg']].forEach(([id, name]) => {
-                window.ImageFields.preset(document.getElementById(id), new File([blob], name, { type: 'image/jpeg' }));
+                const input = document.getElementById(id);  // absent quand la bière est ajoutée à la carte d'un bar (pas d'avis)
+                if (input) window.ImageFields.preset(input, new File([blob], name, { type: 'image/jpeg' }));
             });
         }
     }

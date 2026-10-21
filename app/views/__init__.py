@@ -44,6 +44,8 @@ from .suggestion_views import suggest_edit_view
 from .cron_views import purge_inactive_accounts_cron
 from .password_reset_views import PasswordResetCompleteView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetRequestView
 from .privacy_views import PrivacyPolicyView
+from .menu_views import bar_menu_add, bar_menu_remove, bar_menu_search, bar_menu_update, bar_menu_view
+from .pro_analytics_views import pro_analytics_index, pro_analytics_place
 from .email_views import assetlinks, email_preferences, email_unsubscribe
 from .place_views import BAR_VIEWS, BREWERY_VIEWS, cancel_claim, cancel_invitation, respond_invitation
 
@@ -141,6 +143,13 @@ __all__ = [
     'PasswordResetDoneView',
     'PasswordResetRequestView',
     'PrivacyPolicyView',
+    'bar_menu_add',
+    'bar_menu_remove',
+    'bar_menu_search',
+    'bar_menu_update',
+    'bar_menu_view',
+    'pro_analytics_index',
+    'pro_analytics_place',
     'assetlinks',
     'email_preferences',
     'email_unsubscribe',

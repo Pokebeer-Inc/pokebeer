@@ -1,7 +1,7 @@
 """Pages d'analytics (staff uniquement) : une vue générique qui affiche les blocs construits par services/analytics."""
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 
@@ -79,19 +79,10 @@ def _export(request, page, period, blocks, target):
     """CSV d'un bloc (ou ZIP de tous) avec les filtres appliqués à la page ; mêmes droits que la page."""
     logger.info("Export analytics %s/%s par l'utilisateur %s", page.key, target, request.user.pk)
     suffix = f'{period.months}m' if page.period else 'all'
-    if target == 'all':
-        content, content_type, extension = export.to_zip(blocks), 'application/zip', 'zip'
-        name = f'pokebeer-{page.key}-{suffix}'
-    else:
-        block = next((b for b in export.exportable(blocks) if b.id == target), None)
-        if block is None:
-            raise Http404
-        content, content_type, extension = export.to_csv(block), 'text/csv; charset=utf-8', 'csv'
-        name = f'pokebeer-{page.key}-{export.safe_name(block.id)}-{suffix}'
-    response = HttpResponse(content, content_type=content_type)
-    response['Content-Disposition'] = f'attachment; filename="{name}.{extension}"'
-    response['X-Content-Type-Options'] = 'nosniff'
-    return response
+    reply = export.response(blocks, target, f'pokebeer-{page.key}-{suffix}')
+    if reply is None:
+        raise Http404
+    return reply
 
 
 MAX_LAYOUT_BODY = 8_192

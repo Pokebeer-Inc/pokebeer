@@ -8,6 +8,7 @@ import io
 import re
 import zipfile
 
+from django.http import HttpResponse
 from django.utils.text import slugify
 
 FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
@@ -63,3 +64,21 @@ def to_zip(blocks):
 
 def safe_name(value):
     return slugify(str(value))[:80] or 'export'
+
+
+def response(blocks, target, stem):
+    """Téléchargement CSV d'un bloc (`target` = son identifiant) ou ZIP de tous (`target` = 'all'), ou None si le bloc n'existe pas.
+
+    `stem` : début du nom de fichier. Même réponse pour l'administration et pour les gérants."""
+    if target == 'all':
+        content, content_type, extension, name = to_zip(blocks), 'application/zip', 'zip', stem
+    else:
+        block = next((b for b in exportable(blocks) if b.id == target), None)
+        if block is None:
+            return None
+        content, content_type, extension, name = to_csv(block), 'text/csv; charset=utf-8', 'csv', f'{stem}-{safe_name(block.id)}'
+    reply = HttpResponse(content, content_type=content_type)
+    reply['Content-Disposition'] = f'attachment; filename="{name}.{extension}"'
+    reply['X-Content-Type-Options'] = 'nosniff'
+    reply['Cache-Control'] = 'private, no-store'
+    return reply

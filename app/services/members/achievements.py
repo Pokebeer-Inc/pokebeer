@@ -31,6 +31,7 @@ class MemberCounts:
             bad=Count('id', filter=Q(note__lt=2)),
             guinness=Max('note', filter=Q(beer__name__icontains='guinness')),
             ours=Count('id', filter=Q(beer__brewery__match_key__contains='ours') & Q(beer__brewery__match_key__contains='dore')),
+            contextual=Count('id', filter=~Q(venue_type='') & ~Q(serving_format='') & Q(price__isnull=False)),
         )
 
     def added_beers(self):
@@ -73,6 +74,8 @@ TROPHIES = (
     Trophy("voyageur", "Voyageur", "Placer des lieux sur la carte", (5, 50, 250, 500), MemberCounts.spots, points_per_unit=200),
     Trophy("bad_trip", "Mauvaise cuite", "Noter des bières en dessous de 2/10", (5, 50, 250, 500), lambda c: c.tastings['bad']),
     Trophy("cesar", "César", "Ajouter des pouces pour réagir aux avis", (10, 50, 100, 500), MemberCounts.reactions, points_per_unit=50),
+    Trophy("chroniqueur", "Chroniqueur", "Préciser le lieu, le format et le prix de ses dégustations", (5, 25, 100, 250), lambda c: c.tastings['contextual'],
+           points_per_unit=50),
     Trophy("irlandais", "Irlandais", "Noter une Guinness avec une excellente note", (5, 6, 8, 10), lambda c: c.tastings['guinness'] or 0, hidden=True),
     Trophy("picon", "Copain de Gaétan", "Mentionner le Picon dans sa biographie", (1, 1, 1, 1), lambda c: c.bio_mentions('picon'), hidden=True),
     Trophy("ours", "Ours doré", "Boire une bière de la brasserie de l'Ours Doré", (1, 1, 1, 1), lambda c: 1 if c.tastings['ours'] else 0,

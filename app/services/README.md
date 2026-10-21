@@ -40,6 +40,7 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 | `beer_drafts.py` | Ajout d'une bière en plusieurs étapes : étapes, brouillon enregistré en base et validation étape par étape. |
 | `beer_fields.py` | Champs d'une bière reçus d'une source extérieure (IA, base de produits) : réduits aux champs connus, convertis et bornés. |
 | `beers.py` | Cycle de vie d'une bière : ajout avec la première dégustation, modification, retrait (notifications, trophées). |
+| `context_reminders.py` | Rappel discret aux membres dont une dégustation récente n'a ni lieu, ni format, ni prix. |
 | `catalog_matching.py` | Détection des doublons du catalogue : une seule règle, partagée par le formulaire d'ajout, la vérification en direct (API) et |
 | `drinks.py` | Dégustations : notation d'une bière, modification, suppression (règle partagée avec la modération). |
 | `ean.py` | Codes-barres EAN : validation (longueur et clé de contrôle) et forme normalisée. |
@@ -53,6 +54,7 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 | `recommendations.py` | Recommandations de bières de l'accueil, d'après ce que le membre a aimé. |
 | `search.py` | Recherche unique : bières, brasseries, bars et membres. |
 | `selectors.py` | Requêtes de l'application : bières, membres, brasseries, bars, carnet, fil d'activité, liste « À goûter ». |
+| `style_registry.py` | Référentiel des styles (table `Style`) : noms officiels, alias, famille de chaque bière ; branché sur l'enregistrement d'une bière. |
 | `styles.py` | Styles du catalogue pour les filtres, en cache vidé à chaque changement de bière. |
 | `tasting_photos.py` | Photos de dégustation : validation stricte puis ré-encodage, stockées dans media/tastings/ (Supabase en production). |
 
@@ -61,6 +63,7 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 | Module | Rôle |
 |---|---|
 | `claims.py` | Revendication d'un établissement : qui peut gérer une brasserie ou un bar, et comment on s'en assure. |
+| `menu.py` | Carte d'un bar : droits de gestion, ajout (idempotent), prix et format, retrait avec historique, recherche de bières à ajouter. |
 | `nominatim.py` | Nominatim (OpenStreetMap) : le seul endroit qui l'interroge, pour la recherche d'une adresse et pour le géocodage inverse. |
 | `place_directory.py` | Annuaire des bars et brasseries localisés, pour classer les lieux par distance « Près de moi ». |
 | `place_filters.py` | Filtres et tri des brasseries et des bars : ville, vérifiés, style de bière brassé ; tri par nom ou par date d'ajout. |
@@ -125,17 +128,31 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 
 | Module | Rôle |
 |---|---|
-| `bars.py` | Bars : activité des membres autour de chaque bar et pistes de mise en avant. |
+| `access.py` | Qui peut lire les analytics d'un établissement (équipe : tout ; gérant : ses établissements) et registre des rapports. |
+| `audience.py` | Audience : âge et genre des dégustateurs (tranches agrégées, anonymes) et ce que chaque segment aime. |
+| `bar_report.py` | Rapport d'un bar en cinq sections (vue d'ensemble, ce qu'on boit, clientèle, visibilité, marché), pour l'équipe et pour son gérant. |
+| `bars.py` | Bars : vue d'ensemble de l'activité autour de chaque bar ; le détail d'un bar est son rapport. |
 | `blocks.py` | Blocs d'affichage indépendants du rendu : chaque page d'analytics renvoie une liste de blocs. |
+| `page_views.py` | Vues des fiches pour les analytics : totaux, courbes et classements, visiteurs masqués sous le seuil d'anonymat. |
+| `brewery_report.py` | Rapport d'une brasserie en cinq sections (vue d'ensemble, bières, clients, visibilité, marché), comparé à la communauté. |
+| `catalogue.py` | Catalogue : offre et demande par style, force et amertume ; qualité des fiches bière. |
+| `consumption.py` | Consommation : lieu, compagnie, format, prix et moment des dégustations. |
 | `date.py` | Filtres par date calendaire. |
+| `engagement.py` | Engagement : activation des nouveaux membres, notifications, services IA, réseau social, richesse des avis. |
 | `export.py` | Export CSV des blocs d'une page d'analytics, avec les filtres courants. |
+| `forecasts.py` | Prévisions : tendance avec fourchette à 80 %, styles en hausse, indice saisonnier, avec la fiabilité de chacune. |
 | `geo.py` | Géométrie : distances et regroupement en cases. Pas de géocodage inverse (aucun appel réseau). |
 | `geography.py` | Géographie : où les membres placent leurs lieux, et dans quel contexte (près d'un bar, d'une brasserie, ailleurs). |
 | `habits.py` | Habitudes : quand et comment les membres utilisent Pokebeer (rythme, régularité, fidélisation, adoption). |
+| `health.py` | Communauté : signalements, modération, échanges avec l'équipe, campagnes e-mail et départs (pilotage interne). |
 | `layout.py` | Disposition personnelle des tuiles (ordre, masquage) : stockée en base, par membre et par page. |
 | `periods.py` | Fenêtre temporelle des analyses : valeurs validées contre une liste blanche (jamais de saisie libre). |
 | `places.py` | Établissements et aide à la décision : classement, et pistes de mise en avant pour une brasserie donnée. |
+| `profiles.py` | Profil d'un ensemble de dégustations (âge, genre, lieu, compagnie, format, prix) : brique commune aux pages, aux brasseries et aux bars. |
 | `privacy.py` | Anonymat : on n'affiche jamais un groupe assez petit pour identifier un membre (k-anonymat). |
+| `menu_report.py` | Section « Ma carte » du rapport d'un bar : carte comparée aux notes, prix, souhaits et à ce qui se boit autour du bar. |
+| `pros.py` | Professionnels : revendications, couverture et complétude des fiches, prospects à démarcher. |
+| `reports.py` | Base des rapports d'établissement : sections qui partagent un contexte de calcul, lisibles une à une (gérant) ou toutes (équipe). |
 | `registry.py` | Catalogue des pages d'analytics : ajouter une page = ajouter une entrée (ouvert/fermé). |
 | `series.py` | Séries temporelles : agrégation alignée sur la période, moyenne mobile, tendance et prévision indicative. |
 | `spots.py` | Lieux des membres enrichis du géocodage inverse mis en cache (quand il existe) : base commune à la géographie, |
@@ -147,6 +164,17 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 | `custom/forms.py` | Formulaires de création/édition d'une vue et d'une tuile : la validation métier est celle de `spec.validate`. |
 | `custom/service.py` | Vues et tuiles personnalisées : création, modification, suppression, quotas. La propriété est vérifiée par l'appelant |
 | `custom/spec.py` | Définition d'une tuile personnalisée et sa validation : seule porte d'entrée des données saisies par l'utilisateur. |
+
+## `tracking/` — Mesures d'usage minimales : vues des fiches, jours d'activité, demandes sans résultat, purge
+
+| Module | Rôle |
+|---|---|
+| `__init__.py` | `safely` : une mesure en échec ne casse jamais la page qui la déclenche. |
+| `counters.py` | Compteur journalier incrémenté sans verrou (UPDATE, sinon INSERT). |
+| `page_views.py` | Vues et visiteurs distincts par fiche et par jour ; empreinte HMAC supprimée le lendemain ; équipe et gérants exclus. |
+| `activity.py` | Un jour d'activité par membre et par jour, retenu dans la session (une écriture par jour). |
+| `misses.py` | Recherches sans résultat, codes-barres inconnus, étiquettes non reconnues, sans lien avec un membre. |
+| `retention.py` | Durée de conservation de chaque mesure et purge quotidienne (tâche planifiée). |
 
 ## `moderation/` — Modération des contenus : file de validation, suggestions, suppression
 

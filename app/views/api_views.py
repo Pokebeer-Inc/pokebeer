@@ -12,6 +12,7 @@ from ..services.members.visibility import exclude_blocked
 from django.template.loader import render_to_string
 
 from ..services.catalog import catalog_matching, ean, label_scan, product_lookup, search
+from ..services.tracking import misses
 from ..services.establishments import postal_codes
 from ..services.common import upstream
 from ..services.protection.throttle import (
@@ -117,6 +118,7 @@ def analyze_beer_label(request):
         reading = analyze_label(image_bytes)
         if reading is None:
             # Image sans bière identifiable : réponse normale (le scanner continue de chercher), pas une erreur
+            misses.record(misses.Source.LABEL)
             return JsonResponse({"success": False, "not_found": True, "error": "Aucune étiquette de bière reconnue."})
         # Origine de ce qui n'était pas imprimé sur l'étiquette (catalogue, web) et de ce que le web a corrigé : à faire vérifier par le membre
         return JsonResponse({
@@ -148,6 +150,7 @@ def lookup_ean(request):
     except product_lookup.LookupUnavailable:
         return JsonResponse({"error": "La base de produits ne répond pas. Réessayez plus tard."}, status=503)
     if beer is None:
+        misses.record(misses.Source.EAN, code)
         return JsonResponse({"success": False, "not_found": True, "error": "Code-barres inconnu."})
     return JsonResponse({"success": True, "source": "openfoodfacts", "ean": code, "data": beer})
 

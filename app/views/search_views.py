@@ -12,6 +12,7 @@ from django.views.decorators.http import require_GET
 
 from ..services.establishments import place_directory, place_filters
 from ..services.catalog import search
+from ..services.tracking import misses
 from ..services.catalog.styles import catalog_styles
 from ..services.establishments.places import BAR, BREWERY, with_targets
 from ..services.catalog.selectors import get_filtered_bars, get_filtered_beers, get_filtered_breweries, get_filtered_users, search_query
@@ -62,6 +63,19 @@ def _preview(request, getter, kind=None):
     return with_targets(items, kind) if kind else items
 
 
+def _record_misses(request, tab, context):
+    """Recherche restée sans résultat : comptée (sans membre) pour savoir ce que les gens cherchent et que le catalogue n'a pas.
+    Ignorée si un filtre est actif (le vide viendrait du filtre, pas du terme)."""
+    if not context['has_query'] or any(request.GET.get(name) for name in FILTER_PARAMS):
+        return
+    if tab == 'all':
+        found = any(items for key, _title, _kind, items in context.get('all_sections', ()) if key != 'members')
+        tab = '' if found else 'beers'
+    elif context.get(tab):
+        tab = ''
+    misses.record_search(tab, context['query'])
+
+
 def build_results(request, default_tab='beers'):
     """Contexte du bloc de résultats : onglets, et le contenu de l'onglet actif (une seule requête pour l'onglet affiché).
 
@@ -86,6 +100,7 @@ def build_results(request, default_tab='beers'):
             ]
             if beers:
                 context.update(beer_list_context(request.user, beers))
+            _record_misses(request, tab, context)
         return context
     if tab == 'nearby':
         # Rien à chercher côté serveur : la page publie l'annuaire et le navigateur classe par distance (la position reste sur l'appareil)
@@ -100,6 +115,7 @@ def build_results(request, default_tab='beers'):
     if context.get('beers'):
         context.update(beer_list_context(request.user, context['beers']))
     context.update(_filter_context(request, tab))
+    _record_misses(request, tab, context)
     return context
 
 
