@@ -123,6 +123,9 @@ CATALOG_CHECK_BY_USER = Rule('catalog-check', 600, timedelta(hours=1))
 # Autocomplétions (bières, brasseries, membres à inviter dans une équipe) : une requête après chaque pause de frappe
 AUTOCOMPLETE_BY_USER = Rule('autocomplete', 600, timedelta(hours=1))
 
+# Modifications de la carte d'un bar (ajout, prix, retrait), par membre
+MENU_EDITS_BY_USER = Rule('menu-edits', 200, timedelta(hours=1))
+
 # Analytics d'un établissement (page des gérants, exports compris) : chaque affichage lance des agrégats sur toute la période
 PRO_ANALYTICS_BY_USER = Rule('pro-analytics', 120, timedelta(hours=1))
 

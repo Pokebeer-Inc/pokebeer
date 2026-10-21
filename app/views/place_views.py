@@ -12,7 +12,7 @@ from django.views.decorators.http import require_GET, require_POST
 from ..forms import ClaimForm
 from ..models import EstablishmentClaim, ManagerInvitation
 from ..services.catalog.selectors import brewery_beers
-from ..services.establishments import claims, team
+from ..services.establishments import claims, menu, team
 from ..services.establishments.team import is_manager
 from ..services.moderation.content import CONTENT_TYPES
 from ..services.moderation.suggestions import menu_context as suggestion_menu
@@ -186,7 +186,7 @@ def brewery_detail(request, brewery_slug):
 def bar_detail(request, bar_slug):
     bar = BAR.get(bar_slug)
     page_views.record(request, page_views.BAR, bar)
-    return render(request, 'bar_page.html', {'bar': bar, **place_context(bar, request.user)})
+    return render(request, 'bar_page.html', {'bar': bar, 'menu_entries': list(menu.entries(bar)), **place_context(bar, request.user)})
 
 
 def views_for(kind, detail):

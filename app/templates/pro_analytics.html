@@ -43,11 +43,18 @@
 </section>
 {% endif %}
 
+{% if menu_url %}<p class="pa-actions"><a href="{{ menu_url }}" class="pb-chip is-primary">Gérer ma carte</a></p>{% endif %}
+
 {% if empty %}
 <section class="pa-empty-state pb-card">
+    {% if empty_text %}
+    <h2 class="pb-title">Rien à afficher pour l'instant</h2>
+    <p>{{ empty_text }}</p>
+    {% else %}
     <h2 class="pb-title">Pas encore assez de données</h2>
     <p>Les statistiques n'apparaissent qu'à partir de {{ min_group }} membres distincts, pour qu'aucun ne soit reconnaissable. Plus votre fiche est complète et partagée, plus vite elles se remplissent.</p>
-    <a href="{{ detail_url }}" class="pb-chip is-primary">Voir ma fiche</a>
+    {% endif %}
+    {% if not menu_url %}<a href="{{ detail_url }}" class="pb-chip is-primary">Voir ma fiche</a>{% endif %}
 </section>
 {% endif %}
 

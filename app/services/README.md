@@ -63,6 +63,7 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 | Module | Rôle |
 |---|---|
 | `claims.py` | Revendication d'un établissement : qui peut gérer une brasserie ou un bar, et comment on s'en assure. |
+| `menu.py` | Carte d'un bar : droits de gestion, ajout (idempotent), prix et format, retrait avec historique, recherche de bières à ajouter. |
 | `nominatim.py` | Nominatim (OpenStreetMap) : le seul endroit qui l'interroge, pour la recherche d'une adresse et pour le géocodage inverse. |
 | `place_directory.py` | Annuaire des bars et brasseries localisés, pour classer les lieux par distance « Près de moi ». |
 | `place_filters.py` | Filtres et tri des brasseries et des bars : ville, vérifiés, style de bière brassé ; tri par nom ou par date d'ajout. |
@@ -149,6 +150,7 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 | `places.py` | Établissements et aide à la décision : classement, et pistes de mise en avant pour une brasserie donnée. |
 | `profiles.py` | Profil d'un ensemble de dégustations (âge, genre, lieu, compagnie, format, prix) : brique commune aux pages, aux brasseries et aux bars. |
 | `privacy.py` | Anonymat : on n'affiche jamais un groupe assez petit pour identifier un membre (k-anonymat). |
+| `menu_report.py` | Section « Ma carte » du rapport d'un bar : carte comparée aux notes, prix, souhaits et à ce qui se boit autour du bar. |
 | `pros.py` | Professionnels : revendications, couverture et complétude des fiches, prospects à démarcher. |
 | `reports.py` | Base des rapports d'établissement : sections qui partagent un contexte de calcul, lisibles une à une (gérant) ou toutes (équipe). |
 | `registry.py` | Catalogue des pages d'analytics : ajouter une page = ajouter une entrée (ouvert/fermé). |

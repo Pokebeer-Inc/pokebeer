@@ -17,6 +17,7 @@ class Section:
     title: str
     description: str
     build: Callable  # (contexte) -> liste de blocs
+    empty_text: str = ''  # message quand la section n'a rien à afficher (sinon : pas encore assez de membres pour publier)
 
 
 class PlaceReport:

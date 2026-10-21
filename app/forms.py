@@ -21,7 +21,7 @@ from .image_form import ProcessedImageMixin
 from .services.catalog.official_images import process_official_image
 from .services.catalog.tasting_photos import DAILY_LIMIT, QUOTA_SCOPE, process_tasting_photo
 from .validators import MAX_TEXT_LENGTH, OLDEST_BIRTH_YEAR, is_reserved_username, plain_text_validator, validate_adult_birth_date, validate_siret, validate_tasting_date
-from .models import BeerUser, Beer, Brewery, CustomNotebook, Drinks, Feedback, Bar, Report
+from .models import Bar, BarBeer, Beer, BeerUser, Brewery, CustomNotebook, Drinks, Feedback, Report
 from django.utils import timezone
 
 
@@ -634,6 +634,26 @@ class DrinkForm(ProcessedImageMixin, forms.ModelForm):
         # Le quota n'est consommé qu'une fois tout le formulaire valide : une erreur de saisie ne fait pas perdre d'envoi
         if not self.errors and self.user and self.uploaded_image('photo') and not consume_quota(self.user, DAILY_LIMIT, QUOTA_SCOPE):
             self.add_error('photo', ValidationError("Limite quotidienne d'envois de photos atteinte, réessayez demain.", code='quota'))
+
+class MenuEntryForm(forms.ModelForm):
+    """Prix de vente et format d'une bière de la carte d'un bar : tous deux facultatifs."""
+
+    class Meta:
+        model = BarBeer
+        fields = ['price', 'serving_format']
+        widgets = {
+            'price': forms.NumberInput(attrs={'min': 0, 'max': 999, 'step': '0.10', 'inputmode': 'decimal', 'placeholder': 'Prix en €'}),
+            'serving_format': forms.RadioSelect,
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['price'].required = False
+        self.fields['serving_format'].required = False
+        # Pas de choix vide : on ne coche rien (comme le formulaire d'une dégustation)
+        self.fields['serving_format'].choices = [choice for choice in self.fields['serving_format'].choices if choice[0] != '']
+        self.fields['price'].widget.attrs['class'] = f'{PLAIN_INPUT_CLASS} is-tight placeholder:text-gray-400'
+
 
 class FeedbackForm(forms.Form):
     """Premier message d'un échange avec l'équipe."""

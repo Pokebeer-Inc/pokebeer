@@ -7,12 +7,13 @@ visibilité et marché ; voir reports.py pour le principe et access.py pour qui 
 from collections import Counter, defaultdict
 from functools import cached_property, wraps
 
-from django.db.models import Count
+from django.db.models import Avg, Count
 from django.db.models.functions import ExtractIsoWeekDay, ExtractMonth
 
 from ...domain.styles import split_styles
 from ...models import BeerSpot, Drinks, PageView
-from . import consumption, forecasts, geo, page_views
+from ..establishments import menu
+from . import consumption, forecasts, geo, menu_report, page_views
 from .blocks import Chart, Insight, Kpi, Note, Table
 from .formatting import fr
 from .date import date_range
@@ -79,6 +80,20 @@ class BarContext:
     def community(self):
         return Drinks.objects.filter(date__gte=self.period.start)
 
+    @cached_property
+    def menu_entries(self):
+        """Lignes en cours de la carte déclarée par le gérant."""
+        return list(menu.entries(self.bar))
+
+    @cached_property
+    def community_average(self):
+        return self.community.aggregate(avg=Avg('note'))['avg']
+
+    @cached_property
+    def local_styles(self):
+        """(dégustations par style, dégustateurs distincts par style) autour du bar."""
+        return style_counts(self.tastings)
+
 
 def needs_activity(build):
     """Section qui n'a de sens qu'avec assez de membres distincts autour du bar : sinon une note explique pourquoi elle est vide."""
@@ -92,14 +107,19 @@ def needs_activity(build):
     return wrapper
 
 
-def _style_mix(tastings, period):
-    """Styles bus autour du bar comparés à la consommation globale : un indice > 1 = style sur-représenté ici."""
+def style_counts(tastings):
+    """(dégustations par style, dégustateurs distincts par style) d'après les dégustations rattachées aux lieux (un style composé compte pour chacun)."""
     local = Counter(style for styles, *_ in tastings for style in split_styles(styles))
     drinkers = defaultdict(set)
     for styles, _name, _note, drinker in tastings:
         for style in split_styles(styles):
             drinkers[style].add(drinker)
+    return local, drinkers
 
+
+def _style_mix(tastings, period):
+    """Styles bus autour du bar comparés à la consommation globale : un indice > 1 = style sur-représenté ici."""
+    local, drinkers = style_counts(tastings)
     overall = Counter()
     for row in date_range(Drinks.objects.all(), 'date', period.start).values('beer__style').annotate(n=Count('pk')):
         for style in split_styles(row['beer__style']):
@@ -214,6 +234,8 @@ class BarReport(PlaceReport):
     context_class = BarContext
     SECTIONS = (
         Section('overview', "Vue d'ensemble", "Activité autour du bar, taille des groupes, jours et mois les plus fréquentés.", _overview),
+        Section('menu', 'Ma carte', "Les bières que vous servez, comparées à ce que les membres boivent, notent, paient et souhaitent.", menu_report.build,
+                empty_text="Votre carte est vide. Déclarez les bières que vous servez pour comparer vos prix et recevoir des suggestions."),
         Section('drinks', 'Ce qu\'on boit', "Styles sur-représentés autour du bar et bières les plus bues.", _drinks),
         Section('customers', 'Clientèle', "Âge, genre, compagnie, format et prix payé, comparés à la communauté.", _customers),
         Section('visibility', 'Visibilité', "Vues de la fiche du bar.", _visibility),

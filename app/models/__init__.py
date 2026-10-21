@@ -4,6 +4,7 @@ from .users import STAFF_GROUP, BeerUserManager, BeerUser, UserFollow, UserBlock
 from .establishments import Brewery, Bar
 from .styles import Style
 from .beers import Beer, BeerDraft, Drinks, DrinkReaction, CustomNotebook
+from .menus import BarBeerQuerySet, BarBeer
 from .places import BeerSpot, PostalCode, ReverseGeocode
 from .analytics import AnalyticsLayout, AnalyticsView, AnalyticsTile
 from .feedback import Feedback, FeedbackMessage

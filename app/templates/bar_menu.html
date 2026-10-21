@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/menu.css' %}">
+
+<header class="mn-head">
+    <a href="{% url 'bar_detail' bar.slug %}" class="mn-back" aria-label="Retour à la fiche du bar">{% include "partials/icon.html" with name="arrow-left" size="18" %}</a>
+    <div class="min-w-0">
+        <p class="mn-eyebrow">Carte</p>
+        <h1 class="pb-title mn-title">{{ bar.name }}</h1>
+    </div>
+    <a href="{% url 'pro_analytics_place' 'bar' bar.slug %}" class="mn-link">Statistiques</a>
+</header>
+
+<p class="mn-intro">Les bières que vous servez. Elles apparaissent sur la fiche du bar, et vos statistiques les comparent à ce que boivent vos clients. {{ entries|length }} bière{{ entries|length|pluralize }} sur {{ max_entries }} au plus.</p>
+
+<section class="mn-add pb-card" aria-labelledby="mn-add-title" data-menu-picker data-search-url="{% url 'bar_menu_search' bar.slug %}" data-add-url="{% url 'bar_menu_add' bar.slug %}">
+    <h2 id="mn-add-title" class="mn-section-title">Ajouter une bière</h2>
+    {% csrf_token %}
+    <label class="sr-only" for="mn-search">Rechercher une bière du catalogue</label>
+    <input id="mn-search" type="search" class="pb-input mn-search" placeholder="Nom de la bière, de la brasserie ou style" autocomplete="off" maxlength="100" data-menu-search>
+    <ul class="mn-results" data-menu-results aria-live="polite"></ul>
+    <p class="mn-hint" data-menu-hint>Tapez au moins 2 lettres.</p>
+    <a href="{% url 'add_beer' %}?bar={{ bar.slug }}" class="mn-new">
+        {% include "partials/icon.html" with name="check" size="16" %}
+        <span>Elle n'est pas dans la liste ? Ajoutez-la au catalogue (avec le scan du code-barres ou de l'étiquette)</span>
+    </a>
+</section>
+
+<section aria-labelledby="mn-list-title">
+    <h2 id="mn-list-title" class="mn-section-title">À la carte</h2>
+    {% if entries %}
+    <ul class="mn-list">
+        {% for entry in entries %}
+        <li class="mn-entry pb-card">
+            <div class="mn-entry-head">
+                <div class="min-w-0">
+                    <a href="{% url 'beer_detail' entry.beer.slug %}" class="mn-beer">{{ entry.beer.name }}</a>
+                    <p class="mn-brewery">{{ entry.beer.brewery.name }}{% if entry.beer.style %} · {{ entry.beer.style }}{% endif %}</p>
+                </div>
+                <form method="post" action="{% url 'bar_menu_remove' bar.slug entry.pk %}" class="mn-remove-form">{% csrf_token %}
+                    <button type="submit" class="mn-remove" aria-label="Retirer {{ entry.beer.name }} de la carte">Retirer</button>
+                </form>
+            </div>
+            <form method="post" action="{% url 'bar_menu_update' bar.slug entry.pk %}" class="mn-edit">{% csrf_token %}
+                <label class="mn-field"><span>Prix (€)</span>
+                    <input type="number" name="price" min="0" max="999" step="0.10" inputmode="decimal" value="{{ entry.price|default_if_none:''|stringformat:'s' }}" class="pb-input" placeholder="—">
+                </label>
+                <label class="mn-field"><span>Format</span>
+                    <select name="serving_format" class="pb-input">
+                        <option value="">—</option>
+                        {% for value, label in formats %}{% if value %}<option value="{{ value }}" {% if value == entry.serving_format %}selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}
+                    </select>
+                </label>
+                <button type="submit" class="pb-chip">Enregistrer</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="pb-card mn-empty">Votre carte est vide. Cherchez une bière ci-dessus pour commencer.</p>
+    {% endif %}
+</section>
+
+<script src="{% static 'script/menu_picker.js' %}"></script>
+{% endblock %}

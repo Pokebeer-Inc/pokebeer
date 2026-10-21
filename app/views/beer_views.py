@@ -4,11 +4,12 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.db.models import Avg, Count
 
-from ..forms import BeerForm, DrinkForm, clear_invalid_fields, error_summary
-from ..models import Beer, BeerDraft, Drinks
+from ..forms import BeerForm, DrinkForm, MenuEntryForm, clear_invalid_fields, error_summary
+from ..models import Bar, Beer, BeerDraft, Drinks
 from ..services.catalog.selectors import beer_reviews, visible_tastings_of, with_reaction_counts
 from .utils import posted_notebooks
 from ..services.catalog import beer_drafts, beers, permissions
+from ..services.establishments import menu
 from ..services.protection.throttle import BEER_DRAFT_SAVES
 from ..services.tracking import page_views
 from ..services.moderation.content import CONTENT_TYPES
@@ -23,48 +24,85 @@ def _draft_initial(draft):
     return beer_initial, drink_initial
 
 
+def _menu_bar(request):
+    """Bar dont on complète la carte (?bar= ou champ caché du formulaire), ou None pour un ajout ordinaire. Un membre qui ne gère pas la carte de
+    ce bar reçoit un 404 : on ne confirme pas l'existence du bar."""
+    slug = request.POST.get('menu_bar') or request.GET.get('bar')
+    if not slug:
+        return None
+    bar = get_object_or_404(Bar, slug=slug)
+    if not menu.can_manage(request.user, bar):
+        raise Http404
+    return bar
+
+
+def _add_to_menu(request, bar, beer_form, menu_form):
+    """Ajout depuis la carte d'un bar : la bière est créée SANS avis (le gérant ne l'a pas goûtée pour la servir), puis mise à la carte.
+    Renvoie la redirection de succès, ou None (une erreur est alors posée sur le formulaire)."""
+    try:
+        menu.ensure_room(bar)
+        beer = beers.create_beer(request.user, beer_form)
+        menu.add(bar, beer, request.user, menu_form.cleaned_data.get('price'), menu_form.cleaned_data.get('serving_format', ''))
+    except menu.MenuError as error:
+        beer_form.add_error(None, str(error))
+    except beers.NameTaken:
+        beer_form.add_error('name', "Cette bière vient d'être ajoutée par quelqu'un d'autre.")
+    else:
+        messages.success(request, f"« {beer.name} » est ajoutée au catalogue et à votre carte.")
+        return redirect('bar_menu', bar_slug=bar.slug)
+    return None
+
+
 def add_beer_view(request):
     """Ajoute une bière ET sa première note, par étapes : chaque étape validée est conservée dans un brouillon.
 
     L'envoi final est exactement celui d'avant (mêmes formulaires, mêmes champs obligatoires) ; les étapes n'existent que dans la page.
+    Avec `?bar=` (gérant d'un bar), la bière est ajoutée à la carte du bar sans avis : voir `_add_to_menu`.
     """
+    bar = _menu_bar(request)
+    mode = beer_drafts.MENU if bar else ''
     if request.method == 'POST':
         beer_form = BeerForm(request.POST, request.FILES, prefix='beer', user=request.user)
-        drink_form = DrinkForm(request.POST, request.FILES, prefix='drink', user=request.user)
-        
-        notebooks = posted_notebooks(request)
-        if beer_form.is_valid() & drink_form.is_valid():  # & : valide les deux pour afficher toutes les erreurs
-            try:
-                new_beer = beers.add_beer(request.user, beer_form, drink_form, notebooks)
-            except beers.NameTaken:
-                beer_form.add_error('name', "Cette bière vient d'être ajoutée par quelqu'un d'autre.")
-            else:
-                return redirect('add_beer_done', beer_slug=new_beer.slug)
+        other_form = MenuEntryForm(request.POST, prefix='menu') if bar else DrinkForm(request.POST, request.FILES, prefix='drink', user=request.user)
 
-        messages.error(request, "La bière n'a pas pu être ajoutée. Les champs en rouge ont été vidés : " + " ; ".join(error_summary(beer_form, drink_form)))
-        start_step = beer_drafts.first_step_with_errors(beer_form, drink_form)  # on rouvre l'étape à corriger
+        notebooks = [] if bar else posted_notebooks(request)
+        if beer_form.is_valid() & other_form.is_valid():  # & : valide les deux pour afficher toutes les erreurs
+            if bar:
+                done = _add_to_menu(request, bar, beer_form, other_form)
+                if done:
+                    return done
+            else:
+                try:
+                    new_beer = beers.add_beer(request.user, beer_form, other_form, notebooks)
+                except beers.NameTaken:
+                    beer_form.add_error('name', "Cette bière vient d'être ajoutée par quelqu'un d'autre.")
+                else:
+                    return redirect('add_beer_done', beer_slug=new_beer.slug)
+
+        messages.error(request, "La bière n'a pas pu être ajoutée. Les champs en rouge ont été vidés : " + " ; ".join(error_summary(beer_form, other_form)))
+        start_step = beer_drafts.first_step_with_errors(beer_form, other_form, mode)  # on rouvre l'étape à corriger
         clear_invalid_fields(beer_form)
-        clear_invalid_fields(drink_form)
+        clear_invalid_fields(other_form)
         return render(request, 'add_beer.html', {
-            'beer_form': beer_form,
-            'drink_form': drink_form,
+            'beer_form': beer_form, 'drink_form': other_form if not bar else None, 'menu_form': other_form if bar else None, 'menu_bar': bar,
             'current_drink': {'notebook_slugs': [notebook.slug for notebook in notebooks]},
-            'start_step': start_step, 'steps': beer_drafts.STEPS,
+            'start_step': start_step, 'steps': beer_drafts.steps_for(mode), 'mode': mode,
         })
 
-    # Une bière demandée depuis la page d'une brasserie (?brewery=) repart de zéro ; sinon on reprend le brouillon du membre
-    draft = None if request.GET.get('brewery') else beer_drafts.get_draft(request.user)
+    # Une bière demandée depuis la page d'une brasserie (?brewery=) ou d'une carte de bar (?bar=) repart de zéro ; sinon on reprend le brouillon du membre
+    draft = None if request.GET.get('brewery') or bar else beer_drafts.get_draft(request.user)
     beer_initial, drink_initial = _draft_initial(draft)
     if not draft:
         beer_initial['brewery_name'] = request.GET.get('brewery', '')
     context = {
         'beer_form': BeerForm(prefix='beer', initial=beer_initial, user=request.user),
-        'drink_form': DrinkForm(prefix='drink', initial=drink_initial),
+        'drink_form': None if bar else DrinkForm(prefix='drink', initial=drink_initial),
+        'menu_form': MenuEntryForm(prefix='menu') if bar else None, 'menu_bar': bar,
         'current_drink': {'notebook_slugs': draft.data.get('notebooks', [])} if draft else None,
         'start_step': draft.current_step if draft else 1,
         'resumed': bool(draft and draft.data),
         'draft_name': draft.data.get('beer-name', '') if draft else '',
-        'steps': beer_drafts.STEPS,
+        'steps': beer_drafts.steps_for(mode), 'mode': mode,
     }
     return render(request, 'add_beer.html', context)
 
@@ -83,20 +121,23 @@ def save_beer_draft_view(request):
     if not BEER_DRAFT_SAVES.hit(request.user.pk):
         return JsonResponse({'ok': False, 'errors': ["Trop d'enregistrements. Réessayez dans quelques minutes."]}, status=429)
 
+    mode = request.POST.get('mode', '')
+    if mode not in beer_drafts.MODES:
+        return JsonResponse({'ok': False, 'errors': ["Mode inconnu."]}, status=400)
     step = request.POST.get('step', '')
-    if not step.isdecimal() or not 1 <= int(step) <= beer_drafts.LAST_STEP:
+    if not step.isdecimal() or not 1 <= int(step) <= beer_drafts.last_step(mode):
         return JsonResponse({'ok': False, 'errors': ["Étape inconnue."]}, status=400)
     step = int(step)
 
     if request.POST.get('strict') != '1':
-        beer_drafts.save_lenient(request.user, request.POST, step)
+        beer_drafts.save_lenient(request.user, request.POST, step, mode)
         return HttpResponse(status=204)
 
     draft = beer_drafts.get_draft(request.user)
-    result = beer_drafts.validate_step(request.user, step, request.POST, draft)
+    result = beer_drafts.validate_step(request.user, step, request.POST, draft, mode)
     if result['errors']:
         return JsonResponse({'ok': False, **result}, status=400)
-    beer_drafts.save_lenient(request.user, request.POST, min(step + 1, beer_drafts.LAST_STEP))
+    beer_drafts.save_lenient(request.user, request.POST, min(step + 1, beer_drafts.last_step(mode)), mode)
     return JsonResponse({'ok': True})
 
 
@@ -142,6 +183,7 @@ def beer_detail_view(request, beer_slug):
         'reviews_has_more': len(reviews) > REVIEWS_PAGE,
         'average_note': ratings['average'],
         'rating_count': ratings['count'],
+        'serving_bars': menu.serving_bars(beer),
         'is_brewery_manager': permissions.is_brewery_manager(request.user, beer),
         'can_edit_beer': permissions.can_edit(request.user, beer),
         'user_rating': user_rating,

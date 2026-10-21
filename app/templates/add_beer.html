@@ -15,9 +15,10 @@
 {% endif %}
 
 <form id="beer-wizard" method="post" autocomplete="off" class="flex flex-col gap-4" enctype="multipart/form-data" novalidate
-      data-draft-url="{% url 'save_beer_draft' %}" data-start-step="{{ start_step|default:1 }}" data-total="{{ steps|length }}">
+      data-draft-url="{% url 'save_beer_draft' %}" data-start-step="{{ start_step|default:1 }}" data-total="{{ steps|length }}" data-mode="{{ mode }}">
     {% csrf_token %}
     {{ beer_form.ean }}
+    {% if menu_bar %}<input type="hidden" name="menu_bar" value="{{ menu_bar.slug }}">{% endif %}
 
     <header class="wizard-head">
         <p class="text-sm text-gray-600">Étape <b id="wizard-number">1</b> sur {{ steps|length }}</p>
@@ -25,10 +26,15 @@
         <div class="wizard-progress mt-2" role="progressbar" aria-valuemin="1" aria-valuemax="{{ steps|length }}" aria-valuenow="1" aria-label="Progression"><i id="wizard-bar"></i></div>
     </header>
 
-    {% if beer_form.non_field_errors or drink_form.non_field_errors %}
+    {% if menu_bar %}
+    <p class="pb-card p-3 text-sm" role="note">Cette bière sera ajoutée au catalogue et à la carte de <b>{{ menu_bar.name }}</b>. Aucun avis n'est demandé.</p>
+    {% endif %}
+
+    {% if beer_form.non_field_errors or drink_form.non_field_errors or menu_form.non_field_errors %}
     <div class="alert alert-error text-sm" role="alert">
         {% for error in beer_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
         {% for error in drink_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        {% for error in menu_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
     </div>
     {% endif %}
 
@@ -151,6 +157,24 @@
 
     </section>
 
+{% if menu_bar %}
+    {# 4 (carte d'un bar). À la carte : prix et format, facultatifs #}
+    <section class="wizard-step" data-step="4" data-title="{{ steps.3.1 }}">
+        <p class="text-sm text-gray-600 mb-3">Facultatif : le prix et le format servis chez vous. Vous pourrez les modifier depuis la carte.</p>
+        <fieldset class="mb-3">
+            <legend class="text-sm font-bold mb-2">Format</legend>
+            <div class="flex flex-wrap gap-2">
+                {% for radio in menu_form.serving_format %}<label class="pb-choice">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>{% endfor %}
+            </div>
+            {% include "partials/field_errors.html" with field=menu_form.serving_format %}
+        </fieldset>
+        <div class="mb-3">
+            <label class="text-sm font-bold" for="{{ menu_form.price.id_for_label }}">{{ menu_form.price.label }}</label>
+            {{ menu_form.price }}
+            {% include "partials/field_errors.html" with field=menu_form.price %}
+        </div>
+    </section>
+{% else %}
     {# 4. Votre avis #}
     <section class="wizard-step" data-step="4" data-title="{{ steps.3.1 }}">
         <div class="mb-3">
@@ -210,12 +234,15 @@
         {% endif %}
     </section>
 
-    {# 6. Vérification et enregistrement #}
-    <section class="wizard-step" data-step="6" data-title="{{ steps.5.1 }}">
+{% endif %}
+    {# Dernière étape : vérification et enregistrement #}
+    {% with last=steps|last %}
+    <section class="wizard-step" data-step="{{ steps|length }}" data-title="{{ last.1 }}">
         <p class="text-sm text-gray-600 mb-3">Relisez vos réponses. Touchez une ligne pour la modifier.</p>
         <dl id="wizard-recap" class="pb-recap pb-card overflow-hidden mb-4"></dl>
-        <button type="submit" id="wizard-submit" class="btn btn-primary w-full h-auto min-h-12 border-2 border-secondary text-black text-base normal-case">Enregistrer ma dégustation</button>
+        <button type="submit" id="wizard-submit" class="btn btn-primary w-full h-auto min-h-12 border-2 border-secondary text-black text-base normal-case">{% if menu_bar %}Ajouter à la carte{% else %}Enregistrer ma dégustation{% endif %}</button>
     </section>
+    {% endwith %}
 
     <div id="wizard-errors" class="hidden rounded-xl border-2 border-error bg-base-100 p-3 text-sm font-semibold text-error flex-col gap-1" role="alert" tabindex="-1"></div>
 
