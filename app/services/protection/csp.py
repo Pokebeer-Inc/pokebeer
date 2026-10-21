@@ -13,6 +13,8 @@ CDN_SCRIPTS = ('https://cdn.jsdelivr.net',)
 GOOGLE_FONTS = 'https://fonts.googleapis.com'
 FONT_FILES = 'https://fonts.gstatic.com'
 GEOCODERS = ('https://nominatim.openstreetmap.org',)
+# Tuiles vectorielles et polices de la carte (OpenFreeMap), lues par le moteur de dessin
+MAP_TILES = ('https://tiles.openfreemap.org',)
 # Le bouton « Continuer avec Google » envoie un formulaire (POST) que le serveur redirige vers Google : `form-action` s'applique
 # aussi à cette redirection, sans quoi le navigateur la bloque et la page reste figée.
 OAUTH_FORM_TARGETS = ('https://accounts.google.com',)
@@ -35,7 +37,7 @@ def build_policy(supabase_url=None, admin=False, nonce=None):
         'style-src': [SELF, "'unsafe-inline'", GOOGLE_FONTS],
         'font-src': [SELF, FONT_FILES, 'data:'],
         'img-src': [SELF, 'data:', 'blob:', 'https:'],  # photos hébergées (S3, avatars Google), tuiles de carte
-        'connect-src': [SELF, *_realtime_origins(supabase_url), *GEOCODERS],
+        'connect-src': [SELF, *_realtime_origins(supabase_url), *GEOCODERS, *MAP_TILES],
         'object-src': ["'none'"],
         'base-uri': [SELF],
         'form-action': [SELF, *OAUTH_FORM_TARGETS],

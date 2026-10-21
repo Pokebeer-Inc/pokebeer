@@ -1,0 +1,2 @@
+{% comment %}Image en tête d'une bulle de la carte (souvenir, bar, brasserie) ; rien si le lieu n'en a pas. Hauteur fixe : la bulle ne bouge pas quand l'image arrive. Paramètres : url, alt.{% endcomment %}
+{% if url %}<img src="{{ url }}" alt="{{ alt }}" loading="lazy" decoding="async" class="pb-popup-image">{% endif %}

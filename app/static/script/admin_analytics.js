@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const spec = readSpec(element);
         const map = L.map(element).setView([46.6, 2.4], 5);
         tile._leafletMap = map;
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+        PokebeerBasemap.addTo(map);
 
         const bounds = [];
         spec.points.forEach(function (point) {

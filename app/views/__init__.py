@@ -39,7 +39,7 @@ from .notebook_views import (
     notebook_wishlist_fragment,
 )
 from .search_views import all_beers_view, places_directory, search_api
-from .map_views import delete_spot_view, map_view
+from .map_views import delete_spot_view, map_view, place_popup_view
 from .suggestion_views import suggest_edit_view
 from .cron_views import purge_inactive_accounts_cron
 from .password_reset_views import PasswordResetCompleteView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetRequestView
@@ -124,6 +124,7 @@ __all__ = [
     'search_api',
     'delete_spot_view',
     'map_view',
+    'place_popup_view',
     'add_bar_manager',
     'api_search_users_for_bar_manager',
     'bar_detail_view',

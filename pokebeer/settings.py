@@ -309,25 +309,31 @@ STORAGES = {
     },
 }
 
-# Photos de profil : bucket Supabase dédié (public en lecture)
-AWS_PROFILE_PICTURES_BUCKET = os.getenv('AWS_PROFILE_PICTURES_BUCKET')
-if DEBUG:
-    STORAGES["profile_pictures"] = {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-        "OPTIONS": {"location": os.path.join(MEDIA_ROOT, 'profile_pictures'), "base_url": f"{MEDIA_URL}profile_pictures/"},
-    }
-else:
-    STORAGES["profile_pictures"] = {
+def public_bucket_storage(bucket, local_folder):
+    """Bucket Supabase dédié, public en lecture (en DEBUG : dossier media/<local_folder>/, comme le stockage par défaut)."""
+    if DEBUG:
+        return {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": os.path.join(MEDIA_ROOT, local_folder), "base_url": f"{MEDIA_URL}{local_folder}/"},
+        }
+    return {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
-            "bucket_name": AWS_PROFILE_PICTURES_BUCKET,
-            "custom_domain": f"{supabase_domain}/storage/v1/object/public/{AWS_PROFILE_PICTURES_BUCKET}",
+            "bucket_name": bucket,
+            "custom_domain": f"{supabase_domain}/storage/v1/object/public/{bucket}",
             "file_overwrite": False,
             "querystring_auth": False,
             # Le nom du fichier change à chaque envoi : le cache peut être définitif
             "object_parameters": {"CacheControl": "public, max-age=31536000, immutable"},
         },
     }
+
+
+# Photos de profil et photos de souvenirs : un bucket dédié chacun
+AWS_PROFILE_PICTURES_BUCKET = os.getenv('AWS_PROFILE_PICTURES_BUCKET')
+AWS_SPOT_PHOTOS_BUCKET = os.getenv('AWS_SPOT_PHOTOS_BUCKET')
+STORAGES["profile_pictures"] = public_bucket_storage(AWS_PROFILE_PICTURES_BUCKET, 'profile_pictures')
+STORAGES["spot_photos"] = public_bucket_storage(AWS_SPOT_PHOTOS_BUCKET, 'spots')
 
 # Canal des notifications push Android : créé par l'application (NotificationChannels.kt) ; les deux doivent rester identiques
 FCM_ANDROID_CHANNEL_ID = "pokebeer_channel"

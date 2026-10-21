@@ -10,6 +10,7 @@ urlpatterns = [
     path("", views.index, name="index"),
     path('beers/', views.all_beers_view, name='all_beers'),
     path('map/', views.map_view, name='map'),
+    path('map/place/<slug:kind>/<slug:slug>/', views.place_popup_view, name='map_place_popup'),
     path('achievements/', views.achievements_view, name='achievements'),
     path('notebook/', views.notebook_view, name='notebook'),
     # Les routes fixes précèdent notebook/<slug>/ : sinon le slug les capturerait

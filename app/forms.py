@@ -20,6 +20,7 @@ from .services.protection.quota import consume_quota
 from .image_form import ProcessedImageMixin
 from .services.catalog.official_images import process_official_image
 from .services.catalog.tasting_photos import DAILY_LIMIT, QUOTA_SCOPE, process_tasting_photo
+from .services.establishments.spot_photos import DAILY_LIMIT as SPOT_PHOTO_DAILY_LIMIT, QUOTA_SCOPE as SPOT_PHOTO_QUOTA_SCOPE, process_spot_photo
 from .validators import MAX_TEXT_LENGTH, OLDEST_BIRTH_YEAR, is_reserved_username, plain_text_validator, validate_adult_birth_date, validate_siret, validate_tasting_date
 from .models import Bar, BarBeer, Beer, BeerUser, Brewery, CustomNotebook, Drinks, Feedback, Report
 from django.utils import timezone
@@ -581,6 +582,29 @@ class BeerSpotForm(forms.Form):
     # FloatField refuse aussi NaN et l'infini
     lat = forms.FloatField(min_value=-90, max_value=90, label="Latitude")
     lng = forms.FloatField(min_value=-180, max_value=180, label="Longitude")
+    photo = forms.ImageField(required=False, label="Photo")
+    remove_photo = forms.BooleanField(required=False)
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user  # le membre qui envoie : active le quota quotidien d'envois de photos
+
+    def clean_photo(self):
+        upload = self.cleaned_data['photo']
+        return process_spot_photo(upload) if upload else None
+
+    def clean(self):
+        cleaned = super().clean()
+        # Le quota n'est consommé qu'une fois tout le formulaire valide : une erreur de saisie ne fait pas perdre d'envoi
+        if not self.errors and self.user and cleaned.get('photo') and not consume_quota(self.user, SPOT_PHOTO_DAILY_LIMIT, SPOT_PHOTO_QUOTA_SCOPE):
+            self.add_error('photo', ValidationError("Limite quotidienne d'envois de photos atteinte, réessayez demain.", code='quota'))
+        return cleaned
+
+    def photo_change(self):
+        """Changement de photo demandé, à passer au service : {} (aucun), {'photo': fichier} ou {'photo': None} (retrait)."""
+        if self.cleaned_data['photo']:
+            return {'photo': self.cleaned_data['photo']}
+        return {'photo': None} if self.cleaned_data['remove_photo'] else {}
 
 class DrinkForm(ProcessedImageMixin, forms.ModelForm):
     """Note, commentaire et photo facultative d'une dégustation.

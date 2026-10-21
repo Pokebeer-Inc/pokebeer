@@ -36,6 +36,10 @@ class TestPolicy:
         assert "*" not in script_src.split() and "http:" not in script_src
         assert set(csp.CDN_SCRIPTS) <= set(script_src.split())
 
+    def test_map_tiles_are_readable_only_from_openfreemap(self):
+        connect_src = next(part for part in csp.build_policy().split("; ") if part.startswith("connect-src")).split()
+        assert "https://tiles.openfreemap.org" in connect_src and "*" not in connect_src
+
     def test_realtime_origin_comes_from_the_supabase_setting(self):
         policy = csp.build_policy("https://abc.supabase.co")
         assert "https://abc.supabase.co" in policy and "wss://abc.supabase.co" in policy

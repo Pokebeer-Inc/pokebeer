@@ -30,3 +30,8 @@ def tasting_photo_path(instance, filename):
 def profile_picture_path(instance, filename):
     """À la racine du bucket dédié aux photos de profil."""
     return f'{uuid4().hex}.webp'
+
+
+def spot_photo_path(instance, filename):
+    """À la racine du bucket dédié aux photos de souvenirs."""
+    return f'{uuid4().hex}.webp'
