@@ -68,7 +68,7 @@ class TestInvalidFieldsHelpers:
 
 class TestBeerFormCleaning:
     @pytest.mark.parametrize("raw, expected", [
-        ("ipa, DOUBLE IPA ,,stout", "Ipa, Double ipa, Stout"),
+        ("ipa, DOUBLE IPA ,,stout", "IPA, Double IPA, Stout"),
         ("  lager  ", "Lager"),
         (",,,", ""),
         ("", None),

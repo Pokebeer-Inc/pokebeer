@@ -90,6 +90,7 @@ class TestToastsAreShownOnce:
     def test_no_n_plus_one_when_many_alerts_are_returned(self, auth_client, user, other_user, django_assert_max_num_queries):
         for _ in range(5):
             f.make_notification(user, sender=other_user)
+        auth_client.get(UNREAD)  # la première visite de la session enregistre le jour d'activité (2 requêtes), mesuré à part
         with django_assert_max_num_queries(12):
             auth_client.get(UNREAD)
 

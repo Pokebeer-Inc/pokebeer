@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/pro_analytics.css' %}">
+
+<header class="pa-head">
+    <a href="{% if managed_count > 1 %}{% url 'pro_analytics' %}{% else %}{% url 'account' %}{% endif %}" class="pa-back" aria-label="Retour">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+    </a>
+    <div class="min-w-0">
+        <h1 class="pb-title text-2xl font-bold leading-tight">Statistiques</h1>
+        <p class="text-sm text-gray-600 truncate">{{ kind.label }} · <a href="{{ detail_url }}" class="underline">{{ place.name }}</a></p>
+    </div>
+</header>
+
+<nav class="pa-tabs" aria-label="Sections des statistiques">
+    {% for tab in tabs %}<a href="{{ tab.url }}" class="pb-chip" {% if tab.active %}aria-current="true"{% endif %}>{{ tab.section.title }}</a>{% endfor %}
+</nav>
+
+<p class="pa-intro">{{ section.description }}</p>
+
+<form method="get" class="pa-filter">
+    <label for="pa-months">Période</label>
+    <select id="pa-months" name="months" class="pb-input">
+        {% for m in month_choices %}<option value="{{ m }}" {% if m == period.months %}selected{% endif %}>{{ m }} derniers mois</option>{% endfor %}
+    </select>
+    <button type="submit" class="pb-chip">Appliquer</button>
+    {% if exportable_ids %}<a href="?{{ query }}&export=all" class="pb-chip">Tout exporter (ZIP)</a>{% endif %}
+</form>
+
+{% for note in notes %}<p class="pa-note">{{ note.text }}</p>{% endfor %}
+
+<div class="pa-grid">
+    {% for tile in tiles %}{% include "partials/pro_tile.html" with block=tile.block %}{% endfor %}
+</div>
+
+<p class="pa-legal">Statistiques agrégées et anonymes : un groupe de moins de {{ min_group }} membres n'est jamais affiché. Les comparaisons portent sur la communauté Pokebeer, jamais sur un autre établissement.</p>
+
+<script src="{% static 'script/apexcharts.min.js' %}"></script>
+<script src="{% static 'script/analytics_charts.js' %}"></script>
+<script src="{% static 'script/pro_analytics.js' %}"></script>
+{% endblock %}

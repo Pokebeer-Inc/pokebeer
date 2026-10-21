@@ -30,6 +30,8 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     brewery = models.ForeignKey(Brewery, on_delete=models.PROTECT)
     slug = PublicSlugField(source='name')
     style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
+    # Famille du premier style reconnu au référentiel (voir services/catalog/style_registry.py) : calculée à l'enregistrement, sert aux statistiques
+    style_family = models.CharField(max_length=60, blank=True, default='', editable=False, db_index=True)
     added_by = models.ForeignKey(BeerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_beers')
     is_deleted = models.BooleanField(default=False, verbose_name="Supprimée du catalogue")
     # Code-barres EAN lu à l'ajout : une prochaine lecture retrouve la bière dans le catalogue, sans service extérieur

@@ -18,6 +18,7 @@ from ..services.moderation.content import CONTENT_TYPES
 from ..services.moderation.suggestions import menu_context as suggestion_menu
 from ..services.establishments.places import BAR, BREWERY, PlaceKind, kind_of  # noqa: F401  (réexportés pour les vues bar/brasserie)
 from ..services.protection.throttle import AUTOCOMPLETE_BY_USER
+from ..services.tracking import page_views
 from .utils import TOO_MANY_SEARCHES, beer_list_context, by_user, throttle
 
 BREWERY_BEERS_PAGE = 10
@@ -170,6 +171,7 @@ def claim_place(request, kind, slug):
 def brewery_detail(request, brewery_slug):
     """Fiche d'une brasserie et ses bières (les premières ; la suite par « Charger plus »)."""
     brewery = BREWERY.get(brewery_slug)
+    page_views.record(request, page_views.BREWERY, brewery)
     all_beers = brewery_beers(brewery)
     beers = list(all_beers[:BREWERY_BEERS_PAGE + 1])
     return render(request, 'brewery_page.html', {
@@ -183,6 +185,7 @@ def brewery_detail(request, brewery_slug):
 
 def bar_detail(request, bar_slug):
     bar = BAR.get(bar_slug)
+    page_views.record(request, page_views.BAR, bar)
     return render(request, 'bar_page.html', {'bar': bar, **place_context(bar, request.user)})
 
 

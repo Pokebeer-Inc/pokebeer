@@ -1,11 +1,10 @@
 """Habitudes : quand et comment les membres utilisent Pokebeer (rythme, régularité, fidélisation, adoption)."""
 from django.db.models import Count
-from django.db.models.functions import ExtractIsoWeekDay, ExtractMonth, TruncMonth
+from django.db.models.functions import ExtractIsoWeekDay, TruncMonth
 
 from ...models import BeerUser, Drinks
 from .blocks import Chart, Kpi, Table
 from .periods import _add_months, _first_of_month
-from .series import month_name
 
 WEEKDAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 INTENSITY_BUCKETS = ((1, 1, '1 dégustation'), (2, 5, '2 à 5'), (6, 20, '6 à 20'), (21, 10 ** 9, 'Plus de 20'))
@@ -17,22 +16,25 @@ def _percent(part, total):
     return round(part / total * 100, 1) if total else 0
 
 
-def _retention(period):
-    """Pour chaque mois d'inscription : part des inscrits ayant dégusté au moins une bière M+0, M+1, M+2, M+3."""
+def _as_date(value):
+    return value.date() if hasattr(value, 'date') else value
+
+
+def retention_table(period, activity, chart_id, title, subtitle):
+    """Pour chaque mois d'inscription : part des inscrits actifs M+0, M+1, M+2, M+3.
+
+    `activity` : queryset de lignes (membre, date) à compter comme « actif » : (queryset, champ du membre, champ de la date), par exemple les
+    dégustations (drinker, date) ou les jours d'activité (user, day)."""
+    queryset, member_field, date_field = activity
     first = _first_of_month(period.today, COHORT_MONTHS - 1)
     sizes = {
-        row['cohort'].date() if hasattr(row['cohort'], 'date') else row['cohort']: row['n']
-        for row in BeerUser.objects.filter(created_at__date__gte=first).annotate(cohort=TruncMonth('created_at'))
-        .values('cohort').annotate(n=Count('pk'))
+        _as_date(row['cohort']): row['n']
+        for row in BeerUser.objects.filter(created_at__date__gte=first).annotate(cohort=TruncMonth('created_at')).values('cohort').annotate(n=Count('pk'))
     }
-    rows = (Drinks.objects.filter(drinker__created_at__date__gte=first)
-            .annotate(cohort=TruncMonth('drinker__created_at'), active=TruncMonth('date'))
-            .values('cohort', 'active').annotate(users=Count('drinker', distinct=True)))
-    counts = {}
-    for row in rows:
-        cohort = row['cohort'].date() if hasattr(row['cohort'], 'date') else row['cohort']
-        active = row['active'].date() if hasattr(row['active'], 'date') else row['active']
-        counts[(cohort, active)] = row['users']
+    rows = (queryset.filter(**{f'{member_field}__created_at__date__gte': first})
+            .annotate(cohort=TruncMonth(f'{member_field}__created_at'), active=TruncMonth(date_field))
+            .values('cohort', 'active').annotate(users=Count(member_field, distinct=True)))
+    counts = {(_as_date(row['cohort']), _as_date(row['active'])): row['users'] for row in rows}
 
     table_rows = []
     for cohort in sorted(sizes):
@@ -41,8 +43,12 @@ def _retention(period):
             month = _add_months(cohort, offset)
             row.append('—' if month > period.today else f"{_percent(counts.get((cohort, month), 0), sizes[cohort])} %")
         table_rows.append(row)
-    return Table('retention', 'Fidélisation des nouveaux membres', ['Inscrits en', 'Membres', 'M+0', 'M+1', 'M+2', 'M+3'], table_rows,
-                 subtitle='Part des inscrits d\'un mois ayant noté au moins une bière, le mois même puis les suivants')
+    return Table(chart_id, title, ['Inscrits en', 'Membres', 'M+0', 'M+1', 'M+2', 'M+3'], table_rows, subtitle=subtitle)
+
+
+def _retention(period):
+    return retention_table(period, (Drinks.objects.all(), 'drinker', 'date'), 'retention', 'Fidélisation des nouveaux membres',
+                           'Part des inscrits d\'un mois ayant noté au moins une bière, le mois même puis les suivants')
 
 
 def build(period, params):
@@ -53,11 +59,6 @@ def build(period, params):
     blocks.append(Chart('weekday', 'Dégustations par jour de la semaine', 'bar', WEEKDAYS,
                         [{'name': 'Dégustations', 'data': [weekday.get(i, 0) for i in range(1, 8)]}],
                         subtitle='Jour de la dégustation déclarée : à utiliser pour choisir les jours de mise en avant'))
-
-    month = {row['m']: row['n'] for row in drinks.annotate(m=ExtractMonth('date')).values('m').annotate(n=Count('pk'))}
-    blocks.append(Chart('month-of-year', 'Dégustations par mois de l\'année', 'bar', [month_name(m) for m in range(1, 13)],
-                        [{'name': 'Dégustations', 'data': [month.get(m, 0) for m in range(1, 13)]}],
-                        subtitle='Saisonnalité ; 12 mois ou plus recommandés'))
 
     per_member = [row['n'] for row in drinks.values('drinker').annotate(n=Count('pk'))]
     members = len(per_member)

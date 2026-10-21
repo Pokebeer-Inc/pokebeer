@@ -1,0 +1,30 @@
+{% comment %}Une tuile d'analytics pour un gérant (KPI, graphique ou tableau). Paramètres : block. Même modèle de blocs que l'administration.{% endcomment %}
+<article class="pb-card pa-tile pa-tile--{{ block.block_type }}">
+    <header class="pa-tile-head">
+        <h2 class="pa-tile-title">{{ block.title }}</h2>
+        {% if block.id in exportable_ids %}<a href="?{{ query }}&export={{ block.id }}" class="pa-export" title="Exporter ce bloc en CSV" aria-label="Exporter {{ block.title }} en CSV">CSV</a>{% endif %}
+    </header>
+
+    {% if block.block_type == 'kpi' %}
+        <p class="pa-kpi-value">{{ block.value }}</p>
+        {% if block.delta is not None %}<p class="pa-kpi-delta {% if block.delta >= 0 %}is-up{% else %}is-down{% endif %}">{% if block.delta >= 0 %}{% include "partials/icon.html" with name="chevron-up" size="14" %}{% else %}{% include "partials/icon.html" with name="chevron-down" size="14" %}{% endif %} {{ block.delta }} %</p>{% endif %}
+        {% if block.hint %}<p class="pa-hint">{{ block.hint }}</p>{% endif %}
+
+    {% elif block.block_type == 'chart' %}
+        {% if block.subtitle %}<p class="pa-hint">{{ block.subtitle }}</p>{% endif %}
+        {{ block.spec|json_script:block.id }}
+        <div class="analytics-chart" data-spec-id="{{ block.id }}"></div>
+
+    {% elif block.block_type == 'table' %}
+        {% if block.subtitle %}<p class="pa-hint">{{ block.subtitle }}</p>{% endif %}
+        <div class="pa-table-wrap">
+            <table class="pa-table">
+                <thead><tr>{% for column in block.columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead>
+                <tbody>
+                    {% for row in block.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+                    {% empty %}<tr><td colspan="{{ block.columns|length }}" class="pa-empty">Pas encore assez de données.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</article>

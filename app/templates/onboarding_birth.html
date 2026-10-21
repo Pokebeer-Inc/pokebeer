@@ -13,7 +13,7 @@
     <form method="post" novalidate class="wizard-step is-current mt-4" style="display:block; animation: wizard-in 0.25s ease">
         {% csrf_token %}
         <p class="text-base text-gray-700">Pokebeer parle de bière : nous devons nous assurer que vous êtes <b>majeur(e)</b>, c'est-à-dire que vous avez au moins <b>18 ans révolus</b>.</p>
-        <p class="text-sm text-gray-600 mt-2">Votre date de naissance reste privée : elle n'est jamais affichée aux autres membres. <a href="{% url 'privacy_policy' %}" target="_blank" rel="noopener noreferrer" class="underline">Politique de confidentialité</a></p>
+        <p class="text-sm text-gray-600 mt-2">Votre date de naissance reste privée : elle n'est jamais affichée aux autres membres. Sous forme de tranche d'âge, elle peut être comptée dans des statistiques anonymes (au moins 3 membres par groupe) partagées avec des brasseries et des bars ; vous pouvez vous y opposer à tout moment dans Compte, Confidentialité. <a href="{% url 'privacy_policy' %}" target="_blank" rel="noopener noreferrer" class="underline">Politique de confidentialité</a></p>
 
         <div class="mt-4">
             <label for="{{ form.birth_date.id_for_label }}" class="text-sm font-bold">Date de naissance <span class="text-error">*</span></label>

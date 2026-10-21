@@ -20,7 +20,7 @@ ACTIONS = ('approve', 'reject')
 
 @admin.register(EstablishmentClaim)
 class EstablishmentClaimAdmin(ModelAdmin):
-    change_form_after_template = "admin/claim_actions.html"
+    change_form_outer_after_template = "admin/claim_actions.html"  # hors du formulaire de la page : un <form> imbriqué est ignoré par le navigateur
     list_display = ("claimant", "place_display", "kind_display", "siret", "check_display", "status_display", "created_at")
     list_filter = ("status",)
     search_fields = ("claimant__username", "siret", "brewery__name", "bar__name")

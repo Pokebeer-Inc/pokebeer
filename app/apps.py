@@ -12,6 +12,7 @@ SIGNAL_MODULES = (
     'app.services.members.welcome',
     'app.services.catalog.embeddings',
     'app.services.catalog.styles',
+    'app.services.catalog.style_registry',
     'app.services.common.images',
 )
 

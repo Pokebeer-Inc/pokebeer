@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'style/pro_analytics.css' %}">
+
+<header class="pa-head">
+    <a href="{% url 'account' %}" class="pa-back" aria-label="Retour au profil">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+    </a>
+    <h1 class="pb-title text-2xl font-bold leading-tight">Statistiques</h1>
+</header>
+
+{% if places %}
+<p class="pa-intro">Choisissez l'établissement dont vous voulez voir les statistiques.</p>
+<ul class="pb-card overflow-hidden">
+    {% for item in places %}
+    <li><a href="{{ item.url }}" class="pb-set">
+        <span><span class="font-semibold">{{ item.place.name }}</span> <span class="text-xs text-gray-600">{{ item.kind.label }}</span></span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+    </a></li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="pb-card p-3 text-sm text-gray-600">Les statistiques sont réservées aux gérants d'une brasserie ou d'un bar. Vous ne gérez aucun établissement pour l'instant.</p>
+{% endif %}
+{% endblock %}

@@ -87,6 +87,18 @@
         <span>Lire notre politique de confidentialité</span>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
     </a>
+    <form method="post" class="flex flex-col gap-3">
+        <h3 class="text-sm font-bold border-b border-primary pb-1">Statistiques anonymes</h3>
+        {% csrf_token %}
+        <div class="flex form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm">
+            <div class="flex flex-col pr-4 flex-1 min-w-0">
+                <span class="label-text font-bold text-xs">{{ stats_form.demographic_stats.label }}</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Votre tranche d'âge et votre genre ne sont jamais montrés à un autre membre. Ils peuvent être comptés dans des statistiques regroupant au moins 3 membres, partagées avec des brasseries et des bars. Décochez pour être exclu(e) de ces calculs, à tout moment.</span>
+            </div>
+            <div class="shrink-0">{{ stats_form.demographic_stats }}</div>
+        </div>
+        <button type="submit" name="btn_stats" class="hidden">Enregistrer</button>
+    </form>
     {% if user.is_bartender or user.is_brewer %}
     <form method="post" class="flex flex-col gap-3">
         <h3 class="text-sm font-bold border-b border-primary pb-1">Visibilité publique</h3>

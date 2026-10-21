@@ -1,4 +1,5 @@
 """Styles d'une bière : un champ texte qui peut en contenir plusieurs, séparés par des virgules (« IPA, Stout »). Seul endroit qui le découpe."""
+from .text import normalize
 
 
 def split_styles(value):
@@ -6,11 +7,27 @@ def split_styles(value):
     return list(dict.fromkeys(part.strip() for part in (value or '').split(',') if part.strip()))
 
 
-def format_styles(value):
-    """Saisie d'un membre remise en forme : « ipa ,  stout » donne « Ipa, Stout » (majuscule initiale, sans doublon)."""
-    return ", ".join(dict.fromkeys(style.capitalize() for style in split_styles(value)))
-
-
 def distinct_styles(values):
     """Styles distincts, triés, d'une suite de champs (ex. les valeurs distinctes d'une colonne)."""
     return sorted({style for value in values for style in split_styles(value)})
+
+
+# Référentiel : un style saisi est ramené à son nom officiel (« ipa », « India Pale Ale » -> « IPA »). Fonctions pures : la table `Style`
+# (modifiable par l'équipe) fournit les correspondances, voir services/catalog/style_registry.py.
+
+def style_key(value):
+    """Clé de comparaison d'un style : minuscules, sans accents ni espaces superflus (« Ambrée » et « ambree » sont le même style)."""
+    return ' '.join(normalize(value).split())
+
+
+def canonicalize(value, canonical_by_key):
+    """Saisie remise en forme avec les noms officiels. `canonical_by_key` : {clé -> nom officiel} (noms et alias).
+
+    Un style inconnu reste accepté (champ libre), simplement mis en forme comme avant ; l'équipe le repère dans les analytics du catalogue."""
+    names = (canonical_by_key.get(style_key(style)) or style.capitalize() for style in split_styles(value))
+    return ", ".join(dict.fromkeys(names))
+
+
+def family_of(value, family_by_name):
+    """Famille du premier style reconnu d'un champ (« West Coast IPA, IPA » -> « IPA »), ou '' si aucun n'est au référentiel."""
+    return next((family_by_name[style] for style in split_styles(value) if style in family_by_name), '')

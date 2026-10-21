@@ -2,6 +2,7 @@
 from .mixins import GeocodableMixin, MatchKeyMixin, PostalAddressMixin, VerifiableMixin, OfficialImageMixin
 from .users import STAFF_GROUP, BeerUserManager, BeerUser, UserFollow, UserBlock
 from .establishments import Brewery, Bar
+from .styles import Style
 from .beers import Beer, BeerDraft, Drinks, DrinkReaction, CustomNotebook
 from .places import BeerSpot, PostalCode, ReverseGeocode
 from .analytics import AnalyticsLayout, AnalyticsView, AnalyticsTile
@@ -11,5 +12,6 @@ from .moderation import ModerationEntryQuerySet, ModerationEntry
 from .notifications import Notification, UserAchievementState
 from .claims import EstablishmentClaim, ManagerInvitation
 from .campaigns import EmailCampaign, CampaignRecipient
+from .tracking import PageView, PageViewVisitor, ActivityDay, CatalogMiss
 from .system import PolicyNotice, ThrottleHit, AccountDeletion, QuotaUsage
 from . import signals  # noqa: F401  (branche les réactions automatiques)

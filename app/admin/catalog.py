@@ -9,7 +9,8 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin
 
-from ..models import Beer, Drinks, Brewery, Bar
+from ..models import Beer, Drinks, Brewery, Bar, Style
+from ..services.catalog import style_registry
 from ..services.catalog.official_images import process_official_image
 from ..services.catalog.tasting_photos import process_tasting_photo
 from ..services.establishments import removal
@@ -25,6 +26,20 @@ class BeerAdmin(OfficialImageAdmin):
     # Le vecteur de recherche du chat IA est calculé par le site (services/catalog/embeddings.py) : l'afficher comme un champ de texte de
     # 1024 nombres invitait à le casser (un envoi vide faisait planter l'enregistrement)
     exclude = ('embedding',)
+
+
+@admin.register(Style)
+class StyleAdmin(ModelAdmin):
+    """Référentiel des styles : nom officiel, famille et alias. Les nouvelles saisies suivent tout de suite ; les bières déjà enregistrées
+    sont remises à jour par l'action ci-dessous (ou `manage.py normalize_styles`)."""
+    list_display = ('name', 'family')
+    list_filter = ('family',)
+    search_fields = ('name', 'aliases')
+    actions = ['renormalize_beers']
+
+    @admin.action(description="Remettre à jour les bières existantes avec le référentiel")
+    def renormalize_beers(self, request, queryset):
+        self.message_user(request, f"{style_registry.renormalize_all()} bière(s) mise(s) à jour.", messages.SUCCESS)
 
 
 class BreweryDeletionForm(forms.Form):

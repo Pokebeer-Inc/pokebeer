@@ -93,6 +93,7 @@ _TYPES = (
     NotificationType('beer_shared', 'Bière goûtée en commun', NETWORK, target=_beer),
     NotificationType('beer_added', "Nouvelle bière d'un abonnement", NETWORK, toast='success', target=_beer),
     NotificationType('achievement', 'Nouveau trophée', ACHIEVEMENTS, target=_page('achievements'), visual=TROPHY),
+    NotificationType('context_reminder', 'Précisez le contexte de votre dégustation', ACHIEVEMENTS, target=_beer),
     NotificationType('spot_invite', 'Invitation à un lieu', NETWORK, toast='success', target=_page('map')),
     NotificationType('spot_updated', 'Lieu mis à jour', NETWORK, target=_page('map')),
     NotificationType('beer_updated', 'Bière mise à jour', NETWORK, target=_beer),

@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from .auth_forms import ThrottledLoginMixin
 from .services.catalog import catalog_matching, ean
 from .domain import notification_types
-from .domain.styles import format_styles
+from .services.catalog import style_registry
 from .services.messaging import marketing
 from .services.establishments import postal_codes
 from .services.support.feedback import MAX_BODY_LENGTH as MAX_FEEDBACK_LENGTH
@@ -281,6 +281,18 @@ class ProSettingsForm(forms.ModelForm):
         model = BeerUser
         fields = ['show_establishments']
     
+class StatsSettingsForm(forms.ModelForm):
+    """Opposition aux statistiques anonymes d'âge et de genre : cochée par défaut, modifiable à tout moment."""
+    demographic_stats = forms.BooleanField(
+        required=False, label="Compter mon âge et mon genre dans les statistiques anonymes",
+        widget=forms.CheckboxInput(attrs={'class': 'toggle toggle-primary toggle-sm'}),
+    )
+
+    class Meta:
+        model = BeerUser
+        fields = ['demographic_stats']
+
+
 class ProUserForm(UniqueUsernameMixin, UniqueEmailMixin, forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'input input-bordered w-full bg-white'}), 
@@ -550,7 +562,7 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
 
     def clean_style(self):
         style = self.cleaned_data.get('style')
-        return format_styles(style) if style else style
+        return style_registry.canonicalize(style) if style else style
     
 class CustomNotebookForm(forms.ModelForm):
     title = forms.CharField(max_length=150, label="Titre", validators=[plain_text_validator])

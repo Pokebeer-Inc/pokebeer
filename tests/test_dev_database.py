@@ -59,3 +59,20 @@ def test_seeder_fills_every_domain():
     brewer = BeerUser.objects.get(username="brasseur_dev")
     assert brewer.is_brewer and brewer.groups.filter(name="Contributeur").exists()
     assert BeerUser.objects.get(username="admin_dev").check_password("test-password")
+
+
+@pytest.mark.django_db
+def test_seeder_provides_the_data_the_analytics_pages_need():
+    """Contexte et prix des dégustations, âge et genre, historique de visites, vues et demandes sans résultat : sinon les pages restent vides en développement."""
+    from app.models import ActivityDay, CatalogMiss, PageView
+    from app.services.analytics.periods import Period
+    from app.services.analytics.registry import PAGES
+
+    DevDatabaseSeeder(password="test-password").run()
+
+    assert Drinks.objects.exclude(venue_type="").exists() and Drinks.objects.filter(price__isnull=False).exists()
+    assert BeerUser.objects.exclude(birth_date=None).exists() and BeerUser.objects.filter(demographic_stats=False).exists()
+    assert ActivityDay.objects.exists() and PageView.objects.exists() and CatalogMiss.objects.exists()
+    assert not Beer.objects.exclude(style__isnull=True).filter(style_family="").exists()  # tous les styles de départ sont au référentiel
+    for page in PAGES:
+        assert page.build(Period(12, "month"), {})

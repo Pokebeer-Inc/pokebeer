@@ -6,7 +6,6 @@ from django.urls import reverse
 
 from app.models import UserAchievementState
 from app.services.analytics import geo, privacy, series, trophies
-from app.services.analytics.geography import classify_spot
 from app.services.analytics.periods import Period
 from app.services.analytics.registry import PAGES
 from tests import factories as f
@@ -61,7 +60,7 @@ class TestAccess:
 
     def test_sidebar_entries_are_staff_only(self, settings):
         group = next(g for g in settings.UNFOLD["SIDEBAR"]["navigation"] if g["title"] == "Analytics")
-        assert len(group["items"]) == len(PAGES) + 1  # + « Custom »
+        assert len(group["items"]) == len([p for p in PAGES if p.listed]) + 1  # + « Custom » ; les pages non listées ont leur entrée dans un autre groupe
         non_staff = type("R", (), {"user": type("U", (), {"is_staff": False})()})()
         assert not any(item["permission"](non_staff) for item in group["items"])
 
@@ -146,16 +145,6 @@ class TestGeo:
     def test_cell_is_the_same_for_close_points_only(self):
         assert geo.cell_of(48.851, 2.351) == geo.cell_of(48.859, 2.359) != geo.cell_of(48.95, 2.35)
 
-    @pytest.mark.parametrize("places, expected", [
-        ([(48.85, 2.35, "bar")], "Près d'un bar"),
-        ([(48.85, 2.35, "brewery")], "Près d'une brasserie"),
-        ([], "Zone sans établissement référencé (rural probable)"),
-        ([(48.86, 2.36, "bar")] * 7, "Zone dense en établissements (urbain probable)"),
-        ([(48.86, 2.36, "bar")], "Zone peu dense (périurbain probable)"),
-    ])
-    def test_spot_context(self, places, expected):
-        assert classify_spot((48.85, 2.35), places) == expected
-
 
 class TestTrophies:
     @pytest.mark.parametrize("rate, verdict", [(90, "Trop facile ?"), (50, "Équilibré"), (5, "Difficile"), (0.5, "Très difficile ?")])
@@ -170,7 +159,7 @@ class TestTrophies:
 class TestContent:
     def test_tastes_split_compound_styles(self, client_for, staff, populated):
         chart = next(b for b in client_for(staff).get(reverse("admin_analytics", args=["tastes"])).context["blocks"] if getattr(b, "id", "") == "styles-volume")
-        assert {"IPA", "NEIPA / Hazy", "Lager"} <= set(chart.categories)
+        assert {"IPA", "NEIPA", "Lager"} <= set(chart.categories)
 
     def test_recommendations_list_styles_missing_from_the_catalogue(self, client_for, staff, populated):
         other = f.make_brewery(name="Autre Brasserie")

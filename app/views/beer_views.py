@@ -10,6 +10,7 @@ from ..services.catalog.selectors import beer_reviews, visible_tastings_of, with
 from .utils import posted_notebooks
 from ..services.catalog import beer_drafts, beers, permissions
 from ..services.protection.throttle import BEER_DRAFT_SAVES
+from ..services.tracking import page_views
 from ..services.moderation.content import CONTENT_TYPES
 from ..services.moderation.suggestions import menu_context as suggestion_menu
 
@@ -120,7 +121,8 @@ def beer_detail_view(request, beer_slug):
     beer = get_object_or_404(Beer.objects.select_related('brewery'), slug=beer_slug)
     if not permissions.can_view(request.user, beer):
         raise Http404
-    
+    page_views.record(request, page_views.BEER, beer)
+
     reviews = list(beer_reviews(beer, request.user)[:REVIEWS_PAGE + 1])
     user_drink = with_reaction_counts(Drinks.objects.filter(beer=beer, drinker=request.user)).first()
     user_rating = _rating_summary(user_drink) if user_drink else None

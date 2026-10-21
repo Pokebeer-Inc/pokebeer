@@ -1,0 +1,28 @@
+/* Statistiques des gérants : même vocabulaire visuel que le reste du site (pb-card, pb-chip) ; une colonne, adaptée au téléphone */
+.pa-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.pa-back { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9999px; flex-shrink: 0; }
+.pa-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; scrollbar-width: none; }
+.pa-tabs::-webkit-scrollbar { display: none; }
+.pa-tabs .pb-chip { white-space: nowrap; flex-shrink: 0; }
+.pa-intro { font-size: 14px; color: #6b625a; margin: 4px 0 10px; }
+.pa-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 14px; }
+.pa-filter select { width: auto; min-width: 0; }
+.pa-note { font-size: 13px; font-style: italic; color: #6b625a; margin-bottom: 8px; }
+.pa-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pa-tile { padding: 12px 14px; min-width: 0; }
+.pa-tile--chart, .pa-tile--table { grid-column: 1 / -1; }
+.pa-tile-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.pa-tile-title { font-size: 14px; font-weight: 600; line-height: 1.25; min-width: 0; }
+.pa-export { font-size: 11px; font-weight: 700; color: #2563eb; flex-shrink: 0; }
+.pa-kpi-value { font-size: 24px; font-weight: 700; margin-top: 6px; overflow-wrap: anywhere; }
+.pa-kpi-delta { font-size: 13px; margin-top: 2px; }
+.pa-kpi-delta.is-up { color: #16a34a; }
+.pa-kpi-delta.is-down { color: #dc2626; }
+.pa-hint { font-size: 12px; color: #6b625a; margin-top: 4px; }
+.pa-tile .analytics-chart { margin-top: 10px; min-height: 120px; }
+.pa-table-wrap { margin-top: 10px; overflow-x: auto; }
+.pa-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pa-table th { text-align: left; font-weight: 600; padding: 6px; border-bottom: 1px solid rgba(128, 128, 128, .35); }
+.pa-table td { padding: 6px; border-bottom: 1px solid rgba(128, 128, 128, .15); }
+.pa-empty { text-align: center; font-style: italic; opacity: .6; }
+.pa-legal { font-size: 11px; color: #6b625a; margin: 16px 0 8px; }

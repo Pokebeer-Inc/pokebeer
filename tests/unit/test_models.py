@@ -40,11 +40,11 @@ class TestBeerEmbedding:
         received = []
         monkeypatch.setattr("app.services.assistant.ai.get_embedding", lambda text: received.append(text) or [0.5] * 1024)
 
-        beer = f.make_beer(name="Rousse", style="Amber", description="Caramel", brewery=f.make_brewery(name="Mont"))
+        beer = f.make_beer(name="Rousse", style="Ambrée", description="Caramel", brewery=f.make_brewery(name="Mont"))
 
         beer.refresh_from_db()
         assert len(beer.embedding) == 1024
-        assert all(keyword in received[0] for keyword in ("Rousse", "Mont", "Amber", "Caramel"))
+        assert all(keyword in received[0] for keyword in ("Rousse", "Mont", "Ambrée", "Caramel"))
 
 
 class TestBeerEmbeddingRefresh:

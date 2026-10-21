@@ -8,7 +8,7 @@ from django.views.decorators.http import require_POST
 import logging
 
 from ..forms import (
-    AccountDeletionForm, FeedbackForm, MarketingConsentForm, NotificationPreferenceForm, ProSettingsForm, UserUpdateForm, UsernameForm, error_summary,
+    AccountDeletionForm, FeedbackForm, MarketingConsentForm, NotificationPreferenceForm, ProSettingsForm, StatsSettingsForm, UserUpdateForm, UsernameForm, error_summary,
 )
 from ..models import AccountDeletion, Drinks
 from ..services.establishments import team
@@ -54,6 +54,15 @@ def _save_privacy(request, user, forms, done):
         messages.success(request, "Paramètres de confidentialité mis à jour.")
         return done()
     messages.error(request, "Erreur dans le changement de préférence de la visibilité.")
+
+
+def _save_stats_settings(request, user, forms, done):
+    forms['stats_form'] = StatsSettingsForm(request.POST, instance=user)
+    if forms['stats_form'].is_valid():
+        forms['stats_form'].save()
+        messages.success(request, "Préférence de statistiques mise à jour.")
+        return done()
+    messages.error(request, "Erreur dans le changement de préférence des statistiques.")
 
 
 def _change_password(request, user, forms, done):
@@ -102,6 +111,7 @@ def _save_marketing_consent(request, user, forms, done):
 FORM_ACTIONS = {
     'btn_profile': _save_profile,
     'btn_pro_settings': _save_privacy,
+    'btn_stats': _save_stats_settings,
     'btn_password': _change_password,
     'btn_feedback': _send_feedback,
     'btn_notifs': _save_notification_preferences,
@@ -157,6 +167,7 @@ def account_view(request, section=None):
         'notif_form': NotificationPreferenceForm(instance=user),
         'marketing_form': MarketingConsentForm(user=user),
         'pro_settings_form': ProSettingsForm(instance=user),
+        'stats_form': StatsSettingsForm(instance=user),
     }
 
     if request.method == 'POST':
