@@ -82,12 +82,12 @@ def build(period, params):
     top_beers = (current.values('beer__name', 'beer__brewery__name')
                  .annotate(n=Count('pk'), avg=Avg('note'), rated=Count('note')).filter(rated__gte=MIN_RATINGS).order_by('-avg', '-n')[:10])
     blocks.append(Table('top-beers', 'Bières les mieux notées', ['Bière', 'Brasserie', 'Dégustations', 'Note moyenne'],
-                        [[r['beer__name'], r['beer__brewery__name'], r['n'], round(r['avg'], 2)] for r in top_beers],
+                        [[r['beer__name'], r['beer__brewery__name'] or Beer.UNKNOWN_BREWERY, r['n'], round(r['avg'], 2)] for r in top_beers],
                         subtitle=f'Au moins {MIN_RATINGS} notes'))
 
     wished = Beer.objects.filter(is_deleted=False).annotate(w=Count('wishlisted_by')).filter(w__gt=0).order_by('-w')[:10]
     blocks.append(Table('wishlist', 'Demande non satisfaite : bières les plus souhaitées', ['Bière', 'Brasserie', 'Listes de souhaits'],
-                        [[b.name, b.brewery.name, b.w] for b in wished.select_related('brewery')],
+                        [[b.name, b.brewery_label, b.w] for b in wished.select_related('brewery')],
                         subtitle='Bières que des membres veulent goûter : un levier de mise en avant pour les brasseurs'))
 
     top_styles = [s for s, _ in ranked[:6]]

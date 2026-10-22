@@ -50,7 +50,7 @@ def bar_menu_search(request, bar_slug):
     """Bières du catalogue proches de la saisie, avec « déjà à la carte » (JSON : le navigateur construit la liste avec textContent)."""
     bar = _managed_bar(request, bar_slug)
     found = menu.candidates(request.user, bar, request.GET.get('term', ''))
-    return JsonResponse([{'slug': item['beer'].slug, 'name': item['beer'].name, 'brewery': item['beer'].brewery.name,
+    return JsonResponse([{'slug': item['beer'].slug, 'name': item['beer'].name, 'brewery': item['beer'].brewery_label,
                           'style': item['beer'].style or '', 'on_menu': item['on_menu']} for item in found], safe=False)
 
 

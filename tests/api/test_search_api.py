@@ -18,7 +18,17 @@ class TestSearchBrewery:
         assert search(auth_client, "search_brewery", term) == []
 
     def test_two_chars_is_enough(self, auth_client, brewery):
-        assert search(auth_client, "search_brewery", "te") == ["Brasserie Test"]
+        assert [b["name"] for b in search(auth_client, "search_brewery", "te")] == ["Brasserie Test"]
+
+    def test_the_place_and_the_slug_tell_two_homonyms_apart(self, auth_client):
+        nantes = f.make_brewery(name="Brasserie du Coin", postal_code="44000", city="Nantes")
+        lyon = f.make_brewery(name="Brasserie du Coin", postal_code="69001", city="Lyon")
+        found = {b["slug"]: b["place"] for b in search(auth_client, "search_brewery", "coin")}
+        assert found == {nantes.slug: "44000 Nantes", lyon.slug: "69001 Lyon"}
+
+    def test_a_brewery_without_a_location_has_an_empty_place(self, auth_client):
+        f.make_brewery(name="Brasserie Sans Lieu")
+        assert search(auth_client, "search_brewery", "sans lieu")[0]["place"] == ""
 
     def test_results_are_capped_at_ten(self, auth_client):
         for _ in range(11):

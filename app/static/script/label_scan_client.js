@@ -65,7 +65,7 @@
         }
     }
 
-    /** Remplit le formulaire d'ajout avec une bière reconnue ; la photo (si elle existe) illustre la fiche et l'avis, le code-barres est mémorisé. */
+    /** Remplit le formulaire d'ajout avec une bière reconnue ; la photo (si elle existe) illustre la fiche, le code-barres est mémorisé. */
     function fillForm(data, blob, ean) {
         FIELDS.forEach(({ id, key, capitalize }) => {
             const value = data[key];
@@ -77,13 +77,8 @@
         });
         const eanField = document.getElementById('id_beer-ean');
         if (eanField) eanField.value = ean || '';
-        // La photo du scan illustre à la fois la fiche de la bière et l'avis : le membre ne la reprend pas une seconde fois
-        if (blob && window.ImageFields) {
-            [['id_beer-image', 'beer.jpg'], ['id_drink-photo', 'tasting.jpg']].forEach(([id, name]) => {
-                const input = document.getElementById(id);  // absent quand la bière est ajoutée à la carte d'un bar (pas d'avis)
-                if (input) window.ImageFields.preset(input, new File([blob], name, { type: 'image/jpeg' }));
-            });
-        }
+        const photo = blob && window.ImageFields ? document.getElementById('id_beer-image') : null;
+        if (photo) window.ImageFields.preset(photo, new File([blob], 'beer.jpg', { type: 'image/jpeg' }));
     }
 
     root.LabelScan = { Client: LabelScanClient, fillForm };

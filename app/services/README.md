@@ -39,7 +39,7 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 |---|---|
 | `beer_drafts.py` | Ajout d'une bière en plusieurs étapes : étapes, brouillon enregistré en base et validation étape par étape. |
 | `beer_fields.py` | Champs d'une bière reçus d'une source extérieure (IA, base de produits) : réduits aux champs connus, convertis et bornés. |
-| `beers.py` | Cycle de vie d'une bière : ajout avec la première dégustation, modification, retrait (notifications, trophées). |
+| `beers.py` | Cycle de vie d'une bière : ajout (sans dégustation, brasserie facultative), modification, retrait (notifications, trophées). |
 | `context_reminders.py` | Rappel discret aux membres dont une dégustation récente n'a ni lieu, ni format, ni prix. |
 | `catalog_matching.py` | Détection des doublons du catalogue : une seule règle, partagée par le formulaire d'ajout, la vérification en direct (API) et |
 | `drinks.py` | Dégustations : notation d'une bière, modification, suppression (règle partagée avec la modération). |

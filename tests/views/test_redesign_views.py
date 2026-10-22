@@ -131,9 +131,9 @@ class TestTastingContext:
         auth_client.post(reverse("rate_beer", args=[beer.slug]), {"date": timezone.localdate().isoformat(), "comment": "x", "venue_type": "moon"})
         assert not Drinks.objects.filter(drinker=user, beer=beer).exists()
 
-    def test_the_add_page_offers_every_field_across_its_steps(self, auth_client):
+    def test_the_add_page_offers_every_step(self, auth_client):
         html = auth_client.get(reverse("add_beer")).content.decode()
-        for label in ("La bière", "Ses caractéristiques", "Description et photo", "Votre avis", "Le contexte", "Vérification", "Lieu", "Avec qui", "Format", "Commentaire"):
+        for label in ("La bière", "Détails"):
             assert label in html
 
 
@@ -523,11 +523,9 @@ class TestServingFormatVolumes:
         labels = dict(Drinks.ServingFormat.choices)
         assert labels["bottle"] == "Bouteille 75 cl" and labels["can"] == "Canette 33 cl"
 
-    def test_the_add_page_and_the_rating_modal_offer_them(self, auth_client, user, beer):
-        add = auth_client.get(reverse("add_beer")).content.decode()
-        modal = auth_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
-        for html in (add, modal):
-            assert "Bouteille 75 cl" in html and "Canette 33 cl" in html
+    def test_the_rating_modal_offers_them(self, auth_client, user, beer):
+        html = auth_client.get(reverse("beer_detail", args=[beer.slug])).content.decode()
+        assert "Bouteille 75 cl" in html and "Canette 33 cl" in html
 
     def test_the_tasting_summary_shows_them(self, auth_client, user, beer):
         f.make_drink(user, beer, note=7, serving_format="can")

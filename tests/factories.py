@@ -52,11 +52,12 @@ def make_bar(name=None, managers=(), **fields):
     return _make_establishment(Bar, name, managers, fields)
 
 
-def make_beer(name=None, brewery=None, **fields):
+def make_beer(name=None, brewery=None, unbranded=False, **fields):
+    """`unbranded=True` : bière sans brasserie (sinon une brasserie est créée quand on n'en donne pas)."""
     fields.setdefault("degree", Decimal("5.0"))
     # L'embedding est calculé après validation de la transaction : on exécute ces callbacks comme en production
     with TestCase.captureOnCommitCallbacks(execute=True):
-        return Beer.objects.create(name=name or unique("Biere "), brewery=brewery or make_brewery(), **fields)
+        return Beer.objects.create(name=name or unique("Biere "), brewery=None if unbranded else (brewery or make_brewery()), **fields)
 
 
 def make_drink(drinker, beer=None, note=7, **fields):

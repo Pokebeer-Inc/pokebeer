@@ -1,5 +1,6 @@
 import logging
 import time
+from decimal import Decimal, InvalidOperation
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.conf import settings
@@ -141,7 +142,7 @@ def lookup_ean(request):
 
     known = exclude_blocked(Beer.objects.filter(ean=code, is_deleted=False), request.user, 'added_by').select_related('brewery').first()
     if known:
-        return JsonResponse({"success": True, "source": "catalog", "existing": {"name": known.name, "brewery": known.brewery.name, "slug": known.slug}})
+        return JsonResponse({"success": True, "source": "catalog", "existing": {"name": known.name, "brewery": known.brewery_label, "slug": known.slug}})
 
     if not consume_quota(request.user, settings.EAN_DAILY_LIMIT, EAN_LOOKUP):
         return JsonResponse({"error": "Limite quotidienne de recherches par code-barres atteinte, revenez demain !"}, status=429)
@@ -163,9 +164,16 @@ def check_catalog(request):
     postal_code = request.GET.get('postal', '').strip()
     postal_code = postal_code if postal_codes.is_valid_format(postal_code) else ''
     city = ' '.join(request.GET.get('city', '').split())[:100]
+    chosen = catalog_matching.chosen_brewery(request.GET.get('slug', '')[:80], brewery_name)
+    if chosen:  # brasserie choisie dans la liste : son propre lieu départage ses homonymes
+        postal_code, city = chosen.postal_code, chosen.city
     if len(name) < 2 and len(brewery_name) < 2:
         return JsonResponse({"html": "", "apply_brewery": None})
-    inspection = catalog_matching.inspect(name, brewery_name, postal_code=postal_code, city=city)
+    try:
+        degree = Decimal(request.GET.get('degree', '').replace(',', '.').strip()[:6])
+    except InvalidOperation:
+        degree = None
+    inspection = catalog_matching.inspect(name, brewery_name, postal_code=postal_code, city=city, degree=degree)
     same = inspection.reusable_brewery
     return JsonResponse({
         "html": render_to_string('partials/duplicate_panel.html', {
@@ -197,8 +205,9 @@ def search_brewery(request):
     query = request.GET.get('term', '')
     if len(query) < 2:
         return JsonResponse([], safe=False)
-    breweries = search.breweries(Brewery.objects.only('name'), query).order_by(search.RANK_FIELD, 'name')[:10]
-    return JsonResponse([brewery.name for brewery in breweries], safe=False)
+    breweries = search.breweries(Brewery.objects.only('name', 'slug', 'postal_code', 'city'), query).order_by(search.RANK_FIELD, 'name')[:10]
+    # Le lieu distingue deux brasseries de même nom ; le slug désigne exactement celle que le membre choisit
+    return JsonResponse([{'name': b.name, 'slug': b.slug, 'place': f"{b.postal_code} {b.city}".strip()} for b in breweries], safe=False)
 
 
 @require_GET
@@ -210,4 +219,4 @@ def search_beer(request):
         return JsonResponse([], safe=False)
     beers = exclude_blocked(Beer.objects.filter(is_deleted=False), request.user, 'added_by').select_related('brewery')
     beers = search.search(beers, query, 'name').order_by(search.RANK_FIELD, 'name')[:5]
-    return JsonResponse([{'name': b.name, 'slug': b.slug, 'brewery': b.brewery.name} for b in beers], safe=False)
+    return JsonResponse([{'name': b.name, 'slug': b.slug, 'brewery': b.brewery_label} for b in beers], safe=False)

@@ -17,6 +17,7 @@ from botocore.config import Config
 from dotenv import load_dotenv
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse_lazy
+from django.utils.text import format_lazy
 from pokebeer.database import get_databases
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -457,6 +458,13 @@ UNFOLD = {
                         "icon": "fact_check",
                         "link": reverse_lazy("admin:app_moderationentry_changelist"),
                         "badge": "app.admin.moderation.pending_count",
+                        "permission": lambda request: request.user.is_staff,
+                    },
+                    {
+                        "title": _("Bières à compléter"),
+                        "icon": "sports_bar",
+                        "link": format_lazy("{}?brewery_known=no", reverse_lazy("admin:app_beer_changelist")),
+                        "badge": "app.admin.pending.pending_unbranded_beer_count",
                         "permission": lambda request: request.user.is_staff,
                     },
                     {

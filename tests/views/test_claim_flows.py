@@ -3,12 +3,14 @@ import pytest
 from django.core import mail
 from django.urls import reverse
 
+from django.template.loader import render_to_string
+
+from app.forms import BeerForm
 from app.models import Beer, BeerUser, Brewery, EstablishmentClaim, Notification
 from app.services.catalog import catalog_matching as cm
 from app.services.establishments import claims, siret_registry
 from tests import factories as f
 from tests.unit.test_claims import SIRET
-from tests.views.test_beer_views import add_beer_data
 
 pytestmark = pytest.mark.django_db
 
@@ -232,60 +234,96 @@ class TestAdminQueue:
 
 
 class TestHomonymsInTheBeerForm:
-    def post(self, client, brewery="Brasserie du Coin", postal="", **extra):
-        return client.post(reverse("add_beer"), add_beer_data(name="Nouvelle Blonde", brewery_name=brewery, **{"beer-brewery_postal_code": postal}, **extra))
+    """Le lieu de la brasserie n'est demandé qu'au formulaire complet (gérant de bar, staff) : le membre, lui, peut ne pas connaître la brasserie."""
 
-    def test_without_a_postal_code_the_known_brewery_is_reused_and_the_member_is_invited_to_give_one(self, auth_client, coin):
-        self.post(auth_client)
+    def form(self, user, brewery="Brasserie du Coin", postal="", **extra):
+        data = {"beer-name": "Nouvelle Blonde", "beer-brewery_name": brewery, "beer-degree": "6.5", "beer-brewery_postal_code": postal, **extra}
+        return BeerForm(data, prefix="beer", user=user)
+
+    def add(self, user, **kwargs):
+        form = self.form(user, **kwargs)
+        if form.is_valid():
+            form.save(user=user)
+        return form
+
+    def test_without_a_postal_code_the_known_brewery_is_reused_and_the_member_is_invited_to_give_one(self, auth_client, user, coin):
+        self.add(user)
         assert Beer.objects.get().brewery == coin
-        html = auth_client.post(reverse("add_beer"), add_beer_data(name="Nouvelle Blonde", brewery_name="Brasserie du Coin", **{"drink-note": "11"})).content.decode()
+        html = auth_client.get(reverse("check_catalog"), {"name": "Autre", "brewery": "Brasserie du Coin"}).json()["html"]
         assert "Indiquez le code postal de votre brasserie" in html
 
-    def test_the_same_postal_code_reuses_the_brewery(self, auth_client, coin):
-        self.post(auth_client, postal="44000")
+    def test_the_same_postal_code_reuses_the_brewery(self, user, coin):
+        self.add(user, postal="44000")
         assert Beer.objects.get().brewery == coin and Brewery.objects.count() == 1
 
-    def test_another_postal_code_creates_a_homonym_in_its_own_city(self, auth_client, coin):
-        self.post(auth_client, postal="69001")
+    def test_another_postal_code_creates_a_homonym_in_its_own_city(self, user, coin):
+        self.add(user, postal="69001")
         beer = Beer.objects.get()
         assert beer.brewery != coin and (beer.brewery.name, beer.brewery.postal_code, beer.brewery.city) == ("Brasserie du Coin", "69001", "Lyon")
         assert Brewery.objects.count() == 2
 
-    def test_a_beer_of_the_homonym_is_not_compared_with_the_other_ones_beers(self, auth_client, coin):
+    def test_a_beer_of_the_homonym_is_not_compared_with_the_other_ones_beers(self, user, coin):
         f.make_beer(name="Nouvelle Blonde", brewery=coin)
-        self.post(auth_client, postal="69001")
+        self.add(user, postal="69001")
         assert Beer.objects.filter(name="Nouvelle Blonde").count() == 2
 
-    def test_a_fiche_without_a_location_needs_a_confirmation_to_create_a_homonym(self, auth_client):
-        known = f.make_brewery(name="Brasserie du Coin")  # fiche créée sans lieu
-        response = self.post(auth_client, postal="69001")
-        assert response.status_code == 200 and "Sa localisation n'est pas connue" in response.content.decode() and Brewery.objects.count() == 1
-        token = cm.find_brewery("Brasserie du Coin", "69001").token
-        self.post(auth_client, postal="69001", **{"beer-confirm_brewery": token})
-        assert Brewery.objects.filter(city="Lyon").exists() and Brewery.objects.count() == 2 and known.pk
+    def test_a_fiche_without_a_location_needs_a_confirmation_to_create_a_homonym(self, user):
+        f.make_brewery(name="Brasserie du Coin")  # fiche créée sans lieu
+        form = self.add(user, postal="69001")
+        assert not form.is_valid() and "Sa localisation n'est pas connue" in render_to_string(
+            "partials/duplicate_panel.html", {"inspection": form.inspection, "confirm_brewery_name": "c", "confirm_beer_name": "b", "typed_postal_code": "69001"})
+        assert Brewery.objects.count() == 1
+        self.add(user, postal="69001", **{"beer-confirm_brewery": cm.find_brewery("Brasserie du Coin", "69001").token})
+        assert Brewery.objects.filter(city="Lyon").exists() and Brewery.objects.count() == 2
 
     @pytest.mark.parametrize("postal, field", [("69", "brewery_postal_code"), ("99999", "brewery_postal_code")])
-    def test_a_wrong_postal_code_is_refused(self, auth_client, coin, postal, field):
-        response = self.post(auth_client, postal=postal)
-        assert response.status_code == 200 and field in response.context["beer_form"].errors and not Beer.objects.exists()
+    def test_a_wrong_postal_code_is_refused(self, user, coin, postal, field):
+        form = self.add(user, postal=postal)
+        assert field in form.errors and not Beer.objects.exists()
 
-    def test_the_city_must_match_the_postal_code(self, auth_client, coin):
-        response = self.post(auth_client, postal="44000", **{"beer-brewery_city": "Paris"})
-        assert "brewery_city" in response.context["beer_form"].errors
+    def test_the_city_must_match_the_postal_code(self, user, coin):
+        assert "brewery_city" in self.add(user, postal="44000", **{"beer-brewery_city": "Paris"}).errors
 
-    def test_a_new_brewery_gets_the_given_location(self, auth_client):
-        self.post(auth_client, brewery="Zythos", postal="44000")
+    def test_a_new_brewery_gets_the_given_location(self, user):
+        self.add(user, brewery="Zythos", postal="44000")
         assert Brewery.objects.get(name="Zythos").city == "Nantes"
+
+    def test_editing_a_beer_keeps_its_own_brewery_among_homonyms(self, user, coin):
+        other = f.make_brewery(name="Brasserie du Coin", postal_code="69001", city="Lyon")
+        beer = f.make_beer(name="Rousse", brewery=other)
+        form = BeerForm({"name": "Rousse", "brewery_name": "Brasserie du Coin", "degree": "6"}, instance=beer, user=user)
+        assert form.is_valid() and form.save().brewery == other
+
+    def test_the_brewery_chosen_in_the_list_wins_over_its_homonym(self, user, coin):
+        lyon = f.make_brewery(name="Brasserie du Coin", postal_code="69001", city="Lyon")
+        form = self.add(user, **{"beer-brewery_slug": lyon.slug})
+        assert form.is_valid() and Beer.objects.get().brewery == lyon and Brewery.objects.count() == 2
+
+    def test_the_chosen_brewery_is_forgotten_when_another_name_is_typed(self, user, coin):
+        lyon = f.make_brewery(name="Brasserie du Coin", postal_code="69001", city="Lyon")
+        self.add(user, brewery="Zythos", **{"beer-brewery_slug": lyon.slug})
+        assert Beer.objects.get().brewery.name == "Zythos"
+
+    def test_an_unknown_slug_is_ignored(self, user, coin):
+        self.add(user, **{"beer-brewery_slug": "nope"})
+        assert Beer.objects.get().brewery == coin
+
+    def test_the_member_form_has_no_location_to_fill(self, user):
+        form = BeerForm(prefix="beer", user=user, light=True)
+        assert not {"brewery_postal_code", "brewery_city", "description"} & set(form.fields)
+
+    def test_the_live_check_follows_the_brewery_chosen_in_the_list(self, auth_client, coin):
+        lyon = f.make_brewery(name="Brasserie du Coin", postal_code="69001", city="Lyon")
+        check = reverse("check_catalog")
+        chosen = auth_client.get(check, {"name": "X", "brewery": "Brasserie du Coin", "slug": lyon.slug}).json()["html"]
+        forgotten = auth_client.get(check, {"name": "X", "brewery": "Autre nom", "slug": lyon.slug}).json()["html"]
+        assert "69001 Lyon" in chosen and "44000" not in chosen and "69001" not in forgotten
 
     def test_the_live_check_takes_the_location_into_account(self, auth_client, coin):
         check = reverse("check_catalog")
         same = auth_client.get(check, {"name": "X", "brewery": "Brasserie du Coin", "postal": "44000"}).json()
         other = auth_client.get(check, {"name": "X", "brewery": "Brasserie du Coin", "postal": "69001"}).json()
         assert same["apply_brewery"] == "Brasserie du Coin" and other["apply_brewery"] is None and other["html"].strip() == ""
-
-    def test_the_form_has_the_postal_fields_and_script(self, auth_client):
-        html = auth_client.get(reverse("add_beer")).content.decode()
-        assert 'name="beer-brewery_postal_code"' in html and 'id="cities-beer"' in html and "postal_code.js" in html
 
 
 class TestPlacesAreFoundByLocation:

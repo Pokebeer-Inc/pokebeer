@@ -75,7 +75,7 @@ def _menu_table(ctx, entries, notes, ppl, wishes, local):
         n, members = local.get(entry.beer_id, (0, 0))
         around = (n if is_publishable(members) else HIDDEN) if ctx.publishable else '—'
         rows.append([
-            entry.beer.name, entry.beer.brewery.name,
+            entry.beer.name, entry.beer.brewery_label,
             euros(own) + (f' ({FORMAT_LABELS.get(entry.serving_format, "").split(" ")[0].lower()})' if entry.serving_format else '') if own is not None else '—',
             euros(equivalent) if equivalent else '—',
             f'{fr(round(gap), signed=True)} %' if gap is not None else '—',
@@ -105,7 +105,7 @@ def _missing_local(ctx, menu_ids, local):
     rows = (ctx.drinks.filter(beer_id__in=wanted).values('beer__name', 'beer__brewery__name', 'beer')
             .annotate(members=Count('drinker', distinct=True), avg=Avg('note')).order_by('-members', 'beer__name')[:TOP])
     return Table('menu-missing-local', 'Bues autour de votre bar, absentes de votre carte', ['Bière', 'Brasserie', 'Dégustateurs', 'Note'],
-                 [[r['beer__name'], r['beer__brewery__name'], r['members'], fr(round(r['avg'], 1), 1) if r['avg'] is not None else '—'] for r in rows],
+                 [[r['beer__name'], r['beer__brewery__name'] or Beer.UNKNOWN_BREWERY, r['members'], fr(round(r['avg'], 1), 1) if r['avg'] is not None else '—'] for r in rows],
                  subtitle='Ce que vos propres clients boivent ailleurs ou à emporter : de bonnes candidates pour la carte')
 
 
@@ -114,7 +114,7 @@ def _missing_wished(menu_ids):
     wished = (Beer.objects.filter(is_deleted=False).exclude(pk__in=menu_ids).annotate(w=Count('wishlisted_by')).filter(w__gte=MIN_GROUP_SIZE)
               .select_related('brewery').order_by('-w', 'name')[:TOP])
     return Table('menu-missing-wished', 'Très souhaitées, absentes de votre carte', ['Bière', 'Brasserie', 'Style', 'Souhaits'],
-                 [[beer.name, beer.brewery.name, beer.style or '—', beer.w] for beer in wished],
+                 [[beer.name, beer.brewery_label, beer.style or '—', beer.w] for beer in wished],
                  subtitle='Les bières que le plus de membres veulent goûter : un argument pour attirer du monde')
 
 

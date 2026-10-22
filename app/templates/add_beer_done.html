@@ -9,20 +9,64 @@
 
     <h1 id="celebration-title" class="pb-title text-3xl font-bold text-center celebration-title">Bravo {{ user.username }} !</h1>
     <p class="text-center text-gray-700 mt-2 celebration-line">
-        <b>{{ beer.name }}</b> ({{ beer.brewery.name }}) est maintenant au catalogue, et votre avis est dans votre carnet.
+        <b>{{ beer.name }}</b>{% if beer.brewery %} ({{ beer.brewery.name }}){% endif %} est maintenant au catalogue.
     </p>
     <p class="text-center text-sm text-gray-600 mt-1 celebration-line">
         {% if beers_added == 1 %}Votre toute première bière ajoutée : merci de faire grandir Pokebeer.
         {% else %}{{ beers_added }} bières ajoutées par vous : merci de faire grandir Pokebeer.{% endif %}
+        {% if not beer.brewery %}Notre équipe retrouvera sa brasserie : rien à faire de votre côté.{% endif %}
     </p>
 
-    <div class="flex flex-col gap-2 mt-6 w-full max-w-sm celebration-line">
-        <a href="{% url 'beer_detail' beer.slug %}" class="btn btn-primary border-2 border-secondary text-black normal-case h-auto min-h-12">Voir ma bière</a>
+    {% if can_rate %}
+    {# Deux étapes dans la même carte (static/script/stepper.js) : la note et quelques mots, puis le contexte, facultatif mais précieux pour le carnet #}
+    <form method="post" action="{% url 'quick_rate_beer' beer.slug %}" id="quick-rating" class="pb-card p-4 mt-5 w-full max-w-sm celebration-line" aria-labelledby="quick-rating-title" data-stepper data-current="1">
+        {% csrf_token %}
+        <header class="mb-3">
+            <h2 id="quick-rating-title" class="font-bold text-base text-center">Et vous, qu'en avez-vous pensé ?</h2>
+            <p class="text-xs text-gray-600 text-center mt-1">Étape <b data-stepper-number>1</b> sur <span data-stepper-total>2</span> · <span data-stepper-title>Votre note</span></p>
+            <div class="wizard-progress mt-2" role="progressbar" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1" aria-label="Progression"><i data-stepper-bar style="width: 50%"></i></div>
+        </header>
+
+        <section data-stepper-step="1" data-title="Votre note" class="pb-stepper-step">
+            <p class="text-xs text-gray-600 text-center mb-3">Une note suffit. Vous pourrez préciser votre dégustation plus tard.</p>
+            <fieldset>
+                <legend class="sr-only">Votre note sur 10</legend>
+                <div class="flex flex-wrap justify-center gap-2">
+                    {% for value in "0123456789" %}<label class="pb-choice"><input type="radio" name="note" value="{{ value }}"><span>{{ value }}</span></label>{% endfor %}
+                    <label class="pb-choice"><input type="radio" name="note" value="10"><span>10</span></label>
+                </div>
+            </fieldset>
+
+            <div class="mt-3">
+                <label class="pb-label text-center" for="{{ rating_form.comment.id_for_label }}">Quelques mots <span class="font-normal text-gray-600">(facultatif)</span></label>
+                {{ rating_form.comment }}
+            </div>
+        </section>
+
+        <section data-stepper-step="2" data-title="Le contexte" class="pb-stepper-step">
+            <p class="text-xs text-gray-600 text-center mb-3">Facultatif : ces précisions enrichissent votre carnet.</p>
+            <div class="flex flex-col gap-3">
+                {% include "partials/tasting_context_inputs.html" with uid=beer.slug part="place" %}
+                {% include "partials/tasting_context_inputs.html" with uid=beer.slug part="format" %}
+            </div>
+        </section>
+
+        <div class="pb-stepper-nav flex gap-2 mt-4">
+            <button type="button" data-stepper-back class="btn btn-ghost flex-1 normal-case">Retour</button>
+            <button type="button" data-stepper-next class="btn btn-primary flex-[2] h-auto min-h-12 border-2 border-secondary text-black normal-case">Suivant</button>
+            <button type="submit" id="quick-rating-submit" data-stepper-submit class="btn btn-primary flex-[2] h-auto min-h-12 border-2 border-secondary text-black normal-case">Enregistrer ma note</button>
+        </div>
+    </form>
+    {% endif %}
+
+    <div class="flex flex-col gap-2 mt-4 w-full max-w-sm celebration-line">
+        <a href="{% url 'beer_detail' beer.slug %}" class="btn {% if can_rate %}btn-outline border-secondary{% else %}btn-primary border-2 border-secondary text-black{% endif %} normal-case h-auto min-h-12">Voir ma bière</a>
         <a href="{% url 'add_beer' %}" class="btn btn-outline border-secondary normal-case h-auto min-h-12">Ajouter une autre bière</a>
-        <a href="{% url 'index' %}" class="btn btn-ghost normal-case">Retour à la recherche</a>
+        <a href="{% url 'index' %}" class="btn btn-ghost normal-case">{% if can_rate %}Plus tard, retour à la recherche{% else %}Retour à la recherche{% endif %}</a>
         <button type="button" id="celebrate-again" class="text-sm text-gray-600 underline mx-auto mt-1">Rejouer la fête</button>
     </div>
 </section>
 
 <script src="{% static 'script/celebration.js' %}"></script>
+{% if can_rate %}<script src="{% static 'script/quick_rating.js' %}"></script>{% endif %}
 {% endblock %}

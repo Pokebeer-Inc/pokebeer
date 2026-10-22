@@ -14,8 +14,8 @@
 
     <div class="pointer-events-none flex-1 flex flex-col">
         <h3 class="font-bold text-base leading-tight">{{ beer.name }}</h3>
-        <a class="text-xs text-[#6b625a] block mb-1 pointer-events-auto z-10 hover:text-black transition-colors w-fit" href="{% url 'brewery_detail' beer.brewery.slug %}">{{ beer.brewery.name }}</a>
-        <p class="text-[11px] text-[#6b625a] line-clamp-2 mb-2">{{ beer.description|truncatechars:80 }}</p>
+        {% include "partials/brewery_link.html" with beer=beer cls="text-xs text-[#6b625a] block mb-1 pointer-events-auto z-10 hover:text-black transition-colors w-fit" %}
+        {% if beer.description %}<p class="text-[11px] text-[#6b625a] line-clamp-2 mb-2">{{ beer.description|truncatechars:80 }}</p>{% endif %}
         <div class="flex flex-wrap gap-1.5 mb-3">
             <span class="pb-pill">Alc. {{ beer.degree }}%</span>
             {% if beer.bitterness is not None %}

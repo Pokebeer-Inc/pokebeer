@@ -8,9 +8,12 @@
     const panel = document.getElementById('duplicate-panel');
     const nameField = document.getElementById('id_beer-name');
     const breweryField = document.getElementById('id_beer-brewery_name');
+    const degreeField = document.getElementById('id_beer-degree');
+    const slugField = document.getElementById('id_beer-brewery_slug');  // brasserie choisie dans la liste (voir add_beer.js)
+    // Le lieu de la brasserie n'existe que dans le formulaire des gérants : le membre ne le saisit pas
     const postalField = document.getElementById('id_beer-brewery_postal_code');
     const cityField = document.getElementById('id_beer-brewery_city');
-    if (!panel || !nameField || !breweryField || !postalField || !cityField) return;
+    if (!panel || !nameField || !breweryField || !degreeField) return;
 
     let controller = null;
     const schedule = Pokebeer.debounce(() => check(), DEBOUNCE_MS);
@@ -19,7 +22,8 @@
         if (controller) controller.abort(); // une saisie plus récente rend la réponse précédente inutile
         controller = new AbortController();
         const query = new URLSearchParams({
-            name: nameField.value.trim(), brewery: breweryField.value.trim(), postal: postalField.value.trim(), city: cityField.value.trim(),
+            name: nameField.value.trim(), brewery: breweryField.value.trim(), degree: degreeField.value.trim(), slug: slugField ? slugField.value : '',
+            postal: postalField ? postalField.value.trim() : '', city: cityField ? cityField.value.trim() : '',
         });
         try {
             const response = await fetch(panel.dataset.url + '?' + query.toString(), { signal: controller.signal, credentials: 'same-origin' });
@@ -35,9 +39,12 @@
 
     nameField.addEventListener('input', schedule);
     breweryField.addEventListener('input', schedule);
-    postalField.addEventListener('input', schedule);
-    cityField.addEventListener('input', schedule);
-    cityField.addEventListener('change', schedule); // la ville est remplie par postal_code.js sans événement de frappe
+    degreeField.addEventListener('input', schedule); // sans brasserie, le degré départage deux bières de même nom
+    if (postalField) postalField.addEventListener('input', schedule);
+    if (cityField) {
+        cityField.addEventListener('input', schedule);
+        cityField.addEventListener('change', schedule); // la ville est remplie par postal_code.js sans événement de frappe
+    }
 
     // « Utiliser celle-ci » : la saisie reprend le nom exact de la brasserie existante
     panel.addEventListener('click', event => {

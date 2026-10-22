@@ -1,9 +1,10 @@
 from datetime import date
 
 import pytest
+from django.utils import timezone
 
 from app.forms import (
-    BarProForm, BeerForm, BreweryProForm, DrinkForm, UserRegisterForm, UserUpdateForm, clear_invalid_fields, error_summary,
+    BarProForm, BeerForm, BreweryProForm, DrinkForm, QuickDrinkForm, UserRegisterForm, UserUpdateForm, clear_invalid_fields, error_summary,
 )
 from app.models import Beer, Brewery
 from tests import factories as f
@@ -192,6 +193,28 @@ class TestDrinkForm:
 
     def test_comment_is_required(self):
         assert "comment" in DrinkForm(data={"date": "2026-01-01", "note": "5", "comment": ""}).errors
+
+
+class TestQuickDrinkForm:
+    """Première réaction juste après l'ajout d'une bière : une note ou quelques mots, la date du jour."""
+
+    @pytest.mark.parametrize("data", [{"note": "7"}, {"note": "0"}, {"comment": "Très fruitée"}, {"note": "10", "comment": "Top"}])
+    def test_a_note_or_a_few_words_are_enough(self, data):
+        form = QuickDrinkForm(data=data)
+        assert form.is_valid(), form.errors
+        assert form.cleaned_data["date"] == timezone.localdate()
+
+    def test_an_empty_reaction_is_refused(self):
+        assert QuickDrinkForm(data={}).errors["__all__"] == ["Donnez une note ou écrivez quelques mots."]
+        assert QuickDrinkForm(data={"comment": "   "}).errors["__all__"]
+
+    def test_the_rules_of_the_full_form_still_apply(self):
+        assert "note" in QuickDrinkForm(data={"note": "11"}).errors
+        assert "date" in QuickDrinkForm(data={"note": "5", "date": "2099-01-01"}).errors
+        assert "venue_type" in QuickDrinkForm(data={"note": "5", "venue_type": "moon"}).errors
+
+    def test_the_full_form_is_unchanged(self):
+        assert "comment" in DrinkForm(data={"note": "5", "date": "2026-01-01"}).errors
 
 
 class TestUserForms:

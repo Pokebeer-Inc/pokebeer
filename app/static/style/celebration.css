@@ -17,3 +17,6 @@
 @media (prefers-reduced-motion: reduce) {
     .celebration-glass svg, .celebration-glass .foam, .celebration-glass .sparkle, .celebration-title, .celebration-line { animation: none; }
 }
+
+/* Note rapide en deux étapes : à la première, « Suivant » occupe toute la largeur (pas de « Retour ») */
+#quick-rating[data-current="1"] [data-stepper-back] { display: none; }
