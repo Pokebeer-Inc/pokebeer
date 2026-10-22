@@ -17,6 +17,10 @@ document.addEventListener("DOMContentLoaded", function() {
     // Mêmes dimensions pour toutes les bulles (souvenirs, bars, brasseries)
     const POPUP_OPTIONS = { minWidth: 200, maxWidth: 260 };
 
+    // Ordre d'empilement des repères (zIndexOffset de Leaflet) : mes souvenirs devant tout, puis les brasseries, puis les bars ;
+    // le point en cours de déplacement et le résultat de recherche passent devant les souvenirs, ma position devant tout
+    const Z_ORDER = { bar: 0, brewery: 100, spot: 1000, moving: 2000, search: 2000, user: 9999 };
+
     // Repères aux couleurs du thème (scripts/pins.js) ; chaque famille a sa couche, que les puces du haut affichent ou masquent
     const layers = { bar: L.layerGroup().addTo(map), brewery: L.layerGroup().addTo(map), spot: L.layerGroup().addTo(map) };
 
@@ -49,7 +53,7 @@ document.addEventListener("DOMContentLoaded", function() {
             };
 
             // Ajout direct du marqueur sur la carte
-            const marker = L.marker([lat, lng], {icon: PokebeerPins.spot(), title: item.dataset.title}).addTo(layers.spot);
+            const marker = L.marker([lat, lng], {icon: PokebeerPins.spot(), title: item.dataset.title, zIndexOffset: Z_ORDER.spot}).addTo(layers.spot);
             marker.bindPopup(popupHtml, POPUP_OPTIONS);
             mapBounds.push([lat, lng]);
         });
@@ -114,7 +118,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const type = item.dataset.type;
             const name = item.dataset.name;
 
-            const marker = L.marker([lat, lng], {icon: PokebeerPins.forPlace(type), title: name}).addTo(type === 'bar' ? layers.bar : layers.brewery);
+            const marker = L.marker([lat, lng], {icon: PokebeerPins.forPlace(type), title: name, zIndexOffset: Z_ORDER[type]}).addTo(type === 'bar' ? layers.bar : layers.brewery);
             placeMarkers[type + ':' + item.dataset.slug] = marker;
             placeIndex.push({ name: name, haystack: normalizeText(name), marker: marker });
             mapBounds.push([lat, lng]);
@@ -250,7 +254,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (!userMarker) {
                         userMarker = L.marker([lat, lng], {
                             icon: userIcon, 
-                            zIndexOffset: 9999 // S'assure qu'il passe au-dessus des autres points
+                            zIndexOffset: Z_ORDER.user
                         }).addTo(map);
                         userMarker.bindPopup("<div class='text-center font-bold mb-0'>Vous êtes ici</div>");
                     } else {
@@ -298,7 +302,7 @@ document.addEventListener("DOMContentLoaded", function() {
         movingMarker = L.marker([lat, lng], {
             icon: PokebeerPins.spot(),
             draggable: true,
-            zIndexOffset: 1000
+            zIndexOffset: Z_ORDER.moving
         }).addTo(mapInstance);
 
         movingMarker.bindTooltip("Faites-moi glisser !", {permanent: true, direction: 'top', offset: [0,-34]}).openTooltip();
@@ -402,7 +406,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (searchMarker) mapInstance.removeLayer(searchMarker);
 
         searchTitle = place.display_name.split(',')[0].trim().slice(0, 150);
-        searchMarker = L.marker([place.lat, place.lon], {icon: PokebeerPins.search()}).addTo(mapInstance);
+        searchMarker = L.marker([place.lat, place.lon], {icon: PokebeerPins.search(), zIndexOffset: Z_ORDER.search}).addTo(mapInstance);
 
         // Le bouton lit la position du repère de recherche : aucune valeur du service tiers n'est copiée dans un attribut
         const popupContent = `
