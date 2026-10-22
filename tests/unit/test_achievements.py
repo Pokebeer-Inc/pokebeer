@@ -55,6 +55,19 @@ class TestAchievementTiers:
         f.make_drink(user, f.make_beer(name=f.unique("Guinness Draught ")), note=note)
         assert achievement(user, "irlandais")["tier_level"] == tier
 
+    @pytest.mark.parametrize("name", ["8.6 Original", "Bière 8,6 Premium"])
+    @pytest.mark.parametrize("note, tier", [(4, 0), (5, 1), (6, 2), (8, 3), (10, 4)])
+    def test_keken_achievement_uses_best_note_given_to_an_8_6(self, user, name, note, tier):
+        f.make_drink(user, f.make_beer(name=f.unique(name + " ")), note=note)
+        assert achievement(user, "keken")["tier_level"] == tier
+
+    def test_keken_is_hidden_until_discovered_and_ignores_other_beers(self, user):
+        assert achievement(user, "keken")["desc"].startswith("Défi caché")
+        f.make_drink(user, f.make_beer(name=f.unique("Pils ")), note=10)
+        assert achievement(user, "keken")["tier_level"] == 0
+        f.make_drink(user, f.make_beer(name=f.unique("8.6 ")), note=5)
+        assert achievement(user, "keken")["desc"].startswith("Goût de luxe")
+
     def test_brewery_achievement_links_to_the_brewery(self, user):
         ours = f.make_brewery(name="Brasserie de l'Ours Doré")
         f.make_drink(user, f.make_beer(brewery=ours))
