@@ -3,14 +3,15 @@ document.addEventListener("DOMContentLoaded", function() {
     const EXTERNAL_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="inline-block ml-1"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>';
     
     // --- 1. LOGIQUE D'AUTOCOMPLÉTION (DRY) ---
-    function setupAutocomplete(inputId, suggId, apiPath, renderItem, onSelect) {
+    // `termOf` : partie de la saisie qu'on cherche (par défaut tout) ; `minLength` : longueur à partir de laquelle on interroge le serveur
+    function setupAutocomplete(inputId, suggId, apiPath, renderItem, onSelect, { termOf = value => value, minLength = 2 } = {}) {
         const input = document.getElementById(inputId);
         const suggContainer = document.getElementById(suggId);
         
         if (!input || !suggContainer) return;
 
         input.addEventListener("input", async function() {
-            const val = this.value;
+            const val = termOf(this.value);
             suggContainer.innerHTML = '';
             // Valeur posée par un choix dans la liste : les autres contrôles (doublons) sont prévenus, mais la liste ne se rouvre pas
             if (this.dataset.picked) {
@@ -19,7 +20,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 return;
             }
             
-            if (val.length < 2) {
+            if (val.length < minLength) {
                 suggContainer.classList.add('hidden');
                 return;
             }
@@ -102,6 +103,35 @@ document.addEventListener("DOMContentLoaded", function() {
             input.dispatchEvent(new Event('input')); // efface la brasserie retenue (voir plus bas), puis on retient celle-ci
             if (slugField) slugField.value = item.slug;
         }
+    );
+
+    // Initialisation : styles du référentiel. Le champ accepte plusieurs styles séparés par des virgules : on suggère pour le dernier mot saisi
+    setupAutocomplete(
+        'id_beer-style',
+        'style-suggestions',
+        '/api/search-style/',
+        (div, item) => {
+            // Noms et familles viennent du référentiel de l'équipe, mais restent affichés en texte (jamais en HTML)
+            div.className = "p-3 bg-base-100 hover:bg-base-200 cursor-pointer border-b border-base-200 flex justify-between items-center gap-2";
+            const name = document.createElement("span");
+            name.className = "font-semibold";
+            name.textContent = item.name;
+            const family = document.createElement("span");
+            family.className = "text-xs text-gray-500 shrink-0";
+            family.textContent = item.family;
+            div.append(name, family);
+        },
+        (item, container, input) => {
+            const parts = input.value.split(',');
+            parts[parts.length - 1] = ' ' + item.name;
+            input.value = parts.join(',').trim();
+            container.innerHTML = '';
+            container.classList.add('hidden');
+            input.dataset.picked = '1';
+            input.dispatchEvent(new Event('input'));
+            input.focus();  // on peut enchaîner avec un second style (« , »)
+        },
+        { termOf: value => value.split(',').pop().trim(), minLength: 1 }
     );
 
     // La brasserie choisie dans la liste est retenue par son identifiant (le nom seul ne distingue pas deux homonymes) ; retaper le nom l'oublie

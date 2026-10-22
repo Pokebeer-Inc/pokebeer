@@ -90,7 +90,7 @@ def _menu_table(ctx, entries, notes, ppl, wishes, local):
 def _composition(entries):
     counts = defaultdict(int)
     for entry in entries:
-        counts[entry.beer.style_family or 'Autre'] += 1
+        counts[entry.beer.style_family_name or 'Autre'] += 1
     ordered = sorted(counts.items(), key=lambda item: -item[1])
     return Chart('menu-families', 'Composition de la carte', 'donut', [name for name, _ in ordered], [{'name': 'Bières', 'data': [n for _, n in ordered]}],
                  subtitle='Bières de la carte par famille de styles')

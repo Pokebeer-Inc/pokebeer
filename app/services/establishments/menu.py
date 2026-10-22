@@ -24,7 +24,7 @@ def can_manage(user, bar):
 
 def entries(bar):
     """Lignes en cours de la carte, par nom de bière."""
-    return BarBeer.objects.active().filter(bar=bar).select_related('beer__brewery').order_by('beer__name')
+    return BarBeer.objects.active().filter(bar=bar).select_related('beer__brewery', 'beer__primary_style__family').order_by('beer__name')
 
 
 def ensure_room(bar):

@@ -3,7 +3,7 @@ from django.core.cache import cache
 from django.db.models.signals import post_delete, post_save
 
 from ...domain.styles import distinct_styles
-from ...models import Beer
+from ...models import Beer, Style
 
 CACHE_KEY = 'beer_styles'
 CACHE_SECONDS = 600
@@ -12,8 +12,7 @@ CACHE_SECONDS = 600
 def catalog_styles():
     """Styles des bières du catalogue, triés (la liste ne change qu'avec le catalogue : la relire à chaque recherche parcourait toute la colonne)."""
     def compute():
-        return distinct_styles(Beer.objects.filter(is_deleted=False).exclude(style__isnull=True).exclude(style='')
-                               .values_list('style', flat=True).distinct())
+        return sorted(Style.objects.filter(beer_styles__beer__is_deleted=False).values_list('name', flat=True).distinct())
     return cache.get_or_set(CACHE_KEY, compute, CACHE_SECONDS)
 
 

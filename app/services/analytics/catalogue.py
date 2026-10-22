@@ -116,8 +116,9 @@ def _unrecognized_styles(beers):
 
 def _families(beers, drinks):
     """Offre et demande par famille de styles : lecture d'ensemble, utile quand les styles sont nombreux et peu fournis."""
-    supply = {row['style_family']: row['n'] for row in beers.exclude(style_family='').values('style_family').annotate(n=Count('pk'))}
-    demand = {row['beer__style_family']: row['n'] for row in drinks.exclude(beer__style_family='').values('beer__style_family').annotate(n=Count('pk'))}
+    family = 'primary_style__family__name'
+    supply = {row[family]: row['n'] for row in beers.exclude(**{f'{family}__isnull': True}).values(family).annotate(n=Count('pk'))}
+    demand = {row[f'beer__{family}']: row['n'] for row in drinks.exclude(**{f'beer__{family}__isnull': True}).values(f'beer__{family}').annotate(n=Count('pk'))}
     names = sorted(set(supply) | set(demand), key=lambda name: -demand.get(name, 0))
     if not names:
         return []

@@ -12,7 +12,7 @@ from ..domain.match_keys import MAX_NAME_LENGTH
 from ..services.members.visibility import exclude_blocked
 from django.template.loader import render_to_string
 
-from ..services.catalog import catalog_matching, ean, label_scan, product_lookup, search
+from ..services.catalog import catalog_matching, ean, label_scan, product_lookup, search, style_registry
 from ..services.tracking import misses
 from ..services.establishments import postal_codes
 from ..services.common import upstream
@@ -208,6 +208,13 @@ def search_brewery(request):
     breweries = search.breweries(Brewery.objects.only('name', 'slug', 'postal_code', 'city'), query).order_by(search.RANK_FIELD, 'name')[:10]
     # Le lieu distingue deux brasseries de même nom ; le slug désigne exactement celle que le membre choisit
     return JsonResponse([{'name': b.name, 'slug': b.slug, 'place': f"{b.postal_code} {b.city}".strip()} for b in breweries], safe=False)
+
+
+@require_GET
+@throttle(AUTOCOMPLETE_BY_USER, key=by_user, json=True, message=TOO_MANY_SEARCHES)
+def search_style(request):
+    """Styles du référentiel dont le nom ou un alias contient la saisie (aucune requête : le référentiel est en cache), avec leur famille."""
+    return JsonResponse(style_registry.suggest(request.GET.get('term', '')[:100]), safe=False)
 
 
 @require_GET

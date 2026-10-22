@@ -130,8 +130,7 @@ class DevDatabaseSeeder:
         self.beers = self._bulk(Beer, [
             Beer(
                 name=name,
-                style=style_registry.canonicalize(style),  # bulk_create n'appelle ni save() ni les signaux : le référentiel est appliqué ici
-                style_family=style_registry.family_of(style_registry.canonicalize(style)),
+                style=style,  # bulk_create n'appelle ni save() ni les signaux : le référentiel est appliqué juste après (rebuild)
                 degree=Decimal(str(degree)),
                 bitterness=ibu,
                 description=description,
@@ -141,6 +140,7 @@ class DevDatabaseSeeder:
             for brewery, spec in zip(breweries, data.BREWERIES, strict=False)
             for name, style, degree, ibu, description in spec["beers"]
         ])
+        style_registry.rebuild(self.beers)
 
     def _seed_bars(self):
         bartender = self.users[data.BARTENDER_USERNAME]

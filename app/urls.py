@@ -148,6 +148,7 @@ urlpatterns = [
     path('api/places/', views.places_directory, name='api_places'),
     path('api/search-brewery/', views.search_brewery, name='search_brewery'),
     path('api/search-beer/', views.search_beer, name='search_beer'),
+    path('api/search-style/', views.search_style, name='search_style'),
     path('api/notifications/unread/', views.api_unread_notifications, name='api_unread_notifications'),
     path('api/notifications/seen/', views.api_seen_notifications, name='api_seen_notifications'),
     path('api/load-more/<str:item_type>/', views.load_more_generic, name='load_more_generic'),

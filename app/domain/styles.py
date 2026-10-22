@@ -7,6 +7,11 @@ def split_styles(value):
     return list(dict.fromkeys(part.strip() for part in (value or '').split(',') if part.strip()))
 
 
+def alias_lines(text):
+    """Alias d'un style (un par ligne), nettoyés. Fonction pure : elle sert aussi aux migrations, dont les modèles n'ont pas les propriétés."""
+    return [line.strip() for line in (text or '').splitlines() if line.strip()]
+
+
 def distinct_styles(values):
     """Styles distincts, triés, d'une suite de champs (ex. les valeurs distinctes d'une colonne)."""
     return sorted({style for value in values for style in split_styles(value)})

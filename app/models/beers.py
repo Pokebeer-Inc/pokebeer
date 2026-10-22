@@ -36,9 +36,11 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     # Facultative : au comptoir on ne connaît souvent que le nom de la bière. Le staff rattache la brasserie ensuite (admin « À compléter »).
     brewery = models.ForeignKey(Brewery, on_delete=models.PROTECT, null=True, blank=True)
     slug = PublicSlugField(source='name')
-    style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
-    # Famille du premier style reconnu au référentiel (voir services/catalog/style_registry.py) : calculée à l'enregistrement, sert aux statistiques
-    style_family = models.CharField(max_length=60, blank=True, default='', editable=False, db_index=True)
+    style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)", validators=[plain_text_validator])
+    # Structure du champ `style` (voir services/catalog/style_registry.py) : le texte reste ce que le membre saisit et ce qu'on affiche, les styles
+    # liés en sont l'écriture normalisée, reconstruite à chaque enregistrement. `primary_style` (le premier style reconnu) donne la famille des statistiques.
+    styles = models.ManyToManyField('Style', through='BeerStyle', related_name='beers', editable=False)
+    primary_style = models.ForeignKey('Style', on_delete=models.SET_NULL, null=True, blank=True, editable=False, related_name='primary_beers')
     added_by = models.ForeignKey(BeerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_beers')
     is_deleted = models.BooleanField(default=False, verbose_name="Supprimée du catalogue")
     # Code-barres EAN lu à l'ajout : une prochaine lecture retrouve la bière dans le catalogue, sans service extérieur
@@ -89,6 +91,12 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     UNKNOWN_BREWERY = "Brasserie inconnue"
 
     @property
+    def style_family_name(self):
+        """Famille du style principal, ou '' si la bière n'a pas de style reconnu (à lire avec `select_related('primary_style__family')`)."""
+        style = self.primary_style
+        return style.family.name if style and style.family_id else ''
+
+    @property
     def brewery_label(self):
         """Nom de la brasserie pour l'affichage : « Brasserie inconnue » tant que le staff ne l'a pas rattachée."""
         return self.brewery.name if self.brewery_id else self.UNKNOWN_BREWERY
@@ -114,6 +122,7 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     def from_db(cls, db, field_names, values):
         beer = super().from_db(db, field_names, values)
         beer._embedded_sources = beer._embedding_sources()
+        beer._loaded_style = beer.__dict__.get('style')  # voir services/catalog/style_registry.py : on ne reconstruit les styles liés que s'il change
         return beer
 
     def _needs_embedding(self):

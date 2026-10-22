@@ -113,10 +113,12 @@
     {# 2. Détails, tous facultatifs #}
     <section class="wizard-step" data-step="2" data-title="{{ steps.1.1 }}">
             <p class="text-sm text-gray-600 mb-3">Facultatif : ce que vous savez déjà. Le reste pourra être complété plus tard.</p>
-            <div class="form-control w-full mb-3">
+            <div class="form-control w-full mb-3 relative">
                 <label class="label py-1"><span class="label-text font-bold text-xs">{{ beer_form.style.label }}</span></label>
                 {{ beer_form.style }}
                 {% include "partials/field_errors.html" with field=beer_form.style %}
+                <p class="text-[11px] text-gray-500 mt-1 italic">Choisissez dans la liste, ou écrivez le vôtre. Jusqu'à 3 styles, séparés par des virgules.</p>
+                <div id="style-suggestions" class="absolute z-50 w-full bg-base-100 shadow-lg rounded-b-md border border-base-300 top-full hidden mt-1 max-h-40 overflow-y-auto"></div>
             </div>
             <div class="form-control w-full mb-3">
                 <label class="label py-1"><span class="label-text font-bold text-xs">{{ beer_form.bitterness.label }}</span></label>

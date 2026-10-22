@@ -138,7 +138,7 @@ CATALOG = {
             'price_bucket': Dimension('Tranche de prix', 'category', expression=_price_bucket),
             'age': AGE,
             'gender': _labelled('Genre', 'drinker__gender', {**GENDER_LABELS, 'nsp': 'Non précisé'}, scope=_opted_in),
-            'family': _field('Famille de style', 'beer__style_family', 'Style non reconnu'),
+            'family': _field('Famille de style', 'beer__primary_style__family__name', 'Style non reconnu'),
         },
     ),
     'spots': Dataset(
@@ -203,7 +203,7 @@ CATALOG = {
         'Bières du catalogue', lambda: Beer.objects.filter(is_deleted=False), brewery_path='brewery__slug',
         measures={'count': COUNT('Bières'), 'avg_degree': Measure('Degré moyen (%)', lambda dataset: Avg('degree'), decimals=1),
                   'avg_ibu': Measure('Amertume moyenne (IBU)', lambda dataset: Avg('bitterness'), decimals=0)},
-        dimensions={'style': _field('Style', 'style', 'Sans style'), 'family': _field('Famille de style', 'style_family', 'Style non reconnu'),
+        dimensions={'style': _field('Style', 'style', 'Sans style'), 'family': _field('Famille de style', 'primary_style__family__name', 'Style non reconnu'),
                     'brewery': _field('Brasserie', 'brewery__name'), 'verified': VERIFIED},
     ),
     'views': Dataset(

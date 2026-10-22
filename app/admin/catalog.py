@@ -5,17 +5,18 @@ La certification des bars et brasseries se fait depuis « Contenus à valider »
 from django import forms
 from django.contrib import admin, messages
 from django.db import transaction
+from django.db.models import Count
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin
 
-from ..models import Beer, Drinks, Brewery, Bar, Style
+from ..models import Beer, Drinks, Brewery, Bar, Style, StyleFamily
 from ..services.catalog import style_registry
 from ..services.catalog.official_images import process_official_image
 from ..services.catalog.tasting_photos import process_tasting_photo
 from ..services.establishments import removal
 from .images import ProcessedImageAdminMixin
-from .pending import PendingKpiMixin, pending_unbranded_beer_count
+from .pending import PendingKpiMixin, pending_unbranded_beer_count, pending_unofficial_style_count
 
 
 class OfficialImageAdmin(ProcessedImageAdminMixin, ModelAdmin):
@@ -53,18 +54,56 @@ class BeerAdmin(PendingKpiMixin, OfficialImageAdmin):
     exclude = ('embedding',)
 
 
+@admin.register(StyleFamily)
+class StyleFamilyAdmin(ModelAdmin):
+    """Familles de styles : leur ordre est celui des statistiques ; renommer une famille la renomme partout."""
+    list_display = ('name', 'position', 'style_count')
+    list_editable = ('position',)
+    search_fields = ('name',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_styles=Count('styles'))
+
+    @admin.display(description="Styles", ordering='_styles')
+    def style_count(self, obj):
+        return obj._styles
+
+
 @admin.register(Style)
-class StyleAdmin(ModelAdmin):
+class StyleAdmin(PendingKpiMixin, ModelAdmin):
     """Référentiel des styles : nom officiel, famille et alias. Les nouvelles saisies suivent tout de suite ; les bières déjà enregistrées
-    sont remises à jour par l'action ci-dessous (ou `manage.py normalize_styles`)."""
-    list_display = ('name', 'family')
-    list_filter = ('family',)
+    sont remises à jour par l'action ci-dessous (ou `manage.py normalize_styles`).
+
+    Un style saisi par un membre et absent du référentiel apparaît ici « à valider » (non officiel) : l'équipe le range dans une famille et le
+    valide, ou en fait un alias d'un style officiel puis remet les bières à jour (le style devenu inutile disparaît)."""
+    pending_label = "styles saisis par des membres, à valider"
+    pending_counter = staticmethod(pending_unofficial_style_count)
+    list_display = ('name', 'family', 'is_official', 'beer_count')
+    list_filter = ('is_official', 'family')
     search_fields = ('name', 'aliases')
-    actions = ['renormalize_beers']
+    autocomplete_fields = ('family',)
+    actions = ['approve', 'renormalize_beers']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('family').annotate(_beers=Count('beer_styles'))
+
+    @admin.display(description="Bières", ordering='_beers')
+    def beer_count(self, obj):
+        return obj._beers
+
+    @admin.action(description="Valider les styles sélectionnés (leur famille doit être choisie)")
+    def approve(self, request, queryset):
+        ready = queryset.filter(family__isnull=False)
+        skipped = queryset.count() - ready.count()
+        updated = ready.update(is_official=True)
+        style_registry.forget()
+        self.message_user(request, f"{updated} style(s) validé(s).", messages.SUCCESS)
+        if skipped:
+            self.message_user(request, f"{skipped} style(s) sans famille n'ont pas été validés : choisissez d'abord leur famille.", messages.WARNING)
 
     @admin.action(description="Remettre à jour les bières existantes avec le référentiel")
     def renormalize_beers(self, request, queryset):
-        self.message_user(request, f"{style_registry.renormalize_all()} bière(s) mise(s) à jour.", messages.SUCCESS)
+        self.message_user(request, f"{style_registry.rebuild_all()} bière(s) mise(s) à jour.", messages.SUCCESS)
 
 
 class BreweryDeletionForm(forms.Form):
