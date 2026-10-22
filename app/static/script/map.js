@@ -17,6 +17,31 @@ document.addEventListener("DOMContentLoaded", function() {
     // Mêmes dimensions pour toutes les bulles (souvenirs, bars, brasseries)
     const POPUP_OPTIONS = { minWidth: 200, maxWidth: 260 };
 
+    // Feuille « Mes souvenirs » (souvenirs_sheet.js) : la partie de la carte qu'elle recouvre ne doit pas cacher une bulle ou un repère centré
+    const sheetPanel = document.querySelector('[data-sheet-panel]');
+    const sheetHeight = () => (sheetPanel ? sheetPanel.offsetHeight : 0);
+
+    // Recherche et puces du haut : une bulle ne doit pas passer dessous
+    const topUi = document.getElementById('map-top-ui');
+    const topInset = () => (topUi ? topUi.getBoundingClientRect().bottom - map.getContainer().getBoundingClientRect().top : 0);
+
+    // Une bulle se recadre entre le haut (recherche) et la feuille : on règle les marges juste avant son ouverture (clic, ou ouverture depuis la liste)
+    const insetPopup = marker => {
+        const popup = marker.getPopup();
+        popup.options.autoPanPaddingTopLeft = [10, topInset() + 8];
+        popup.options.autoPanPaddingBottomRight = [10, sheetHeight() + 10];
+    };
+
+    function bindPopup(marker, content) {
+        marker.bindPopup(content, POPUP_OPTIONS);
+        marker.on('preclick', () => insetPopup(marker));
+    }
+
+    function showPopup(marker) {
+        insetPopup(marker);
+        marker.openPopup();
+    }
+
     // Ordre d'empilement des repères (zIndexOffset de Leaflet) : mes souvenirs devant tout, puis les brasseries, puis les bars ;
     // le point en cours de déplacement et le résultat de recherche passent devant les souvenirs, ma position devant tout
     const Z_ORDER = { bar: 0, brewery: 100, spot: 1000, moving: 2000, search: 2000, user: 9999 };
@@ -27,6 +52,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // 2. Extraction des données préparées par Django dans le HTML caché
     const spotsContainer = document.getElementById('spots-data-container');
     const spotsData = {};
+    const spotMarkers = {}; // slug -> repère, pour la liste « Mes souvenirs »
     const mapBounds = [];
 
     if (spotsContainer) {
@@ -54,7 +80,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
             // Ajout direct du marqueur sur la carte
             const marker = L.marker([lat, lng], {icon: PokebeerPins.spot(), title: item.dataset.title, zIndexOffset: Z_ORDER.spot}).addTo(layers.spot);
-            marker.bindPopup(popupHtml, POPUP_OPTIONS);
+            bindPopup(marker, popupHtml);
+            spotMarkers[slug] = marker;
             mapBounds.push([lat, lng]);
         });
     }
@@ -124,7 +151,7 @@ document.addEventListener("DOMContentLoaded", function() {
             mapBounds.push([lat, lng]);
             
             // Bulle au clic : son contenu (image, nom, description, ville) n'est demandé au serveur qu'à la première ouverture
-            marker.bindPopup(POPUP_LOADING, POPUP_OPTIONS);
+            bindPopup(marker, POPUP_LOADING);
             loadPlacePopupOnOpen(marker, type, item.dataset.slug);
         });
     }
@@ -332,6 +359,27 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         document.getElementById('move-overlay').classList.add('-translate-y-full');
     }
+
+    // Liste « Mes souvenirs » : la carte se centre sur le souvenir annoncé, dans la partie que la feuille ne recouvre pas, puis ouvre sa bulle
+    const FOCUS_MIN_ZOOM = 15;
+    const MARKER_CLEARANCE = 56; // px entre le repère et le haut de la feuille
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function focusSpot(slug) {
+        const marker = spotMarkers[slug];
+        if (!marker) return;
+        if (!map.hasLayer(layers.spot)) document.querySelector('[data-layer="spot"]')?.click(); // couche masquée par la puce : on la rétablit
+        const zoom = Math.max(map.getZoom(), FOCUS_MIN_ZOOM);
+        // Le repère se place juste au-dessus de la feuille : toute la place visible au-dessus de lui sert à sa bulle
+        const markerY = map.getSize().y - sheetHeight() - MARKER_CLEARANCE;
+        const target = map.unproject(map.project(marker.getLatLng(), zoom).add([0, map.getSize().y / 2 - markerY]), zoom);
+        const openPopup = () => showPopup(marker);
+        if (map.getZoom() === zoom && map.getCenter().distanceTo(target) < 1) return openPopup();
+        map.once('moveend', openPopup);
+        if (reducedMotion.matches) map.setView(target, zoom, { animate: false }); else map.flyTo(target, zoom, { duration: 0.6 });
+    }
+
+    document.addEventListener('souvenir:focus', event => focusSpot(event.detail.slug));
 
     // Puces du haut : affichent ou masquent les bars, les brasseries et les souvenirs
     document.querySelectorAll('[data-layer]').forEach(chip => {

@@ -8,7 +8,7 @@ from django.utils import timezone
 from ..models import BeerSpot, UserFollow
 from ..forms import BeerSpotForm, error_summary
 from ..services.members.visibility import exclude_hidden_users
-from ..services.establishments import place_directory, spots
+from ..services.establishments import directions, place_directory, spots
 from ..services.establishments.places import PLACE_KINDS_BY_KEY
 from .utils import picker_context
 
@@ -50,7 +50,7 @@ def map_view(request):
     # Récupérer : Mes propres lieux + Les lieux où je suis tagué comme ami
     user_spots = exclude_hidden_users(
         BeerSpot.objects.filter(Q(user=request.user) | Q(friends=request.user)), request.user, 'user',
-    ).distinct().prefetch_related('drinks', 'drinks__beer', 'friends')
+    ).distinct().select_related('user').prefetch_related('drinks', 'drinks__beer', 'friends')
     
     # Afficher les bars et les brasseries
     markers = place_directory.map_markers()
@@ -80,5 +80,5 @@ def place_popup_view(request, kind, slug):
     place_kind = PLACE_KINDS_BY_KEY.get(kind)
     if place_kind is None:
         raise Http404
-    place = get_object_or_404(place_kind.model.objects.only('slug', 'name', 'description', 'image', 'postal_code', 'city'), slug=slug)
-    return render(request, 'partials/map_place_popup.html', {'place': place, 'detail_url': place_kind.detail_path(place)})
+    place = get_object_or_404(place_kind.model.objects.only('slug', 'name', 'description', 'image', 'street', 'postal_code', 'city', 'latitude', 'longitude'), slug=slug)
+    return render(request, 'partials/map_place_popup.html', {'place': place, 'detail_url': place_kind.detail_path(place), 'directions': directions.links(place)})

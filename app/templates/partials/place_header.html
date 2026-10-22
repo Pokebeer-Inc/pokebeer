@@ -85,18 +85,14 @@
         </div>
 
         {% if place.address %}
-        <div class="flex flex-col gap-1 mb-4 text-gray-600">
-            <a href="https://www.google.com/maps/search/?api=1&query={{ place.name|urlencode }}%20{{ place.address|urlencode }}" 
-               target="_blank" 
-               rel="noopener noreferrer" 
-               class="flex items-center gap-1 group hover:text-black transition-colors cursor-pointer w-fit">
-                
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                
-                <span class="text-sm text-gray-600 group-hover:text-black leading-tight font-semibold">
-                    {{ place.address }}
-                </span>
+        {# Adresse cliquable, et bouton « Y aller » à sa droite pour que ça se voie : même lien, mêmes cartes (directions.js) #}
+        <div class="flex items-start justify-between gap-3 mb-4 text-gray-600">
+            <a href="{{ directions.google }}" data-apple-url="{{ directions.apple }}" target="_blank" rel="noopener noreferrer"
+               class="flex items-start gap-1 group hover:text-black transition-colors cursor-pointer min-w-0">
+                {% include "partials/icon.html" with name="location" size="16" cls="mt-0.5 group-hover:scale-110 transition-transform" %}
+                <span class="text-sm text-gray-600 group-hover:text-black leading-tight font-semibold">{{ place.address }}</span>
             </a>
+            {% include "partials/directions_button.html" with links=directions button_class="btn btn-sm btn-primary border-secondary text-black normal-case gap-1 shrink-0" %}
         </div>
         {% endif %}
 

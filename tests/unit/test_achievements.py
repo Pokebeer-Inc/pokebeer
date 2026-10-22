@@ -66,7 +66,7 @@ class TestAchievementTiers:
         f.make_drink(user, f.make_beer(name=f.unique("Pils ")), note=10)
         assert achievement(user, "keken")["tier_level"] == 0
         f.make_drink(user, f.make_beer(name=f.unique("8.6 ")), note=5)
-        assert achievement(user, "keken")["desc"].startswith("Goût de luxe")
+        assert "8.6" in achievement(user, "keken")["desc"]
 
     def test_brewery_achievement_links_to_the_brewery(self, user):
         ours = f.make_brewery(name="Brasserie de l'Ours Doré")

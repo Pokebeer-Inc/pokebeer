@@ -5,11 +5,11 @@
 <link rel="stylesheet" href="{% static 'style/modal.css' %}">
 <link rel="stylesheet" href="{% static 'style/map.css' %}">
 {% include "partials/leaflet_css.html" %}
-<div class="pb-frame-fixed fixed top-0 left-0 w-full bottom-[4.5rem] z-0 bg-base-100">
+<div class="pb-frame-fixed pb-map-frame fixed top-0 left-0 w-full bottom-[4.5rem] z-0 bg-base-100" data-sheet="closed">
     <div id="map" class="absolute inset-0 z-0" role="application" aria-label="Carte des bars, des brasseries et de vos souvenirs"></div>
 
     {# Haut de la carte : recherche, couches à afficher et rappel du geste pour ajouter un souvenir #}
-    <div class="absolute top-3 left-1/2 -translate-x-1/2 w-[92%] max-w-md z-[1000] flex flex-col gap-2">
+    <div id="map-top-ui" class="absolute top-3 left-1/2 -translate-x-1/2 w-[92%] max-w-md z-[1000] flex flex-col gap-2">
         <div class="flex items-center gap-2 h-14 pl-4 pr-2 rounded-2xl border-2 border-secondary bg-base-200 shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             <input type="search" id="map-search-input" placeholder="Bar, brasserie, adresse…" aria-label="Chercher un lieu sur la carte" autocomplete="off" enterkeyhint="search"
@@ -27,9 +27,29 @@
         <ul id="map-search-results" class="pb-card shadow-xl max-h-48 overflow-y-auto hidden p-1" role="listbox" aria-label="Résultats de la recherche"></ul>
     </div>
 
-    <p class="absolute left-3 bottom-3 z-[999] pb-chip shadow text-xs pointer-events-none" style="max-width: calc(100% - 6.5rem); white-space: normal;">Touchez la carte pour ajouter un souvenir</p>
+    {# Feuille « Mes souvenirs » : repliée, seule sa poignée dépasse en bas de la carte ; dépliée, elle remonte par-dessus la carte #}
+    <section class="pb-sheet" data-sheet-panel aria-label="Mes souvenirs">
+        <button type="button" class="pb-sheet-handle" data-sheet-toggle aria-expanded="false" aria-controls="souvenirs-body">
+            <span class="pb-sheet-grip" aria-hidden="true"></span>
+            <span class="flex items-center gap-2 text-sm font-bold">
+                Mes souvenirs <span class="pb-chip is-primary !py-0.5 !px-2 text-xs">{{ user_spots|length }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="pb-sheet-chevron h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>
+            </span>
+        </button>
+        <div id="souvenirs-body" class="pb-sheet-body" inert>
+            <p class="pb-sheet-hint">Touchez la carte pour ajouter un souvenir</p>
+            {% if user_spots %}
+            <ul class="pb-sheet-list" data-sheet-list>
+                {% for spot in user_spots %}{% include "partials/souvenir_row.html" %}{% endfor %}
+                <li class="pb-sheet-spacer" aria-hidden="true"></li>
+            </ul>
+            {% else %}
+            <p class="p-4 text-center text-xs italic text-gray-500">Aucun souvenir pour l'instant.</p>
+            {% endif %}
+        </div>
+    </section>
 
-    <button type="button" id="geoloc-btn" class="absolute right-2 bottom-[4.5rem] z-[1000] btn btn-circle btn-lg bg-base-200 border-2 border-secondary text-black shadow-xl" aria-label="Me localiser" title="Me localiser">
+    <button type="button" id="geoloc-btn" class="pb-geoloc absolute right-2 z-[1000] btn btn-circle btn-lg bg-base-200 border-2 border-secondary text-black shadow-xl" aria-label="Me localiser" title="Me localiser">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3M12 8a4 4 0 100 8 4 4 0 000-8z" /></svg>
     </button>
 
@@ -219,5 +239,6 @@
 {% include "partials/leaflet_js.html" %}
 <script src="{% static 'script/pins.js' %}"></script>
 <script src="{% static 'script/map.js' %}"></script>
+<script src="{% static 'script/souvenirs_sheet.js' %}"></script>
 <script src="{% static 'script/wishlist.js' %}"></script>
 {% endblock %}
