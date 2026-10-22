@@ -75,7 +75,7 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 | `reverse_geocoding.py` | Géocodage inverse des lieux (OpenStreetMap/Nominatim) avec cache : type de lieu, ville, région, urbain ou rural. |
 | `siret_registry.py` | Contrôle d'un SIRET dans l'annuaire officiel des entreprises (recherche-entreprises.api.gouv.fr, sans clé). |
 | `spots.py` | Lieux posés sur la carte par les membres : création, modification, qui est invité et qui est prévenu. |
-| `spot_photos.py` | Photos des souvenirs de la carte : validation stricte puis ré-encodage, stockage dans un bucket dédié. |
+| `spot_photos.py` | Photos des souvenirs de la carte : validation stricte puis ré-encodage, stockage dans le dossier `spots/` du bucket des médias. |
 | `team.py` | Équipe d'un établissement : gérants, invitations (le rôle n'est donné qu'à l'acceptation), retraits. |
 | `verification.py` | Certification (coche « vérifié ») d'un bar, d'une brasserie ou d'une bière : règle unique partagée par l'admin. |
 

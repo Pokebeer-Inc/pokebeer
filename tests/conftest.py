@@ -7,7 +7,7 @@ from django.contrib.sites.models import Site
 from django.core.files.storage import InMemoryStorage
 from django.test import Client
 
-from app.models import BeerSpot, BeerUser
+from app.models import BeerUser
 from tests import factories
 from tests.fakes import mistral as fake_mistral
 
@@ -26,7 +26,6 @@ def isolated_services(settings, monkeypatch):
     settings.STORAGES = {**settings.STORAGES, "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"}}
     # Le champ garde le stockage résolu à l'import : on le remplace par un stockage mémoire (jamais le vrai bucket)
     monkeypatch.setattr(BeerUser._meta.get_field("avatar"), "storage", InMemoryStorage())
-    monkeypatch.setattr(BeerSpot._meta.get_field("photo"), "storage", InMemoryStorage())
     monkeypatch.setattr("app.services.assistant.llm.get_client", _network_disabled)
     monkeypatch.setattr("app.services.messaging.realtime_service.requests.post", mock.Mock(side_effect=_network_disabled))
     monkeypatch.setattr("app.services.messaging.realtime_service.firebase_admin.get_app", mock.Mock(side_effect=ValueError("Firebase désactivé en test")))

@@ -6,7 +6,6 @@ from django.utils import timezone
 from ..validators import MAX_TEXT_LENGTH
 from ..fields import PublicSlugField
 from ..domain.upload_paths import spot_photo_path
-from ..storages import spot_photos_storage
 
 
     
@@ -19,7 +18,7 @@ class BeerSpot(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     
-    photo = models.ImageField(upload_to=spot_photo_path, storage=spot_photos_storage, blank=True, null=True, verbose_name="Photo")
+    photo = models.ImageField(upload_to=spot_photo_path, blank=True, null=True, verbose_name="Photo")
 
     drinks = models.ManyToManyField('Drinks', blank=True, related_name='spots', verbose_name="Dégustations associées")
     friends = models.ManyToManyField('BeerUser', blank=True, related_name='shared_spots', verbose_name="Amis associés")

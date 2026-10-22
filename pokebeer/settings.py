@@ -329,13 +329,9 @@ def public_bucket_storage(bucket, local_folder):
     }
 
 
-# Photos de profil et photos de souvenirs : un bucket dédié chacun. Un nom de bucket n'a rien de secret : il a une valeur par défaut, et les
-# clés d'accès (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY) sont les mêmes pour tous les buckets. La variable d'environnement ne sert qu'à
-# donner un autre nom. Un nouveau bucket = le créer dans Supabase (public en lecture) + une ligne ici, sans nouveau secret.
-AWS_PROFILE_PICTURES_BUCKET = os.getenv('AWS_PROFILE_PICTURES_BUCKET') or 'profil'
-AWS_SPOT_PHOTOS_BUCKET = os.getenv('AWS_SPOT_PHOTOS_BUCKET') or 'spots'
+# Photos de profil : bucket Supabase dédié, au même niveau que le bucket des médias
+AWS_PROFILE_PICTURES_BUCKET = os.getenv('AWS_PROFILE_PICTURES_BUCKET')
 STORAGES["profile_pictures"] = public_bucket_storage(AWS_PROFILE_PICTURES_BUCKET, 'profile_pictures')
-STORAGES["spot_photos"] = public_bucket_storage(AWS_SPOT_PHOTOS_BUCKET, 'spots')
 
 # Canal des notifications push Android : créé par l'application (NotificationChannels.kt) ; les deux doivent rester identiques
 FCM_ANDROID_CHANNEL_ID = "pokebeer_channel"
