@@ -106,7 +106,7 @@ class TestBeerAtSubmission:
         assert Beer.objects.filter(name="Punk IPAA").exists()
 
     def test_the_same_name_at_another_brewery_is_allowed_with_a_notice(self, auth_client, punk):
-        response = post(auth_client, name="Punk IPA", brewery="Brasserie du Port", **{"drink-note": "11"})  # une erreur ailleurs pour réafficher la page
+        response = post(auth_client, name="Punk IPA", brewery="Brasserie du Port", **{"beer-bitterness": "9999"})  # une erreur ailleurs pour réafficher la page
         assert "Une bière du même nom existe chez" in response.content.decode()
         post(auth_client, name="Punk IPA", brewery="Brasserie du Port")
         assert Beer.objects.filter(name="Punk IPA").count() == 2

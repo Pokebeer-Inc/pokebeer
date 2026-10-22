@@ -17,6 +17,12 @@ from .mixins import MatchKeyMixin, OfficialImageMixin, VerifiableMixin
 from .users import BeerUser
 
 
+class BeerQuerySet(models.QuerySet):
+    def unbranded(self):
+        """Bières du catalogue sans brasserie connue : la file de travail du staff (voir admin « Bières à compléter »)."""
+        return self.filter(brewery__isnull=True, is_deleted=False)
+
+
 class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     MATCH_KIND = match_keys.BEER
 
@@ -27,7 +33,8 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     degree = models.DecimalField(max_digits=4, decimal_places=1, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Degré")
     # PROTECT : supprimer une brasserie n'efface jamais ses bières et leurs dégustations par accident ; l'équipe choisit de les transférer
     # ou de les supprimer (services/establishments/removal.py)
-    brewery = models.ForeignKey(Brewery, on_delete=models.PROTECT)
+    # Facultative : au comptoir on ne connaît souvent que le nom de la bière. Le staff rattache la brasserie ensuite (admin « À compléter »).
+    brewery = models.ForeignKey(Brewery, on_delete=models.PROTECT, null=True, blank=True)
     slug = PublicSlugField(source='name')
     style = models.CharField(max_length=100, blank=True, null=True, verbose_name="Style (ex: IPA, Stout...)")
     # Famille du premier style reconnu au référentiel (voir services/catalog/style_registry.py) : calculée à l'enregistrement, sert aux statistiques
@@ -38,6 +45,8 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     ean = models.CharField(max_length=13, null=True, blank=True, editable=False, verbose_name="Code-barres EAN")
 
     embedding = VectorField(dimensions=settings.EMBEDDING_DIMENSIONS, null=True, blank=True)
+
+    objects = BeerQuerySet.as_manager()
 
     class Meta:
         verbose_name = "Bière"
@@ -58,6 +67,14 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
                 name='unique_active_beer_name_per_brewery',
                 violation_error_message="Cette brasserie a déjà une bière de ce nom.",
             ),
+            # Sans brasserie, le nom seul ne distingue pas deux bières (« La Blonde ») : on y ajoute le degré. NULL est toujours distinct
+            # pour PostgreSQL, d'où cette contrainte à part de la précédente.
+            models.UniqueConstraint(
+                fields=['name_key', 'degree'],
+                condition=models.Q(brewery__isnull=True, is_deleted=False),
+                name='unique_active_unbranded_beer',
+                violation_error_message="Une bière de ce nom et de ce degré, sans brasserie, existe déjà.",
+            ),
             # Un code-barres désigne une seule bière du catalogue : le premier ajout le garde
             models.UniqueConstraint(
                 fields=['ean'],
@@ -69,10 +86,23 @@ class Beer(OfficialImageMixin, VerifiableMixin, MatchKeyMixin):
     def __str__(self):
         return self.name
 
+    UNKNOWN_BREWERY = "Brasserie inconnue"
+
+    @property
+    def brewery_label(self):
+        """Nom de la brasserie pour l'affichage : « Brasserie inconnue » tant que le staff ne l'a pas rattachée."""
+        return self.brewery.name if self.brewery_id else self.UNKNOWN_BREWERY
+
+    @property
+    def needs_review(self):
+        """Fiche à compléter par le staff : brasserie encore inconnue ou fiche non vérifiée."""
+        return self.brewery_id is None or not self.is_verified
+
     @property
     def embedding_text(self):
         """Texte décrivant la bière, vectorisé pour la recherche sémantique du chat IA."""
-        return f"Bière {self.name} de la brasserie {self.brewery.name}. Style: {self.style or 'inconnu'}. Profil: {self.description}"
+        origin = f" de la brasserie {self.brewery.name}" if self.brewery_id else ""
+        return f"Bière {self.name}{origin}. Style: {self.style or 'inconnu'}. Profil: {self.description or 'non renseigné'}"
 
     # Champs dont dépend `embedding_text` : leur changement rend le vecteur obsolète
     EMBEDDING_SOURCES = ('name', 'style', 'description', 'brewery_id')

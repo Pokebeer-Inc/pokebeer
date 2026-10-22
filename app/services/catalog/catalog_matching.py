@@ -9,6 +9,9 @@ Verdicts, du plus fort au plus faible :
   choisir l'existant ou confirmer que c'est différent : la confirmation est un jeton signé, lié à ce nom et à ces candidats.
 - ELSEWHERE : même nom de bière chez une autre brasserie. Information seulement, jamais bloquant.
 
+Bière sans brasserie (le membre ne la connaît pas) : le nom seul ne la distingue pas (« La Blonde »). Elle est SAME d'une autre bière sans
+brasserie de même nom ET de même degré (la contrainte unique_active_unbranded_beer du modèle), et ELSEWHERE de toute bière du même nom.
+
 Homonymes : deux établissements de même nom dans deux villes (code postal ou commune différents) sont distincts, et ne se gênent jamais. Quand
 le lieu de l'un des deux est inconnu, on ne peut pas trancher : le nom identique reste SAME tant que le membre n'a pas donné son code postal,
 puis devient PROBABLE (« est-ce la même ? ») si la fiche existante n'a pas de lieu, pour que le membre puisse confirmer qu'il s'agit d'une autre.
@@ -159,6 +162,15 @@ def find_place(kind, name, postal_code='', city='', exclude_pk=None):
     return _with_token(kind, f"{strict}|{postal_code or ''}", _ordered(candidates))
 
 
+def chosen_brewery(slug, name):
+    """Brasserie que le membre a choisie dans l'autocomplétion (son identifiant public), si elle existe et porte bien le nom saisi : un nom
+    retapé depuis le choix l'annule. C'est ce qui distingue deux brasseries de même nom sans exiger leur code postal."""
+    if not slug or not name:
+        return None
+    chosen = Brewery.objects.filter(slug=slug).first()
+    return chosen if chosen and chosen.name_key == keys.strict_key(name, keys.BREWERY) else None
+
+
 def find_brewery(name, postal_code='', city='', exclude_pk=None):
     return find_place(keys.BREWERY, name, postal_code, city, exclude_pk)
 
@@ -172,8 +184,18 @@ def _beer_tokens(name_key, brewery_name):
     return keys.without(name_key.split(), keys.strict_tokens(brewery_name, keys.BREWERY))
 
 
-def find_beer(name, brewery_name, brewery_pks=(), exclude_pk=None):
-    """Bières proches de `name`. `brewery_pks` : brasseries existantes que la bière saisie désigne (ses homonymes y sont des doublons)."""
+def _brewery_name_of(beer):
+    return beer.brewery.name if beer.brewery_id else ''
+
+
+def _same_unbranded(row, unbranded, degree):
+    """Bière sans brasserie de même nom et de même degré que celle saisie sans brasserie : c'est la même."""
+    return unbranded and row.brewery_id is None and degree is not None and row.degree == degree
+
+
+def find_beer(name, brewery_name, brewery_pks=(), exclude_pk=None, degree=None):
+    """Bières proches de `name`. `brewery_pks` : brasseries existantes que la bière saisie désigne (ses homonymes y sont des doublons).
+    `degree` : degré saisi, qui départage les bières sans brasserie (voir l'en-tête du module)."""
     loose = keys.loose_key(name, keys.BEER)
     if not loose:
         return Report(keys.BEER, '')
@@ -186,18 +208,20 @@ def find_beer(name, brewery_name, brewery_pks=(), exclude_pk=None):
     rows = Beer.objects.filter(condition, is_deleted=False).select_related('brewery').annotate(similarity=TrigramSimilarity('match_key', loose))
     if exclude_pk:
         rows = rows.exclude(pk=exclude_pk)
+    unbranded = not pks and not (brewery_name or '').strip()
     candidates = []
     for row in rows.order_by('-similarity', 'name')[:BEER_CANDIDATES]:
-        score = keys.similarity(wanted, _beer_tokens(row.match_key, row.brewery.name))
+        score = keys.similarity(wanted, _beer_tokens(row.match_key, _brewery_name_of(row)))
         same_brewery = row.brewery_id in pks
         if score == 1.0:
-            candidates.append(Candidate(row, Level.SAME if same_brewery else Level.ELSEWHERE, 1.0))
+            same = same_brewery or _same_unbranded(row, unbranded, degree)
+            candidates.append(Candidate(row, Level.SAME if same else Level.ELSEWHERE, 1.0))
         elif same_brewery and score >= keys.PROBABLE_SIMILARITY:
             candidates.append(Candidate(row, Level.PROBABLE, score))
     return _with_token(keys.BEER, key, _ordered(candidates))
 
 
-def inspect(name, brewery_name, exclude_beer_pk=None, brewery_confirmed=False, postal_code='', city=''):
+def inspect(name, brewery_name, exclude_beer_pk=None, brewery_confirmed=False, postal_code='', city='', degree=None):
     """Rapports sur la brasserie saisie (avec son lieu s'il est connu) et sur la bière saisie. Si le membre a confirmé que sa brasserie est une
     autre que celles qui lui ressemblent, la bière n'est plus comparée à leurs bières."""
     brewery = find_brewery(brewery_name, postal_code, city)
@@ -207,22 +231,22 @@ def inspect(name, brewery_name, exclude_beer_pk=None, brewery_confirmed=False, p
         pks = set()
     else:
         pks = {c.obj.pk for c in brewery.candidates if c.level == Level.PROBABLE}
-    return Inspection(brewery, find_beer(name, brewery_name, pks, exclude_beer_pk), postal_typed=bool(postal_code))
+    return Inspection(brewery, find_beer(name, brewery_name, pks, exclude_beer_pk, degree), postal_typed=bool(postal_code))
 
 
 def _describe(report, noun):
     first = report.candidates[0].obj
     if noun == keys.BEER:
-        return f"« {first.name} » ({first.brewery.name})"
+        return f"« {first.name} » ({first.brewery_label})"
     return f"« {first.name} »" + (f" ({first.postal_code} {first.city})".replace("  ", " ") if first.postal_code or first.city else "")
 
 
-def decide(name, brewery_name, exclude_beer_pk=None, confirm_brewery='', confirm_beer='', postal_code='', city=''):
+def decide(name, brewery_name, exclude_beer_pk=None, confirm_brewery='', confirm_beer='', postal_code='', city='', degree=None):
     """Inspection si l'ajout peut se poursuivre ; lève DuplicateFound sinon (messages à afficher, candidats à proposer)."""
     brewery_report = find_brewery(brewery_name, postal_code, city)
     brewery_ok = brewery_report.level != Level.PROBABLE or confirmed(brewery_report, confirm_brewery)
     inspection = inspect(
-        name, brewery_name, exclude_beer_pk, brewery_confirmed=brewery_report.level == Level.PROBABLE and brewery_ok, postal_code=postal_code, city=city,
+        name, brewery_name, exclude_beer_pk, brewery_confirmed=brewery_report.level == Level.PROBABLE and brewery_ok, postal_code=postal_code, city=city, degree=degree,
     )
     messages = []
     if not brewery_ok:
@@ -297,7 +321,7 @@ def duplicate_beers():
     pairs = []
     for first_id, second_id in ids:
         first, second = by_pk[first_id], by_pk[second_id]
-        score = keys.similarity(_beer_tokens(first.match_key, first.brewery.name), _beer_tokens(second.match_key, second.brewery.name))
+        score = keys.similarity(_beer_tokens(first.match_key, _brewery_name_of(first)), _beer_tokens(second.match_key, _brewery_name_of(second)))
         if score == 1.0:
             pairs.append(Pair(first, second, Level.SAME, 1.0))
         elif score >= keys.PROBABLE_SIMILARITY:

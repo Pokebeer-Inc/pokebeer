@@ -29,7 +29,7 @@ def _is_manager(user, kind, obj):
     if not (user.is_brewer or user.is_bartender):
         return False
     place = obj.brewery if kind == BEER else obj
-    return place.managers.filter(pk=user.pk).exists()
+    return bool(place) and place.managers.filter(pk=user.pk).exists()
 
 
 def _is_new_visitor(day, kind, object_id, user_id):

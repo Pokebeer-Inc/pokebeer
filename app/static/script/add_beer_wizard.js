@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const recap = document.getElementById('wizard-recap');
     const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
     const eanField = form.querySelector('[name="beer-ean"]');
-    const menuMode = form.dataset.mode === 'menu';  // ajout depuis la carte d'un bar : pas d'avis ni de contexte
+    const menuMode = form.dataset.mode === 'menu';  // ajout depuis la carte d'un bar : lieu de la brasserie, description, prix et format
     let current = 1;
     let dirty = false;
     let submitting = false;
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function () {
         backBtn.disabled = current === 1;
         backBtn.classList.toggle('opacity-40', current === 1);
         clearErrors();
-        if (current === total) buildRecap();
+        if (recap && current === total) buildRecap();
         if (push) history.pushState({ step: current }, '', '#step-' + current);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -72,7 +72,6 @@ document.addEventListener('DOMContentLoaded', function () {
             if ((control.type === 'radio' || control.type === 'checkbox') && !control.checked) return;
             data.append(control.name, control.value);
         });
-        if (!menuMode && (controls.some(c => c.name === 'notebooks') || panelOf(step) === panels[4])) data.append('notebooks_present', '1');
         return data;
     }
 
@@ -111,7 +110,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!dirty) return;
         const controls = Array.from(form.querySelectorAll('input, select, textarea')).filter(c => c.type !== 'file' && c.name && c.name !== 'csrfmiddlewaretoken');
         const data = formDataFor(controls, step, false);
-        if (!menuMode) data.append('notebooks_present', '1');
         if (navigator.sendBeacon) navigator.sendBeacon(form.dataset.draftUrl, data);
         else fetch(form.dataset.draftUrl, { method: 'POST', credentials: 'same-origin', body: data, keepalive: true });
         dirty = false;
@@ -133,23 +131,21 @@ document.addEventListener('DOMContentLoaded', function () {
         return input && input.files && input.files.length ? input.files[0].name : '';
     }
 
+    // Une ligne par champ présent dans la page (le formulaire d'un membre n'a ni lieu de brasserie, ni description, ni prix) : [libellé, champ, valeur, étape]
     function buildRecap() {
         const rows = [
-            ['Bière', valueOf('beer-name'), 1], ['Brasserie', valueOf('beer-brewery_name'), 1],
-            ['Lieu de la brasserie', [valueOf('beer-brewery_postal_code'), valueOf('beer-brewery_city')].filter(Boolean).join(' '), 1],
-            ['Alcool', valueOf('beer-degree') && valueOf('beer-degree') + ' %', 2], ['Style', valueOf('beer-style'), 2],
-            ['Amertume', valueOf('beer-bitterness') && valueOf('beer-bitterness') + ' IBU', 2],
-            ['Description', valueOf('beer-description').slice(0, 140), 3], ['Photo de la bière', fileOf('beer-image'), 3],
-            ...(menuMode ? [
-                ['Format à la carte', choiceOf('menu-serving_format'), 4], ['Prix à la carte', valueOf('menu-price') && valueOf('menu-price') + ' €', 4],
-            ] : [
-                ['Commentaire', valueOf('drink-comment').slice(0, 140), 4], ['Note', valueOf('drink-note') && valueOf('drink-note') + ' / 10', 4],
-                ['Date', valueOf('drink-date'), 4], ['Photo de l\'avis', fileOf('drink-photo'), 4],
-                ['Lieu', choiceOf('drink-venue_type'), 5], ['Avec qui', choiceOf('drink-company'), 5],
-                ['Format', choiceOf('drink-serving_format'), 5], ['Prix', valueOf('drink-price') && valueOf('drink-price') + ' €', 5],
-            ]),
-        ];
-        recap.replaceChildren(...rows.map(([label, value, step]) => {
+            ['Bière', 'beer-name', valueOf('beer-name'), 1],
+            ['Alcool', 'beer-degree', valueOf('beer-degree') && valueOf('beer-degree') + ' %', 1],
+            ['Brasserie', 'beer-brewery_name', valueOf('beer-brewery_name'), 1],
+            ['Lieu de la brasserie', 'beer-brewery_postal_code', [valueOf('beer-brewery_postal_code'), valueOf('beer-brewery_city')].filter(Boolean).join(' '), 1],
+            ['Style', 'beer-style', valueOf('beer-style'), 2],
+            ['Amertume', 'beer-bitterness', valueOf('beer-bitterness') && valueOf('beer-bitterness') + ' IBU', 2],
+            ['Description', 'beer-description', valueOf('beer-description').slice(0, 140), 2],
+            ['Photo de la bière', 'beer-image', fileOf('beer-image'), 2],
+            ['Format à la carte', 'menu-serving_format', choiceOf('menu-serving_format'), 3],
+            ['Prix à la carte', 'menu-price', valueOf('menu-price') && valueOf('menu-price') + ' €', 3],
+        ].filter(([, name]) => form.querySelector('[name="' + name + '"]'));
+        recap.replaceChildren(...rows.map(([label, , value, step]) => {
             const row = document.createElement('button');
             row.type = 'button';
             row.className = 'recap-row';
@@ -164,7 +160,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }));
     }
 
-    recap.addEventListener('click', event => {
+    // Pas de récapitulatif pour un membre : la dernière étape envoie directement le formulaire
+    if (recap) recap.addEventListener('click', event => {
         const row = event.target.closest('[data-goto]');
         if (row) show(Number(row.dataset.goto));
     });
@@ -191,22 +188,6 @@ document.addEventListener('DOMContentLoaded', function () {
         submitting = true;
         dirty = false;
     });
-
-    // Une photo ajoutée pour la bière (étape 3) sert aussi à l'avis (étape 4), sans qu'on la reprenne : tant que le membre n'a pas choisi
-    // lui-même la photo de l'avis, elle suit celle de la bière (changée ou retirée). Une photo de scan est déjà posée dans les deux champs.
-    const beerPhoto = document.getElementById('id_beer-image');
-    const tastingPhoto = document.getElementById('id_drink-photo');
-    if (beerPhoto && tastingPhoto && window.ImageFields) {
-        form.addEventListener('imagefield:set', event => {
-            if (event.target !== beerPhoto || beerPhoto.dataset.fromScan === '1') return;
-            window.ImageFields.preset(tastingPhoto, new File([event.detail.file], 'tasting.jpg', { type: 'image/jpeg' }));
-        });
-        form.addEventListener('imagefield:clear', event => {
-            if (event.target !== beerPhoto || tastingPhoto.dataset.fromScan !== '1') return;
-            const clear = tastingPhoto.closest('[data-image-field]').querySelector('[data-image-clear]');
-            if (clear) clear.click();
-        });
-    }
 
     form.addEventListener('input', () => { dirty = true; });
     form.addEventListener('change', () => { dirty = true; });

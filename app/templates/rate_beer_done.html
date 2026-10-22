@@ -9,7 +9,7 @@
 
     <h1 id="celebration-title" class="pb-title text-3xl font-bold text-center celebration-title">Merci {{ user.username }} !</h1>
     <p class="text-center text-gray-700 mt-2 celebration-line">
-        Votre avis sur <b>{{ beer.name }}</b> ({{ beer.brewery.name }}) est enregistré dans votre carnet{% if drink.note is not None %}, avec la note de <b>{{ drink.note }}/10</b>{% endif %}.
+        Votre avis sur <b>{{ beer.name }}</b> ({{ beer.brewery_label }}) est enregistré dans votre carnet{% if drink.note is not None %}, avec la note de <b>{{ drink.note }}/10</b>{% endif %}.
     </p>
     <p class="text-center text-sm text-gray-600 mt-1 celebration-line">
         {% if drinks_count == 1 %}Votre toute première dégustation : bienvenue dans votre carnet.

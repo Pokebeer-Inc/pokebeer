@@ -101,7 +101,7 @@
             <span class="w-7 text-center font-bold italic text-gray-600 shrink-0">#{{ forloop.counter }}</span>
             <span class="flex-1 min-w-0 py-1 pointer-events-none">
                 <span class="block font-semibold leading-tight truncate">{{ item.beer.name }}</span>
-                <span class="block text-sm text-gray-600 truncate">{{ item.beer.brewery.name }}</span>
+                <span class="block text-sm text-gray-600 truncate">{{ item.beer.brewery_label }}</span>
             </span>
             {% if item.note is not null %}<span class="pb-chip is-primary !py-0.5 shrink-0 pointer-events-none">{{ item.note }}/10</span>{% endif %}
         </li>

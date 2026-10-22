@@ -15,14 +15,39 @@ from ..services.catalog.official_images import process_official_image
 from ..services.catalog.tasting_photos import process_tasting_photo
 from ..services.establishments import removal
 from .images import ProcessedImageAdminMixin
+from .pending import PendingKpiMixin, pending_unbranded_beer_count
 
 
 class OfficialImageAdmin(ProcessedImageAdminMixin, ModelAdmin):
     image_processors = {'image': process_official_image}
 
 
+class BreweryKnownFilter(admin.SimpleListFilter):
+    """File de travail du staff : les bières ajoutées sans brasserie, à rattacher à une brasserie existante ou à créer."""
+    title = "brasserie"
+    parameter_name = 'brewery_known'
+
+    def lookups(self, request, model_admin):
+        return [('no', "À rattacher (brasserie inconnue)"), ('yes', "Rattachée")]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'no':
+            return queryset.filter(brewery__isnull=True)
+        if self.value() == 'yes':
+            return queryset.filter(brewery__isnull=False)
+        return queryset
+
+
 @admin.register(Beer)
-class BeerAdmin(OfficialImageAdmin):
+class BeerAdmin(PendingKpiMixin, OfficialImageAdmin):
+    pending_label = "bières sans brasserie à rattacher"
+    pending_counter = staticmethod(pending_unbranded_beer_count)
+    list_display = ('name', 'brewery', 'degree', 'style', 'is_verified', 'is_deleted')
+    list_select_related = ('brewery',)
+    list_filter = (BreweryKnownFilter, 'is_verified', 'is_deleted')
+    search_fields = ('name', 'brewery__name')
+    # La brasserie se cherche par nom ou par ville (deux brasseries peuvent porter le même nom) ; le « + » à côté du champ en crée une
+    autocomplete_fields = ('brewery',)
     # Le vecteur de recherche du chat IA est calculé par le site (services/catalog/embeddings.py) : l'afficher comme un champ de texte de
     # 1024 nombres invitait à le casser (un envoi vide faisait planter l'enregistrement)
     exclude = ('embedding',)
@@ -67,6 +92,8 @@ class BreweryDeletionForm(forms.Form):
 
 @admin.register(Brewery)
 class BreweryAdmin(OfficialImageAdmin):
+    list_display = ('name', 'city', 'postal_code', 'is_verified')
+    search_fields = ('name', 'city', 'postal_code')
     def delete_view(self, request, object_id, extra_context=None):
         """Une brasserie sans bière se supprime comme d'habitude ; sinon l'équipe choisit le sort de ses bières (voir removal)."""
         brewery = self.get_object(request, object_id)

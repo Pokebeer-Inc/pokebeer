@@ -203,12 +203,12 @@ class TestNewBeerFromTheMenu:
 
     def test_the_assistant_hides_the_tasting_steps(self, client_for, world):
         html = client_for(world["manager"]).get(reverse("add_beer"), {"bar": world["bar"].slug}).content.decode()
-        assert 'data-mode="menu"' in html and "À la carte" in html and "Ajouter à la carte" in html
+        assert 'data-mode="menu"' in html and "À la carte" in html and "Ajouter à la carte" in html and "wizard-recap" in html  # le gérant relit avant d'envoyer
         assert "drink-comment" not in html and "drink-note" not in html and 'name="menu_bar"' in html
 
     def test_the_ordinary_assistant_is_unchanged(self, client_for, world):
         html = client_for(world["manager"]).get(reverse("add_beer")).content.decode()
-        assert 'data-mode=""' in html and "drink-comment" in html and "Enregistrer ma dégustation" in html and "menu_bar" not in html
+        assert 'data-mode=""' in html and "drink-comment" not in html and "Ajouter la bière" in html and "menu_bar" not in html
 
     def test_a_stranger_cannot_use_the_menu_mode(self, client_for, world):
         client = client_for(world["stranger"])
@@ -248,21 +248,22 @@ class TestDraftModes:
 
     def test_the_carte_step_validates_without_any_tasting_field(self, client_for, world):
         client = client_for(world["manager"])
-        response = self.post(client, step="4", strict="1", mode="menu", **{"menu-price": "6.5", "beer-name": "X", "beer-brewery_name": "Y"})
+        response = self.post(client, step="3", strict="1", mode="menu", **{"menu-price": "6.5", "beer-name": "X", "beer-brewery_name": "Y"})
         assert response.status_code == 200
 
     def test_the_carte_step_refuses_a_bad_price(self, client_for, world):
-        response = self.post(client_for(world["manager"]), step="4", strict="1", mode="menu", **{"menu-price": "-3"})
+        response = self.post(client_for(world["manager"]), step="3", strict="1", mode="menu", **{"menu-price": "-3"})
         assert response.status_code == 400
 
-    def test_the_ordinary_mode_still_requires_a_comment_at_step_4(self, client_for, world):
-        assert self.post(client_for(world["manager"]), step="4", strict="1").status_code == 400
+    def test_the_ordinary_mode_has_two_steps_only(self, client_for, world):
+        assert self.post(client_for(world["manager"]), step="2", strict="1", **{"beer-name": "X", "beer-degree": "5"}).status_code == 200
+        assert self.post(client_for(world["manager"]), step="3", strict="1").status_code == 400  # ni avis ni vérification
 
     def test_unknown_mode_and_out_of_range_steps(self, client_for, world):
         client = client_for(world["manager"])
         assert self.post(client, step="1", strict="1", mode="hack").status_code == 400
-        assert self.post(client, step="6", strict="0", mode="menu").status_code == 400
-        assert self.post(client, step="5", strict="0", mode="menu").status_code == 204
+        assert self.post(client, step="5", strict="0", mode="menu").status_code == 400
+        assert self.post(client, step="4", strict="0", mode="menu").status_code == 204
 
 
 @pytest.fixture

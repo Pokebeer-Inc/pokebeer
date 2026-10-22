@@ -12,7 +12,7 @@ TOP = 15
 
 def _leaderboard(period):
     current = {r['beer__brewery']: r for r in
-               Drinks.objects.filter(date__gte=period.start).values('beer__brewery', 'beer__brewery__name')
+               Drinks.objects.filter(date__gte=period.start, beer__brewery__isnull=False).values('beer__brewery', 'beer__brewery__name')
                .annotate(n=Count('pk'), avg=Avg('note'), beers=Count('beer', distinct=True))}
     before = {r['beer__brewery']: r['n'] for r in
               Drinks.objects.filter(date__gte=period.previous_start, date__lt=period.start)

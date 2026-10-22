@@ -1,7 +1,7 @@
 <li>
     <div class="min-w-0">
         <a href="{% url 'beer_detail' entry.beer.slug %}" class="mn-beer">{{ entry.beer.name }}</a>
-        <span class="mn-brewery">{{ entry.beer.brewery.name }}{% if entry.beer.style %} · {{ entry.beer.style }}{% endif %}</span>
+        <span class="mn-brewery">{{ entry.beer.brewery_label }}{% if entry.beer.style %} · {{ entry.beer.style }}{% endif %}</span>
     </div>
     {% if entry.price is not None %}<span class="mn-price">{{ entry.price|floatformat:2 }} €{% if entry.serving_format %}<small>{{ entry.get_serving_format_display }}</small>{% endif %}</span>
     {% elif entry.serving_format %}<span class="mn-price"><small>{{ entry.get_serving_format_display }}</small></span>{% endif %}

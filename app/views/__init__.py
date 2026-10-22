@@ -17,7 +17,7 @@ from .beer_views import (
     edit_beer_view,
     save_beer_draft_view,
 )
-from .tasting_views import delete_drink_view, modify_rate_beer_view, rate_beer_done_view, rate_beer_view
+from .tasting_views import delete_drink_view, modify_rate_beer_view, quick_rate_beer_view, rate_beer_done_view, rate_beer_view
 from .api_views import analyze_beer_label, chat_api, check_catalog, lookup_ean, postal_code_lookup, search_beer, search_brewery
 from .notification_views import (
     api_seen_notifications,
@@ -94,6 +94,7 @@ __all__ = [
     'save_beer_draft_view',
     'delete_drink_view',
     'modify_rate_beer_view',
+    'quick_rate_beer_view',
     'rate_beer_done_view',
     'rate_beer_view',
     'analyze_beer_label',

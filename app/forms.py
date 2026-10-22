@@ -434,9 +434,10 @@ class BarEditForm(PostalAddressFormMixin, ProcessedImageMixin, forms.ModelForm):
 class BeerForm(ProcessedImageMixin, forms.ModelForm):
     image_processors = {'image': process_official_image}
 
+    # Facultative : au comptoir on ne connaît souvent que le nom de la bière ; l'équipe retrouve la brasserie ensuite
     brewery_name = forms.CharField(
-        label='Brasserie', max_length=150, validators=[plain_text_validator],
-        help_text="Tapez le nom. Si elle n'existe pas, elle sera créée.",
+        required=False, label='Brasserie', max_length=150, validators=[plain_text_validator],
+        help_text="Facultatif. Si vous ne la connaissez pas, laissez vide : nous la retrouverons.",
         widget=forms.TextInput(attrs={'autocomplete': 'off'})
     )
 
@@ -453,11 +454,17 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
         required=False, max_length=100, label="Ville",
         widget=forms.TextInput(attrs={'autocomplete': 'off', 'list': 'cities-beer', 'data-postal-group': 'beer', 'data-city-input': ''}),
     )
+    # Brasserie choisie dans l'autocomplétion : désigne exactement cette fiche, même si une autre porte le même nom (voir `_chosen_brewery`)
+    brewery_slug = forms.CharField(required=False, max_length=80, widget=forms.HiddenInput())
     # Code-barres lu par le scanner (champ caché, à la création seulement) : validé ici, jamais cru tel quel
     ean = forms.CharField(required=False, widget=forms.HiddenInput())
     # Confirmations : jeton signé envoyé par la case du panneau « doublon probable » (voir services/catalog/catalog_matching.py)
     confirm_brewery = forms.CharField(required=False, max_length=600, widget=forms.HiddenInput())
     confirm_beer = forms.CharField(required=False, max_length=600, widget=forms.HiddenInput())
+
+    # Champs réservés aux gérants et au staff : un membre qui propose une bière n'a ni le lieu de la brasserie ni sa description officielle
+    # (parcours `light`, celui de l'ajout par un membre)
+    DETAIL_FIELDS = ('description', 'brewery_postal_code', 'brewery_city')
 
     class Meta:
         model = Beer
@@ -475,7 +482,7 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             'name': forms.TextInput(attrs={'autocomplete': 'off', 'placeholder': 'Ex: Punk IPA'}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, light=False, **kwargs):
         self.user = kwargs.pop('user', None)
         self.inspection = None  # rapport de détection de doublons, rempli par clean() et affiché par partials/duplicate_panel.html
         self.location = postal_codes.Resolution('', '', False)  # lieu de la brasserie saisie, rempli par clean()
@@ -488,6 +495,9 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
         
         if self.instance.pk:
             del self.fields['ean']  # le code-barres se pose à l'ajout, pas à la modification
+        if light:
+            for name in self.DETAIL_FIELDS:
+                del self.fields[name]
 
         # Le champ image n'est proposé qu'à ceux qui ont le droit de la modifier
         if not self.may_edit_image(self.user, self.instance):
@@ -511,15 +521,27 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             return True
         return beer.added_by_id == user.id and not beer.is_verified
 
+    def _chosen_brewery(self):
+        """Brasserie désignée par l'autocomplétion, si elle existe et porte bien le nom saisi (le membre a pu retaper un autre nom ensuite)."""
+        return catalog_matching.chosen_brewery(self.cleaned_data.get('brewery_slug'), self.cleaned_data.get('brewery_name'))
+
+    def _brewery(self):
+        """Brasserie de la bière : celle de la fiche si le champ est vide ou inchangé (deux brasseries de même nom ne se confondent pas à la
+        modification), sinon une brasserie identique réutilisée (accents, casse, mots génériques) ou créée."""
+        name = self.cleaned_data.get('brewery_name', '')
+        current = self.instance.brewery if self.instance.pk else None
+        if not name or (current and current.name == name):
+            return current  # champ vide : à la création aucune brasserie, à la modification celle de la fiche reste
+        if chosen := self._chosen_brewery():
+            return chosen
+        report = self.inspection.brewery if self.inspection else catalog_matching.find_brewery(name, self.location.postal_code, self.location.city)
+        if report.same:
+            return report.same.obj
+        return Brewery.objects.create(name=name, description='Ajoutée automatiquement', postal_code=self.location.postal_code, city=self.location.city)
+
     def save(self, user=None, commit=True):
         beer = super().save(commit=False)
-        b_name = self.cleaned_data['brewery_name']
-        # Une brasserie identique (accents, casse, mots génériques) est réutilisée ; sinon elle est créée, après les contrôles de clean()
-        report = self.inspection.brewery if self.inspection else catalog_matching.find_brewery(b_name, self.location.postal_code, self.location.city)
-        brewery = report.same.obj if report.same else Brewery.objects.create(
-            name=b_name, description='Ajoutée automatiquement', postal_code=self.location.postal_code, city=self.location.city,
-        )
-        beer.brewery = brewery
+        beer.brewery = self._brewery()
         if 'ean' in self.fields:  # création seulement : une modification ne touche jamais au code-barres
             beer.ean = self.cleaned_data.get('ean') or None
         
@@ -541,11 +563,14 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
     def clean(self):
         """Détection des doublons (brasserie et bière) : refuse tant que le membre n'a pas choisi l'existant ou confirmé la différence."""
         data = super().clean()
-        name, brewery_name = data.get('name'), data.get('brewery_name')
-        if not name or not brewery_name:
-            return data  # champs déjà en erreur : rien à comparer
+        name, brewery_name = data.get('name'), data.get('brewery_name', '')
+        if not name:
+            return data  # champ déjà en erreur : rien à comparer
+        chosen = self._chosen_brewery()
         try:
-            self.location = postal_codes.resolve(data.get('brewery_postal_code', ''), data.get('brewery_city', ''))
+            # Une brasserie choisie dans la liste apporte son propre lieu : la détection de doublons la reconnaît, pas son homonyme d'ailleurs
+            self.location = (postal_codes.Resolution(chosen.postal_code, chosen.city, False) if chosen
+                             else postal_codes.resolve(data.get('brewery_postal_code', ''), data.get('brewery_city', '')))
         except postal_codes.PostalCodeError as error:
             self.add_error('brewery_postal_code' if error.field == 'postal_code' else 'brewery_city', str(error))
             return data
@@ -553,7 +578,7 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
             self.inspection = catalog_matching.decide(
                 name, brewery_name, exclude_beer_pk=self.instance.pk,
                 confirm_brewery=data.get('confirm_brewery', ''), confirm_beer=data.get('confirm_beer', ''),
-                postal_code=self.location.postal_code, city=self.location.city,
+                postal_code=self.location.postal_code, city=self.location.city, degree=data.get('degree'),
             )
         except catalog_matching.DuplicateFound as found:
             self.inspection = found.inspection
@@ -658,6 +683,27 @@ class DrinkForm(ProcessedImageMixin, forms.ModelForm):
         # Le quota n'est consommé qu'une fois tout le formulaire valide : une erreur de saisie ne fait pas perdre d'envoi
         if not self.errors and self.user and self.uploaded_image('photo') and not consume_quota(self.user, DAILY_LIMIT, QUOTA_SCOPE):
             self.add_error('photo', ValidationError("Limite quotidienne d'envois de photos atteinte, réessayez demain.", code='quota'))
+
+class QuickDrinkForm(DrinkForm):
+    """Première réaction à chaud, juste après l'ajout d'une bière : une note ou quelques mots suffisent, la date est celle du jour.
+
+    Mêmes champs et mêmes règles que `DrinkForm` (photo, lieu, format...) : seul l'avis devient facultatif, à condition de donner au moins une note.
+    Le membre précise ensuite sa dégustation depuis la fiche de la bière."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['comment'].required = False
+        self.fields['date'].required = False
+
+    def clean_date(self):
+        return super().clean_date() if self.cleaned_data.get('date') else timezone.localdate()
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('note') is None and not cleaned.get('comment'):
+            raise ValidationError("Donnez une note ou écrivez quelques mots.", code='empty_reaction')
+        return cleaned
+
 
 class MenuEntryForm(forms.ModelForm):
     """Prix de vente et format d'une bière de la carte d'un bar : tous deux facultatifs."""

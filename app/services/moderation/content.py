@@ -129,12 +129,12 @@ class BeerContent(ModeratedContent):
     def suggestion_errors(self, target, cleaned):
         # Le modèle ne contrôle pas le nom d'une bière au sein de sa brasserie (champ hors formulaire) : même règle que la modification directe
         name = cleaned.get('name')
-        if name and name != target.name and catalog_matching.inspect(name, target.brewery.name, exclude_beer_pk=target.pk, brewery_confirmed=True).beer.same:
+        if name and name != target.name and catalog_matching.inspect(name, target.brewery.name if target.brewery_id else '', exclude_beer_pk=target.pk, brewery_confirmed=True, degree=target.degree).beer.same:
             return ["Nom : une bière de ce nom existe déjà dans cette brasserie."]
         return []
 
     def context(self, obj):
-        return f"Brasserie : {obj.brewery.name}"
+        return f"Brasserie : {obj.brewery_label}"
 
     def url(self, obj):
         return reverse('beer_detail', args=[obj.slug])

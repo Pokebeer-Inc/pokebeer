@@ -18,7 +18,7 @@ Paramètres : wishlist_beers, rating_form.{% endcomment %}
 
         <div class="flex-1 min-w-0 pointer-events-none">
             <h4 class="font-bold text-sm leading-tight text-gray-900">{{ beer.name }}</h4>
-            <p class="text-[10px] text-gray-500 mb-1">{{ beer.brewery.name }}{% if beer.style %} · {{ beer.style }}{% endif %} · {{ beer.degree|floatformat:"-1" }} %</p>
+            <p class="text-[10px] text-gray-500 mb-1">{{ beer.brewery_label }}{% if beer.style %} · {{ beer.style }}{% endif %} · {{ beer.degree|floatformat:"-1" }} %</p>
             {% if beer.description %}<p class="text-[11px] text-gray-600 italic mt-1 line-clamp-2">"{{ beer.description }}"</p>{% endif %}
         </div>
     </div>

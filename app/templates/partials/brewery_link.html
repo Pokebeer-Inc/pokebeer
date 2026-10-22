@@ -1,0 +1,2 @@
+{% comment %}Brasserie d'une bière : lien vers sa page, ou « Brasserie inconnue » (sans lien) tant que le staff ne l'a pas rattachée. Paramètres : beer, cls (classes du lien).{% endcomment %}
+{% if beer.brewery %}<a href="{% url 'brewery_detail' beer.brewery.slug %}" class="{{ cls }}">{{ beer.brewery.name }}</a>{% else %}<span class="{{ cls }} italic">{{ beer.brewery_label }}</span>{% endif %}

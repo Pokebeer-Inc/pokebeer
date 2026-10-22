@@ -1,4 +1,3 @@
-import re
 
 import pytest
 from django.urls import reverse
@@ -14,7 +13,6 @@ pytestmark = pytest.mark.django_db
 def add_beer_data(name="Nouvelle Blonde", brewery_name="Brasserie Test", **overrides):
     return {
         "beer-name": name, "beer-brewery_name": brewery_name, "beer-degree": "6.5", "beer-style": "blonde",
-        "drink-date": "2026-01-15", "drink-note": "8", "drink-comment": "Fruitée",
         **overrides,
     }
 
@@ -30,12 +28,43 @@ class TestAddBeer:
         response = auth_client.get(self.URL, {"brewery": "Mont Blanc"})
         assert response.context["beer_form"].initial["brewery_name"] == "Mont Blanc"
 
-    def test_creates_beer_and_first_tasting(self, auth_client, user, brewery):
+    def test_creates_the_beer_without_a_tasting(self, auth_client, user, brewery):
         response = auth_client.post(self.URL, add_beer_data())
         beer = Beer.objects.get(name="Nouvelle Blonde")
         assert_redirects(response, reverse("add_beer_done", args=[beer.slug]))
         assert (beer.added_by, beer.brewery, beer.style) == (user, brewery, "Blonde")
-        assert Drinks.objects.get().drinker == user
+        assert not Drinks.objects.exists()  # la dégustation est un autre geste, proposé ensuite
+
+    def test_the_brewery_is_optional(self, auth_client, user):
+        auth_client.post(self.URL, add_beer_data(brewery_name=""))
+        beer = Beer.objects.get(name="Nouvelle Blonde")
+        assert beer.brewery is None and beer.added_by == user and beer.needs_review
+
+    def test_a_new_brewery_is_created_when_it_is_typed(self, auth_client):
+        auth_client.post(self.URL, add_beer_data(brewery_name="Brasserie Inconnue de tous"))
+        assert Beer.objects.get(name="Nouvelle Blonde").brewery.name == "Brasserie Inconnue de tous"
+
+    def test_nobody_is_notified_for_a_brewery_that_is_unknown(self, auth_client, user, other_user):
+        f.follow(other_user, user)
+        auth_client.post(self.URL, add_beer_data(brewery_name=""))
+        assert set(Notification.objects.exclude(notif_type="achievement").values_list("notif_type", flat=True)) == {"beer_added"}
+
+    def test_unbranded_beers_are_told_apart_by_their_degree(self, auth_client):
+        auth_client.post(self.URL, {"beer-name": "La Blonde", "beer-degree": "5"})
+        same = auth_client.post(self.URL, {"beer-name": "la  blonde", "beer-degree": "5.0"})
+        other = auth_client.post(self.URL, {"beer-name": "La Blonde", "beer-degree": "6.5"})
+        assert same.status_code == 200 and other.status_code == 302
+        assert sorted(Beer.objects.filter(brewery__isnull=True).values_list("degree", flat=True)) == [5, 6.5]
+
+    def test_an_unbranded_beer_with_the_name_of_a_branded_one_is_only_a_notice(self, auth_client, beer):
+        response = auth_client.post(self.URL, {"beer-name": beer.name, "beer-degree": "5"})
+        assert response.status_code == 302 and Beer.objects.filter(name=beer.name).count() == 2
+
+    def test_the_database_has_the_last_word_on_unbranded_duplicates(self, db):
+        from django.db import IntegrityError, transaction
+        f.make_beer(name="Pinte", unbranded=True, degree=5)
+        with pytest.raises(IntegrityError), transaction.atomic():
+            f.make_beer(name="PINTE", unbranded=True, degree=5)
 
     def test_followers_and_brewery_managers_are_notified(self, auth_client, user, other_user, brewery):
         manager = f.make_user()
@@ -51,13 +80,7 @@ class TestAddBeer:
         auth_client.post(self.URL, add_beer_data())
         assert not Notification.objects.exclude(notif_type="achievement").exists()
 
-    def test_tasting_can_only_be_filed_in_own_notebooks(self, auth_client, user, other_user):
-        mine, foreign = f.make_notebook(user), f.make_notebook(other_user)
-        auth_client.post(self.URL, add_beer_data(notebooks=[mine.slug, foreign.slug]))
-        drink = Drinks.objects.get()
-        assert list(drink.notebooks.all()) == [mine]
-
-    @pytest.mark.parametrize("overrides", [{"beer-name": "test ipa"}, {"beer-degree": "101"}, {"drink-note": "11"}, {"drink-comment": ""}])
+    @pytest.mark.parametrize("overrides", [{"beer-name": "test ipa"}, {"beer-degree": "101"}, {"beer-degree": ""}, {"beer-bitterness": "9999"}])
     def test_invalid_submission_creates_nothing(self, auth_client, beer, overrides):
         response = auth_client.post(self.URL, add_beer_data(**overrides))
         assert response.status_code == 200
@@ -98,11 +121,11 @@ class TestAddBeerErrors:
         return client.post(self.URL, add_beer_data(**overrides))
 
     def test_user_is_told_why_it_failed(self, auth_client, beer):
-        response = self.submit(auth_client, **{"beer-name": "test ipa", "drink-note": "11"})
+        response = self.submit(auth_client, **{"beer-name": "test ipa", "beer-bitterness": "9999"})
         message = " ".join(messages_of(response))
         assert "n'a pas pu être ajoutée" in message
         assert "Cette bière existe déjà : « Test IPA » (Brasserie Test)." in message
-        assert "Note (sur 10)" in message
+        assert "IBU" in message
 
     def test_invalid_fields_are_emptied_and_highlighted_valid_ones_kept(self, auth_client, beer):
         response = self.submit(auth_client, **{"beer-name": "test ipa", "beer-degree": "101"})
@@ -110,24 +133,16 @@ class TestAddBeerErrors:
         # Le doublon est une erreur du formulaire (le nom reste modifiable) ; seul le champ invalide est vidé
         assert (beer_form["name"].value(), beer_form["degree"].value()) == ("test ipa", "")
         assert beer_form["brewery_name"].value() == "Brasserie Test"
-        assert response.context["drink_form"]["comment"].value() == "Fruitée"
         assert "aria-invalid" not in beer_form.fields["name"].widget.attrs and beer_form.fields["degree"].widget.attrs["aria-invalid"] == "true"
         assert 'aria-invalid="true"' in str(beer_form["degree"]) and 'aria-invalid' not in str(beer_form["style"])
 
     def test_reasons_are_displayed_next_to_the_fields(self, auth_client, beer):
-        html = self.submit(auth_client, **{"drink-comment": ""}).content.decode()
+        html = self.submit(auth_client, **{"beer-name": ""}).content.decode()
         assert 'role="alert"' in html and "Ce champ est obligatoire." in html
 
-    def test_errors_of_both_forms_are_reported_together(self, auth_client, beer):
-        response = self.submit(auth_client, **{"beer-name": "test ipa", "drink-comment": ""})
-        assert set(response.context["beer_form"].errors) == {"__all__"}
-        assert set(response.context["drink_form"].errors) == {"comment"}
-
-    def test_selected_notebooks_stay_ticked(self, auth_client, user, beer):
-        notebook = f.make_notebook(user)
-        response = self.submit(auth_client, **{"beer-name": "test ipa", "notebooks": [notebook.slug, "abc"]})
-        assert response.context["current_drink"] == {"notebook_slugs": [notebook.slug]}
-        assert re.search(rf'name="notebooks" value="{notebook.slug}"[^>]*checked', response.content.decode())
+    def test_every_error_of_the_form_is_reported_together(self, auth_client, beer):
+        response = self.submit(auth_client, **{"beer-name": "test ipa", "beer-bitterness": "9999"})
+        assert set(response.context["beer_form"].errors) == {"__all__", "bitterness"}
 
     def test_name_taken_between_validation_and_save_is_reported_without_crash(self, auth_client, monkeypatch, brewery):
         # Simule deux soumissions validées au même instant : seules les vérifications en base restent actives
@@ -139,7 +154,7 @@ class TestAddBeerErrors:
 
         assert response.status_code == 200
         assert "vient d'être ajoutée" in " ".join(messages_of(response))
-        assert (Beer.objects.count(), Drinks.objects.count()) == (1, 0)
+        assert Beer.objects.count() == 1
 
 
 class TestBeerDetail:

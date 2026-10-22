@@ -59,7 +59,7 @@
             </div>
         </div>
         <h2 class="inline-block font-semibold text-gray-600 mb-3 hover:text-black hover:underline w-fit">
-            <a href="{% url 'brewery_detail' beer.brewery.slug %}">{{ beer.brewery.name }}</a>
+            {% include "partials/brewery_link.html" with beer=beer cls="" %}
         </h2>
         
         <div class="flex flex-wrap gap-2 mb-3">
@@ -80,7 +80,7 @@
             {% for bar in serving_bars.bars %}<a href="{% url 'bar_detail' bar.slug %}" class="font-semibold text-secondary underline">{{ bar.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}{% if serving_bars.count > serving_bars.bars|length %} et d'autres{% endif %}.</p>
         {% endif %}
 
-        <p class="text-base text-gray-700 mb-2">{{ beer.description }}</p>
+        {% if beer.description %}<p class="text-base text-gray-700 mb-2">{{ beer.description }}</p>{% endif %}
         
         {% if beer.added_by %}
             <p class="text-xs text-gray-600 mt-2">Ajoutée par <a href="{% url 'public_profile' beer.added_by.username %}" class="font-bold text-black underline">{{ beer.added_by.username }}</a></p>

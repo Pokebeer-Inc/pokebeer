@@ -44,6 +44,10 @@ class Establishment(OfficialImageMixin, PostalAddressMixin, GeocodableMixin, Ver
 class Brewery(Establishment):
     MATCH_KIND = match_keys.BREWERY
 
+    def __str__(self):
+        """Nom suivi du lieu : deux brasseries peuvent porter le même nom, et l'équipe les distingue dans les listes de l'administration."""
+        return f"{self.name} ({self.postal_code} {self.city})".replace("( ", "(").replace(" )", ")") if self.postal_code or self.city else self.name
+
     description = models.TextField(max_length=MAX_TEXT_LENGTH, verbose_name="Description")
     image = models.ImageField(upload_to=brewery_image_path, blank=True, null=True, verbose_name="Image")
     managers = models.ManyToManyField('BeerUser', blank=True, related_name='managed_breweries', verbose_name="Gérants")

@@ -4,10 +4,9 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.db.models import Avg, Count
 
-from ..forms import BeerForm, DrinkForm, MenuEntryForm, clear_invalid_fields, error_summary
+from ..forms import BeerForm, DrinkForm, MenuEntryForm, QuickDrinkForm, clear_invalid_fields, error_summary
 from ..models import Bar, Beer, BeerDraft, Drinks
 from ..services.catalog.selectors import beer_reviews, visible_tastings_of, with_reaction_counts
-from .utils import posted_notebooks
 from ..services.catalog import beer_drafts, beers, permissions
 from ..services.establishments import menu
 from ..services.protection.throttle import BEER_DRAFT_SAVES
@@ -16,12 +15,12 @@ from ..services.moderation.content import CONTENT_TYPES
 from ..services.moderation.suggestions import menu_context as suggestion_menu
 
 def _draft_initial(draft):
-    """Valeurs de départ des deux formulaires, tirées du brouillon (clés sans préfixe, comme les champs)."""
-    beer_initial, drink_initial = {}, {}
+    """Valeurs de départ des formulaires, tirées du brouillon (clés sans préfixe, comme les champs)."""
+    initial = {'beer': {}, 'menu': {}}
     for key, value in (draft.data if draft else {}).items():
         prefix, _, name = key.partition('-')
-        (beer_initial if prefix == 'beer' else drink_initial)[name] = value
-    return beer_initial, drink_initial
+        initial.get(prefix, {})[name] = value
+    return initial
 
 
 def _menu_bar(request):
@@ -54,51 +53,46 @@ def _add_to_menu(request, bar, beer_form, menu_form):
 
 
 def add_beer_view(request):
-    """Ajoute une bière ET sa première note, par étapes : chaque étape validée est conservée dans un brouillon.
-
-    L'envoi final est exactement celui d'avant (mêmes formulaires, mêmes champs obligatoires) ; les étapes n'existent que dans la page.
-    Avec `?bar=` (gérant d'un bar), la bière est ajoutée à la carte du bar sans avis : voir `_add_to_menu`.
+    """Ajoute une bière au catalogue, par étapes : chaque étape validée est conservée dans un brouillon. Seul le nom est indispensable ; les
+    étapes n'existent que dans la page. La dégustation vient après, sur la page de félicitations (`add_beer_done_view`).
+    Avec `?bar=` (gérant d'un bar), la bière est ajoutée à la carte du bar : voir `_add_to_menu`.
     """
     bar = _menu_bar(request)
     mode = beer_drafts.MENU if bar else ''
     if request.method == 'POST':
-        beer_form = BeerForm(request.POST, request.FILES, prefix='beer', user=request.user)
-        other_form = MenuEntryForm(request.POST, prefix='menu') if bar else DrinkForm(request.POST, request.FILES, prefix='drink', user=request.user)
-
-        notebooks = [] if bar else posted_notebooks(request)
-        if beer_form.is_valid() & other_form.is_valid():  # & : valide les deux pour afficher toutes les erreurs
+        beer_form = beer_drafts.beer_form_for(mode, request.POST, request.user, files=request.FILES)
+        menu_form = MenuEntryForm(request.POST, prefix='menu') if bar else None
+        if beer_form.is_valid() & (menu_form.is_valid() if menu_form else True):  # & : valide les deux pour afficher toutes les erreurs
             if bar:
-                done = _add_to_menu(request, bar, beer_form, other_form)
+                done = _add_to_menu(request, bar, beer_form, menu_form)
                 if done:
                     return done
             else:
                 try:
-                    new_beer = beers.add_beer(request.user, beer_form, other_form, notebooks)
+                    new_beer = beers.create_beer(request.user, beer_form)
                 except beers.NameTaken:
                     beer_form.add_error('name', "Cette bière vient d'être ajoutée par quelqu'un d'autre.")
                 else:
                     return redirect('add_beer_done', beer_slug=new_beer.slug)
 
-        messages.error(request, "La bière n'a pas pu être ajoutée. Les champs en rouge ont été vidés : " + " ; ".join(error_summary(beer_form, other_form)))
-        start_step = beer_drafts.first_step_with_errors(beer_form, other_form, mode)  # on rouvre l'étape à corriger
-        clear_invalid_fields(beer_form)
-        clear_invalid_fields(other_form)
+        forms = [form for form in (beer_form, menu_form) if form]
+        messages.error(request, "La bière n'a pas pu être ajoutée. Les champs en rouge ont été vidés : " + " ; ".join(error_summary(*forms)))
+        start_step = beer_drafts.first_step_with_errors(beer_form, menu_form, mode)  # on rouvre l'étape à corriger
+        for form in forms:
+            clear_invalid_fields(form)
         return render(request, 'add_beer.html', {
-            'beer_form': beer_form, 'drink_form': other_form if not bar else None, 'menu_form': other_form if bar else None, 'menu_bar': bar,
-            'current_drink': {'notebook_slugs': [notebook.slug for notebook in notebooks]},
+            'beer_form': beer_form, 'menu_form': menu_form, 'menu_bar': bar,
             'start_step': start_step, 'steps': beer_drafts.steps_for(mode), 'mode': mode,
         })
 
     # Une bière demandée depuis la page d'une brasserie (?brewery=) ou d'une carte de bar (?bar=) repart de zéro ; sinon on reprend le brouillon du membre
     draft = None if request.GET.get('brewery') or bar else beer_drafts.get_draft(request.user)
-    beer_initial, drink_initial = _draft_initial(draft)
+    initial = _draft_initial(draft)
     if not draft:
-        beer_initial['brewery_name'] = request.GET.get('brewery', '')
+        initial['beer']['brewery_name'] = request.GET.get('brewery', '')
     context = {
-        'beer_form': BeerForm(prefix='beer', initial=beer_initial, user=request.user),
-        'drink_form': None if bar else DrinkForm(prefix='drink', initial=drink_initial),
-        'menu_form': MenuEntryForm(prefix='menu') if bar else None, 'menu_bar': bar,
-        'current_drink': {'notebook_slugs': draft.data.get('notebooks', [])} if draft else None,
+        'beer_form': beer_drafts.beer_form_for(mode, user=request.user, initial=initial['beer']),
+        'menu_form': MenuEntryForm(prefix='menu', initial=initial['menu']) if bar else None, 'menu_bar': bar,
         'start_step': draft.current_step if draft else 1,
         'resumed': bool(draft and draft.data),
         'draft_name': draft.data.get('beer-name', '') if draft else '',
@@ -149,11 +143,13 @@ def discard_beer_draft_view(request):
 
 
 def add_beer_done_view(request, beer_slug):
-    """Page de félicitations après l'ajout d'une bière (réservée à la personne qui vient de l'ajouter)."""
+    """Page de félicitations après l'ajout d'une bière (réservée à la personne qui vient de l'ajouter), qui propose de la noter tout de suite."""
     beer = get_object_or_404(Beer.objects.select_related('brewery'), slug=beer_slug, added_by=request.user, is_deleted=False)
     return render(request, 'add_beer_done.html', {
         'beer': beer,
         'beers_added': Beer.objects.filter(added_by=request.user, is_deleted=False).count(),
+        'can_rate': not Drinks.objects.filter(drinker=request.user, beer=beer).exists(),  # déjà noté (page rechargée) : rien à proposer
+        'rating_form': QuickDrinkForm(),
     })
 
 def beer_detail_view(request, beer_slug):

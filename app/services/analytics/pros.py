@@ -93,7 +93,7 @@ def _catalogue_depth():
 
 def _brewery_prospects(period):
     """Brasseries sans gérant, classées par activité : les plus bues d'abord. Données publiques, vue réservée à l'équipe."""
-    activity = (Drinks.objects.filter(date__gte=period.start, beer__brewery__managers__isnull=True).values('beer__brewery', 'beer__brewery__name')
+    activity = (Drinks.objects.filter(date__gte=period.start, beer__brewery__isnull=False, beer__brewery__managers__isnull=True).values('beer__brewery', 'beer__brewery__name')
                 .annotate(n=Count('pk'), members=Count('drinker', distinct=True), avg=Avg('note')).order_by('-n')[:TOP])
     wishes = dict(Beer.objects.filter(is_deleted=False).values_list('brewery').annotate(w=Count('wishlisted_by')))
     views = page_views.by_object(period, PageView.Kind.BREWERY)

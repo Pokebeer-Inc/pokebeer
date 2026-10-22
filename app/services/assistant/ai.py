@@ -69,7 +69,7 @@ def _format_beers_context(user_message, user=None):
         style = sanitize.clean_text(b.style, 60) or "Style inconnu"
         ibu_text = f"{b.bitterness} IBU" if b.bitterness is not None else "IBU inconnu"
         lines.append(
-            f"- {sanitize.clean_text(b.name, 80)} ({sanitize.clean_text(b.brewery.name, 80)}): {style}, {b.degree}%, {ibu_text}. "
+            f"- {sanitize.clean_text(b.name, 80)} ({sanitize.clean_text(b.brewery_label, 80)}): {style}, {b.degree}%, {ibu_text}. "
             f"Profil: {sanitize.clean_text(b.description, 200)}"
         )
     return "\n".join(lines)

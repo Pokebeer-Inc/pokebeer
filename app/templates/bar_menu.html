@@ -37,7 +37,7 @@
             <div class="mn-entry-head">
                 <div class="min-w-0">
                     <a href="{% url 'beer_detail' entry.beer.slug %}" class="mn-beer">{{ entry.beer.name }}</a>
-                    <p class="mn-brewery">{{ entry.beer.brewery.name }}{% if entry.beer.style %} · {{ entry.beer.style }}{% endif %}</p>
+                    <p class="mn-brewery">{{ entry.beer.brewery_label }}{% if entry.beer.style %} · {{ entry.beer.style }}{% endif %}</p>
                 </div>
                 <form method="post" action="{% url 'bar_menu_remove' bar.slug entry.pk %}" class="mn-remove-form">{% csrf_token %}
                     <button type="submit" class="mn-remove" aria-label="Retirer {{ entry.beer.name }} de la carte">Retirer</button>

@@ -18,6 +18,7 @@
       data-draft-url="{% url 'save_beer_draft' %}" data-start-step="{{ start_step|default:1 }}" data-total="{{ steps|length }}" data-mode="{{ mode }}">
     {% csrf_token %}
     {{ beer_form.ean }}
+    {{ beer_form.brewery_slug }}
     {% if menu_bar %}<input type="hidden" name="menu_bar" value="{{ menu_bar.slug }}">{% endif %}
 
     <header class="wizard-head">
@@ -30,17 +31,16 @@
     <p class="pb-card p-3 text-sm" role="note">Cette bière sera ajoutée au catalogue et à la carte de <b>{{ menu_bar.name }}</b>. Aucun avis n'est demandé.</p>
     {% endif %}
 
-    {% if beer_form.non_field_errors or drink_form.non_field_errors or menu_form.non_field_errors %}
+    {% if beer_form.non_field_errors or menu_form.non_field_errors %}
     <div class="alert alert-error text-sm" role="alert">
         {% for error in beer_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
-        {% for error in drink_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
         {% for error in menu_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
     </div>
     {% endif %}
 
     {# 1. La bière : scanner ou saisir, puis contrôle des doublons #}
     <section class="wizard-step" data-step="1" data-title="{{ steps.0.1 }}" aria-labelledby="wizard-title">
-        <p class="text-sm text-gray-600 mb-3">Scannez la bière pour tout remplir d'un coup, ou saisissez son nom et sa brasserie.</p>
+        <p class="text-sm text-gray-600 mb-3">Scannez la bière pour tout remplir d'un coup, ou saisissez simplement son nom : le reste est facultatif.</p>
 <div class="w-full mb-5">
         <button type="button" id="scan-label-btn" data-url="{% url 'analyze_label' %}" data-ean-url="{% url 'lookup_ean' %}" class="btn btn-primary w-full h-auto min-h-14 border-2 border-secondary text-black flex items-center justify-center gap-2 normal-case">
             {% include "partials/icon.html" with name="camera" size="24" %}
@@ -69,17 +69,25 @@
                 <div id="beer-suggestions" class="absolute z-50 w-full bg-base-100 shadow-lg rounded-b-md border border-base-300 top-full hidden mt-1 max-h-40 overflow-y-auto"></div>
             </div>
             
+            <div class="form-control w-full mb-3">
+                <label class="label py-1">
+                    <span class="label-text font-bold text-xs">{{ beer_form.degree.label }}{% if beer_form.degree.field.required %} <span class="text-error">*</span>{% endif %}</span>
+                </label>
+                {{ beer_form.degree }}
+                {% include "partials/field_errors.html" with field=beer_form.degree %}
+            </div>
+
             <div class="form-control w-full relative mb-3">
                 <label class="label py-1">
-                    <span class="label-text font-bold text-xs">
-                        {{ beer_form.brewery_name.label }}{% if beer_form.brewery_name.field.required %} <span class="text-error">*</span>{% endif %}
-                    </span>
+                    <span class="label-text font-bold text-xs">{{ beer_form.brewery_name.label }} <span class="font-normal text-gray-500">(facultatif)</span></span>
                 </label>
                 {{ beer_form.brewery_name }}
                 {% include "partials/field_errors.html" with field=beer_form.brewery_name %}
+                <p class="text-[11px] text-gray-500 mt-1 italic">{{ beer_form.brewery_name.help_text }}</p>
                 <div id="brewery-suggestions" class="absolute z-50 w-full bg-base-100 shadow-lg rounded-b-md border border-base-300 top-full hidden mt-1 max-h-40 overflow-y-auto"></div>
             </div>
 
+            {% if 'brewery_postal_code' in beer_form.fields %}
             <details class="pb-card p-2 mb-1" {% if beer_form.brewery_postal_code.value or beer_form.brewery_city.value or beer_form.brewery_postal_code.errors or beer_form.brewery_city.errors %}open{% endif %}>
                 <summary class="cursor-pointer text-sm font-semibold px-1 py-1">Préciser le lieu de la brasserie <span class="text-xs font-normal text-gray-600">(facultatif)</span></summary>
                 <div class="pt-2">
@@ -97,69 +105,46 @@
                 <datalist id="cities-beer"></datalist>
             </div>
             <p class="text-[10px] text-gray-500 -mt-2 mb-3 italic">{{ beer_form.brewery_postal_code.help_text }}</p>
-            
                 </div>
             </details>
+            {% endif %}
     </section>
 
-    {# 2. Ses caractéristiques #}
+    {# 2. Détails, tous facultatifs #}
     <section class="wizard-step" data-step="2" data-title="{{ steps.1.1 }}">
-            <div class="flex gap-2 mb-3">
-                <div class="form-control flex-1">
-                    <label class="label py-1">
-                        <span class="label-text font-bold text-xs">
-                            {{ beer_form.degree.label }}{% if beer_form.degree.field.required %} <span class="text-error">*</span>{% endif %}
-                        </span>
-                    </label>
-                    {{ beer_form.degree }}
-                    {% include "partials/field_errors.html" with field=beer_form.degree %}
-                </div>
-                <div class="form-control flex-1">
-                    <label class="label py-1">
-                        <span class="label-text font-bold text-xs">
-                            {{ beer_form.bitterness.label }}{% if beer_form.bitterness.field.required %} <span class="text-error">*</span>{% endif %}
-                        </span>
-                    </label>
-                    {{ beer_form.bitterness }}
-                    {% include "partials/field_errors.html" with field=beer_form.bitterness %}
-                </div>
-            </div>
-            
+            <p class="text-sm text-gray-600 mb-3">Facultatif : ce que vous savez déjà. Le reste pourra être complété plus tard.</p>
             <div class="form-control w-full mb-3">
-                <label class="label py-1">
-                    <span class="label-text font-bold text-xs">
-                        {{ beer_form.style.label }}{% if beer_form.style.field.required %} <span class="text-error">*</span>{% endif %}
-                    </span>
-                </label>
+                <label class="label py-1"><span class="label-text font-bold text-xs">{{ beer_form.style.label }}</span></label>
                 {{ beer_form.style }}
                 {% include "partials/field_errors.html" with field=beer_form.style %}
             </div>
-            
-    </section>
-
-    {# 3. Description et photo #}
-    <section class="wizard-step" data-step="3" data-title="{{ steps.2.1 }}">
             <div class="form-control w-full mb-3">
-                <label class="label py-1">
-                    <span class="label-text font-bold text-xs">{{ beer_form.description.label }}</span>
-                </label>
-                {{ beer_form.description }}
-                {% include "partials/field_errors.html" with field=beer_form.description %}
-                <label class="label py-0 mt-1 items-start">
-                    <span class="label-text-alt text-gray-500 italic whitespace-normal text-left leading-tight">Ne mettez pas votre avis ici, utilisez la section ci-dessous.</span>
-                </label>
+                <label class="label py-1"><span class="label-text font-bold text-xs">{{ beer_form.bitterness.label }}</span></label>
+                {{ beer_form.bitterness }}
+                {% include "partials/field_errors.html" with field=beer_form.bitterness %}
             </div>
 
+            {% if 'description' in beer_form.fields %}
+            <div class="form-control w-full mb-3">
+                <label class="label py-1"><span class="label-text font-bold text-xs">{{ beer_form.description.label }}</span></label>
+                {{ beer_form.description }}
+                {% include "partials/field_errors.html" with field=beer_form.description %}
+            </div>
+            {% endif %}
+
             {% if 'image' in beer_form.fields %}
-            {% include "partials/image_field.html" with name=beer_form.image.html_name field_id=beer_form.image.id_for_label label=beer_form.image.label hint="Cette photo illustre aussi votre avis à l'étape suivante : inutile d'en prendre une autre. Gardez-la, changez-la ou retirez-la." %}
+            {% include "partials/image_field.html" with name=beer_form.image.html_name field_id=beer_form.image.id_for_label label=beer_form.image.label hint="Une photo de l'étiquette ou du verre aide à reconnaître la bière." %}
             {% include "partials/field_errors.html" with field=beer_form.image %}
             {% endif %}
 
+            {% if not menu_bar %}
+            <button type="submit" id="wizard-submit" class="btn btn-primary w-full h-auto min-h-12 border-2 border-secondary text-black text-base normal-case mt-2">Ajouter la bière</button>
+            {% endif %}
     </section>
 
 {% if menu_bar %}
-    {# 4 (carte d'un bar). À la carte : prix et format, facultatifs #}
-    <section class="wizard-step" data-step="4" data-title="{{ steps.3.1 }}">
+    {# 3 (carte d'un bar). À la carte : prix et format, facultatifs #}
+    <section class="wizard-step" data-step="3" data-title="{{ steps.2.1 }}">
         <p class="text-sm text-gray-600 mb-3">Facultatif : le prix et le format servis chez vous. Vous pourrez les modifier depuis la carte.</p>
         <fieldset class="mb-3">
             <legend class="text-sm font-bold mb-2">Format</legend>
@@ -174,75 +159,18 @@
             {% include "partials/field_errors.html" with field=menu_form.price %}
         </div>
     </section>
-{% else %}
-    {# 4. Votre avis #}
-    <section class="wizard-step" data-step="4" data-title="{{ steps.3.1 }}">
-        <div class="mb-3">
-            <label class="text-sm font-bold" for="{{ drink_form.comment.id_for_label }}">Commentaire <span class="text-error">*</span></label>
-            {{ drink_form.comment }}
-            {% include "partials/field_errors.html" with field=drink_form.comment %}
-        </div>
-            <div class="flex gap-3 mt-3">
-                <div class="flex-1">
-                    <label class="text-xs font-bold" for="{{ drink_form.note.id_for_label }}">{{ drink_form.note.label }}</label>
-                    {{ drink_form.note }}
-                    {% include "partials/field_errors.html" with field=drink_form.note %}
-                </div>
-                <div class="flex-1">
-                    <label class="text-xs font-bold" for="{{ drink_form.date.id_for_label }}">{{ drink_form.date.label }} <span class="text-error">*</span></label>
-                    {{ drink_form.date }}
-                    {% include "partials/field_errors.html" with field=drink_form.date %}
-                </div>
-            </div>
-            <div class="mt-3">
-                {% include "partials/image_field.html" with name=drink_form.photo.html_name field_id=drink_form.photo.id_for_label hint="Même photo que celle de la bière : gardez-la pour illustrer votre avis, changez-la ou retirez-la." %}
-            {% include "partials/field_errors.html" with field=drink_form.photo %}
-            </div>
-    </section>
-
-    {# 5. Le contexte (facultatif) #}
-    <section class="wizard-step" data-step="5" data-title="{{ steps.4.1 }}">
-        <p class="text-sm text-gray-600 mb-3">Facultatif : ces précisions enrichissent votre carnet.</p>
-            <fieldset class="mb-3">
-                <legend class="text-sm font-bold mb-2">Lieu</legend>
-                <div class="flex flex-wrap gap-2">
-                    {% for radio in drink_form.venue_type %}<label class="pb-choice">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>{% endfor %}
-                </div>
-                {% include "partials/field_errors.html" with field=drink_form.venue_type %}
-            </fieldset>
-            <fieldset class="mb-3">
-                <legend class="text-sm font-bold mb-2">Avec qui</legend>
-                <div class="flex flex-wrap gap-2">
-                    {% for radio in drink_form.company %}<label class="pb-choice">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>{% endfor %}
-                </div>
-                {% include "partials/field_errors.html" with field=drink_form.company %}
-            </fieldset>
-            <fieldset class="mb-3">
-                <legend class="text-sm font-bold mb-2">Format</legend>
-                <div class="flex flex-wrap gap-2">
-                    {% for radio in drink_form.serving_format %}<label class="pb-choice">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>{% endfor %}
-                </div>
-                {% include "partials/field_errors.html" with field=drink_form.serving_format %}
-            </fieldset>
-            <div class="mb-3">
-                <label class="text-sm font-bold" for="{{ drink_form.price.id_for_label }}">{{ drink_form.price.label }}</label>
-                {{ drink_form.price }}
-                {% include "partials/field_errors.html" with field=drink_form.price %}
-            </div>
-        {% if user.custom_notebooks.exists %}
-        {% include "partials/notebook_selector.html" %}
-        {% endif %}
-    </section>
-
 {% endif %}
-    {# Dernière étape : vérification et enregistrement #}
+
+    {% if menu_bar %}
+    {# Dernière étape d'un gérant de bar : vérification et enregistrement #}
     {% with last=steps|last %}
     <section class="wizard-step" data-step="{{ steps|length }}" data-title="{{ last.1 }}">
         <p class="text-sm text-gray-600 mb-3">Relisez vos réponses. Touchez une ligne pour la modifier.</p>
         <dl id="wizard-recap" class="pb-recap pb-card overflow-hidden mb-4"></dl>
-        <button type="submit" id="wizard-submit" class="btn btn-primary w-full h-auto min-h-12 border-2 border-secondary text-black text-base normal-case">{% if menu_bar %}Ajouter à la carte{% else %}Enregistrer ma dégustation{% endif %}</button>
+        <button type="submit" id="wizard-submit" class="btn btn-primary w-full h-auto min-h-12 border-2 border-secondary text-black text-base normal-case">Ajouter à la carte</button>
     </section>
     {% endwith %}
+    {% endif %}
 
     <div id="wizard-errors" class="hidden rounded-xl border-2 border-error bg-base-100 p-3 text-sm font-semibold text-error flex-col gap-1" role="alert" tabindex="-1"></div>
 
