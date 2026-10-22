@@ -81,6 +81,19 @@
         </label>
         <button type="submit" name="btn_marketing" class="hidden">Enregistrer</button>
     </form>
+{% elif section == 'draw' %}
+    <form method="post" class="flex flex-col gap-3">
+        {% csrf_token %}
+        <h3 class="text-sm font-bold border-b border-primary pb-1">Tirage du jour</h3>
+        <label class="form-control w-full bg-base-200 p-3 rounded-box flex-row justify-between items-center shadow-sm cursor-pointer">
+            <span class="flex flex-col pr-4 flex-1 min-w-0">
+                <span class="label-text font-bold text-xs">{{ draw_form.daily_draw_enabled.label }}</span>
+                <span class="text-[9px] text-gray-500 mt-0.5">Chaque jour, 5 bières à découvrir tirées selon leur rareté, avec un rappel et le trophée Découvreur. Désactivé, le tirage disparaît de l'accueil et le rappel et le trophée sont retirés ; votre progression est conservée si vous le réactivez.</span>
+            </span>
+            <span class="shrink-0">{{ draw_form.daily_draw_enabled }}</span>
+        </label>
+        <button type="submit" name="btn_draw" class="hidden">Enregistrer</button>
+    </form>
 {% elif section == 'privacy' %}
     <p class="text-sm text-gray-600">Pokebeer ne reçoit jamais votre position : elle sert uniquement à classer les lieux près de vous, sur votre appareil.</p>
     <a href="{% url 'privacy_policy' %}" target="_blank" rel="noopener noreferrer" class="btn btn-outline w-full h-auto min-h-12 py-2 border-secondary justify-between text-left normal-case">

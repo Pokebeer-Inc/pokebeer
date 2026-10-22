@@ -154,7 +154,7 @@ class Drinks(models.Model):
     date = models.DateField(default=timezone.localdate, verbose_name="Date")
     slug = PublicSlugField()
     note = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(10)], null=True, blank=True, verbose_name="Note")
-    comment = models.TextField(max_length=MAX_TEXT_LENGTH, verbose_name="Commentaire")
+    comment = models.TextField(max_length=MAX_TEXT_LENGTH, blank=True, verbose_name="Commentaire")  # facultatif : une dégustation peut n'avoir qu'une note, ou un simple contexte
     photo = models.ImageField(upload_to=tasting_photo_path, blank=True, null=True, verbose_name="Photo")
     
     # Contexte de la dégustation (facultatif) : choisi à la main, jamais déduit de la position de l'appareil

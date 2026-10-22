@@ -8,7 +8,7 @@ from django.views.decorators.http import require_POST
 import logging
 
 from ..forms import (
-    AccountDeletionForm, FeedbackForm, MarketingConsentForm, NotificationPreferenceForm, ProSettingsForm, StatsSettingsForm, UserUpdateForm, UsernameForm, error_summary,
+    AccountDeletionForm, DailyDrawSettingsForm, FeedbackForm, MarketingConsentForm, NotificationPreferenceForm, ProSettingsForm, StatsSettingsForm, UserUpdateForm, UsernameForm, error_summary,
 )
 from ..models import AccountDeletion, Drinks
 from ..services.establishments import team
@@ -28,6 +28,7 @@ TOO_MANY_USERNAME_CHANGES = "Trop de changements de pseudo. Réessayez plus tard
 SETTINGS_SECTIONS = {
     'profile': "Informations et bio",
     'notifications': "Notifications et e-mails",
+    'draw': "Tirage du jour",
     'privacy': "Visibilité et confidentialité",
     'security': "Mot de passe",
     'team': "Écrire à l'équipe",
@@ -47,22 +48,34 @@ def _save_profile(request, user, forms, done):
     messages.error(request, "Profil non modifié : " + " ; ".join(error_summary(form)))
 
 
-def _save_privacy(request, user, forms, done):
-    forms['pro_settings_form'] = ProSettingsForm(request.POST, instance=user)
-    if forms['pro_settings_form'].is_valid():
-        forms['pro_settings_form'].save()
-        messages.success(request, "Paramètres de confidentialité mis à jour.")
-        return done()
-    messages.error(request, "Erreur dans le changement de préférence de la visibilité.")
+def _settings_saver(key, bind, success, failure=None):
+    """Gestionnaire d'un formulaire de réglages qui s'enregistre tel quel : `bind(request, user)` renvoie le formulaire lié aux données
+    envoyées, `success` s'affiche une fois enregistré et `failure` (facultatif) si les données sont refusées."""
+    def handler(request, user, forms, done):
+        form = forms[key] = bind(request, user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, success)
+            return done()
+        if failure:
+            messages.error(request, failure)
+    return handler
 
 
-def _save_stats_settings(request, user, forms, done):
-    forms['stats_form'] = StatsSettingsForm(request.POST, instance=user)
-    if forms['stats_form'].is_valid():
-        forms['stats_form'].save()
-        messages.success(request, "Préférence de statistiques mise à jour.")
-        return done()
-    messages.error(request, "Erreur dans le changement de préférence des statistiques.")
+_save_privacy = _settings_saver(
+    'pro_settings_form', lambda request, user: ProSettingsForm(request.POST, instance=user),
+    "Paramètres de confidentialité mis à jour.", "Erreur dans le changement de préférence de la visibilité.")
+_save_stats_settings = _settings_saver(
+    'stats_form', lambda request, user: StatsSettingsForm(request.POST, instance=user),
+    "Préférence de statistiques mise à jour.", "Erreur dans le changement de préférence des statistiques.")
+_save_notification_preferences = _settings_saver(
+    'notif_form', lambda request, user: NotificationPreferenceForm(request.POST, instance=user),
+    "Préférences de notifications mises à jour.", "Erreur dans le changement de préférence des notifications.")
+_save_marketing_consent = _settings_saver(
+    'marketing_form', lambda request, user: MarketingConsentForm(request.POST, user=user), "Préférence d'e-mails mise à jour.")
+_save_daily_draw = _settings_saver(
+    'draw_form', lambda request, user: DailyDrawSettingsForm(request.POST, user=user),
+    "Préférence du tirage du jour mise à jour.", "Erreur dans le changement de préférence du tirage du jour.")
 
 
 def _change_password(request, user, forms, done):
@@ -90,23 +103,6 @@ def _send_feedback(request, user, forms, done):
     return redirect('feedback_thread', feedback_slug=thread.slug)
 
 
-def _save_notification_preferences(request, user, forms, done):
-    forms['notif_form'] = NotificationPreferenceForm(request.POST, instance=user)
-    if forms['notif_form'].is_valid():
-        forms['notif_form'].save()
-        messages.success(request, "Préférences de notifications mises à jour.")
-        return done()
-    messages.error(request, "Erreur dans le changement de préférence des notifications.")
-
-
-def _save_marketing_consent(request, user, forms, done):
-    forms['marketing_form'] = MarketingConsentForm(request.POST, user=user)
-    if forms['marketing_form'].is_valid():
-        forms['marketing_form'].save()
-        messages.success(request, "Préférence d'e-mails mise à jour.")
-        return done()
-
-
 # Bouton envoyé -> gestionnaire ; le premier bouton présent dans la requête est traité
 FORM_ACTIONS = {
     'btn_profile': _save_profile,
@@ -116,6 +112,7 @@ FORM_ACTIONS = {
     'btn_feedback': _send_feedback,
     'btn_notifs': _save_notification_preferences,
     'btn_marketing': _save_marketing_consent,
+    'btn_draw': _save_daily_draw,
 }
 
 
@@ -168,6 +165,7 @@ def account_view(request, section=None):
         'marketing_form': MarketingConsentForm(user=user),
         'pro_settings_form': ProSettingsForm(instance=user),
         'stats_form': StatsSettingsForm(instance=user),
+        'draw_form': DailyDrawSettingsForm(user=user),
     }
 
     if request.method == 'POST':

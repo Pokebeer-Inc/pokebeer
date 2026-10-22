@@ -113,7 +113,7 @@ class TestRedirectsAndAccess:
 
     @pytest.mark.parametrize("referer", EVIL)
     def test_rating_never_redirects_to_a_foreign_referer(self, auth_client, beer, referer):
-        response = auth_client.post(reverse("rate_beer", args=[beer.slug]), {"date": "2026-01-01", "note": 5}, HTTP_REFERER=referer)
+        response = auth_client.post(reverse("rate_beer", args=[beer.slug]), {"date": "2026-01-01", "note": 50}, HTTP_REFERER=referer)  # note refusée : retour à la page précédente
         assert response.url == reverse("index")
 
     @pytest.mark.parametrize("referer", EVIL)

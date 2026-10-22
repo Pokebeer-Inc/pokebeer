@@ -6,6 +6,7 @@
     'use strict';
 
     const TOAST_DURATION_MS = 4000;
+    const PROBLEM_DURATION_MS = 9000; // une erreur ou un avertissement se lit en entier : le temps de comprendre ce qu'il faut corriger
     const POLL_INTERVAL_MS = 25000;
     // Croix en SVG : constante du code, jamais une donnée venue du serveur
     const CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 18L18 6M6 6l12 12"/></svg>';
@@ -70,7 +71,7 @@
         if (!options || !options.message) return;
 
         const type = options.type || 'info';
-        const duration = options.duration || TOAST_DURATION_MS;
+        const duration = options.duration || (type === 'error' || type === 'warning' ? PROBLEM_DURATION_MS : TOAST_DURATION_MS);
         const styles = getTypeStyles(type, options.tierSlug);
         const container = getToastContainer();
 

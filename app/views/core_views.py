@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from ..models import Beer, Drinks
+from ..services.catalog import daily_draw
 from ..services.catalog.recommendations import get_recommended_beers
 from ..services.catalog.selectors import get_activity, activity_kind, ACTIVITY_TITLES
 from .search_views import build_results, normalize_tab
@@ -35,6 +36,7 @@ def index(request):
         'activity': activity,
         'activity_kind': kind,
         'activity_title': ACTIVITY_TITLES[kind],
+        'draw_state': daily_draw.home_state(user),
     }
     context.update(build_results(request, default_tab='all'))
     return render(request, 'home.html', context)

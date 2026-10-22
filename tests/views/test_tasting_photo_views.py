@@ -106,7 +106,7 @@ class TestPhotoDisplay:
 class TestQuotaOnlyConsumedByValidForms:
     def test_a_rejected_form_does_not_cost_an_upload(self, auth_client, user, beer, monkeypatch):
         from app.models import QuotaUsage
-        rate(auth_client, beer, comment="", photo=f.make_image_upload())  # commentaire manquant : formulaire invalide
+        rate(auth_client, beer, note="50", photo=f.make_image_upload())  # note hors limites : formulaire invalide
         assert not QuotaUsage.objects.filter(user=user, scope=tp.QUOTA_SCOPE).exists()
         rate(auth_client, beer, photo=f.make_image_upload())
         assert QuotaUsage.objects.get(user=user, scope=tp.QUOTA_SCOPE).count == 1

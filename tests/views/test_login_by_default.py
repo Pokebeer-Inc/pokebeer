@@ -10,7 +10,7 @@ pytestmark = pytest.mark.django_db
 # Pages volontairement ouvertes sans connexion (chacune porte @login_not_required dans le code)
 PUBLIC = {
     'login', 'register', 'register_pro', 'password_reset', 'password_reset_done', 'password_reset_confirm', 'password_reset_complete',
-    'email_preferences', 'email_unsubscribe', 'assetlinks', 'privacy_policy', 'cron_purge_inactive_accounts', 'postal_code_lookup',
+    'email_preferences', 'email_unsubscribe', 'assetlinks', 'privacy_policy', 'cron_purge_inactive_accounts', 'cron_daily_draw_reminder', 'postal_code_lookup',
     'allauth_login_redirect', 'allauth_signup_redirect', 'allauth_reset_redirect', 'allauth_password_change_redirect',
     'allauth_password_set_redirect',
 }

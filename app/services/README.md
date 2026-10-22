@@ -42,6 +42,8 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 | `beers.py` | Cycle de vie d'une bière : ajout (sans dégustation, brasserie facultative), modification, retrait (notifications, trophées). |
 | `context_reminders.py` | Rappel discret aux membres dont une dégustation récente n'a ni lieu, ni format, ni prix. |
 | `catalog_matching.py` | Détection des doublons du catalogue : une seule règle, partagée par le formulaire d'ajout, la vérification en direct (API) et |
+| `daily_draw.py` | Tirage du jour : cinq bières jamais goûtées par le membre, tirées selon leur rareté (relative au nombre de dégustations), un tirage par jour. |
+| `draw_reminders.py` | Rappel push quotidien du tirage du jour (membres de l'application qui n'ont pas encore tiré). |
 | `drinks.py` | Dégustations : notation d'une bière, modification, suppression (règle partagée avec la modération). |
 | `ean.py` | Codes-barres EAN : validation (longueur et clé de contrôle) et forme normalisée. |
 | `embeddings.py` | Vecteur de recherche sémantique des bières (chat IA) : recalculé quand le texte qui le décrit change. |

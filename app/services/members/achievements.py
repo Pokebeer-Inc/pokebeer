@@ -5,10 +5,10 @@ from collections.abc import Callable
 
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Max, Q, Sum
 from django.urls import reverse
 
-from ...models import Beer, BeerUser, Drinks, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction, Brewery
+from ...models import Beer, BeerUser, DailyDraw, Drinks, BeerSpot, UserFollow, Notification, UserAchievementState, DrinkReaction, Brewery
 from ..establishments.place_directory import TROPHY_URLS_CACHE_KEY
 from ..messaging.notifications import save_notifications, send_notifications
 
@@ -41,6 +41,10 @@ class MemberCounts:
     def follows(self):
         return UserFollow.objects.filter(follower=self.user).count()
 
+    def drawn_cards(self):
+        """Cartes du tirage du jour retournées par le membre."""
+        return DailyDraw.objects.filter(user=self.user).aggregate(total=Sum('revealed'))['total'] or 0
+
     def spots(self):
         return BeerSpot.objects.filter(user=self.user).count()
 
@@ -65,12 +69,14 @@ class Trophy:
     category: str = "global"
     hidden: bool = False
     points_per_unit: int = 0
+    requires: str | None = None  # champ booléen du membre qui active la fonctionnalité du trophée : désactivé, le trophée disparaît (et ses points)
 
 
 # Ajouter un trophée = une ligne ici (rien d'autre à modifier)
 TROPHIES = (
     Trophy("poche", "Poche", "Ajouter des bières au catalogue", (1, 10, 100, 500), MemberCounts.added_beers, points_per_unit=100),
     Trophy("juge", "Juge", "Noter des bières", (5, 10, 100, 500), lambda c: c.tastings['total'], points_per_unit=100),
+    Trophy("decouvreur", "Découvreur", "Ouvrir les cartes du tirage du jour", (35, 140, 840, 1680), MemberCounts.drawn_cards, requires='daily_draw_enabled'),
     Trophy("communaute", "Communautaire", "S'abonner à d'autres membres", (10, 100, 500, 1000), MemberCounts.follows),
     Trophy("voyageur", "Voyageur", "Placer des lieux sur la carte", (5, 50, 250, 500), MemberCounts.spots, points_per_unit=200),
     Trophy("bad_trip", "Mauvaise cuite", "Noter des bières en dessous de 2/10", (5, 50, 250, 500), lambda c: c.tastings['bad']),
@@ -83,6 +89,18 @@ TROPHIES = (
     Trophy("ours", "Ours doré", "Boire une bière de la brasserie de l'Ours Doré", (1, 1, 1, 1), lambda c: 1 if c.tastings['ours'] else 0,
            category="brewery"),
 )
+
+
+def trophies_for(user):
+    """Trophées qui s'appliquent à ce membre : ceux d'une fonctionnalité qu'il a désactivée n'existent plus pour lui."""
+    return [trophy for trophy in TROPHIES if not trophy.requires or getattr(user, trophy.requires)]
+
+
+def clear_feature_notifications(user, feature):
+    """Retire les notifications de trophées liées à une fonctionnalité (`requires`) que le membre vient de désactiver."""
+    slugs = [trophy.slug for trophy in TROPHIES if trophy.requires == feature]
+    Notification.objects.filter(recipient=user, notif_type='achievement', achievement_slug__in=slugs).delete()
+
 
 # Nom affiché de chaque trophée, par identifiant stable
 ACHIEVEMENT_NAMES = {trophy.slug: trophy.name for trophy in TROPHIES}
@@ -155,12 +173,13 @@ def _level(total_points):
 def get_user_achievements(user):
     """Calcule et retourne la liste des hauts faits d'un utilisateur, et son niveau."""
     counts = MemberCounts(user)
-    values = {trophy.slug: trophy.measure(counts) for trophy in TROPHIES}
+    trophies = trophies_for(user)
+    values = {trophy.slug: trophy.measure(counts) for trophy in trophies}
     urls = _trophy_urls()
-    achievements = [_build_achievement(trophy, values[trophy.slug], urls.get(trophy.slug)) for trophy in TROPHIES]
+    achievements = [_build_achievement(trophy, values[trophy.slug], urls.get(trophy.slug)) for trophy in trophies]
 
     # Points des unités comptées, plus ceux des médailles débloquées
-    total_points = sum(values[trophy.slug] * trophy.points_per_unit for trophy in TROPHIES)
+    total_points = sum(values[trophy.slug] * trophy.points_per_unit for trophy in trophies)
     total_points += sum(TIER_XP_REWARDS[ach['tier_level']] for ach in achievements)
     return achievements, _level(total_points)
 

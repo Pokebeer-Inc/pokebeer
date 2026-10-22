@@ -12,6 +12,8 @@ urlpatterns = [
     path('map/', views.map_view, name='map'),
     path('map/place/<slug:kind>/<slug:slug>/', views.place_popup_view, name='map_place_popup'),
     path('achievements/', views.achievements_view, name='achievements'),
+    path('daily-draw/', views.open_daily_draw, name='open_daily_draw'),
+    path('daily-draw/reveal/', views.reveal_daily_draw, name='reveal_daily_draw'),
     path('notebook/', views.notebook_view, name='notebook'),
     # Les routes fixes précèdent notebook/<slug>/ : sinon le slug les capturerait
     path('notebook/to-taste/', views.notebook_wishlist_fragment, name='notebook_wishlist_fragment'),
@@ -53,6 +55,7 @@ urlpatterns = [
     path('privacy-policy/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
     path('delete-account/', views.delete_account_view, name='delete_account'),
     path('cron/purge-inactive-accounts/', views.purge_inactive_accounts_cron, name='cron_purge_inactive_accounts'),
+    path('cron/daily-draw-reminder/', views.daily_draw_reminder_cron, name='cron_daily_draw_reminder'),
     # Les pages de connexion et d'inscription d'allauth contourneraient nos protections : on les renvoie vers les nôtres
     path('accounts/login/', login_not_required(RedirectView.as_view(pattern_name='login', query_string=True)), name='allauth_login_redirect'),
     path('accounts/signup/', login_not_required(RedirectView.as_view(pattern_name='register', query_string=True)), name='allauth_signup_redirect'),

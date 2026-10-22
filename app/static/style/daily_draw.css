@@ -1,0 +1,96 @@
+/* Tirage du jour (script/daily_draw.js) : cinq cartes face cachée, révélées une à une avec une lueur et des confettis à la couleur de leur rareté. */
+.draw-open { overflow: hidden; }
+
+/* Entrée de l'accueil : un seul texte visible selon l'état du tirage ; terminé, le bouton jaune devient une carte discrète (on peut toujours revoir ses bières) */
+.draw-entry [data-draw-when] { display: none; }
+.draw-entry[data-state="available"] [data-draw-when="available"], .draw-entry[data-state="in_progress"] [data-draw-when="in_progress"],
+.draw-entry[data-state="done"] [data-draw-when="done"] { display: block; }
+.draw-entry[data-state="done"] [data-draw-open] { background: var(--color-base-200); border: 1px solid #d9cfc5; color: #4b443d; }
+.draw-entry[data-state="done"] [data-draw-open]:hover { background: var(--color-base-300); filter: none; }
+
+.draw {
+    --rarity: #b87e44; --rarity-soft: #e8d3b8;
+    position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center;
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom)); overflow-y: auto;
+    background: radial-gradient(circle at 50% 30%, color-mix(in oklab, var(--rarity) 35%, #2b2118) 0%, #1c1510 70%);
+    color: #f7f3f0; transition: background 0.6s;
+}
+.draw.hidden { display: none; }
+.draw-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 71; }
+
+.draw-bar { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 24rem; }
+.draw-dots { display: flex; }
+.draw-dots button { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: none; border-radius: 9999px; }
+.draw-dots button::before { content: ""; width: 0.65rem; height: 0.65rem; border-radius: 9999px; background: #ffffff33; transition: background 0.3s, transform 0.3s; }
+.draw-dots button[data-rarity]::before { background: var(--dot); }
+.draw-dots button.is-current::before { transform: scale(1.4); box-shadow: 0 0 0 2px #ffffffaa; }
+.draw-dots button:not(:disabled) { cursor: pointer; }
+.draw-dots button:not(:disabled):hover::before { transform: scale(1.4); }
+.draw-dots button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.draw-close { padding: 0.4rem; border-radius: 9999px; color: #f7f3f0; }
+.draw-close:hover, .draw-close:focus-visible { background: #ffffff22; }
+
+.draw-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 24rem; gap: 1rem; }
+.draw-hint { min-height: 1.25rem; font-size: 0.85rem; opacity: 0.8; text-align: center; }
+
+/* Carte : le recto et le verso tournent ensemble autour de l'axe vertical */
+.draw-card { width: min(70vw, 16rem); aspect-ratio: 5 / 7; perspective: 900px; cursor: pointer; background: none; border: 0; padding: 0; }
+.draw-card:disabled { cursor: default; }
+.draw-card:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 6px; border-radius: 1.1rem; }
+.draw-card-inner { position: relative; display: block; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(.3,1.3,.5,1); }
+.draw-card.is-flipped .draw-card-inner { transform: rotateY(180deg); }
+.draw-card.is-instant .draw-card-inner { transition: none; }  /* carte déjà ouverte : affichée face visible, sans retournement */
+.draw-card.is-charging .draw-card-inner { animation: draw-shake 0.12s linear 6; }
+.draw-card.is-entering { animation: draw-enter 0.5s cubic-bezier(.3,1.4,.5,1) both; }
+
+.draw-face { position: absolute; inset: 0; display: flex; flex-direction: column; border-radius: 1.1rem; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
+.draw-back { align-items: center; justify-content: center; background: repeating-linear-gradient(45deg, #f1c40f 0 14px, #eca054 14px 28px); border: 4px solid #333; box-shadow: 0 10px 30px #0008; }
+.draw-back svg { width: 45%; height: auto; filter: drop-shadow(0 3px 0 #0003); animation: draw-float 2.4s ease-in-out infinite; }
+.draw-front { transform: rotateY(180deg); background: #f7f3f0; color: #333; border: 5px solid var(--rarity); box-shadow: 0 0 0 2px #333, 0 0 36px var(--rarity); }
+.draw-front-image { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: var(--rarity-soft); }
+.draw-front-image img { width: 100%; height: 100%; object-fit: cover; }
+.draw-front-image svg { width: 40%; height: auto; color: var(--rarity); opacity: 0.8; }
+.draw-front-body { padding: 0.6rem 0.75rem 0.8rem; text-align: left; }
+.draw-front-name { font-weight: 700; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.draw-front-meta { font-size: 0.78rem; color: #6b625a; margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.draw-ribbon { position: absolute; top: 0.6rem; left: 0.6rem; padding: 0.15rem 0.6rem; border-radius: 9999px; background: var(--rarity); color: #fff; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: 0 2px 0 #0003; }
+
+/* Reflet holographique des cartes les plus rares */
+.draw-card[data-rarity="epic"] .draw-front::after, .draw-card[data-rarity="legendary"] .draw-front::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light; opacity: 0.7;
+    background: linear-gradient(115deg, transparent 20%, #ffffffaa 38%, #ff7bd5aa 46%, #7bd5ffaa 54%, #fff3 62%, transparent 80%); background-size: 250% 100%;
+    animation: draw-holo 2.8s linear infinite;
+}
+
+.draw-actions { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 20rem; animation: draw-rise 0.4s ease-out both; }
+.draw-actions.hidden { display: none; }
+.draw-actions-row { display: flex; gap: 0.5rem; }
+.draw-actions-row > * { flex: 1; }
+.draw-actions .btn { color: #f7f3f0; }
+.draw-actions .btn-primary { color: #000; }
+
+/* Résumé : les cinq cartes en vignettes */
+.draw-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; width: 100%; }
+.draw-summary > a { display: flex; flex-direction: column; padding: 0.6rem; border-radius: 0.8rem; border: 3px solid var(--rarity); background: #f7f3f0; color: #333; animation: draw-enter 0.5s cubic-bezier(.3,1.4,.5,1) both; }
+.draw-summary > a:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.draw-summary small { font-weight: 700; color: var(--rarity); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.04em; }
+
+[data-rarity="common"] { --rarity: #b87e44; --rarity-soft: #efdcc4; --dot: #b87e44; }
+[data-rarity="rare"] { --rarity: #3b82c4; --rarity-soft: #cfe2f5; --dot: #3b82c4; }
+[data-rarity="epic"] { --rarity: #8e44ad; --rarity-soft: #e6d1f0; --dot: #8e44ad; }
+[data-rarity="legendary"] { --rarity: #f1c40f; --rarity-soft: #fbefb8; --dot: #f1c40f; }
+
+.draw.is-flash::before { content: ""; position: fixed; inset: 0; z-index: 72; pointer-events: none; background: #fff; animation: draw-flash 0.7s ease-out both; }
+
+@keyframes draw-shake { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-6px) rotate(-3deg); } 75% { transform: translateX(6px) rotate(3deg); } }
+@keyframes draw-enter { from { transform: translateY(40px) scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes draw-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes draw-holo { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+@keyframes draw-rise { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes draw-flash { from { opacity: 0.85; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .draw-card-inner { transition: none; }
+    .draw-card.is-charging .draw-card-inner, .draw-card.is-entering, .draw-back svg, .draw-actions, .draw-summary > a,
+    .draw-card .draw-front::after, .draw.is-flash::before { animation: none; }
+}

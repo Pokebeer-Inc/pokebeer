@@ -1,10 +1,15 @@
+from pathlib import Path
+
 import pytest
 
 from app.models import Notification, UserBlock
 from app.domain import notification_types
+from app.services.messaging.notification_presenter import message_html
 from app.services.messaging.notifications import create_notifications, notify
 from app.services.messaging.notifications import save_notifications
 from tests import factories as f
+
+TEMPLATES = Path(__file__).resolve().parents[2] / "app" / "templates"
 
 pytestmark = pytest.mark.django_db
 
@@ -69,3 +74,20 @@ class TestNotify:
         muted = f.make_user(notif_follow=False)
         assert notify("follow", [muted], sender=user) == []
         assert sent == []
+
+
+class TestDeletedSender:
+    """Un compte supprimé laisse ses notifications chez les autres (lien mis à NULL) : le texte ne doit jamais perdre son sujet."""
+
+    @pytest.mark.parametrize("key", [k for k, t in notification_types.REGISTRY.items() if "sender" in (TEMPLATES / t.text_template).read_text(encoding="utf-8")])
+    def test_every_text_that_names_the_sender_still_reads_after_the_account_is_deleted(self, key, user, other_user):
+        beer = f.make_beer()
+        notification = f.make_notification(user, key, sender=other_user, beer=beer, text_content="Texte")
+        other_user.delete()
+        notification.refresh_from_db()
+        assert notification.sender is None
+        html = message_html(notification)
+        assert Notification.FORMER_MEMBER in html and "None" not in html
+
+    def test_the_name_is_the_username_while_the_account_exists(self, user, other_user):
+        assert f.make_notification(user, "follow", sender=other_user).sender_name == "bobby"

@@ -50,6 +50,8 @@ class BeerUser(AbstractBaseUser, PermissionsMixin):
     notif_achievements = models.BooleanField(default=True, verbose_name="Trophées et récompenses")
     notif_establishment = models.BooleanField(default=True, verbose_name="Établissements (Équipe, mises à jour)")
     show_establishments = models.BooleanField(default=True, verbose_name="Afficher mes établissements publiquement")
+    # Interrupteur du tirage du jour : activé pour tous, le membre peut le couper à tout moment (tirage, rappel, trophée et notifications associés)
+    daily_draw_enabled = models.BooleanField(default=True, verbose_name="Tirage du jour activé")
     fcm_token = models.TextField(blank=True, null=True, verbose_name="Token Firebase Android")
     is_active = models.BooleanField(default=True, verbose_name="Compte actif", help_text="Décocher pour suspendre le compte : connexion refusée et profil masqué.")
     # Dernière visite (RGPD : suppression des comptes inactifs). `last_login` ne suffit pas : les sessions durent un an.

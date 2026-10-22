@@ -191,8 +191,10 @@ class TestDrinkForm:
         form = DrinkForm(data={"date": "2026-01-01", "note": note, "comment": "ok"})
         assert form.is_valid() is valid
 
-    def test_comment_is_required(self):
-        assert "comment" in DrinkForm(data={"date": "2026-01-01", "note": "5", "comment": ""}).errors
+    def test_comment_is_optional_as_the_rating_window_announces(self):
+        form = DrinkForm(data={"date": "2026-01-01", "note": "5", "comment": ""})
+        assert form.is_valid(), form.errors
+        assert DrinkForm(data={"date": "2026-01-01"}).is_valid()  # ni note, ni avis : la dégustation est simplement enregistrée
 
 
 class TestQuickDrinkForm:
@@ -213,8 +215,8 @@ class TestQuickDrinkForm:
         assert "date" in QuickDrinkForm(data={"note": "5", "date": "2099-01-01"}).errors
         assert "venue_type" in QuickDrinkForm(data={"note": "5", "venue_type": "moon"}).errors
 
-    def test_the_full_form_is_unchanged(self):
-        assert "comment" in DrinkForm(data={"note": "5", "date": "2026-01-01"}).errors
+    def test_the_full_form_still_requires_a_date(self):
+        assert "date" in DrinkForm(data={"note": "5"}).errors
 
 
 class TestUserForms:

@@ -42,6 +42,13 @@ class Notification(models.Model):
     def __str__(self):
         return f"{self.notif_type} -> {self.recipient_id}"
 
+    FORMER_MEMBER = "Un ancien membre"  # expéditeur dont le compte a été supprimé (le lien est mis à NULL, la notification reste)
+
+    @property
+    def sender_name(self):
+        """Pseudo de l'expéditeur pour le texte de la notification, jamais vide : un compte supprimé n'a plus de pseudo à afficher."""
+        return self.sender.username if self.sender_id else self.FORMER_MEMBER
+
     @property
     def place(self):
         """Établissement concerné (brasserie ou bar)."""

@@ -1,0 +1,32 @@
+{% comment %}Tirage du jour de l'accueil (script/daily_draw.js, style/daily_draw.css). Paramètre : draw_state (voir services/catalog/daily_draw.py).
+Les pictogrammes du tirage sont déclarés ici, dans des <template> : le script n'a ainsi aucun balisage SVG à écrire.{% endcomment %}
+{% if draw_state == 'available' or draw_state == 'in_progress' or draw_state == 'done' %}
+<div id="daily-draw-entry" class="draw-entry" data-state="{{ draw_state }}" data-open-url="{% url 'open_daily_draw' %}" data-reveal-url="{% url 'reveal_daily_draw' %}">
+    <button type="button" data-draw-open class="flex items-center gap-3 w-full mt-4 px-4 py-3 rounded-2xl bg-primary text-black text-left hover:brightness-95 active:scale-[0.99] transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3zm7 13l.7 1.8L21.5 18.5l-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7L19 16z" /></svg>
+        <span class="flex-1">
+            <span class="block font-semibold">Votre tirage du jour</span>
+            {# Le texte suit l'état du tirage (data-state de l'entrée, daily_draw.css) : le script n'a qu'un attribut à changer #}
+            <span class="block text-sm" data-draw-when="available">5 bières à découvrir, saurez-vous trouver une légendaire ?</span>
+            <span class="block text-sm" data-draw-when="in_progress">Reprenez là où vous vous êtes arrêté</span>
+            <span class="block text-sm" data-draw-when="done">Revoir mes bières du jour · prochain tirage demain</span>
+        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6l6 6-6 6" /></svg>
+    </button>
+
+    <div id="daily-draw" class="draw hidden" role="dialog" aria-modal="true" aria-label="Tirage du jour">
+        <canvas class="draw-canvas" data-draw-canvas aria-hidden="true"></canvas>
+        <div class="draw-bar">
+            <div class="draw-dots" data-draw-dots aria-hidden="true"></div>
+            <button type="button" class="draw-close" data-draw-close aria-label="Fermer le tirage">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        <div class="draw-stage" data-draw-stage aria-live="polite"></div>
+    </div>
+
+    <template id="draw-back-icon"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M34 40h42v50a10 10 0 01-10 10H44a10 10 0 01-10-10V40z" fill="#f1c40f" stroke="#333" stroke-width="5" stroke-linejoin="round"/><path d="M76 52h8a8 8 0 018 8v12a8 8 0 01-8 8h-8" fill="none" stroke="#333" stroke-width="5" stroke-linecap="round"/><path d="M30 42c-2-9 6-14 12-10 3-8 14-8 17-1 7-4 16 1 14 11z" fill="#f7f3f0" stroke="#333" stroke-width="5" stroke-linejoin="round"/></svg></template>
+    <template id="draw-beer-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h9v11a2 2 0 01-2 2H8a2 2 0 01-2-2V7zm9 2h2a2 2 0 012 2v3a2 2 0 01-2 2h-2M6 7c0-1.5 1.2-2.5 2.5-2.5.5-1 1.5-1.5 2.5-1.5s2 .5 2.5 1.5C14.8 4.5 15 5.5 15 7" /></svg></template>
+    <template id="draw-wishlist-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-colors" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg></template>
+</div>
+{% endif %}

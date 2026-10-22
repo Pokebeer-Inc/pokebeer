@@ -23,6 +23,14 @@
     {
       "path": "/cron/purge-inactive-accounts/",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/cron/daily-draw-reminder/",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/cron/daily-draw-reminder/",
+      "schedule": "0 17 * * *"
     }
   ]
 }

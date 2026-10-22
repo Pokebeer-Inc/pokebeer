@@ -192,15 +192,9 @@ class TestHomeNearbyAndGaetan:
         html = auth_client.get(reverse("all_beers"), {"tab": "nearby"}).content.decode()
         assert "data-nearby" in html and "data-radius-km" not in html
 
-    def test_gaetan_button_opens_the_chat_without_prefilling_it(self, auth_client):
+    def test_gaetan_stays_reachable_through_the_chat_bubble_without_prefilling_it(self, auth_client):
         html = auth_client.get(reverse("index")).content.decode()
-        assert "data-open-chat" in html
+        assert 'id="chat-toggle"' in html and "data-open-chat" not in html  # le bouton jaune de l'accueil a laissé place au tirage du jour
         chat_input = html[html.index('id="chat-input"'):].split(">", 1)[0]
         assert "value=" not in chat_input
         assert "Une bière douce pour ce soir" not in html
-
-
-class TestGaetanButtonWiring:
-    def test_chat_elements_come_after_the_page_content_so_the_script_must_look_them_up_on_click(self, auth_client):
-        html = auth_client.get(reverse("index")).content.decode()
-        assert html.index("data-open-chat") < html.index('id="chat-toggle"') < html.index('id="chat-window"')

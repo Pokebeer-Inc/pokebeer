@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'style/daily_draw.css' %}">
 <style>#search-input::-webkit-search-cancel-button { display: none; }</style>
 
 <h1 class="pb-title text-[1.7rem] leading-tight font-bold"><span data-greeting>{{ greeting }}</span> {{ user.username }}</h1>
@@ -36,12 +37,8 @@
         {% endfor %}
     </nav>
 
-    {# Gaétan : ouvre la fenêtre de discussion déjà présente dans la page #}
-    <button type="button" data-open-chat class="flex items-center gap-3 w-full mt-4 px-4 py-3 rounded-2xl bg-primary text-black text-left hover:brightness-95 active:scale-[0.99] transition">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5m-9 6l2.3-3.45A8 8 0 1112 20H4z" /></svg>
-        <span class="flex-1"><span class="block font-semibold">Demander à Gaétan</span><span class="block text-sm">Posez-lui n'importe quelle question</span>{% include "partials/powered_by.html" with cls="mt-1" %}</span>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6l6 6-6 6" /></svg>
-    </button>
+    {# Tirage du jour : cinq bières à découvrir, une fois par jour (Gaétan reste joignable par sa bulle, présente sur toutes les pages) #}
+    {% include "partials/daily_draw.html" %}
 
     <section aria-labelledby="reco-title">
         <h2 id="reco-title" class="pb-section"><span>Recommandées pour vous</span></h2>
@@ -83,5 +80,7 @@
 <script src="{% static 'script/recent_searches.js' %}"></script>
 <script src="{% static 'script/search.js' %}"></script>
 <script src="{% static 'script/wishlist.js' %}"></script>
+<script src="{% static 'script/confetti.js' %}"></script>
+<script src="{% static 'script/daily_draw.js' %}"></script>
 <script src="{% static 'script/home.js' %}"></script>
 {% endblock %}

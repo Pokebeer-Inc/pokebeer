@@ -11,6 +11,7 @@
 //   data-submit-form="id"       clic : envoie le formulaire indiqué avec l'attente visible du bouton (Pending.submitForm)
 //   data-history-back           clic : revient à la page précédente (le lien href sert si l'historique est vide)
 //   data-remove-on-error        retire l'image si elle ne se charge pas
+//   #identifiant                une adresse qui se termine par l'identifiant d'une <dialog> de la page l'ouvre au chargement (ex. fiche#modalRate-slug)
 (function () {
     const EVENTS = ['click', 'mousedown', 'mouseup', 'mouseleave', 'touchstart', 'touchend', 'touchcancel', 'keyup', 'keypress'];
     const NON_BUBBLING = new Set(['mouseleave']); // seul l'élément visé réagit, pas ses parents
@@ -85,6 +86,12 @@
     document.addEventListener('submit', event => {
         const form = event.target;
         if (form instanceof Element && form.hasAttribute('data-prevent-submit')) event.preventDefault();
+    });
+
+    // Lien profond vers une fenêtre : le tirage du jour ouvre ainsi la notation d'une bière sur sa fiche
+    document.addEventListener('DOMContentLoaded', () => {
+        const linked = location.hash.length > 1 && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+        if (linked instanceof HTMLDialogElement) linked.showModal();
     });
 
     // Les erreurs de chargement ne remontent pas : on les capte à la descente

@@ -294,6 +294,23 @@ class StatsSettingsForm(forms.ModelForm):
         fields = ['demographic_stats']
 
 
+class DailyDrawSettingsForm(forms.Form):
+    """Interrupteur du tirage du jour (activé par défaut). Formulaire simple : l'enregistrement passe par le service, qui retire aussi
+    les notifications et le trophée associés."""
+    daily_draw_enabled = forms.BooleanField(
+        required=False, label="Tirage du jour",
+        widget=forms.CheckboxInput(attrs={'class': 'toggle toggle-primary toggle-sm'}),
+    )
+
+    def __init__(self, *args, user, **kwargs):
+        self.user = user
+        super().__init__(*args, initial={'daily_draw_enabled': user.daily_draw_enabled}, **kwargs)
+
+    def save(self):
+        from .services.catalog import daily_draw  # importé ici : les trophées dépendent des modules qui importent ce fichier (import circulaire)
+        daily_draw.set_enabled(self.user, self.cleaned_data['daily_draw_enabled'])
+
+
 class ProUserForm(UniqueUsernameMixin, UniqueEmailMixin, forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'input input-bordered w-full bg-white'}), 
@@ -691,12 +708,11 @@ class DrinkForm(ProcessedImageMixin, forms.ModelForm):
 class QuickDrinkForm(DrinkForm):
     """Première réaction à chaud, juste après l'ajout d'une bière : une note ou quelques mots suffisent, la date est celle du jour.
 
-    Mêmes champs et mêmes règles que `DrinkForm` (photo, lieu, format...) : seul l'avis devient facultatif, à condition de donner au moins une note.
+    Mêmes champs et mêmes règles que `DrinkForm` (photo, lieu, format...) : la date devient facultative et il faut au moins une note ou quelques mots.
     Le membre précise ensuite sa dégustation depuis la fiche de la bière."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['comment'].required = False
         self.fields['date'].required = False
 
     def clean_date(self):

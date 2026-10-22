@@ -5,6 +5,7 @@ from .auth_views import login_view, logout_view, register_pro_view, register_vie
 from .onboarding_views import onboarding_birth_view, onboarding_emails_view, onboarding_gender_view, onboarding_start_view
 from .account_views import account_view, delete_account_view, settings_home_view, update_username_view
 from .profile_views import achievements_view, follow_user, public_profile_view, remove_follower, reorder_top_beers, update_top_beer
+from .draw_views import reveal_daily_draw, open_daily_draw
 from .reaction_views import toggle_reaction_view, toggle_wishlist
 from .avatar_views import update_profile_picture
 from .moderation_views import block_user, blocked_users_list, my_reports_view, submit_report, unblock_user
@@ -41,7 +42,7 @@ from .notebook_views import (
 from .search_views import all_beers_view, places_directory, search_api
 from .map_views import delete_spot_view, map_view, place_popup_view
 from .suggestion_views import suggest_edit_view
-from .cron_views import purge_inactive_accounts_cron
+from .cron_views import daily_draw_reminder_cron, purge_inactive_accounts_cron
 from .password_reset_views import PasswordResetCompleteView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetRequestView
 from .privacy_views import PrivacyPolicyView
 from .menu_views import bar_menu_add, bar_menu_remove, bar_menu_search, bar_menu_update, bar_menu_view
@@ -77,6 +78,8 @@ __all__ = [
     'settings_home_view',
     'toggle_reaction_view',
     'toggle_wishlist',
+    'open_daily_draw',
+    'reveal_daily_draw',
     'update_top_beer',
     'update_username_view',
     'update_profile_picture',
@@ -141,6 +144,7 @@ __all__ = [
     'remove_brewery_manager',
     'suggest_edit_view',
     'purge_inactive_accounts_cron',
+    'daily_draw_reminder_cron',
     'PasswordResetCompleteView',
     'PasswordResetConfirmView',
     'PasswordResetDoneView',
