@@ -29,6 +29,16 @@ class TestDetailPages:
         context = auth_client.get(reverse("brewery_detail", args=[managed_brewery.slug])).context
         assert context["is_manager"] and list(context["current_managers"]) == [user]
 
+    def test_place_page_shows_a_visible_directions_button_beside_the_address(self, auth_client, geocoder):
+        bar = f.make_bar(name="Le Troubadour", street="1 rue de la Paix", postal_code="69001", city="Lyon")
+        html = auth_client.get(reverse("bar_detail", args=[bar.slug])).content.decode()
+        assert html.count("https://www.google.com/maps/dir/?") == 2  # l'adresse et le bouton mènent au même endroit
+        assert "Y aller" in html and "https://www.google.com/maps/search" not in html
+
+    def test_place_page_without_address_has_no_directions_button(self, auth_client):
+        html = auth_client.get(reverse("bar_detail", args=[f.make_bar().slug])).content.decode()
+        assert "Y aller" not in html
+
     def test_bar_page(self, auth_client):
         bar = f.make_bar(name="Le Comptoir")
         assert auth_client.get(reverse("bar_detail", args=[bar.slug])).context["bar"] == bar

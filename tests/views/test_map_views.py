@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -33,6 +35,30 @@ class TestMapPage:
         """Sans description (NULL), la fenêtre de modification ne doit pas se remplir du texte « None » (qui serait ensuite enregistré)."""
         f.make_spot(user, description=None)
         assert 'data-desc=""' in auth_client.get(URL).content.decode()
+
+    def test_souvenir_list_shows_own_and_shared_spots_most_recent_first(self, auth_client, user, other_user):
+        old = f.make_spot(user, title="Ancien", date="2026-01-01")
+        recent = f.make_spot(other_user, title="Recent", date="2026-06-01", friends=[user])
+        f.make_spot(f.make_user(), title="Invisible")
+        html = auth_client.get(URL).content.decode()
+        rows = re.findall(r'data-souvenir="([^"]+)"', html)
+        assert rows == [recent.slug, old.slug]
+        assert f"Partagé par {other_user.username}" in html and "Invisible" not in html.split("pb-sheet")[1]
+
+    def test_souvenir_sheet_holds_the_add_hint_and_counts_the_spots(self, auth_client, user):
+        f.make_spot(user)
+        html = auth_client.get(URL).content.decode()
+        sheet = html[html.index("data-sheet-panel"):html.index('id="geoloc-btn"')]
+        assert "Touchez la carte pour ajouter un souvenir" in sheet and ">1</span>" in sheet
+        assert html.count("Touchez la carte pour ajouter un souvenir") == 1
+
+    def test_empty_souvenir_sheet_still_explains_how_to_add_one(self, auth_client):
+        html = auth_client.get(URL).content.decode()
+        assert "Aucun souvenir pour l'instant." in html and "data-sheet-list" not in html
+
+    def test_souvenir_titles_are_escaped_in_the_list(self, auth_client, user):
+        f.make_spot(user, title="<img src=x onerror=alert(1)>")
+        assert "<img src=x onerror" not in auth_client.get(URL).content.decode()
 
     def test_the_popup_has_a_visible_edit_button(self, auth_client, user):
         spot = f.make_spot(user)
@@ -251,6 +277,16 @@ class TestPlacePopup:
         positions = [html.index(text) for text in (bar.image.url, "Le Troubadour", "Un bar chaleureux", "69001 Lyon")]
         assert positions == sorted(positions)
         assert reverse("bar_detail", args=[bar.slug]) in html
+
+    def test_offers_directions_next_to_the_link_to_the_page(self, auth_client, geocoder):
+        bar = f.make_bar(name="Le Troubadour", postal_code="69001", city="Lyon", street="1 rue de la Paix")
+        html = self.popup(auth_client, "bar", bar).content.decode()
+        assert "Voir la fiche" in html and "Y aller" in html and html.index("Voir la fiche") < html.index("Y aller")
+        assert "https://www.google.com/maps/dir/?" in html and "data-apple-url=\"https://maps.apple.com/?" in html
+
+    def test_no_directions_button_for_a_place_without_address_or_position(self, auth_client):
+        html = self.popup(auth_client, "bar", f.make_bar()).content.decode()
+        assert "Voir la fiche" in html and "Y aller" not in html
 
     def test_no_image_means_no_image_tag(self, auth_client, geocoder):
         brewery = f.make_brewery(name="Sans image")

@@ -1,0 +1,16 @@
+{% comment %}Ligne de la liste « Mes souvenirs » de la carte (static/script/souvenirs_sheet.js). Paramètre : spot. Hauteur fixe : la liste aimante chaque ligne en haut.{% endcomment %}
+<li>
+    <button type="button" class="pb-souvenir" data-souvenir="{{ spot.slug }}" aria-current="false">
+        {% if spot.photo_url %}
+        <img src="{{ spot.photo_url }}" alt="" loading="lazy" decoding="async" class="pb-souvenir-thumb">
+        {% else %}
+        <span class="pb-souvenir-thumb is-empty" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M16 6.5l2.3 4.7 5.2.8-3.8 3.7.9 5.2L16 18.4l-4.6 2.5.9-5.2-3.8-3.7 5.2-.8L16 6.5z"/></svg>
+        </span>
+        {% endif %}
+        <span class="min-w-0 flex-1 text-left">
+            <strong class="pb-title block truncate text-sm">{{ spot.title }}</strong>
+            <span class="block truncate text-[11px] text-gray-500">{{ spot.date|date:"d M Y" }} · {% if spot.user == request.user %}Vous{% else %}Partagé par {{ spot.user.username }}{% endif %}</span>
+        </span>
+    </button>
+</li>

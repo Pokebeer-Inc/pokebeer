@@ -37,5 +37,39 @@
     .pb-user i { animation: none; opacity: 0.5; }
 }
 
-/* Grande carte : le zoom se place au-dessus du rappel « Touchez la carte… » */
-#map .leaflet-bottom.leaflet-left { margin-bottom: 3.25rem; }
+/* Feuille « Mes souvenirs » : poignée seule quand elle est repliée, 38 % de la hauteur de l'écran (19 rem au plus) quand elle est dépliée.
+   --sheet-h est la hauteur courante : le zoom, la mention de la source et le bouton « Me localiser » restent au-dessus d'elle. */
+.pb-map-frame { --sheet-closed: 3.25rem; --sheet-open: min(38vh, 19rem); --sheet-h: var(--sheet-closed); }
+.pb-map-frame[data-sheet="open"] { --sheet-h: var(--sheet-open); }
+#map .leaflet-bottom { margin-bottom: var(--sheet-h); transition: margin-bottom 0.3s ease; }
+.pb-geoloc { bottom: calc(var(--sheet-h) + 1.25rem); transition: bottom 0.3s ease; }
+
+.pb-sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 1001; height: var(--sheet-h);
+    display: flex; flex-direction: column; overflow: hidden; transition: height 0.3s ease;
+    background: var(--color-base-200); border-radius: 1.25rem 1.25rem 0 0; box-shadow: 0 -4px 16px rgba(51, 51, 51, 0.18);
+}
+.pb-sheet-handle { position: relative; flex: none; height: var(--sheet-closed); display: flex; align-items: center; justify-content: center; width: 100%; cursor: pointer; }
+.pb-sheet-grip { position: absolute; top: 0.4rem; left: 50%; width: 2.25rem; height: 0.25rem; translate: -50% 0; border-radius: 9999px; background: #d9cfc5; }
+.pb-sheet-chevron { transition: rotate 0.3s ease; }
+/* Zones de glissement : le navigateur ne doit pas faire défiler la page à la place */
+.pb-sheet-handle, .pb-sheet-hint { touch-action: none; }
+/* Pendant le glissement, la feuille suit le doigt sans animation */
+.is-dragging .pb-sheet, .is-dragging #map .leaflet-bottom, .is-dragging .pb-geoloc { transition: none; }
+.pb-map-frame[data-sheet="open"] .pb-sheet-chevron { rotate: 180deg; }
+.pb-sheet-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pb-sheet-hint { flex: none; padding: 0 1rem 0.4rem; text-align: center; font-size: 0.7rem; color: #6b625a; }
+
+/* Liste : chaque ligne s'arrête en haut de la liste (aimantation), la ligne du haut pilote la carte ; la cale du bas permet à la dernière d'y arriver */
+.pb-sheet-list { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory; scrollbar-width: none; }
+.pb-sheet-list::-webkit-scrollbar { display: none; }
+.pb-sheet-list > li { flex: none; scroll-snap-align: start; }
+.pb-sheet-spacer { height: calc(100% - 3.5rem); scroll-snap-align: none !important; }
+.pb-souvenir { display: flex; align-items: center; gap: 0.75rem; width: 100%; height: 3.5rem; padding: 0 1rem; border-left: 3px solid transparent; transition: background 0.15s, border-color 0.15s; }
+.pb-souvenir[aria-current="true"] { background: var(--color-base-100); border-left-color: var(--color-primary); }
+.pb-souvenir-thumb { flex: none; width: 2.5rem; height: 2.5rem; border-radius: 0.6rem; object-fit: cover; background: var(--color-base-100); }
+.pb-souvenir-thumb.is-empty { display: flex; align-items: center; justify-content: center; color: var(--color-success); border: 1px solid #d9cfc5; }
+
+@media (prefers-reduced-motion: reduce) {
+    .pb-sheet, .pb-sheet-chevron, #map .leaflet-bottom, .pb-geoloc { transition: none; }
+}

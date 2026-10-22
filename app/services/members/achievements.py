@@ -30,6 +30,7 @@ class MemberCounts:
             total=Count('id'),
             bad=Count('id', filter=Q(note__lt=2)),
             guinness=Max('note', filter=Q(beer__name__icontains='guinness')),
+            keken=Max('note', filter=Q(beer__name__icontains='8.6') | Q(beer__name__icontains='8,6')),
             ours=Count('id', filter=Q(beer__brewery__match_key__contains='ours') & Q(beer__brewery__match_key__contains='dore')),
             contextual=Count('id', filter=~Q(venue_type='') & ~Q(serving_format='') & Q(price__isnull=False)),
         )
@@ -77,6 +78,7 @@ TROPHIES = (
     Trophy("chroniqueur", "Chroniqueur", "Préciser le lieu, le format et le prix de ses dégustations", (5, 25, 100, 250), lambda c: c.tastings['contextual'],
            points_per_unit=50),
     Trophy("irlandais", "Irlandais", "Noter une Guinness avec une excellente note", (5, 6, 8, 10), lambda c: c.tastings['guinness'] or 0, hidden=True),
+    Trophy("keken", "Goût de luxe", "Noter une 8.6 avec une excellente note", (5, 6, 8, 10), lambda c: c.tastings['keken'] or 0, hidden=True),
     Trophy("picon", "Copain de Gaétan", "Mentionner le Picon dans sa biographie", (1, 1, 1, 1), lambda c: c.bio_mentions('picon'), hidden=True),
     Trophy("ours", "Ours doré", "Boire une bière de la brasserie de l'Ours Doré", (1, 1, 1, 1), lambda c: 1 if c.tastings['ours'] else 0,
            category="brewery"),

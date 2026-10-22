@@ -4,5 +4,8 @@
     <strong class="pb-title block text-base">{{ place.name }}</strong>
     {% if place.description %}<p class="pb-popup-desc">{{ place.description|truncatechars:160 }}</p>{% endif %}
     {% if place.postal_code or place.city %}<span class="text-[10px] text-gray-500 block mb-1">{{ place.postal_code }} {{ place.city }}</span>{% endif %}
-    <button type="button" data-on-click="openPlaceModal" data-no-event data-args='["{{ detail_url }}"]' class="underline hover:no-underline text-xs font-bold">Voir la fiche</button>
+    <div class="flex items-center justify-between gap-2 mt-2">
+        <button type="button" data-on-click="openPlaceModal" data-no-event data-args='["{{ detail_url }}"]' class="btn btn-xs btn-outline border-secondary normal-case">Voir la fiche</button>
+        {% include "partials/directions_button.html" with links=directions %}
+    </div>
 </div>

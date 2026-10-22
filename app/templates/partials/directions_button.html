@@ -1,0 +1,5 @@
+{% comment %}
+Bouton « Y aller » d'un bar ou d'une brasserie (comportement : static/script/directions.js). Paramètres : links (services/establishments/directions.links,
+rien à afficher s'il est vide), label (facultatif), button_class (classes du bouton, facultatif ; pas `cls`, que le partial d'icône lirait aussi). Google Maps dans un nouvel onglet ; Plans sur iPhone, iPad et Mac tactile.
+{% endcomment %}
+{% if links %}<a href="{{ links.google }}" data-apple-url="{{ links.apple }}" target="_blank" rel="noopener noreferrer" class="{{ button_class|default:'btn btn-xs btn-primary border-secondary text-black normal-case gap-1' }}">{% include "partials/icon.html" with name="navigate" size="14" %}{{ label|default:"Y aller" }}</a>{% endif %}

@@ -12,7 +12,7 @@ from django.views.decorators.http import require_GET, require_POST
 from ..forms import ClaimForm
 from ..models import EstablishmentClaim, ManagerInvitation
 from ..services.catalog.selectors import brewery_beers
-from ..services.establishments import claims, menu, team
+from ..services.establishments import claims, directions, menu, team
 from ..services.establishments.team import is_manager
 from ..services.moderation.content import CONTENT_TYPES
 from ..services.moderation.suggestions import menu_context as suggestion_menu
@@ -142,6 +142,7 @@ def place_context(place, user):
     pending = None if manager else claims.pending_claim(user, kind, place)
     return {
         'is_manager': manager,
+        'directions': directions.links(place),
         'current_managers': place.managers.all() if manager else [],
         'pending_invitations': list(team.invitations_of(place)) if manager else [],
         'can_claim': not manager and pending is None and user.is_active,
