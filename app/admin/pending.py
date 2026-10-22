@@ -1,5 +1,5 @@
 """Éléments « à traiter » : pastille du menu latéral et KPI en tête de liste, pour les modèles à statut."""
-from ..models import Beer, Feedback, Report
+from ..models import Beer, Feedback, Report, Style
 from ..services.establishments import claims
 
 PENDING_REPORTS_EXCLUDED_STATUS = 'resolved'
@@ -22,6 +22,11 @@ def pending_report_count(request=None):
 def pending_unbranded_beer_count(request=None):
     """Bières ajoutées sans brasserie, que le staff doit rattacher (ou créer la brasserie) : la file « Bières à compléter »."""
     return Beer.objects.unbranded().count()
+
+
+def pending_unofficial_style_count(request=None):
+    """Styles saisis par des membres, absents du référentiel, que le staff doit ranger dans une famille ou fusionner avec un style officiel."""
+    return Style.objects.filter(is_official=False).count()
 
 
 class PendingKpiMixin:

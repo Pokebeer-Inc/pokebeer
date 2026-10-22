@@ -126,12 +126,12 @@ class TestRedirectsAndAccess:
         response = auth_client.post(reverse("follow_user", args=[other_user.username]), HTTP_REFERER="http://testserver/beers/")
         assert response.url == "http://testserver/beers/"
 
-    @pytest.mark.parametrize("name", ["search_beer", "search_brewery"])
+    @pytest.mark.parametrize("name", ["search_beer", "search_brewery", "search_style"])
     def test_catalogue_search_requires_login(self, client, name):
         response = client.get(reverse(name), {"term": "ab"})
         assert response.status_code == 302 and response.url.startswith(reverse(LOGIN))
 
-    @pytest.mark.parametrize("name", ["search_beer", "search_brewery"])
+    @pytest.mark.parametrize("name", ["search_beer", "search_brewery", "search_style"])
     def test_catalogue_search_works_when_logged_in(self, auth_client, name):
         assert auth_client.get(reverse(name), {"term": "ab"}).status_code == 200
 

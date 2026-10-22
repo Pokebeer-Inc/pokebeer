@@ -2,7 +2,7 @@
 from .mixins import GeocodableMixin, MatchKeyMixin, PostalAddressMixin, VerifiableMixin, OfficialImageMixin
 from .users import STAFF_GROUP, BeerUserManager, BeerUser, UserFollow, UserBlock
 from .establishments import Brewery, Bar
-from .styles import Style
+from .styles import StyleFamily, Style, BeerStyle
 from .beers import Beer, BeerDraft, Drinks, DrinkReaction, CustomNotebook
 from .menus import BarBeerQuerySet, BarBeer
 from .places import BeerSpot, PostalCode, ReverseGeocode

@@ -54,7 +54,7 @@ service lui-même (`connect_signals()`, voir `app/apps.py`). Toute page exige d'
 | `recommendations.py` | Recommandations de bières de l'accueil, d'après ce que le membre a aimé. |
 | `search.py` | Recherche unique : bières, brasseries, bars et membres. |
 | `selectors.py` | Requêtes de l'application : bières, membres, brasseries, bars, carnet, fil d'activité, liste « À goûter ». |
-| `style_registry.py` | Référentiel des styles (table `Style`) : noms officiels, alias, famille de chaque bière ; branché sur l'enregistrement d'une bière. |
+| `style_registry.py` | Référentiel des styles (tables `StyleFamily` et `Style`) : noms officiels, alias, suggestions, styles liés à chaque bière (règles dans `domain/style_structure.py`) ; branché sur l'enregistrement d'une bière. |
 | `styles.py` | Styles du catalogue pour les filtres, en cache vidé à chaque changement de bière. |
 | `tasting_photos.py` | Photos de dégustation : validation stricte puis ré-encodage, stockées dans media/tastings/ (Supabase en production). |
 

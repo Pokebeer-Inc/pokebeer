@@ -468,6 +468,13 @@ UNFOLD = {
                         "permission": lambda request: request.user.is_staff,
                     },
                     {
+                        "title": _("Styles à valider"),
+                        "icon": "label",
+                        "link": format_lazy("{}?is_official__exact=0", reverse_lazy("admin:app_style_changelist")),
+                        "badge": "app.admin.pending.pending_unofficial_style_count",
+                        "permission": lambda request: request.user.is_staff,
+                    },
+                    {
                         "title": _("Demandes de gestion"),
                         "icon": "storefront",
                         "link": reverse_lazy("admin:app_establishmentclaim_changelist"),

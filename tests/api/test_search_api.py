@@ -66,11 +66,11 @@ class TestSearchBeer:
 
 
 class TestAutocompleteLimits:
-    @pytest.mark.parametrize("name", ["search_beer", "search_brewery"])
+    @pytest.mark.parametrize("name", ["search_beer", "search_brewery", "search_style"])
     def test_get_only(self, auth_client, name):
         assert auth_client.post(reverse(name), {"term": "test"}).status_code == 405
 
-    @pytest.mark.parametrize("name", ["search_beer", "search_brewery"])
+    @pytest.mark.parametrize("name", ["search_beer", "search_brewery", "search_style"])
     def test_throttled_per_member(self, auth_client, other_client, user, name):
         exhaust(AUTOCOMPLETE_BY_USER, user.pk)
         assert auth_client.get(reverse(name), {"term": "test"}).status_code == 429

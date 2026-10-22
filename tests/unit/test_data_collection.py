@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from app.domain import styles as style_rules
-from app.models import Beer, Drinks, Notification, Style
+from app.models import Beer, Drinks, Notification, Style, StyleFamily
 from app.services.analytics import profiles
 from app.services.analytics.custom import engine
 from app.services.analytics.periods import Period
@@ -41,31 +41,37 @@ class TestStyleRegistry:
     def test_a_beer_is_normalised_whatever_the_way_it_is_saved(self):
         beer = f.make_beer(style="west coast ipa, india pale ale")
         beer.refresh_from_db()
-        assert (beer.style, beer.style_family) == ("West Coast IPA, IPA", "IPA")
+        assert (beer.style, beer.style_family_name) == ("West Coast IPA, IPA", "IPA")
+        assert list(beer.styles.order_by("beer_styles__position").values_list("name", flat=True)) == ["West Coast IPA", "IPA"]
 
-    def test_unknown_style_is_kept_without_family(self):
+    def test_unknown_style_is_kept_as_a_style_to_validate_without_family(self):
         beer = f.make_beer(style="Zythos exotique")
-        assert (beer.style, beer.style_family) == ("Zythos exotique", "")
+        beer.refresh_from_db()
+        assert (beer.style, beer.style_family_name) == ("Zythos exotique", "")
+        pending = Style.objects.get(name="Zythos exotique")
+        assert not pending.is_official and pending.family is None and beer.primary_style == pending
 
     def test_editing_the_registry_applies_to_new_saves_immediately(self):
-        Style.objects.create(name="Lambic", family="Belge et abbaye", aliases="Gueuze\nKriek")
-        beer = f.make_beer(style="gueuze")
-        assert (beer.style, beer.style_family) == ("Lambic", "Belge et abbaye")
+        family = StyleFamily.objects.create(name="Fermière")
+        Style.objects.create(name="Fermette", family=family, aliases="Farmhouse\nRustique")
+        beer = f.make_beer(style="farmhouse")
+        beer.refresh_from_db()
+        assert (beer.style, beer.style_family_name) == ("Fermette", "Fermière")
 
     def test_partial_save_of_the_style_keeps_the_family_in_step(self):
         beer = f.make_beer(style="Stout")
         beer.style = "IPA"
         beer.save(update_fields=["style"])
         beer.refresh_from_db()
-        assert (beer.style, beer.style_family) == ("IPA", "IPA")
+        assert (beer.style, beer.style_family_name, beer.primary_style.name) == ("IPA", "IPA", "IPA")
 
     def test_renormalize_updates_only_what_changed(self):
         beer = f.make_beer(style="Stout")
-        Beer.objects.filter(pk=beer.pk).update(style="stout", style_family="")  # écriture qui contourne le référentiel
+        Beer.objects.filter(pk=beer.pk).update(style="stout")  # écriture qui contourne le référentiel
         Style.objects.filter(name="Stout").update(aliases="Dry Stout")
         assert style_registry.renormalize_all() == 1 and style_registry.renormalize_all() == 0
         beer.refresh_from_db()
-        assert (beer.style, beer.style_family) == ("Stout", "Brune, porter et stout")
+        assert (beer.style, beer.style_family_name) == ("Stout", "Brune, porter et stout")
 
     def test_command_reports_the_count(self, capsys):
         call_command("normalize_styles")

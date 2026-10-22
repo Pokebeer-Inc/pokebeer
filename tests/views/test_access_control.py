@@ -70,6 +70,7 @@ PROTECTED_ROUTES = [
     ("api_update_fcm_token", {}, POST),
     ("search_brewery", {}, GET),
     ("search_beer", {}, GET),
+    ("search_style", {}, GET),
 ]
 
 PUBLIC_ROUTES = [

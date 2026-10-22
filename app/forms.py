@@ -8,7 +8,7 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, SetP
 from django.core.exceptions import ValidationError
 from .auth_forms import ThrottledLoginMixin
 from .services.catalog import catalog_matching, ean
-from .domain import notification_types
+from .domain import notification_types, style_structure, styles
 from .services.catalog import style_registry
 from .services.messaging import marketing
 from .services.establishments import postal_codes
@@ -588,7 +588,11 @@ class BeerForm(ProcessedImageMixin, forms.ModelForm):
 
     def clean_style(self):
         style = self.cleaned_data.get('style')
-        return style_registry.canonicalize(style) if style else style
+        if not style:
+            return style
+        if len(styles.split_styles(style)) > style_structure.MAX_STYLES:
+            raise ValidationError(f"{style_structure.MAX_STYLES} styles au plus (séparés par des virgules).", code='too_many_styles')
+        return style_registry.canonicalize(style)
     
 class CustomNotebookForm(forms.ModelForm):
     title = forms.CharField(max_length=150, label="Titre", validators=[plain_text_validator])
