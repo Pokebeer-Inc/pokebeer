@@ -176,10 +176,10 @@ class TestSpotPhoto:
         spot = BeerSpot.objects.get()
         assert not spot.photo and spot.photo_url is None
 
-    def test_photo_is_stored_as_webp_at_the_root_of_its_bucket(self, auth_client):
+    def test_photo_is_stored_as_webp_in_the_spots_folder(self, auth_client):
         auth_client.post(URL, spot_data(photo=f.make_image_upload()))
         spot = BeerSpot.objects.get()
-        assert spot.photo.name.endswith(".webp") and "/" not in spot.photo.name
+        assert spot.photo.name.startswith("spots/") and spot.photo.name.endswith(".webp")
         assert spot.photo_url == spot.photo.url
 
     def test_invalid_file_refuses_the_spot(self, auth_client):

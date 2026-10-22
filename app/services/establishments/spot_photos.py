@@ -1,4 +1,4 @@
-"""Photos des souvenirs de la carte : même contrôle que les photos de dégustation, stockées dans leur propre bucket (public en lecture).
+"""Photos des souvenirs de la carte : même contrôle que les photos de dégustation, stockées dans le dossier spots/ du bucket des médias.
 
 Le fichier envoyé n'est jamais conservé tel quel (voir images.reencode_as_webp) ; le nom est aléatoire et l'URL non devinable.
 """
